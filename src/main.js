@@ -80,6 +80,7 @@ async function login() {
 
 async function loadProfile() {
   const { data: userData } = await supabase.auth.getUser()
+
   if (!userData.user) {
     renderLogin()
     return
