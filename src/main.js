@@ -128,7 +128,7 @@ function renderApp() {
         <header class="topbar">
           <div>
             <h2>${getPageTitle()}</h2>
-            <p>${currentProfile.name || currentProfile.email}｜${currentProfile.role}｜${currentProfile.department_name || '-'}｜${currentProfile.position || '-'}</p>
+            <p>${currentProfile.name || currentProfile.email}｜${currentProfile.role}｜${currentProfile.department_name || '-'}｜${currentProfile.position_name || currentProfile.position || '-'}</p>
           </div>
           <button class="logout-btn" id="logoutBtn">登出</button>
         </header>
