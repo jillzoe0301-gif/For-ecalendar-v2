@@ -241,11 +241,12 @@ button {
     right: 0;
     bottom: 0;
     display: flex;
+    flex-wrap: nowrap;
     gap: 6px;
     background: white;
     border-top: 1px solid var(--border);
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-    z-index: 50;
+    z-index: 999;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -259,58 +260,17 @@ button {
   .mobile-nav button {
     flex: 0 0 auto;
     min-width: 64px;
+    width: auto;
     background: transparent;
     color: var(--text);
     font-size: 12px;
     padding: 8px 10px;
     border-radius: 12px;
+    white-space: nowrap;
   }
 
   .mobile-nav button.active {
     background: var(--light-blue);
     color: var(--blue);
-  }
-}
-
-
-/* V001 mobile bottom nav：一整列橫向滑動，不換行 */
-@media (max-width: 768px) {
-  .mobile-nav {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    gap: 6px !important;
-    background: white !important;
-    border-top: 1px solid var(--border) !important;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) !important;
-    z-index: 999 !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    white-space: nowrap !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  .mobile-nav::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  .mobile-nav button {
-    flex: 0 0 auto !important;
-    min-width: 64px !important;
-    width: auto !important;
-    background: transparent !important;
-    color: var(--text) !important;
-    font-size: 12px !important;
-    padding: 8px 10px !important;
-    border-radius: 12px !important;
-    white-space: nowrap !important;
-  }
-
-  .mobile-nav button.active {
-    background: var(--light-blue) !important;
-    color: var(--blue) !important;
   }
 }
