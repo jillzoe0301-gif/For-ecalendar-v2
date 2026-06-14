@@ -579,3 +579,44 @@ button {
     color: var(--blue);
   }
 }
+
+
+.hidden { display: none !important; }
+
+.field-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.time-select-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 160px));
+  gap: 12px;
+  align-items: end;
+}
+
+.conditional-time {
+  padding: 12px;
+  border-radius: 16px;
+  background: #eef5ff;
+  border: 1px solid #c7d2fe;
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .service-grid,
+  .time-select-row {
+    grid-template-columns: 1fr;
+  }
+}

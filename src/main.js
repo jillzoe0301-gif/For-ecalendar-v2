@@ -24,7 +24,14 @@ const pages = [
   { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true }
 ]
 
-const scheduleTypes = [
+const formCategories = [
+  '服務行程',
+  '一般記事',
+  '待辦事項',
+  '請假 / 會議 / 活動 / 外訓'
+]
+
+const serviceScheduleTypes = [
   '面談',
   '上線 / 教育訓練',
   '定期 / 開會',
@@ -39,12 +46,11 @@ const scheduleTypes = [
   '住變資訊',
   '驗證提醒',
   '返台提醒',
-  '提醒追蹤事項',
   '宿舍',
   '其他'
 ]
 
-const subTypeMap = {
+const serviceSubTypeMap = {
   '送工': ['新入境', '承接'],
   '銀行': ['開戶', '補辦', '領錢', '異動'],
   '醫療': ['看診', '回診', '住院', '急診', '開刀'],
@@ -52,9 +58,13 @@ const subTypeMap = {
   '收送簽文件': ['證件', '用印', '簽文件'],
   '逃跑通知': ['逃跑第一天', '逃跑第二天', '逃跑第三天'],
   '轉出追蹤': ['終止日', '轉出到期日'],
+  '住變資訊': ['搬家時間'],
   '驗證提醒': ['最後工作日', '驗證日期', '離境日期'],
   '返台提醒': ['返台日期', '班機', '時間']
 }
+
+const todoItems = ['送件', '補件', '登記', '回覆', '追蹤']
+const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '公司活動', '部門活動']
 
 let currentProfile = null
 let currentPage = 'personalSchedule'
@@ -144,7 +154,7 @@ function renderLogin() {
       <div class="login-card">
         <div class="logo-mark">FOR-e</div>
         <h1>FOR-e 共享排程系統</h1>
-        <p>V002-1D｜表單欄位與翻譯權限測試</p>
+        <p>V002-1E｜依類別切換表單欄位</p>
 
         <label for="email">Email / 帳號</label>
         <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
@@ -156,7 +166,7 @@ function renderLogin() {
         <div id="errorText" class="error"></div>
 
         <div class="login-note">
-          測試項目：表單欄位整理、查看行程、標記完成、取消行程、翻譯權限限制。
+          測試項目：一般記事、待辦事項、請假 / 會議 / 活動 / 外訓、服務行程欄位切換。
         </div>
       </div>
     </section>
@@ -356,6 +366,7 @@ function getPageTitle() {
 
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
+  if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'users') return renderUsersPage()
@@ -371,7 +382,7 @@ function renderToolbar(title) {
     <div class="page-toolbar">
       <div>
         <h3>${title}</h3>
-        <p class="muted">V002-1D：行程表單欄位整理與翻譯權限測試。</p>
+        <p class="muted">V002-1E：依類別切換表單欄位，時間改為 5 分鐘下拉。</p>
       </div>
       <div class="toolbar-actions">
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
@@ -403,6 +414,15 @@ function renderPersonalSchedule() {
   `
 }
 
+function renderPersonalTodo() {
+  const myRows = schedules.filter(row => isMine(row) && ['一般記事', '待辦事項'].includes(row.category))
+  return `
+    ${renderToolbar('個人一般待辦')}
+    ${renderReadStatus()}
+    ${renderScheduleList(myRows, '目前沒有一般記事或待辦事項。')}
+  `
+}
+
 function renderScheduleOverview() {
   return `
     ${renderToolbar('行程總覽')}
@@ -427,10 +447,11 @@ function renderScheduleList(rows, emptyText) {
           <div class="schedule-card-main">
             <div class="schedule-date">${formatDate(row.start_date)}｜${formatTime(row)}</div>
             <div class="schedule-title">${escapeHtml(row.title)}</div>
-            <div class="schedule-meta">${escapeHtml(row.category)}｜${escapeHtml(row.schedule_type)}${row.sub_type ? '｜' + escapeHtml(row.sub_type) : ''}</div>
+            <div class="schedule-meta">${escapeHtml(row.category)}${row.schedule_type ? '｜' + escapeHtml(row.schedule_type) : ''}${row.sub_type ? '｜' + escapeHtml(row.sub_type) : ''}</div>
             <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
-            <div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name || '-')}</div>
-            <div class="schedule-meta">地點：${escapeHtml(row.location_name || '-')}</div>
+            ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
+            ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
+            ${row.sub_type_note ? `<div class="schedule-meta">備註：${escapeHtml(row.sub_type_note)}</div>` : ''}
             ${row.need_service_record ? '<div class="service-record-hint">需服務紀錄單</div>' : ''}
           </div>
           <div class="schedule-card-actions">
@@ -490,14 +511,14 @@ function openScheduleDetail(scheduleId) {
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type)}</strong></div>
-        <div><span>附加行程</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
+        <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || row.sub_type_note || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(getAssigneeNames(row))}</strong></div>
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
-        <div class="span-2"><span>辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
+        <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         <div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>
         <div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
-        <div class="span-2"><span>內容說明</span><strong>${escapeHtml(row.description || '-')}</strong></div>
+        <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>服務紀錄單</span><strong>${row.need_service_record ? '需繳交' : '不需繳交'}</strong></div>
       </div>
 
@@ -532,23 +553,49 @@ function openScheduleDetail(scheduleId) {
   }
 }
 
-function openScheduleModal() {
-  const defaultStaffId = currentProfile.staff_id || ''
-  const staffOptions = staffList.map(staff => `
+
+function staffOptionsHtml(defaultStaffId = '') {
+  return staffList.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
       <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
     </label>
   `).join('')
+}
 
-  const typeOptions = scheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
+function staffSelectOptionsHtml() {
+  return `<option value="">未指定</option>` + staffList.map(staff => `
+    <option value="${staff.staff_id}">${staff.name}｜${staff.department_name}</option>
+  `).join('')
+}
+
+function hourOptionsHtml() {
+  return Array.from({ length: 24 }, (_, i) => {
+    const value = String(i).padStart(2, '0')
+    return `<option value="${value}">${value}</option>`
+  }).join('')
+}
+
+function minuteOptionsHtml() {
+  return Array.from({ length: 12 }, (_, i) => {
+    const value = String(i * 5).padStart(2, '0')
+    return `<option value="${value}">${value}</option>`
+  }).join('')
+}
+
+function openScheduleModal() {
+  const defaultStaffId = currentProfile.staff_id || ''
+  const formCategoryOptions = formCategories.map(category => `<option value="${category}">${category}</option>`).join('')
+  const serviceTypeOptions = serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
+  const todoOptions = todoItems.map(item => `<option value="${item}">${item}</option>`).join('')
+  const leaveOptions = leaveMeetingTypes.map(item => `<option value="${item}">${item}</option>`).join('')
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
   modal.innerHTML = `
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>新增一般行程</h3>
+        <h3>新增行程</h3>
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
       </div>
 
@@ -560,52 +607,19 @@ function openScheduleModal() {
 
         <label>
           類別
-          <select name="category">
-            <option value="服務行程">服務行程</option>
-            <option value="一般記事">一般記事</option>
-            <option value="待辦事項">待辦事項</option>
-            <option value="提醒事項">提醒事項</option>
-            <option value="會議 / 請假 / 活動 / 外訓">會議 / 請假 / 活動 / 外訓</option>
+          <select name="category" id="categorySelect">
+            ${formCategoryOptions}
           </select>
         </label>
 
         <label>
-          行程類型
-          <select name="schedule_type" id="scheduleTypeSelect">
-            ${typeOptions}
-          </select>
-        </label>
-
-        <label>
-          附加行程
-          <select name="sub_type" id="subTypeSelect">
-            <option value="">無</option>
-          </select>
-        </label>
-
-        <label class="span-2">
-          附加行程備註
-          <input name="sub_type_note" placeholder="例如：掛號號碼、證件內容、航班資訊">
-        </label>
-
-        <label class="span-2">
-          辦理內容
-          <input name="title" required placeholder="例如：王小明回診、客戶面談、文件處理">
-        </label>
-
-        <label>
-          起日
+          日期
           <input name="start_date" type="date" required value="${todayString()}">
         </label>
 
         <label>
-          迄日
-          <input name="end_date" type="date" value="${todayString()}">
-        </label>
-
-        <label>
           時間類型
-          <select name="time_type">
+          <select name="time_type" id="timeTypeSelect">
             <option value="不指定">不指定</option>
             <option value="整天">整天</option>
             <option value="上午">上午</option>
@@ -614,49 +628,107 @@ function openScheduleModal() {
           </select>
         </label>
 
-        <label>
-          開始時間
-          <input name="start_time" type="time" step="300">
-        </label>
+        <div class="span-2 conditional-time hidden" id="specificTimeBlock">
+          <div class="time-select-row">
+            <label>
+              小時
+              <select name="start_hour">${hourOptionsHtml()}</select>
+            </label>
+            <label>
+              分鐘
+              <select name="start_minute">${minuteOptionsHtml()}</select>
+            </label>
+          </div>
+          <p class="field-hint">分鐘固定以 5 分鐘為單位，不再使用瀏覽器原生時間欄位。</p>
+        </div>
 
-        <label>
-          區域 / 客戶名稱
-          <input name="customer_name" placeholder="例如：客來喜">
-        </label>
+        <div class="span-2 form-section" data-section="common-simple">
+          <label>
+            標題
+            <input name="title" required placeholder="請輸入標題">
+          </label>
 
-        <label>
-          地點
-          <input name="location_name" placeholder="例如：醫院、公司、宿舍">
-        </label>
+          <label>
+            內容
+            <textarea name="description" rows="3" placeholder="請輸入內容"></textarea>
+          </label>
+        </div>
 
-        <label class="span-2">
-          地址
-          <input name="address" placeholder="完整地址，可先空白">
-        </label>
+        <div class="span-2 form-section hidden" data-section="todo">
+          <label>
+            待辦項目
+            <select name="todo_item">${todoOptions}</select>
+          </label>
+          <p class="field-hint">待辦項目之後會放到「選項管理」維護，可新增、修改、停用。</p>
+        </div>
 
-        <label>
-          公務車
-          <input name="car_no" placeholder="例如：A車、B車、車號">
-        </label>
+        <div class="span-2 form-section hidden" data-section="leave-meeting">
+          <label>
+            類別細項
+            <select name="leave_meeting_type">${leaveOptions}</select>
+          </label>
 
-        <label>
-          服務紀錄單繳交日期
-          <input name="service_record_submitted_date" type="date">
-        </label>
+          <label>
+            代理人
+            <select name="proxy_staff_id" id="proxyStaffSelect">${staffSelectOptionsHtml()}</select>
+          </label>
+        </div>
 
-        <label class="span-2 service-check">
-          <input name="need_service_record" type="checkbox">
-          <span>此行程需要服務紀錄單</span>
-        </label>
+        <div class="span-2 form-section hidden service-grid" data-section="service">
+          <label>
+            行程類型
+            <select name="schedule_type" id="scheduleTypeSelect">${serviceTypeOptions}</select>
+          </label>
 
-        <label class="span-2">
-          內容說明
-          <textarea name="description" rows="3" placeholder="補充說明"></textarea>
-        </label>
+          <label>
+            附加行程
+            <select name="sub_type" id="subTypeSelect"><option value="">無</option></select>
+          </label>
+
+          <label>
+            附加行程備註
+            <input name="sub_type_note" placeholder="例如：掛號號碼、證件內容、航班資訊">
+          </label>
+
+          <label>
+            迄日
+            <input name="end_date" type="date" value="${todayString()}">
+          </label>
+
+          <label>
+            區域 / 客戶名稱
+            <input name="customer_name" placeholder="例如：客來喜">
+          </label>
+
+          <label>
+            地點
+            <input name="location_name" placeholder="例如：醫院、公司、宿舍">
+          </label>
+
+          <label class="span-2">
+            地址
+            <input name="address" placeholder="完整地址，可先空白">
+          </label>
+
+          <label>
+            公務車
+            <input name="car_no" placeholder="例如：A車、B車、車號">
+          </label>
+
+          <label>
+            服務紀錄單繳交日期
+            <input name="service_record_submitted_date" type="date">
+          </label>
+
+          <label class="span-2 service-check">
+            <input name="need_service_record" type="checkbox">
+            <span>此行程需要服務紀錄單</span>
+          </label>
+        </div>
 
         <div class="span-2">
           <div class="field-title">執行者</div>
-          <div class="checkbox-list">${staffOptions || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
+          <div class="checkbox-list">${staffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
         </div>
 
         <div class="modal-actions span-2">
@@ -669,21 +741,57 @@ function openScheduleModal() {
 
   document.body.appendChild(modal)
 
+  const categorySelect = document.querySelector('#categorySelect')
+  const timeTypeSelect = document.querySelector('#timeTypeSelect')
   const scheduleTypeSelect = document.querySelector('#scheduleTypeSelect')
   const subTypeSelect = document.querySelector('#subTypeSelect')
 
+  function refreshFormSections() {
+    const category = categorySelect.value
+    document.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
+    document.querySelector('[data-section="common-simple"]').classList.remove('hidden')
+
+    if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
+    if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
+    if (category === '服務行程') document.querySelector('[data-section="service"]').classList.remove('hidden')
+  }
+
+  function refreshTimeBlock() {
+    document.querySelector('#specificTimeBlock').classList.toggle('hidden', timeTypeSelect.value !== '指定時間')
+  }
+
   function refreshSubTypes() {
     const selected = scheduleTypeSelect.value
-    const items = subTypeMap[selected] || []
+    const items = serviceSubTypeMap[selected] || []
     subTypeSelect.innerHTML = `<option value="">無</option>` + items.map(item => `<option value="${item}">${item}</option>`).join('')
   }
 
+  categorySelect.addEventListener('change', refreshFormSections)
+  timeTypeSelect.addEventListener('change', refreshTimeBlock)
   scheduleTypeSelect.addEventListener('change', refreshSubTypes)
+
+  refreshFormSections()
+  refreshTimeBlock()
   refreshSubTypes()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#scheduleForm').addEventListener('submit', event => saveSchedule(event, modal))
+}
+
+function getStartTime(form) {
+  const timeType = form.get('time_type')
+  if (timeType !== '指定時間') return null
+  const hour = form.get('start_hour') || '00'
+  const minute = form.get('start_minute') || '00'
+  return `${hour}:${minute}:00`
+}
+
+function getSelectedProxyName() {
+  const proxySelect = document.querySelector('#proxyStaffSelect')
+  if (!proxySelect || !proxySelect.value) return ''
+  const option = proxySelect.options[proxySelect.selectedIndex]
+  return option ? option.textContent : ''
 }
 
 async function saveSchedule(event, modal) {
@@ -692,6 +800,7 @@ async function saveSchedule(event, modal) {
   saving = true
 
   const form = new FormData(event.target)
+  const category = form.get('category')
   const executorIds = [...document.querySelectorAll('input[name="executor"]:checked')].map(input => input.value)
 
   if (!executorIds.length) {
@@ -702,8 +811,43 @@ async function saveSchedule(event, modal) {
 
   const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  const needServiceRecord = form.get('need_service_record') === 'on'
-  const submittedDate = form.get('service_record_submitted_date') || null
+  const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
+  const submittedDate = category === '服務行程' ? (form.get('service_record_submitted_date') || null) : null
+
+  let scheduleType = ''
+  let subType = ''
+  let subTypeNote = null
+  let customerName = null
+  let locationName = null
+  let address = null
+  let carNo = null
+  let endDate = form.get('start_date')
+
+  if (category === '一般記事') {
+    scheduleType = '一般記事'
+  }
+
+  if (category === '待辦事項') {
+    scheduleType = '待辦事項'
+    subType = form.get('todo_item') || null
+  }
+
+  if (category === '請假 / 會議 / 活動 / 外訓') {
+    scheduleType = form.get('leave_meeting_type') || '請假'
+    subType = scheduleType
+    subTypeNote = getSelectedProxyName() ? `代理人：${getSelectedProxyName()}` : null
+  }
+
+  if (category === '服務行程') {
+    scheduleType = form.get('schedule_type') || '其他'
+    subType = form.get('sub_type') || null
+    subTypeNote = form.get('sub_type_note') || null
+    customerName = form.get('customer_name') || null
+    locationName = form.get('location_name') || null
+    address = form.get('address') || null
+    carNo = form.get('car_no') || null
+    endDate = form.get('end_date') || form.get('start_date')
+  }
 
   const schedulePayload = {
     creator_profile_id: currentProfile.profile_id,
@@ -711,20 +855,20 @@ async function saveSchedule(event, modal) {
     creator_name: currentProfile.name || currentProfile.email,
     department_id: firstStaff.department_id || currentProfile.department_id,
     department_name: firstStaff.department_name || currentProfile.department_name,
-    category: form.get('category'),
-    schedule_type: form.get('schedule_type'),
-    sub_type: form.get('sub_type') || null,
-    sub_type_note: form.get('sub_type_note') || null,
+    category,
+    schedule_type: scheduleType,
+    sub_type: subType || null,
+    sub_type_note: subTypeNote,
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
-    end_date: form.get('end_date') || form.get('start_date'),
+    end_date: endDate,
     time_type: form.get('time_type'),
-    start_time: form.get('start_time') || null,
-    customer_name: form.get('customer_name') || null,
-    location_name: form.get('location_name') || null,
-    address: form.get('address') || null,
-    car_no: form.get('car_no') || null,
+    start_time: getStartTime(form),
+    customer_name: customerName,
+    location_name: locationName,
+    address,
+    car_no: carNo,
     status: '未完成',
     need_service_record: needServiceRecord,
     service_record_submitted: Boolean(submittedDate),
@@ -794,7 +938,7 @@ async function saveSchedule(event, modal) {
     action_type: '新增',
     source_type: 'schedule',
     source_id: schedule.schedule_id,
-    note: 'V002-1D 新增一般行程'
+    note: 'V002-1E 新增行程'
   })
 
   modal.remove()
