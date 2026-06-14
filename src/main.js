@@ -86,9 +86,7 @@ async function loadProfile() {
   }
 
   const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('profile_id', userData.user.id)
+    .rpc('get_my_profile')
     .single()
 
   if (error || !profile) {
