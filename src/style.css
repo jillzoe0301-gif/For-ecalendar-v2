@@ -102,6 +102,15 @@ button {
   min-height: 22px;
 }
 
+.error-card {
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff1f2;
+  color: var(--danger);
+  border: 1px solid #fecdd3;
+}
+
 .login-note {
   margin-top: 16px;
   padding: 12px;
@@ -212,9 +221,117 @@ button {
   margin-top: 16px;
 }
 
-.empty-state p {
+.empty-state p,
+.muted {
   color: var(--muted);
   margin-bottom: 0;
+}
+
+.page-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.page-toolbar h3 {
+  margin: 0 0 4px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.secondary-btn {
+  background: #eef2ff;
+  color: var(--blue);
+  padding: 10px 14px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.summary-card strong {
+  display: block;
+  font-size: 26px;
+  color: var(--blue);
+}
+
+.summary-card span {
+  color: var(--muted);
+}
+
+.schedule-list {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: white;
+}
+
+.schedule-card.is-completed {
+  opacity: 0.6;
+  background: #f3f4f6;
+}
+
+.schedule-card.is-cancelled {
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+
+.schedule-date {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.schedule-title {
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.schedule-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.schedule-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 80px;
+}
+
+.status-pill {
+  background: var(--light-blue);
+  color: var(--blue);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .mobile-nav { display: none; }
@@ -233,6 +350,28 @@ button {
   .logout-btn {
     margin-top: 12px;
     width: 100%;
+  }
+
+  .page-toolbar {
+    display: block;
+  }
+
+  .toolbar-actions {
+    margin-top: 12px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .schedule-card {
+    display: block;
+  }
+
+  .schedule-card-actions {
+    margin-top: 10px;
+    flex-direction: row;
+    justify-content: flex-end;
   }
 
   .mobile-nav {

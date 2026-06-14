@@ -27,9 +27,45 @@ const pages = [
 
 let currentProfile = null
 let currentPage = 'personalSchedule'
+let schedules = []
+let loadingSchedules = false
+let schedulesError = ''
 
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
+}
+
+function isPowerRole() {
+  return ['管理員', '主管', '行政 / 海外'].includes(currentProfile?.role)
+}
+
+function isMine(row) {
+  const myStaffId = currentProfile?.staff_id
+  if (!myStaffId) return false
+
+  if (row.creator_staff_id === myStaffId) return true
+
+  const assignees = row.schedule_assignees || []
+  return assignees.some(item => item.staff_id === myStaffId && !item.deleted_at)
+}
+
+function formatDate(value) {
+  return value || '-'
+}
+
+function formatTime(row) {
+  if (row.time_type === '指定時間' && row.start_time) {
+    return row.start_time.slice(0, 5)
+  }
+  return row.time_type || '不指定'
+}
+
+function getAssigneeNames(row) {
+  const names = (row.schedule_assignees || [])
+    .filter(item => !item.deleted_at)
+    .map(item => item.staff_name)
+
+  return names.length ? names.join('、') : '-'
 }
 
 function renderLogin() {
@@ -38,7 +74,7 @@ function renderLogin() {
       <div class="login-card">
         <div class="logo-mark">FOR-e</div>
         <h1>FOR-e 共享排程系統</h1>
-        <p>V001-1｜登入與角色權限測試</p>
+        <p>V002-1A｜核心行程讀取測試</p>
 
         <label for="email">Email / 帳號</label>
         <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
@@ -50,7 +86,7 @@ function renderLogin() {
         <div id="errorText" class="error"></div>
 
         <div class="login-note">
-          目前只測試 Supabase 登入、角色讀取、桌機選單與手機底部選單。
+          目前測試登入、角色選單、個人行程表讀取、行程總覽讀取。
         </div>
       </div>
     </section>
@@ -116,7 +152,30 @@ async function loadProfile() {
 
   currentProfile = profile
   currentPage = 'personalSchedule'
+  await loadSchedules()
   renderApp()
+}
+
+async function loadSchedules() {
+  loadingSchedules = true
+  schedulesError = ''
+
+  const { data, error } = await supabase
+    .from('schedules')
+    .select('*, schedule_assignees(*)')
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true })
+    .order('start_time', { ascending: true })
+
+  if (error) {
+    console.error(error)
+    schedules = []
+    schedulesError = error.message
+  } else {
+    schedules = data || []
+  }
+
+  loadingSchedules = false
 }
 
 function renderApp() {
@@ -177,6 +236,14 @@ function renderApp() {
   })
 
   document.querySelector('#logoutBtn').addEventListener('click', logout)
+
+  const refreshBtn = document.querySelector('#refreshBtn')
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      await loadSchedules()
+      renderApp()
+    })
+  }
 }
 
 function getPageTitle() {
@@ -185,44 +252,117 @@ function getPageTitle() {
 }
 
 function renderPageContent() {
-  if (currentPage === 'personalSchedule') {
-    return `
-      <h3>個人行程表</h3>
-      <div class="notice">
-        今日提醒視窗預留區：之後顯示今日行程、待辦、服務紀錄單提醒與逾期事項。
-      </div>
-      <div class="empty-state">
-        <strong>V001-1 測試完成標準</strong>
-        <p>登入成功、讀取 profiles、依角色顯示正確選單、手機底部選單一整列橫向滑動。</p>
-      </div>
-    `
-  }
-
-  if (currentPage === 'recordSubmit') {
-    return `
-      <h3>紀錄單繳交</h3>
-      <div class="notice">
-        翻譯專用頁。之後顯示須繳交、尚未超過 2 週、超過 2 週未繳交提醒。
-      </div>
-    `
-  }
-
-  if (currentPage === 'users') {
-    return `
-      <h3>人員 / 帳號</h3>
-      <div class="notice">
-        權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
-      </div>
-      <div class="empty-state">
-        <strong>帳號管理提醒</strong>
-        <p>正式帳號資料修改功能會在帳號管理階段加入。目前先確認角色權限與選單顯示。</p>
-      </div>
-    `
-  }
+  if (currentPage === 'personalSchedule') return renderPersonalSchedule()
+  if (currentPage === 'scheduleOverview') return renderScheduleOverview()
+  if (currentPage === 'recordSubmit') return renderRecordSubmit()
+  if (currentPage === 'users') return renderUsersPage()
 
   return `
     <h3>${getPageTitle()}</h3>
     <p>此頁面目前為權限測試佔位頁，正式功能會在下一階段逐步加入。</p>
+  `
+}
+
+function renderToolbar(title) {
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>${title}</h3>
+        <p class="muted">V002-1A：目前只測試讀取行程，不提供新增或修改。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+  `
+}
+
+function renderPersonalSchedule() {
+  const myRows = schedules.filter(row => isMine(row))
+  const today = new Date().toISOString().slice(0, 10)
+  const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
+
+  return `
+    ${renderToolbar('個人行程表')}
+    ${renderReadStatus()}
+    <div class="summary-grid">
+      <div class="summary-card">
+        <strong>${todayRows.length}</strong>
+        <span>今日待處理</span>
+      </div>
+      <div class="summary-card">
+        <strong>${myRows.length}</strong>
+        <span>個人行程總數</span>
+      </div>
+    </div>
+    ${renderScheduleList(myRows, '目前沒有個人行程。')}
+  `
+}
+
+function renderScheduleOverview() {
+  return `
+    ${renderToolbar('行程總覽')}
+    ${renderReadStatus()}
+    ${renderScheduleList(schedules, '目前沒有行程資料。')}
+  `
+}
+
+function renderReadStatus() {
+  if (loadingSchedules) {
+    return `<div class="notice">正在讀取行程資料...</div>`
+  }
+
+  if (schedulesError) {
+    return `<div class="error-card">讀取行程失敗：${schedulesError}</div>`
+  }
+
+  return ''
+}
+
+function renderScheduleList(rows, emptyText) {
+  if (!rows.length) {
+    return `<div class="empty-state">${emptyText}</div>`
+  }
+
+  return `
+    <div class="schedule-list">
+      ${rows.map(row => `
+        <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
+          <div class="schedule-card-main">
+            <div class="schedule-date">${formatDate(row.start_date)}｜${formatTime(row)}</div>
+            <div class="schedule-title">${row.title}</div>
+            <div class="schedule-meta">${row.category}｜${row.schedule_type}${row.sub_type ? '｜' + row.sub_type : ''}</div>
+            <div class="schedule-meta">執行者：${getAssigneeNames(row)}</div>
+            <div class="schedule-meta">地點 / 客戶：${row.location_name || row.customer_name || '-'}</div>
+          </div>
+          <div class="schedule-card-actions">
+            <span class="status-pill">${row.status}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+function renderRecordSubmit() {
+  return `
+    <h3>紀錄單繳交</h3>
+    <div class="notice">
+      翻譯專用頁。服務紀錄單提醒會在後續階段加入。
+    </div>
+  `
+}
+
+function renderUsersPage() {
+  return `
+    <h3>人員 / 帳號</h3>
+    <div class="notice">
+      權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
+    </div>
+    <div class="empty-state">
+      <strong>目前登入帳號</strong>
+      <p>${currentProfile.email}</p>
+    </div>
   `
 }
 
