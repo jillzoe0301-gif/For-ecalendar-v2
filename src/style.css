@@ -430,6 +430,14 @@ button {
   gap: 12px;
 }
 
+.group-title {
+  font-weight: 900;
+  color: var(--blue);
+  margin-bottom: 4px;
+}
+
+.inner-grid { margin-top: 6px; }
+
 .span-2 { grid-column: span 2; }
 
 .field-title {
@@ -592,7 +600,7 @@ button {
 
 .time-select-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 160px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -602,6 +610,14 @@ button {
   border-radius: 16px;
   background: #eef5ff;
   border: 1px solid #c7d2fe;
+}
+
+.block-group,
+.service-grid {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8fafc;
 }
 
 .service-grid {
@@ -619,4 +635,73 @@ button {
   .time-select-row {
     grid-template-columns: 1fr;
   }
+}
+
+
+.inline-check-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 700;
+}
+
+.inline-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.warning-card {
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 12px;
+  border-radius: 16px;
+  margin: 12px 0;
+}
+
+.warning-card p { margin: 6px 0 0; }
+
+.radio-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.radio-row {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.radio-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+}
+
+.radio-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.danger-option {
+  border-color: #fecaca;
+  background: #fff1f2;
 }

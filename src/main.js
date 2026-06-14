@@ -50,18 +50,11 @@ const serviceScheduleTypes = [
   '其他'
 ]
 
-const serviceSubTypeMap = {
-  '送工': ['新入境', '承接'],
-  '銀行': ['開戶', '補辦', '領錢', '異動'],
-  '醫療': ['看診', '回診', '住院', '急診', '開刀'],
-  '車禍處理': ['做筆錄', '現場協調', '和解', '出庭'],
-  '收送簽文件': ['證件', '用印', '簽文件'],
-  '逃跑通知': ['逃跑第一天', '逃跑第二天', '逃跑第三天'],
-  '轉出追蹤': ['終止日', '轉出到期日'],
-  '住變資訊': ['搬家時間'],
-  '驗證提醒': ['最後工作日', '驗證日期', '離境日期'],
-  '返台提醒': ['返台日期', '班機', '時間']
-}
+const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
+const weekdays = [
+  ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
+  ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
+]
 
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '公司活動', '部門活動']
@@ -128,7 +121,10 @@ function formatDate(value) {
 }
 
 function formatTime(row) {
-  if (row.time_type === '指定時間' && row.start_time) return row.start_time.slice(0, 5)
+  const start = row.start_time ? row.start_time.slice(0, 5) : ''
+  const end = row.end_time ? row.end_time.slice(0, 5) : ''
+  if (['上午', '下午', '指定時間'].includes(row.time_type) && start && end) return `${row.time_type} ${start}-${end}`
+  if (['上午', '下午', '指定時間'].includes(row.time_type) && start) return `${row.time_type} ${start}`
   return row.time_type || '不指定'
 }
 
@@ -154,7 +150,7 @@ function renderLogin() {
       <div class="login-card">
         <div class="logo-mark">FOR-e</div>
         <h1>FOR-e 共享排程系統</h1>
-        <p>V002-1E｜依類別切換表單欄位</p>
+        <p>V002-1E-1｜日期時間與週期表單修正</p>
 
         <label for="email">Email / 帳號</label>
         <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
@@ -166,7 +162,7 @@ function renderLogin() {
         <div id="errorText" class="error"></div>
 
         <div class="login-note">
-          測試項目：一般記事、待辦事項、請假 / 會議 / 活動 / 外訓、服務行程欄位切換。
+          測試項目：起訖日期、起訖時間、連續週期、取消防呆、類別欄位切換。
         </div>
       </div>
     </section>
@@ -355,7 +351,7 @@ function renderApp() {
   })
 
   document.querySelectorAll('[data-cancel-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => cancelSchedule(btn.dataset.cancelSchedule))
+    btn.addEventListener('click', () => openCancelModal(btn.dataset.cancelSchedule))
   })
 }
 
@@ -382,7 +378,7 @@ function renderToolbar(title) {
     <div class="page-toolbar">
       <div>
         <h3>${title}</h3>
-        <p class="muted">V002-1E：依類別切換表單欄位，時間改為 5 分鐘下拉。</p>
+        <p class="muted">V002-1E-1：日期時間起訖、連續週期、取消防呆。</p>
       </div>
       <div class="toolbar-actions">
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
@@ -445,7 +441,7 @@ function renderScheduleList(rows, emptyText) {
       ${rows.map(row => `
         <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
           <div class="schedule-card-main">
-            <div class="schedule-date">${formatDate(row.start_date)}｜${formatTime(row)}</div>
+            <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
             <div class="schedule-title">${escapeHtml(row.title)}</div>
             <div class="schedule-meta">${escapeHtml(row.category)}${row.schedule_type ? '｜' + escapeHtml(row.schedule_type) : ''}${row.sub_type ? '｜' + escapeHtml(row.sub_type) : ''}</div>
             <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
@@ -507,7 +503,7 @@ function openScheduleDetail(scheduleId) {
 
       <div class="detail-grid">
         <div><span>狀態</span><strong>${escapeHtml(row.status)}</strong></div>
-        <div><span>日期</span><strong>${escapeHtml(row.start_date)}</strong></div>
+        <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type)}</strong></div>
@@ -519,6 +515,7 @@ function openScheduleDetail(scheduleId) {
         <div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
+        <div class="span-2"><span>備註 / 週期</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
         <div class="span-2"><span>服務紀錄單</span><strong>${row.need_service_record ? '需繳交' : '不需繳交'}</strong></div>
       </div>
 
@@ -548,7 +545,7 @@ function openScheduleDetail(scheduleId) {
   if (cancelBtn) {
     cancelBtn.addEventListener('click', async () => {
       modal.remove()
-      await cancelSchedule(scheduleId)
+      openCancelModal(scheduleId)
     })
   }
 }
@@ -569,26 +566,34 @@ function staffSelectOptionsHtml() {
   `).join('')
 }
 
-function hourOptionsHtml() {
+function hourOptionsHtml(defaultValue = '09') {
   return Array.from({ length: 24 }, (_, i) => {
     const value = String(i).padStart(2, '0')
-    return `<option value="${value}">${value}</option>`
+    return `<option value="${value}" ${value === defaultValue ? 'selected' : ''}>${value}</option>`
   }).join('')
 }
 
-function minuteOptionsHtml() {
+function minuteOptionsHtml(defaultValue = '00') {
   return Array.from({ length: 12 }, (_, i) => {
     const value = String(i * 5).padStart(2, '0')
-    return `<option value="${value}">${value}</option>`
+    return `<option value="${value}" ${value === defaultValue ? 'selected' : ''}>${value}</option>`
   }).join('')
+}
+
+function serviceTypeOptionsHtml(includeEmpty = false) {
+  const empty = includeEmpty ? '<option value="">無</option>' : ''
+  return empty + serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
 }
 
 function openScheduleModal() {
   const defaultStaffId = currentProfile.staff_id || ''
   const formCategoryOptions = formCategories.map(category => `<option value="${category}">${category}</option>`).join('')
-  const serviceTypeOptions = serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
   const todoOptions = todoItems.map(item => `<option value="${item}">${item}</option>`).join('')
   const leaveOptions = leaveMeetingTypes.map(item => `<option value="${item}">${item}</option>`).join('')
+  const carSelectOptions = carOptions.map(item => `<option value="${item}">${item}</option>`).join('')
+  const weekdayChecks = weekdays.map(([value, label]) => `
+    <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
+  `).join('')
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -607,39 +612,70 @@ function openScheduleModal() {
 
         <label>
           類別
-          <select name="category" id="categorySelect">
-            ${formCategoryOptions}
-          </select>
+          <select name="category" id="categorySelect">${formCategoryOptions}</select>
         </label>
 
-        <label>
-          日期
-          <input name="start_date" type="date" required value="${todayString()}">
-        </label>
-
-        <label>
-          時間類型
-          <select name="time_type" id="timeTypeSelect">
-            <option value="不指定">不指定</option>
-            <option value="整天">整天</option>
-            <option value="上午">上午</option>
-            <option value="下午">下午</option>
-            <option value="指定時間">指定時間</option>
-          </select>
-        </label>
-
-        <div class="span-2 conditional-time hidden" id="specificTimeBlock">
-          <div class="time-select-row">
+        <div class="span-2 block-group">
+          <div class="group-title">日期與週期</div>
+          <div class="form-grid inner-grid">
             <label>
-              小時
-              <select name="start_hour">${hourOptionsHtml()}</select>
+              行程模式
+              <select name="repeat_mode" id="repeatModeSelect">
+                <option value="單日">單日</option>
+                <option value="連續日期">連續日期</option>
+                <option value="每週重複">每週重複</option>
+                <option value="每月重複">每月重複</option>
+              </select>
             </label>
+
             <label>
-              分鐘
-              <select name="start_minute">${minuteOptionsHtml()}</select>
+              開始日期
+              <input name="start_date" type="date" required value="${todayString()}">
             </label>
+
+            <label class="hidden" id="endDateBlock">
+              結束日期
+              <input name="end_date" type="date" value="${todayString()}">
+            </label>
+
+            <label class="hidden" id="monthlyDayBlock">
+              每月幾號
+              <select name="monthly_day">
+                ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">${i + 1} 號</option>`).join('')}
+              </select>
+            </label>
+
+            <div class="span-2 hidden" id="weekdayBlock">
+              <div class="field-title">重複星期</div>
+              <div class="inline-check-list">${weekdayChecks}</div>
+            </div>
           </div>
-          <p class="field-hint">分鐘固定以 5 分鐘為單位，不再使用瀏覽器原生時間欄位。</p>
+        </div>
+
+        <div class="span-2 block-group">
+          <div class="group-title">時間</div>
+          <div class="form-grid inner-grid">
+            <label>
+              時間類型
+              <select name="time_type" id="timeTypeSelect">
+                <option value="不指定">不指定</option>
+                <option value="整天">整天</option>
+                <option value="上午">上午</option>
+                <option value="下午">下午</option>
+                <option value="指定時間">指定時間</option>
+              </select>
+            </label>
+
+            <div class="span-2 conditional-time hidden" id="timeRangeBlock">
+              <div class="time-select-row">
+                <label>開始小時<select name="start_hour">${hourOptionsHtml('09')}</select></label>
+                <label>開始分鐘<select name="start_minute">${minuteOptionsHtml('00')}</select></label>
+                <label>結束小時<select name="end_hour">${hourOptionsHtml('10')}</select></label>
+                <label>結束分鐘<select name="end_minute">${minuteOptionsHtml('00')}</select></label>
+              </div>
+              <p class="field-hint">上午、下午、指定時間都可設定起訖時間；分鐘固定 5 分鐘為單位。</p>
+            </div>
+          </div>
         </div>
 
         <div class="span-2 form-section" data-section="common-simple">
@@ -659,7 +695,7 @@ function openScheduleModal() {
             待辦項目
             <select name="todo_item">${todoOptions}</select>
           </label>
-          <p class="field-hint">待辦項目之後會放到「選項管理」維護，可新增、修改、停用。</p>
+          <p class="field-hint">待辦項目之後會放到「選項管理」維護。</p>
         </div>
 
         <div class="span-2 form-section hidden" data-section="leave-meeting">
@@ -677,22 +713,31 @@ function openScheduleModal() {
         <div class="span-2 form-section hidden service-grid" data-section="service">
           <label>
             行程類型
-            <select name="schedule_type" id="scheduleTypeSelect">${serviceTypeOptions}</select>
+            <select name="schedule_type">${serviceTypeOptionsHtml(false)}</select>
           </label>
 
           <label>
             附加行程
-            <select name="sub_type" id="subTypeSelect"><option value="">無</option></select>
+            <select name="sub_type">${serviceTypeOptionsHtml(true)}</select>
           </label>
 
           <label>
-            附加行程備註
-            <input name="sub_type_note" placeholder="例如：掛號號碼、證件內容、航班資訊">
+            服務紀錄單
+            <select name="service_record_status">
+              <option value="不需要">不需要</option>
+              <option value="需要，尚未繳交">需要，尚未繳交</option>
+              <option value="已繳交">已繳交</option>
+            </select>
           </label>
 
           <label>
-            迄日
-            <input name="end_date" type="date" value="${todayString()}">
+            服務紀錄單繳交日期
+            <input name="service_record_submitted_date" type="date">
+          </label>
+
+          <label>
+            公務車
+            <select name="car_no">${carSelectOptions}</select>
           </label>
 
           <label>
@@ -710,19 +755,9 @@ function openScheduleModal() {
             <input name="address" placeholder="完整地址，可先空白">
           </label>
 
-          <label>
-            公務車
-            <input name="car_no" placeholder="例如：A車、B車、車號">
-          </label>
-
-          <label>
-            服務紀錄單繳交日期
-            <input name="service_record_submitted_date" type="date">
-          </label>
-
-          <label class="span-2 service-check">
-            <input name="need_service_record" type="checkbox">
-            <span>此行程需要服務紀錄單</span>
+          <label class="span-2">
+            附加備註
+            <input name="sub_type_note" placeholder="例如：掛號號碼、證件內容、航班資訊">
           </label>
         </div>
 
@@ -743,47 +778,46 @@ function openScheduleModal() {
 
   const categorySelect = document.querySelector('#categorySelect')
   const timeTypeSelect = document.querySelector('#timeTypeSelect')
-  const scheduleTypeSelect = document.querySelector('#scheduleTypeSelect')
-  const subTypeSelect = document.querySelector('#subTypeSelect')
+  const repeatModeSelect = document.querySelector('#repeatModeSelect')
 
   function refreshFormSections() {
     const category = categorySelect.value
     document.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
     document.querySelector('[data-section="common-simple"]').classList.remove('hidden')
-
     if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
     if (category === '服務行程') document.querySelector('[data-section="service"]').classList.remove('hidden')
   }
 
   function refreshTimeBlock() {
-    document.querySelector('#specificTimeBlock').classList.toggle('hidden', timeTypeSelect.value !== '指定時間')
+    const showTime = ['上午', '下午', '指定時間'].includes(timeTypeSelect.value)
+    document.querySelector('#timeRangeBlock').classList.toggle('hidden', !showTime)
   }
 
-  function refreshSubTypes() {
-    const selected = scheduleTypeSelect.value
-    const items = serviceSubTypeMap[selected] || []
-    subTypeSelect.innerHTML = `<option value="">無</option>` + items.map(item => `<option value="${item}">${item}</option>`).join('')
+  function refreshRepeatBlocks() {
+    const mode = repeatModeSelect.value
+    document.querySelector('#endDateBlock').classList.toggle('hidden', mode === '單日')
+    document.querySelector('#weekdayBlock').classList.toggle('hidden', mode !== '每週重複')
+    document.querySelector('#monthlyDayBlock').classList.toggle('hidden', mode !== '每月重複')
   }
 
   categorySelect.addEventListener('change', refreshFormSections)
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
-  scheduleTypeSelect.addEventListener('change', refreshSubTypes)
-
+  repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
   refreshFormSections()
   refreshTimeBlock()
-  refreshSubTypes()
+  refreshRepeatBlocks()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#scheduleForm').addEventListener('submit', event => saveSchedule(event, modal))
 }
 
-function getStartTime(form) {
+function getTimeValue(form, prefix) {
   const timeType = form.get('time_type')
-  if (timeType !== '指定時間') return null
-  const hour = form.get('start_hour') || '00'
-  const minute = form.get('start_minute') || '00'
+  if (!['上午', '下午', '指定時間'].includes(timeType)) return null
+  const hour = form.get(`${prefix}_hour`) || '00'
+  const minute = form.get(`${prefix}_minute`) || '00'
   return `${hour}:${minute}:00`
 }
 
@@ -792,6 +826,20 @@ function getSelectedProxyName() {
   if (!proxySelect || !proxySelect.value) return ''
   const option = proxySelect.options[proxySelect.selectedIndex]
   return option ? option.textContent : ''
+}
+
+function buildRepeatNote(form) {
+  const mode = form.get('repeat_mode') || '單日'
+  if (mode === '單日') return '行程模式：單日'
+  if (mode === '連續日期') return '行程模式：連續日期'
+  if (mode === '每週重複') {
+    const days = [...document.querySelectorAll('input[name="repeat_weekdays"]:checked')]
+      .map(input => weekdays.find(([value]) => value === input.value)?.[1] || input.value)
+      .join('、')
+    return `行程模式：每週重複；重複星期：${days || '未設定'}`
+  }
+  if (mode === '每月重複') return `行程模式：每月重複；每月 ${form.get('monthly_day') || '1'} 號`
+  return `行程模式：${mode}`
 }
 
 async function saveSchedule(event, modal) {
@@ -809,23 +857,31 @@ async function saveSchedule(event, modal) {
     return
   }
 
+  if (form.get('repeat_mode') === '每週重複') {
+    const checkedWeekdays = document.querySelectorAll('input[name="repeat_weekdays"]:checked')
+    if (!checkedWeekdays.length) {
+      alert('每週重複請至少選擇一個星期。')
+      saving = false
+      return
+    }
+  }
+
   const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
+  const serviceRecordStatus = form.get('service_record_status')
+  const needServiceRecord = category === '服務行程' && serviceRecordStatus !== '不需要'
   const submittedDate = category === '服務行程' ? (form.get('service_record_submitted_date') || null) : null
 
   let scheduleType = ''
   let subType = ''
-  let subTypeNote = null
+  let subTypeNoteParts = [buildRepeatNote(form)]
   let customerName = null
   let locationName = null
   let address = null
   let carNo = null
-  let endDate = form.get('start_date')
+  let endDate = form.get('repeat_mode') === '單日' ? form.get('start_date') : (form.get('end_date') || form.get('start_date'))
 
-  if (category === '一般記事') {
-    scheduleType = '一般記事'
-  }
+  if (category === '一般記事') scheduleType = '一般記事'
 
   if (category === '待辦事項') {
     scheduleType = '待辦事項'
@@ -835,18 +891,18 @@ async function saveSchedule(event, modal) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     scheduleType = form.get('leave_meeting_type') || '請假'
     subType = scheduleType
-    subTypeNote = getSelectedProxyName() ? `代理人：${getSelectedProxyName()}` : null
+    if (getSelectedProxyName()) subTypeNoteParts.push(`代理人：${getSelectedProxyName()}`)
   }
 
   if (category === '服務行程') {
     scheduleType = form.get('schedule_type') || '其他'
     subType = form.get('sub_type') || null
-    subTypeNote = form.get('sub_type_note') || null
     customerName = form.get('customer_name') || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
     carNo = form.get('car_no') || null
-    endDate = form.get('end_date') || form.get('start_date')
+    if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
+    if (serviceRecordStatus) subTypeNoteParts.push(`服務紀錄單：${serviceRecordStatus}`)
   }
 
   const schedulePayload = {
@@ -858,13 +914,14 @@ async function saveSchedule(event, modal) {
     category,
     schedule_type: scheduleType,
     sub_type: subType || null,
-    sub_type_note: subTypeNote,
+    sub_type_note: subTypeNoteParts.filter(Boolean).join('｜'),
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
     end_date: endDate,
     time_type: form.get('time_type'),
-    start_time: getStartTime(form),
+    start_time: getTimeValue(form, 'start'),
+    end_time: getTimeValue(form, 'end'),
     customer_name: customerName,
     location_name: locationName,
     address,
@@ -938,7 +995,7 @@ async function saveSchedule(event, modal) {
     action_type: '新增',
     source_type: 'schedule',
     source_id: schedule.schedule_id,
-    note: 'V002-1E 新增行程'
+    note: 'V002-1E-1 新增行程'
   })
 
   modal.remove()
@@ -963,9 +1020,93 @@ async function completeSchedule(scheduleId) {
   renderApp()
 }
 
-async function cancelSchedule(scheduleId) {
-  const reason = prompt('請輸入取消原因，可留空：') || ''
+function openCancelModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
 
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel">
+      <div class="modal-header">
+        <h3>取消 / 刪除行程</h3>
+        <button class="icon-btn" id="closeCancelModalBtn" type="button">×</button>
+      </div>
+
+      <div class="warning-card">
+        <strong>防呆提醒</strong>
+        <p>系統目前會以「取消行程」方式保留紀錄，不會直接硬刪資料。</p>
+      </div>
+
+      <div class="radio-list">
+        <label class="radio-row">
+          <input type="radio" name="deleteScope" value="只刪今天" checked>
+          <span><strong>只刪今天</strong><small>只取消這一筆行程，其他週期行程不受影響。</small></span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="deleteScope" value="刪除之後行程（包含今天）">
+          <span><strong>刪除之後行程（包含今天）</strong><small>保留今天以前的行程，取消今天與之後的週期行程。</small></span>
+        </label>
+        <label class="radio-row danger-option">
+          <input type="radio" name="deleteScope" value="刪除全部行程">
+          <span><strong>刪除全部行程</strong><small>取消整組週期行程，影響最大。</small></span>
+        </label>
+      </div>
+
+      <label>
+        取消原因
+        <textarea id="cancelReasonInput" rows="3" placeholder="請輸入取消原因"></textarea>
+      </label>
+
+      <div id="deleteAllConfirmBlock" class="hidden">
+        <label>
+          若選擇「刪除全部行程」，請輸入：刪除全部
+          <input id="deleteAllConfirmInput" placeholder="請輸入 刪除全部">
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="cancelCancelBtn">返回</button>
+        <button type="button" class="danger-btn" id="confirmCancelBtn">確認取消</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  function refreshDeleteAllBlock() {
+    const scope = document.querySelector('input[name="deleteScope"]:checked')?.value
+    document.querySelector('#deleteAllConfirmBlock').classList.toggle('hidden', scope !== '刪除全部行程')
+  }
+
+  document.querySelectorAll('input[name="deleteScope"]').forEach(input => input.addEventListener('change', refreshDeleteAllBlock))
+  document.querySelector('#closeCancelModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelCancelBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#confirmCancelBtn').addEventListener('click', async () => {
+    const scope = document.querySelector('input[name="deleteScope"]:checked')?.value || '只刪今天'
+    const reason = document.querySelector('#cancelReasonInput').value.trim()
+
+    if (!reason) {
+      alert('請輸入取消原因。')
+      return
+    }
+
+    if (scope === '刪除全部行程') {
+      const confirmText = document.querySelector('#deleteAllConfirmInput').value.trim()
+      if (confirmText !== '刪除全部') {
+        alert('刪除全部行程需輸入「刪除全部」才可繼續。')
+        return
+      }
+    }
+
+    modal.remove()
+    await cancelSchedule(scheduleId, `${scope}｜${reason}`)
+  })
+
+  refreshDeleteAllBlock()
+}
+
+async function cancelSchedule(scheduleId, reason) {
   const { error } = await supabase.rpc('cancel_schedule', {
     target_schedule_id: scheduleId,
     cancel_note: reason
