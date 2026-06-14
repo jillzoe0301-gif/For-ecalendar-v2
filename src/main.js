@@ -22,7 +22,7 @@ const pages = [
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
-  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false }
+  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true }
 ]
 
 let currentProfile = null
@@ -162,6 +162,19 @@ function renderPageContent() {
       <div class="empty-state"><strong>V001 測試完成標準</strong><p>登入成功、讀取 profiles、依角色顯示正確選單、登入後預設進入個人行程表。</p></div>
     `
   }
+  if (currentPage === 'users') {
+    return `
+      <h3>人員 / 帳號</h3>
+      <div class="notice">
+        權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
+      </div>
+      <div class="empty-state">
+        <strong>帳號管理提醒</strong>
+        <p>正式功能會在帳號管理階段加入。目前先確認角色權限與選單顯示。</p>
+      </div>
+    `
+  }
+
   if (currentPage === 'recordSubmit') {
     return `<h3>紀錄單繳交</h3><div class="notice">翻譯專用頁。之後顯示須繳交、尚未超過 2 週、超過 2 週未繳交提醒。</div>`
   }
