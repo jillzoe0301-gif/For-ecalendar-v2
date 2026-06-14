@@ -402,7 +402,7 @@ button {
 }
 
 .modal-panel {
-  width: min(760px, 100%);
+  width: min(860px, 100%);
   max-height: 92vh;
   overflow-y: auto;
   background: #fff;
@@ -412,7 +412,7 @@ button {
 }
 
 .detail-panel {
-  width: min(680px, 100%);
+  width: min(720px, 100%);
 }
 
 .modal-header {
