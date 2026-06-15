@@ -995,3 +995,12 @@ button {
 #editExtraScheduleBlock.hidden {
   display: none !important;
 }
+
+
+/* V002-1F-3 edit assignees */
+.edit-assignee-box {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8fafc;
+}

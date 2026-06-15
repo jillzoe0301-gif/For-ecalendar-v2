@@ -121,6 +121,12 @@ function formatTime(row) {
   return row.time_type || '不指定'
 }
 
+function getAssigneeIds(row) {
+  return (row.schedule_assignees || [])
+    .filter(item => !item.deleted_at)
+    .map(item => item.staff_id)
+}
+
 function getAssigneeNames(row) {
   const names = (row.schedule_assignees || [])
     .filter(item => !item.deleted_at)
@@ -548,7 +554,7 @@ function openScheduleDetail(scheduleId) {
   if (!row) return
 
   const permissionNote = canModifySchedule(row)
-    ? '您可以管理此行程。'
+    ? '您可以管理此行程，包含修改內容與執行者。'
     : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。'
 
   const modal = document.createElement('div')
@@ -625,6 +631,16 @@ function openScheduleDetail(scheduleId) {
       openCancelModal(scheduleId)
     })
   }
+}
+
+function editStaffOptionsHtml(row) {
+  const selectedIds = new Set(getAssigneeIds(row))
+  return staffList.map(staff => `
+    <label class="check-row">
+      <input type="checkbox" name="edit_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
+      <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
+    </label>
+  `).join('')
 }
 
 function staffOptionsHtml(defaultStaffId = '') {
@@ -1487,8 +1503,10 @@ function openEditScheduleModal(scheduleId) {
           <input name="sub_type_note" value="${escapeHtml(row.sub_type_note || '')}">
         </label>
 
-        <div class="notice span-2">
-          這一版先修改行程內容，不修改執行者。執行者修改會放下一版處理。
+        <div class="span-2 edit-assignee-box">
+          <div class="field-title">執行者</div>
+          <div class="checkbox-list">${editStaffOptionsHtml(row) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
+          <p class="field-hint">修改執行者會同步更新個人行程表與行程總覽。</p>
         </div>
 
         <div class="modal-actions span-2">
@@ -1560,6 +1578,13 @@ async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
   const form = new FormData(event.target)
+  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
+
+  if (!editExecutorIds.length) {
+    alert('請至少選擇一位執行者。')
+    return
+  }
+
   const category = form.get('category')
   const isService = category === '服務行程'
   const submitted = isService && form.get('service_record_submitted_check') === 'on'
@@ -1596,6 +1621,16 @@ async function saveEditedSchedule(event, modal, originalRow) {
     return
   }
 
+  const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+    target_schedule_id: originalRow.schedule_id,
+    staff_ids_value: editExecutorIds
+  })
+
+  if (assigneeError) {
+    alert('行程內容已修改，但執行者同步失敗：' + assigneeError.message)
+    return
+  }
+
   await supabase.from('audit_logs').insert({
     operated_by_profile_id: currentProfile.profile_id,
     operated_by_staff_id: currentProfile.staff_id,
@@ -1618,6 +1653,13 @@ async function saveSchedule(event, modal) {
   saving = true
 
   const form = new FormData(event.target)
+  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
+
+  if (!editExecutorIds.length) {
+    alert('請至少選擇一位執行者。')
+    return
+  }
+
   const category = form.get('category')
   const availableFormCategories = getAvailableFormCategories()
   if (!availableFormCategories.includes(category)) {
