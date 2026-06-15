@@ -63,6 +63,10 @@ function isVisibleSchedule(row) {
   return row && row.status !== '取消' && row.is_cancelled !== true && !row.deleted_at
 }
 
+function isActivePersonalSchedule(row) {
+  return isVisibleSchedule(row) && row.status !== '已完成' && row.is_completed !== true
+}
+
 function isMine(row) {
   const myStaffId = currentProfile?.staff_id
   if (!myStaffId) return false
@@ -421,7 +425,7 @@ function renderToolbar(title) {
 }
 
 function renderPersonalSchedule() {
-  const myRows = schedules.filter(row => isVisibleSchedule(row) && isMine(row))
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
   const today = todayString()
   const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
 
@@ -443,7 +447,7 @@ function renderPersonalSchedule() {
 }
 
 function renderPersonalTodo() {
-  const myRows = schedules.filter(row => isVisibleSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(row.category))
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(row.category))
   return `
     ${renderToolbar('個人一般待辦')}
     ${renderReadStatus()}
