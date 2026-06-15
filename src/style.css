@@ -705,3 +705,15 @@ button {
   border-color: #fecaca;
   background: #fff1f2;
 }
+
+
+.service-extra {
+  padding: 12px;
+  border: 1px solid #c7d2fe;
+  border-radius: 16px;
+  background: #eef5ff;
+}
+
+.service-extra .group-title {
+  margin-bottom: 10px;
+}

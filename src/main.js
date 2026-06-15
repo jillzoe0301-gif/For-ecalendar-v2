@@ -150,7 +150,7 @@ function renderLogin() {
       <div class="login-card">
         <div class="logo-mark">FOR-e</div>
         <h1>FOR-e 共享排程系統</h1>
-        <p>V002-1E-1｜日期時間與週期表單修正</p>
+        <p>V002-1E-2｜服務行程條件欄位</p>
 
         <label for="email">Email / 帳號</label>
         <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
@@ -162,7 +162,7 @@ function renderLogin() {
         <div id="errorText" class="error"></div>
 
         <div class="login-note">
-          測試項目：起訖日期、起訖時間、連續週期、取消防呆、類別欄位切換。
+          測試項目：服務行程依類型顯示欄位、查看後才能完成或取消。
         </div>
       </div>
     </section>
@@ -345,14 +345,6 @@ function renderApp() {
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
     btn.addEventListener('click', () => openScheduleDetail(btn.dataset.viewSchedule))
   })
-
-  document.querySelectorAll('[data-complete-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => completeSchedule(btn.dataset.completeSchedule))
-  })
-
-  document.querySelectorAll('[data-cancel-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => openCancelModal(btn.dataset.cancelSchedule))
-  })
 }
 
 function getPageTitle() {
@@ -378,7 +370,7 @@ function renderToolbar(title) {
     <div class="page-toolbar">
       <div>
         <h3>${title}</h3>
-        <p class="muted">V002-1E-1：日期時間起訖、連續週期、取消防呆。</p>
+        <p class="muted">V002-1E-2：服務行程依類型顯示欄位，完成 / 取消只能在查看內執行。</p>
       </div>
       <div class="toolbar-actions">
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
@@ -453,8 +445,6 @@ function renderScheduleList(rows, emptyText) {
           <div class="schedule-card-actions">
             <span class="status-pill">${row.status}</span>
             <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
-            ${canCompleteSchedule(row) ? `<button class="small-btn" data-complete-schedule="${row.schedule_id}">已完成</button>` : ''}
-            ${canCancelSchedule(row) ? `<button class="small-danger-btn" data-cancel-schedule="${row.schedule_id}">取消</button>` : ''}
           </div>
         </div>
       `).join('')}
@@ -713,7 +703,7 @@ function openScheduleModal() {
         <div class="span-2 form-section hidden service-grid" data-section="service">
           <label>
             行程類型
-            <select name="schedule_type">${serviceTypeOptionsHtml(false)}</select>
+            <select name="schedule_type" id="serviceTypeSelect">${serviceTypeOptionsHtml(false)}</select>
           </label>
 
           <label>
@@ -759,6 +749,123 @@ function openScheduleModal() {
             附加備註
             <input name="sub_type_note" placeholder="例如：掛號號碼、證件內容、航班資訊">
           </label>
+
+
+          <div class="span-2 service-extra hidden" data-service-extra="醫療">
+            <div class="group-title">醫療相關欄位</div>
+            <div class="form-grid inner-grid">
+              <label>
+                下次回診日期
+                <input name="medical_next_date" type="date">
+              </label>
+              <label>
+                下次回診時間類型
+                <select name="medical_next_time_type">
+                  <option value="不指定">不指定</option>
+                  <option value="上午">上午</option>
+                  <option value="下午">下午</option>
+                  <option value="指定時間">指定時間</option>
+                </select>
+              </label>
+              <label>
+                下次回診小時
+                <select name="medical_next_hour">${hourOptionsHtml('09')}</select>
+              </label>
+              <label>
+                下次回診分鐘
+                <select name="medical_next_minute">${minuteOptionsHtml('00')}</select>
+              </label>
+              <label>
+                下次執行者
+                <select name="medical_next_staff_id" id="medicalNextStaffSelect">${staffSelectOptionsHtml()}</select>
+              </label>
+              <label>
+                掛號號碼
+                <input name="medical_register_no" placeholder="例如：23號、A001">
+              </label>
+            </div>
+          </div>
+
+          <div class="span-2 service-extra hidden" data-service-extra="逃跑通知">
+            <div class="group-title">逃跑通知連續三天時間</div>
+            <div class="form-grid inner-grid">
+              <label>
+                第一天日期
+                <input name="escape_day1_date" type="date">
+              </label>
+              <label>
+                第一天時間
+                <input name="escape_day1_time" placeholder="例如：上午 09:00">
+              </label>
+              <label>
+                第二天日期
+                <input name="escape_day2_date" type="date">
+              </label>
+              <label>
+                第二天時間
+                <input name="escape_day2_time" placeholder="例如：上午 09:00">
+              </label>
+              <label>
+                第三天日期
+                <input name="escape_day3_date" type="date">
+              </label>
+              <label>
+                第三天時間
+                <input name="escape_day3_time" placeholder="例如：上午 09:00">
+              </label>
+            </div>
+            <p class="field-hint">目前先記錄三天通知時間，下一階段再自動產生連續三天提醒行程。</p>
+          </div>
+
+          <div class="span-2 service-extra hidden" data-service-extra="轉出追蹤">
+            <div class="group-title">轉出追蹤相關欄位</div>
+            <div class="form-grid inner-grid">
+              <label>
+                終止日
+                <input name="transfer_end_date" type="date">
+              </label>
+              <label>
+                轉出到期日
+                <input name="transfer_due_date" type="date">
+              </label>
+            </div>
+          </div>
+
+          <div class="span-2 service-extra hidden" data-service-extra="返台提醒">
+            <div class="group-title">返台提醒相關欄位</div>
+            <div class="form-grid inner-grid">
+              <label>
+                返台日期
+                <input name="return_date" type="date">
+              </label>
+              <label>
+                班機
+                <input name="return_flight" placeholder="例如：CI123">
+              </label>
+              <label>
+                返台時間
+                <input name="return_time" placeholder="例如：14:30">
+              </label>
+            </div>
+          </div>
+
+          <div class="span-2 service-extra hidden" data-service-extra="驗證提醒">
+            <div class="group-title">驗證提醒相關欄位</div>
+            <div class="form-grid inner-grid">
+              <label>
+                最後工作日
+                <input name="verify_last_work_date" type="date">
+              </label>
+              <label>
+                驗證日期
+                <input name="verify_date" type="date">
+              </label>
+              <label>
+                離境日期
+                <input name="verify_leave_date" type="date">
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="span-2">
@@ -779,6 +886,7 @@ function openScheduleModal() {
   const categorySelect = document.querySelector('#categorySelect')
   const timeTypeSelect = document.querySelector('#timeTypeSelect')
   const repeatModeSelect = document.querySelector('#repeatModeSelect')
+  const serviceTypeSelect = document.querySelector('#serviceTypeSelect')
 
   function refreshFormSections() {
     const category = categorySelect.value
@@ -801,12 +909,21 @@ function openScheduleModal() {
     document.querySelector('#monthlyDayBlock').classList.toggle('hidden', mode !== '每月重複')
   }
 
+  function refreshServiceExtraFields() {
+    const selectedType = serviceTypeSelect ? serviceTypeSelect.value : ''
+    document.querySelectorAll('.service-extra').forEach(block => {
+      block.classList.toggle('hidden', block.dataset.serviceExtra !== selectedType)
+    })
+  }
+
   categorySelect.addEventListener('change', refreshFormSections)
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
+  if (serviceTypeSelect) serviceTypeSelect.addEventListener('change', refreshServiceExtraFields)
   refreshFormSections()
   refreshTimeBlock()
   refreshRepeatBlocks()
+  refreshServiceExtraFields()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
@@ -840,6 +957,62 @@ function buildRepeatNote(form) {
   }
   if (mode === '每月重複') return `行程模式：每月重複；每月 ${form.get('monthly_day') || '1'} 號`
   return `行程模式：${mode}`
+}
+
+
+function getSelectText(selector) {
+  const select = document.querySelector(selector)
+  if (!select || !select.value) return ''
+  const option = select.options[select.selectedIndex]
+  return option ? option.textContent : ''
+}
+
+function buildServiceExtraNote(form, scheduleType) {
+  const notes = []
+
+  if (scheduleType === '醫療') {
+    const nextDate = form.get('medical_next_date')
+    const nextTimeType = form.get('medical_next_time_type')
+    const nextHour = form.get('medical_next_hour')
+    const nextMinute = form.get('medical_next_minute')
+    const nextStaff = getSelectText('#medicalNextStaffSelect')
+    const registerNo = form.get('medical_register_no')
+    if (nextDate) notes.push(`下次回診日期：${nextDate}`)
+    if (nextTimeType && nextTimeType !== '不指定') notes.push(`下次回診時間：${nextTimeType} ${nextHour || '00'}:${nextMinute || '00'}`)
+    if (nextStaff) notes.push(`下次執行者：${nextStaff}`)
+    if (registerNo) notes.push(`掛號號碼：${registerNo}`)
+  }
+
+  if (scheduleType === '逃跑通知') {
+    const day1 = form.get('escape_day1_date')
+    const day1Time = form.get('escape_day1_time')
+    const day2 = form.get('escape_day2_date')
+    const day2Time = form.get('escape_day2_time')
+    const day3 = form.get('escape_day3_date')
+    const day3Time = form.get('escape_day3_time')
+    if (day1 || day1Time) notes.push(`逃跑第一天：${day1 || ''} ${day1Time || ''}`.trim())
+    if (day2 || day2Time) notes.push(`逃跑第二天：${day2 || ''} ${day2Time || ''}`.trim())
+    if (day3 || day3Time) notes.push(`逃跑第三天：${day3 || ''} ${day3Time || ''}`.trim())
+  }
+
+  if (scheduleType === '轉出追蹤') {
+    if (form.get('transfer_end_date')) notes.push(`終止日：${form.get('transfer_end_date')}`)
+    if (form.get('transfer_due_date')) notes.push(`轉出到期日：${form.get('transfer_due_date')}`)
+  }
+
+  if (scheduleType === '返台提醒') {
+    if (form.get('return_date')) notes.push(`返台日期：${form.get('return_date')}`)
+    if (form.get('return_flight')) notes.push(`班機：${form.get('return_flight')}`)
+    if (form.get('return_time')) notes.push(`返台時間：${form.get('return_time')}`)
+  }
+
+  if (scheduleType === '驗證提醒') {
+    if (form.get('verify_last_work_date')) notes.push(`最後工作日：${form.get('verify_last_work_date')}`)
+    if (form.get('verify_date')) notes.push(`驗證日期：${form.get('verify_date')}`)
+    if (form.get('verify_leave_date')) notes.push(`離境日期：${form.get('verify_leave_date')}`)
+  }
+
+  return notes
 }
 
 async function saveSchedule(event, modal) {
@@ -902,6 +1075,7 @@ async function saveSchedule(event, modal) {
     address = form.get('address') || null
     carNo = form.get('car_no') || null
     if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
+    subTypeNoteParts.push(...buildServiceExtraNote(form, scheduleType))
     if (serviceRecordStatus) subTypeNoteParts.push(`服務紀錄單：${serviceRecordStatus}`)
   }
 
@@ -995,7 +1169,7 @@ async function saveSchedule(event, modal) {
     action_type: '新增',
     source_type: 'schedule',
     source_id: schedule.schedule_id,
-    note: 'V002-1E-1 新增行程'
+    note: 'V002-1E-2 新增行程'
   })
 
   modal.remove()
