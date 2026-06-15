@@ -138,6 +138,69 @@ function renderHolidayLabels(dateKey) {
 }
 
 
+
+const reminderScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '返台提醒', '驗證提醒', '追蹤提醒事項']
+
+function isReminderSchedule(row) {
+  if (!row) return false
+  const typeText = [row.schedule_type, row.sub_type, row.category, row.title].filter(Boolean).join('｜')
+  return reminderScheduleTypes.some(type => typeText.includes(type))
+}
+
+function isOverdueSchedule(row) {
+  if (!row || !row.start_date) return false
+  return row.start_date < todayString() && row.status !== '已完成' && row.status !== '取消'
+}
+
+function isTodaySchedule(row) {
+  return row?.start_date === todayString()
+}
+
+function getPersonalReminderRows() {
+  return schedules
+    .filter(row => isActivePersonalSchedule(row) && isMine(row) && isReminderSchedule(row))
+    .filter(row => isTodaySchedule(row) || isOverdueSchedule(row))
+    .sort((a, b) => {
+      if (isOverdueSchedule(a) !== isOverdueSchedule(b)) return isOverdueSchedule(a) ? -1 : 1
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+    })
+}
+
+function renderPersonalReminderArea() {
+  const rows = getPersonalReminderRows()
+  if (!rows.length) return ''
+
+  return `
+    <section class="personal-reminder-area">
+      <div class="reminder-area-title">
+        <img src="/icons/reminder-notice.png" alt="提醒">
+        <div>
+          <strong>待確認 / 待通知提醒</strong>
+          <span>逃跑、轉出、住變、返台、驗證與追蹤提醒事項</span>
+        </div>
+      </div>
+
+      <div class="reminder-card-list">
+        ${rows.map(row => {
+          const overdue = isOverdueSchedule(row)
+          return `
+            <button type="button" class="reminder-alert-card ${overdue ? 'is-overdue' : 'is-today'}" data-view-schedule="${row.schedule_id}">
+              <div class="reminder-alert-main">
+                <div class="reminder-alert-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+                <div class="reminder-alert-meta">
+                  ${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
+                </div>
+                ${row.customer_name || row.location_name ? `<div class="reminder-alert-meta">${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</div>` : ''}
+              </div>
+              ${overdue ? `<div class="reminder-overdue-text">超過時間了!!!</div>` : `<div class="reminder-today-text">今日需處理</div>`}
+            </button>
+          `
+        }).join('')}
+      </div>
+    </section>
+  `
+}
+
 let currentProfile = null
 let currentPage = 'personalSchedule'
 let schedules = []
@@ -1073,6 +1136,7 @@ function renderPersonalSchedule() {
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
+    ${renderPersonalReminderArea()}
     <div class="summary-grid">
       <div class="summary-card">
         <strong>${todayRows.length}</strong>
