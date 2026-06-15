@@ -2640,6 +2640,8 @@ async function saveSchedule(event, modal) {
   event.preventDefault()
   if (saving) return
   saving = true
+  // V002-1H-4_SAVE_GUARD
+  try {
 
   const form = new FormData(event.target)
   const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
@@ -2815,6 +2817,11 @@ async function saveSchedule(event, modal) {
   await refreshData()
   saving = false
   renderApp()
+  } catch (err) {
+    console.error(err)
+    alert('儲存失敗：' + (err?.message || err))
+    saving = false
+  }
 }
 
 async function completeSchedule(scheduleId) {

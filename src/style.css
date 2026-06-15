@@ -2202,3 +2202,29 @@ label {
     white-space: normal;
   }
 }
+
+
+/* V002-1H-4 save debug + assignee left alignment */
+.checkbox-list {
+  text-align: left;
+}
+
+.check-row {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100%;
+}
+
+.check-row span {
+  text-align: left !important;
+  flex: 1;
+}
+
+.checkbox-list input[type="checkbox"] {
+  flex: 0 0 auto;
+}
+
+/* The executor block should align to the left, not center. */
+.field-title + .checkbox-list {
+  justify-items: start;
+}
