@@ -1297,3 +1297,74 @@ label {
     width: 100%;
   }
 }
+
+
+/* V002-1F-7 status label color separated from action buttons */
+.status-pill {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Default / 未完成 */
+.status-pill,
+.schedule-card:not(.is-completed):not(.is-cancelled) .status-pill {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+/* 已完成 */
+.schedule-card.is-completed .status-pill,
+.search-result-row.is-completed .status-pill {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+/* 取消 */
+.schedule-card.is-cancelled .status-pill,
+.search-result-row.is-cancelled .status-pill {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+/* Keep action buttons visually separate */
+.primary-btn,
+.small-btn {
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue);
+}
+
+.secondary-btn,
+.small-secondary-btn {
+  background: #eef2ff;
+  color: var(--blue);
+  border: 1px solid #c7d2fe;
+}
+
+.danger-btn,
+.small-danger-btn {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.small-record-btn {
+  background: #fff7cc;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
