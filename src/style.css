@@ -1653,3 +1653,30 @@ label {
     width: 100%;
   }
 }
+
+
+/* V002-1G-2 sidebar logo fill width */
+.sidebar .brand {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar .brand-logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.sidebar .brand-logo-wrap .brand-logo-img {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.sidebar .brand-subtitle {
+  margin-left: 8px;
+}
