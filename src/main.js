@@ -39,6 +39,105 @@ const weekdays = [
   ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
 ]
 
+const holidayMaps = {
+  2026: {
+    tw: {
+      '2026-01-01': ['元旦'],
+      '2026-02-16': ['除夕'],
+      '2026-02-17': ['春節'],
+      '2026-02-18': ['春節'],
+      '2026-02-19': ['春節'],
+      '2026-02-20': ['春節'],
+      '2026-02-27': ['和平紀念日補假'],
+      '2026-02-28': ['和平紀念日'],
+      '2026-04-03': ['兒童節補假'],
+      '2026-04-04': ['兒童節'],
+      '2026-04-05': ['清明節'],
+      '2026-04-06': ['清明節補假'],
+      '2026-05-01': ['勞動節'],
+      '2026-06-19': ['端午節'],
+      '2026-09-25': ['中秋節'],
+      '2026-09-28': ['教師節'],
+      '2026-10-10': ['國慶日'],
+      '2026-10-25': ['臺灣光復節'],
+      '2026-10-26': ['臺灣光復節補假']
+    },
+    th: {
+      '2026-01-01': ['泰國：元旦'],
+      '2026-04-13': ['泰國：宋干節'],
+      '2026-04-14': ['泰國：宋干節'],
+      '2026-04-15': ['泰國：宋干節'],
+      '2026-05-01': ['泰國：勞動節'],
+      '2026-07-28': ['泰國：國王誕辰'],
+      '2026-08-12': ['泰國：母親節'],
+      '2026-10-13': ['泰國：蒲美蓬紀念日'],
+      '2026-10-23': ['泰國：朱拉隆功紀念日'],
+      '2026-12-05': ['泰國：父親節'],
+      '2026-12-10': ['泰國：憲法日']
+    },
+    vn: {
+      '2026-01-01': ['越南：元旦'],
+      '2026-02-16': ['越南：春節'],
+      '2026-02-17': ['越南：春節'],
+      '2026-02-18': ['越南：春節'],
+      '2026-02-19': ['越南：春節'],
+      '2026-02-20': ['越南：春節'],
+      '2026-04-30': ['越南：統一日'],
+      '2026-05-01': ['越南：勞動節'],
+      '2026-09-02': ['越南：國慶日']
+    },
+    ph: {
+      '2026-01-01': ['菲律賓：元旦'],
+      '2026-04-09': ['菲律賓：勇士節'],
+      '2026-05-01': ['菲律賓：勞動節'],
+      '2026-06-12': ['菲律賓：獨立日'],
+      '2026-08-31': ['菲律賓：國家英雄日'],
+      '2026-11-30': ['菲律賓：博尼法西奧日'],
+      '2026-12-25': ['菲律賓：聖誕節'],
+      '2026-12-30': ['菲律賓：黎剎日']
+    },
+    id: {
+      '2026-01-01': ['印尼：元旦'],
+      '2026-02-16': ['印尼：農曆新年'],
+      '2026-03-19': ['印尼：開齋節'],
+      '2026-03-20': ['印尼：開齋節'],
+      '2026-05-01': ['印尼：勞動節'],
+      '2026-05-27': ['印尼：古爾邦節'],
+      '2026-08-17': ['印尼：獨立日'],
+      '2026-12-25': ['印尼：聖誕節']
+    }
+  }
+}
+
+function getHolidayData(dateKey) {
+  const year = Number(dateKey.slice(0, 4))
+  const yearMap = holidayMaps[year] || {}
+  const tw = yearMap.tw?.[dateKey] || []
+  const overseas = [
+    ...(yearMap.th?.[dateKey] || []),
+    ...(yearMap.vn?.[dateKey] || []),
+    ...(yearMap.ph?.[dateKey] || []),
+    ...(yearMap.id?.[dateKey] || [])
+  ]
+  return { tw, overseas }
+}
+
+function isTaiwanHoliday(date) {
+  const dateKey = toDateKey(date)
+  const day = date.getDay()
+  return day === 0 || day === 6 || getHolidayData(dateKey).tw.length > 0
+}
+
+function renderHolidayLabels(dateKey) {
+  const holiday = getHolidayData(dateKey)
+  const all = [
+    ...holiday.tw.map(name => `<span class="holiday-label tw">${escapeHtml(name)}</span>`),
+    ...holiday.overseas.map(name => `<span class="holiday-label overseas">${escapeHtml(name)}</span>`)
+  ]
+  return all.length ? `<div class="holiday-labels">${all.join('')}</div>` : ''
+}
+
+
 let currentProfile = null
 let currentPage = 'personalSchedule'
 let schedules = []
@@ -1097,9 +1196,10 @@ function renderScheduleOverview() {
             ${weekDates.map(date => {
               const key = toDateKey(date)
               const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''}">
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
                 <span>${weekName}</span>
                 <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
               </th>`
             }).join('')}
           </tr>
@@ -1114,7 +1214,7 @@ function renderScheduleOverview() {
               ${weekDates.map(date => {
                 const key = toDateKey(date)
                 const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
-                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
                   ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : '<span class="week-empty">—</span>'}
                 </td>`
               }).join('')}

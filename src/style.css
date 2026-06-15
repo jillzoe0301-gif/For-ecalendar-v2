@@ -1989,3 +1989,60 @@ label {
     height: 104px;
   }
 }
+
+
+/* V002-1H-1 holiday display for weekly calendars */
+.week-overview-table thead th.is-holiday,
+.week-day-cell.is-holiday {
+  background: #eef5ff;
+}
+
+.week-day-cell.is-holiday.is-today,
+.week-overview-table thead th.is-holiday.is-today {
+  background: #e0f2fe;
+}
+
+.holiday-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+  align-items: center;
+}
+
+.holiday-label {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.holiday-label.tw {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.holiday-label.overseas {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.week-overview-table thead th {
+  min-height: 74px;
+}
+
+@media (max-width: 768px) {
+  .holiday-label {
+    font-size: 9px;
+    padding: 0 5px;
+  }
+}
