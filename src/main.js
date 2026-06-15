@@ -518,6 +518,37 @@ function buildStaffSearchOptions() {
     staffList.map(staff => `<option value="${staff.staff_id}" ${searchFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>`).join('')
 }
 
+
+function renderSearchResultList(rows, emptyText) {
+  if (!rows.length) return `<div class="empty-state">${emptyText}</div>`
+
+  return `
+    <div class="search-result-list">
+      ${rows.map(row => `
+        <div class="search-result-row ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
+          <div class="search-result-date">
+            <strong>${escapeHtml(row.start_date || '-')}</strong>
+            <span>${escapeHtml(formatTime(row))}</span>
+          </div>
+
+          <div class="search-result-main">
+            <div class="search-result-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+            <div class="search-result-meta">
+              ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
+              ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
+              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}
+            </div>
+          </div>
+
+          <div class="search-result-action">
+            <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
 function renderSearchPage() {
   const results = getSearchResults()
   const statusOptions = buildOptionList(['全部', '未完成', '已完成', '取消'], searchFilters.status)
@@ -527,7 +558,7 @@ function renderSearchPage() {
     <div class="page-toolbar">
       <div>
         <h3>行程搜尋</h3>
-        <p class="muted">可查詢未完成、已完成與取消行程。個人頁隱藏的資料可在此查回。</p>
+        <p class="muted">搜尋已完成、取消與未完成行程；列表先簡潔顯示，需要完整內容再點查看。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetSearchBtn">清除條件</button>
@@ -537,38 +568,42 @@ function renderSearchPage() {
 
     ${renderReadStatus()}
 
-    <form id="searchForm" class="search-panel">
-      <label class="span-2">
+    <form id="searchForm" class="search-panel search-panel-simple">
+      <label class="search-keyword">
         關鍵字
-        <input name="keyword" value="${escapeHtml(searchFilters.keyword)}" placeholder="搜尋標題、內容、客戶、地點、備註、人員">
+        <input name="keyword" value="${escapeHtml(searchFilters.keyword)}" placeholder="搜尋標題、客戶、地點、備註、人員">
       </label>
 
-      <label>
-        狀態
-        <select name="status">${statusOptions}</select>
-      </label>
+      <div class="search-row">
+        <label>
+          狀態
+          <select name="status">${statusOptions}</select>
+        </label>
 
-      <label>
-        類別
-        <select name="category">${categoryOptions}</select>
-      </label>
+        <label>
+          類別
+          <select name="category">${categoryOptions}</select>
+        </label>
 
-      <label>
-        執行者
-        <select name="staffId">${buildStaffSearchOptions()}</select>
-      </label>
+        <label>
+          執行者
+          <select name="staffId">${buildStaffSearchOptions()}</select>
+        </label>
+      </div>
 
-      <label>
-        起日
-        <input name="startDate" type="date" value="${searchFilters.startDate}">
-      </label>
+      <div class="search-row date-range-row">
+        <label>
+          起日
+          <input name="startDate" type="date" value="${searchFilters.startDate}">
+        </label>
 
-      <label>
-        迄日
-        <input name="endDate" type="date" value="${searchFilters.endDate}">
-      </label>
+        <span class="date-range-separator">至</span>
 
-      <div class="search-actions">
+        <label>
+          迄日
+          <input name="endDate" type="date" value="${searchFilters.endDate}">
+        </label>
+
         <button type="submit" class="primary-btn">搜尋</button>
       </div>
     </form>
@@ -588,10 +623,9 @@ function renderSearchPage() {
       </div>
     </div>
 
-    ${renderScheduleList(results, '沒有符合條件的行程。')}
+    ${renderSearchResultList(results, '沒有符合條件的行程。')}
   `
 }
-
 
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
