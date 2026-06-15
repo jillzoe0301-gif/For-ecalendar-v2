@@ -144,6 +144,33 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;')
 }
 
+function contentPreview(row) {
+  const text = String(row.description || '').trim()
+  if (!text) return ''
+  return text.split(/\n+/).slice(0, 2).join('\n')
+}
+
+function getReminderLines(row) {
+  const note = String(row.sub_type_note || '')
+  if (!note) return []
+
+  const reminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒']
+  const reminderKeywords = ['抵台', '返台', '逃跑', '轉出', '終止日', '到期日', '住變', '搬家', '驗證', '最後工作日', '離境']
+
+  if (!reminderTypes.includes(row.schedule_type) && !reminderKeywords.some(keyword => note.includes(keyword))) return []
+
+  return note
+    .split('｜')
+    .map(item => item.trim())
+    .filter(item => item && reminderKeywords.some(keyword => item.includes(keyword)))
+}
+
+function renderReminderLines(row) {
+  const lines = getReminderLines(row)
+  if (!lines.length) return ''
+  return `<div class="reminder-lines">${lines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}</div>`
+}
+
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
     <section class="login-page">
@@ -435,11 +462,13 @@ function renderScheduleList(rows, emptyText) {
           <div class="schedule-card-main">
             <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
             <div class="schedule-title">${escapeHtml(row.title)}</div>
+            ${contentPreview(row) ? `<div class="schedule-content-preview">${escapeHtml(contentPreview(row))}</div>` : ''}
             <div class="schedule-meta">${escapeHtml(row.category)}${row.schedule_type ? '｜' + escapeHtml(row.schedule_type) : ''}${row.sub_type ? '｜' + escapeHtml(row.sub_type) : ''}</div>
             <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
             ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
             ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
-            ${row.sub_type_note ? `<div class="schedule-meta">備註：${escapeHtml(row.sub_type_note)}</div>` : ''}
+            ${renderReminderLines(row)}
+            ${row.sub_type_note && !getReminderLines(row).length ? `<div class="schedule-meta">備註：${escapeHtml(row.sub_type_note)}</div>` : ''}
             ${row.need_service_record ? '<div class="service-record-hint">需服務紀錄單</div>' : ''}
           </div>
           <div class="schedule-card-actions">
@@ -759,21 +788,17 @@ function openScheduleModal() {
                 <input name="medical_next_date" type="date">
               </label>
               <label>
-                下次回診時間類型
-                <select name="medical_next_time_type">
-                  <option value="不指定">不指定</option>
-                  <option value="上午">上午</option>
-                  <option value="下午">下午</option>
-                  <option value="指定時間">指定時間</option>
-                </select>
-              </label>
-              <label>
-                下次回診小時
-                <select name="medical_next_hour">${hourOptionsHtml('09')}</select>
-              </label>
-              <label>
-                下次回診分鐘
-                <select name="medical_next_minute">${minuteOptionsHtml('00')}</select>
+                下次回診時間
+                <div class="compact-time-row">
+                  <select name="medical_next_time_type" aria-label="下次回診時間類型">
+                    <option value="不指定">不指定</option>
+                    <option value="上午">上午</option>
+                    <option value="下午">下午</option>
+                    <option value="指定時間">指定時間</option>
+                  </select>
+                  <select name="medical_next_hour" aria-label="下次回診小時">${hourOptionsHtml('09')}</select>
+                  <select name="medical_next_minute" aria-label="下次回診分鐘">${minuteOptionsHtml('00')}</select>
+                </div>
               </label>
               <label>
                 下次執行者
@@ -786,35 +811,40 @@ function openScheduleModal() {
             </div>
           </div>
 
+          <div class="span-2 service-extra hidden" data-service-extra="收送簽文件">
+            <div class="group-title">收送簽文件相關欄位</div>
+            <div class="field-title">證件勾選</div>
+            <div class="inline-check-list">
+              <label class="inline-check"><input type="checkbox" name="document_items" value="護照">護照</label>
+              <label class="inline-check"><input type="checkbox" name="document_items" value="居留證">居留證</label>
+              <label class="inline-check"><input type="checkbox" name="document_items" value="健保卡">健保卡</label>
+              <label class="inline-check"><input type="checkbox" name="document_items" value="工作證">工作證</label>
+              <label class="inline-check"><input type="checkbox" name="document_items" value="印章">印章</label>
+              <label class="inline-check"><input type="checkbox" name="document_items" value="其他">其他</label>
+            </div>
+            <label class="span-2">
+              文件 / 用印說明
+              <input name="document_note" placeholder="例如：簽文件、補件、用印內容">
+            </label>
+          </div>
+
           <div class="span-2 service-extra hidden" data-service-extra="逃跑通知">
-            <div class="group-title">逃跑通知連續三天時間</div>
+            <div class="group-title">逃跑通知連續三天日期</div>
             <div class="form-grid inner-grid">
               <label>
                 第一天日期
                 <input name="escape_day1_date" type="date">
               </label>
               <label>
-                第一天時間
-                <input name="escape_day1_time" placeholder="例如：上午 09:00">
-              </label>
-              <label>
                 第二天日期
                 <input name="escape_day2_date" type="date">
-              </label>
-              <label>
-                第二天時間
-                <input name="escape_day2_time" placeholder="例如：上午 09:00">
               </label>
               <label>
                 第三天日期
                 <input name="escape_day3_date" type="date">
               </label>
-              <label>
-                第三天時間
-                <input name="escape_day3_time" placeholder="例如：上午 09:00">
-              </label>
             </div>
-            <p class="field-hint">目前先記錄三天通知時間，下一階段再自動產生連續三天提醒行程。</p>
+            <p class="field-hint">逃跑通知只記錄連續三天日期，不需要填寫時間。</p>
           </div>
 
           <div class="span-2 service-extra hidden" data-service-extra="轉出追蹤">
@@ -831,6 +861,24 @@ function openScheduleModal() {
             </div>
           </div>
 
+          <div class="span-2 service-extra hidden" data-service-extra="住變資訊">
+            <div class="group-title">住變資訊相關欄位</div>
+            <div class="form-grid inner-grid">
+              <label>
+                住變日期
+                <input name="move_date" type="date">
+              </label>
+              <label>
+                搬家時間
+                <input name="move_time" placeholder="例如：上午、下午、14:30">
+              </label>
+              <label class="span-2">
+                新地址 / 住變說明
+                <input name="move_note" placeholder="例如：新宿舍地址、搬遷說明">
+              </label>
+            </div>
+          </div>
+
           <div class="span-2 service-extra hidden" data-service-extra="返台提醒">
             <div class="group-title">返台提醒相關欄位</div>
             <div class="form-grid inner-grid">
@@ -843,7 +891,7 @@ function openScheduleModal() {
                 <input name="return_flight" placeholder="例如：CI123">
               </label>
               <label>
-                返台時間
+                抵台時間
                 <input name="return_time" placeholder="例如：14:30">
               </label>
             </div>
@@ -985,14 +1033,20 @@ function buildServiceExtraNote(form, scheduleType) {
 
   if (scheduleType === '逃跑通知') {
     const day1 = form.get('escape_day1_date')
-    const day1Time = form.get('escape_day1_time')
     const day2 = form.get('escape_day2_date')
-    const day2Time = form.get('escape_day2_time')
     const day3 = form.get('escape_day3_date')
-    const day3Time = form.get('escape_day3_time')
-    if (day1 || day1Time) notes.push(`逃跑第一天：${day1 || ''} ${day1Time || ''}`.trim())
-    if (day2 || day2Time) notes.push(`逃跑第二天：${day2 || ''} ${day2Time || ''}`.trim())
-    if (day3 || day3Time) notes.push(`逃跑第三天：${day3 || ''} ${day3Time || ''}`.trim())
+    if (day1) notes.push(`逃跑第一天：${day1}`)
+    if (day2) notes.push(`逃跑第二天：${day2}`)
+    if (day3) notes.push(`逃跑第三天：${day3}`)
+  }
+
+  if (scheduleType === '收送簽文件') {
+    const docs = [...document.querySelectorAll('input[name="document_items"]:checked')]
+      .map(input => input.value)
+      .join('、')
+    const docNote = form.get('document_note')
+    if (docs) notes.push(`證件：${docs}`)
+    if (docNote) notes.push(`文件說明：${docNote}`)
   }
 
   if (scheduleType === '轉出追蹤') {
@@ -1000,10 +1054,16 @@ function buildServiceExtraNote(form, scheduleType) {
     if (form.get('transfer_due_date')) notes.push(`轉出到期日：${form.get('transfer_due_date')}`)
   }
 
+  if (scheduleType === '住變資訊') {
+    if (form.get('move_date')) notes.push(`住變日期：${form.get('move_date')}`)
+    if (form.get('move_time')) notes.push(`搬家時間：${form.get('move_time')}`)
+    if (form.get('move_note')) notes.push(`住變說明：${form.get('move_note')}`)
+  }
+
   if (scheduleType === '返台提醒') {
     if (form.get('return_date')) notes.push(`返台日期：${form.get('return_date')}`)
     if (form.get('return_flight')) notes.push(`班機：${form.get('return_flight')}`)
-    if (form.get('return_time')) notes.push(`返台時間：${form.get('return_time')}`)
+    if (form.get('return_time')) notes.push(`抵台時間：${form.get('return_time')}`)
   }
 
   if (scheduleType === '驗證提醒') {
