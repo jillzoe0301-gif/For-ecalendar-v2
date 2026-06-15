@@ -2297,3 +2297,69 @@ label.record-modal-check {
   display: flex !important;
   flex-direction: row !important;
 }
+
+/* V002-1H-5-2 compact vehicle and document fields */
+.vehicle-doc-row {
+  display: grid !important;
+  grid-template-columns: 180px 1fr !important;
+  gap: 10px !important;
+  align-items: end !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  background: #f8fafc !important;
+}
+
+.vehicle-doc-row > label {
+  margin: 0 !important;
+}
+
+.vehicle-doc-row .document-section {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.vehicle-doc-row .document-section > label {
+  margin: 0 !important;
+}
+
+.vehicle-doc-row select,
+.vehicle-doc-row input {
+  height: 38px !important;
+  font-size: 14px !important;
+}
+
+#documentOptionsBlock {
+  margin-top: 8px !important;
+  padding: 10px !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+}
+
+#documentOptionsBlock .field-title {
+  margin-bottom: 6px !important;
+  font-size: 13px !important;
+}
+
+#documentOptionsBlock .inline-check-list {
+  gap: 6px !important;
+}
+
+#documentOptionsBlock .inline-check {
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+}
+
+#documentOptionsBlock label {
+  margin-top: 8px !important;
+}
+
+@media (max-width: 768px) {
+  .vehicle-doc-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
