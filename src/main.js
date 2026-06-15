@@ -99,8 +99,8 @@ function formatDate(value) {
 function formatTime(row) {
   const start = row.start_time ? row.start_time.slice(0, 5) : ''
   const end = row.end_time ? row.end_time.slice(0, 5) : ''
-  if (['上午', '下午', '指定時間'].includes(row.time_type) && start && end) return `${row.time_type} ${start}-${end}`
-  if (['上午', '下午', '指定時間'].includes(row.time_type) && start) return `${row.time_type} ${start}`
+  if (['上午', '下午'].includes(row.time_type) && start && end) return `${row.time_type} ${start}-${end}`
+  if (['上午', '下午'].includes(row.time_type) && start) return `${row.time_type} ${start}`
   return row.time_type || '不指定'
 }
 
@@ -377,6 +377,10 @@ function renderApp() {
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
     btn.addEventListener('click', () => openScheduleDetail(btn.dataset.viewSchedule))
   })
+
+  document.querySelectorAll('[data-record-schedule]').forEach(btn => {
+    btn.addEventListener('click', () => openServiceRecordModal(btn.dataset.recordSchedule))
+  })
 }
 
 function getPageTitle() {
@@ -480,7 +484,7 @@ function renderScheduleList(rows, emptyText) {
             </div>
             <div class="schedule-card-actions">
               <span class="status-pill">${row.status}</span>
-              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>\n              ${row.need_service_record ? `<button class="small-record-btn" data-record-schedule="${row.schedule_id}">紀錄單</button>` : ``}
             </div>
           </div>
         `
@@ -543,7 +547,7 @@ function openScheduleDetail(scheduleId) {
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
-        <div class="span-2"><span>服務紀錄單</span><strong>${row.need_service_record ? (row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '需繳交，尚未輸入繳交日期') : '不需繳交'}</strong></div>
+        <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '需繳交，尚未繳交') : '不需繳交'}</strong></div>
       </div>
 
       <div class="notice">${permissionNote}</div>
@@ -707,10 +711,8 @@ function openScheduleModal() {
               時間類型
               <select name="time_type" id="timeTypeSelect">
                 <option value="不指定">不指定</option>
-                <option value="整天">整天</option>
                 <option value="上午">上午</option>
                 <option value="下午">下午</option>
-                <option value="指定時間">指定時間</option>
               </select>
             </label>
 
@@ -810,14 +812,15 @@ function openScheduleModal() {
         </div>
 
         <div class="span-2 form-section hidden service-grid" data-section="service">
-          <label>
-            公務車
-            <select name="car_no">
-              ${carSelectOptions}
-            </select>
-          </label>
+          <div class="span-2 vehicle-doc-row">
+            <label>
+              公務車
+              <select name="car_no">
+                ${carSelectOptions}
+              </select>
+            </label>
 
-          <div class="span-2 document-section">
+            <div class="document-section">
             <label>
               是否有證件
               <select name="has_documents" id="hasDocumentsSelect">
@@ -834,6 +837,8 @@ function openScheduleModal() {
                 <input name="document_note" placeholder="例如：文件內容、用印說明、其他證件">
               </label>
             </div>
+          </div>
+
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="醫療">
@@ -964,7 +969,7 @@ function openScheduleModal() {
   }
 
   function refreshTimeBlock() {
-    const showTime = ['上午', '下午', '指定時間'].includes(timeTypeSelect.value)
+    const showTime = ['上午', '下午'].includes(timeTypeSelect.value)
     document.querySelector('#timeRangeBlock').classList.toggle('hidden', !showTime)
   }
 
@@ -1034,7 +1039,7 @@ function openScheduleModal() {
 
 function getTimeValue(form, prefix) {
   const timeType = form.get('time_type')
-  if (!['上午', '下午', '指定時間'].includes(timeType)) return null
+  if (!['上午', '下午'].includes(timeType)) return null
   const hour = form.get(`${prefix}_hour`) || '00'
   const minute = form.get(`${prefix}_minute`) || '00'
   return `${hour}:${minute}:00`
@@ -1295,13 +1300,6 @@ async function saveSchedule(event, modal) {
 }
 
 async function completeSchedule(scheduleId) {
-  const row = schedules.find(item => item.schedule_id === scheduleId)
-
-  if (row && row.need_service_record && !row.service_record_submitted_date) {
-    alert('此行程需要服務紀錄單，請先輸入服務紀錄單繳交日期，才可以標記已完成。')
-    return
-  }
-
   if (!confirm('確定要將此行程標記為已完成嗎？')) return
 
   const { error } = await supabase.rpc('complete_schedule', {
@@ -1432,6 +1430,90 @@ async function cancelSchedule(scheduleId, reason) {
   await refreshData()
   renderApp()
 }
+
+
+function openServiceRecordModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel">
+      <div class="modal-header">
+        <h3>服務紀錄單繳交狀況</h3>
+        <button class="icon-btn" id="closeRecordModalBtn" type="button">×</button>
+      </div>
+
+      <div class="notice">
+        行程完成狀態與服務紀錄單繳交狀態分開管理。此處只更新服務紀錄單，不會改變行程是否完成。
+      </div>
+
+      <div class="detail-grid">
+        <div class="span-2"><span>行程</span><strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title)}</strong></div>
+        <div><span>行程日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
+        <div><span>目前狀態</span><strong>${row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '尚未繳交'}</strong></div>
+      </div>
+
+      <label class="service-check record-modal-check">
+        <input id="recordSubmittedInput" type="checkbox" ${row.service_record_submitted_date ? 'checked' : ''}>
+        <span>已繳交服務紀錄單</span>
+      </label>
+
+      <label>
+        繳交日期
+        <input id="recordSubmittedDateInput" type="date" value="${row.service_record_submitted_date || todayString()}">
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="closeRecordModalBtn2">取消</button>
+        <button type="button" class="primary-btn" id="saveRecordStatusBtn">儲存紀錄單狀況</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const submittedInput = document.querySelector('#recordSubmittedInput')
+  const dateInput = document.querySelector('#recordSubmittedDateInput')
+
+  function refreshRecordDate() {
+    dateInput.disabled = !submittedInput.checked
+    if (submittedInput.checked && !dateInput.value) dateInput.value = todayString()
+    if (!submittedInput.checked) dateInput.value = ''
+  }
+
+  submittedInput.addEventListener('change', refreshRecordDate)
+  refreshRecordDate()
+
+  document.querySelector('#closeRecordModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#closeRecordModalBtn2').addEventListener('click', () => modal.remove())
+  document.querySelector('#saveRecordStatusBtn').addEventListener('click', async () => {
+    const submitted = submittedInput.checked
+    const submittedDate = submitted ? dateInput.value : null
+
+    if (submitted && !submittedDate) {
+      alert('請輸入服務紀錄單繳交日期。')
+      return
+    }
+
+    const { error } = await supabase.rpc('update_service_record_status', {
+      target_schedule_id: scheduleId,
+      submitted_value: submitted,
+      submitted_date_value: submittedDate
+    })
+
+    if (error) {
+      alert('更新服務紀錄單狀況失敗：' + error.message)
+      return
+    }
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+  })
+}
+
 
 async function logout() {
   await supabase.auth.signOut()

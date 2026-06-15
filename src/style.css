@@ -846,3 +846,51 @@ button {
   image-rendering: auto;
   object-fit: contain;
 }
+
+
+/* V002-1E-8 service record separated + compact form */
+.small-record-btn {
+  background: #fff7cc;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.vehicle-doc-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(260px, 1.3fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.vehicle-doc-row .document-section {
+  grid-column: auto;
+}
+
+.time-select-row {
+  grid-template-columns: repeat(4, minmax(68px, 1fr));
+  gap: 8px;
+}
+
+.time-select-row select {
+  height: 40px;
+  padding: 8px 10px;
+}
+
+.record-modal-check {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #f8fafc;
+  margin: 12px 0;
+}
+
+@media (max-width: 768px) {
+  .vehicle-doc-row {
+    grid-template-columns: 1fr;
+  }
+
+  .time-select-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
