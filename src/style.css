@@ -2456,3 +2456,84 @@ label.record-modal-check {
   }
 }
 
+
+/* V002-1H-5-4 force service type and extra schedule equal size */
+.service-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: end !important;
+}
+
+/* 行程類型欄位與是否有附加行程欄位同寬同高 */
+.service-grid > label:has(select[name="schedule_type"]),
+.service-grid .extra-schedule-box {
+  width: 100% !important;
+  height: 78px !important;
+  min-height: 78px !important;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  box-sizing: border-box !important;
+}
+
+/* 行程類型下拉高度 */
+.service-grid > label:has(select[name="schedule_type"]) select {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+/* 是否有附加行程那一列高度對齊 */
+.service-grid .extra-schedule-box > .service-check {
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
+/* checkbox 不要把整格撐歪 */
+.service-grid .extra-schedule-box input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 auto !important;
+  margin: 0 8px 0 0 !important;
+}
+
+/* 文字靠左、垂直置中 */
+.service-grid .extra-schedule-box .service-check span {
+  flex: 1 1 auto !important;
+  text-align: left !important;
+  line-height: 1.4 !important;
+}
+
+/* 展開後的附加行程內容另外往下，不影響第一列高度 */
+#extraScheduleBlock {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding-top: 10px !important;
+  border-top: 1px dashed var(--border) !important;
+}
+
+/* 手機版改回單欄 */
+@media (max-width: 768px) {
+  .service-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .service-grid > label:has(select[name="schedule_type"]),
+  .service-grid .extra-schedule-box {
+    height: 76px !important;
+    min-height: 76px !important;
+  }
+}
+
