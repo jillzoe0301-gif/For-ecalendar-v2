@@ -1154,3 +1154,146 @@ button {
     width: 100%;
   }
 }
+
+
+/* V002-1F-6 unified button, font, and baseline alignment */
+button,
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.logout-btn,
+.small-btn,
+.small-secondary-btn,
+.small-danger-btn,
+.small-record-btn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.logout-btn {
+  height: 42px;
+}
+
+.small-btn,
+.small-secondary-btn,
+.small-danger-btn,
+.small-record-btn {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 15px;
+}
+
+input,
+select {
+  height: 42px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.toolbar-actions,
+.modal-actions,
+.schedule-card-actions,
+.search-result-action,
+.search-actions {
+  align-items: flex-end;
+}
+
+.page-toolbar {
+  align-items: flex-end;
+}
+
+.search-row,
+.date-range-row,
+.time-select-row,
+.compact-time-row,
+.vehicle-doc-row,
+.form-grid,
+.service-grid,
+.service-location-top,
+.compact-grid {
+  align-items: end;
+}
+
+.search-row label,
+.date-range-row label,
+.time-select-row label,
+.compact-time-row label,
+.vehicle-doc-row label,
+.form-grid label,
+.service-grid label,
+.service-location-top label,
+.compact-grid label {
+  margin-bottom: 0;
+}
+
+.date-range-row .primary-btn,
+.search-actions .primary-btn,
+.toolbar-actions button,
+.modal-actions button {
+  align-self: end;
+}
+
+.schedule-card-actions {
+  align-self: stretch;
+  justify-content: flex-start;
+}
+
+.schedule-card-actions .status-pill {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-pill {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  button,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .logout-btn {
+    min-height: 42px;
+  }
+
+  .toolbar-actions {
+    align-items: stretch;
+  }
+
+  .toolbar-actions button,
+  .modal-actions button,
+  .search-actions button,
+  .date-range-row .primary-btn {
+    width: 100%;
+  }
+}
