@@ -2046,3 +2046,43 @@ label {
     padding: 0 5px;
   }
 }
+
+
+/* V002-1H-2 today column outline; only real holidays/weekends use blue background */
+/* Today is NOT a holiday background by itself. */
+.week-day-cell.is-today:not(.is-holiday),
+.week-overview-table thead th.is-today:not(.is-holiday) {
+  background: #ffffff !important;
+}
+
+/* Taiwan holidays/weekends keep calendar blue background. */
+.week-overview-table thead th.is-holiday,
+.week-day-cell.is-holiday {
+  background: #eef5ff !important;
+}
+
+/* Today column uses FOR-e blue outline. */
+.week-overview-table thead th.is-today,
+.week-day-cell.is-today {
+  position: relative;
+  box-shadow: inset 0 0 0 2px #5170ff !important;
+}
+
+/* If today is also a holiday/weekend, keep holiday background and add stronger outline. */
+.week-overview-table thead th.is-today.is-holiday,
+.week-day-cell.is-today.is-holiday {
+  background: #eef5ff !important;
+  box-shadow: inset 0 0 0 2px #5170ff !important;
+}
+
+/* Make the current-day header date visually clear. */
+.week-overview-table thead th.is-today strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #5170ff;
+  color: #ffffff;
+}
