@@ -939,3 +939,13 @@ button {
 /* V002-1E-12 cancelled schedules are hidden from normal card pages */
 
 /* V002-1E-13 completed schedules are hidden from personal card pages */
+
+
+/* V002-1F edit schedule modal */
+#editScheduleForm .notice {
+  margin-top: 0;
+}
+
+#editServiceBlock.hidden {
+  display: none !important;
+}

@@ -104,6 +104,15 @@ function formatDate(value) {
   return value || '-'
 }
 
+function parseTimeForEdit(value, fallbackHour = '09', fallbackMinute = '00') {
+  if (!value) return { hour: fallbackHour, minute: fallbackMinute }
+  const text = String(value)
+  return {
+    hour: text.slice(0, 2) || fallbackHour,
+    minute: text.slice(3, 5) || fallbackMinute
+  }
+}
+
 function formatTime(row) {
   const start = row.start_time ? row.start_time.slice(0, 5) : ''
   const end = row.end_time ? row.end_time.slice(0, 5) : ''
@@ -562,6 +571,7 @@ function openScheduleDetail(scheduleId) {
 
       <div class="modal-actions">
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
+        ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
         ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">已完成</button>` : ''}
         ${canCancelSchedule(row) ? `<button type="button" class="danger-btn" id="detailCancelBtn">取消行程</button>` : ''}
       </div>
@@ -571,6 +581,14 @@ function openScheduleDetail(scheduleId) {
   document.body.appendChild(modal)
   document.querySelector('#closeDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeDetailBtn2').addEventListener('click', () => modal.remove())
+
+  const editBtn = document.querySelector('#detailEditBtn')
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      modal.remove()
+      openEditScheduleModal(scheduleId)
+    })
+  }
 
   const completeBtn = document.querySelector('#detailCompleteBtn')
   if (completeBtn) {
@@ -627,6 +645,16 @@ function serviceTypeOptionsHtml(includeEmpty = false) {
   const empty = includeEmpty ? '<option value="">無</option>' : ''
   return empty + serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
 }
+
+function optionHtml(items, selectedValue = '', includeEmpty = false) {
+  const empty = includeEmpty ? `<option value="">無</option>` : ''
+  return empty + items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+function timeTypeOptionsHtml(selectedValue = '不指定') {
+  return ['不指定', '上午', '下午'].map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+}
+
 
 function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00') {
   return `
@@ -1145,6 +1173,269 @@ function buildServiceExtraNotes(form, scheduleType) {
 
   return notes
 }
+
+
+function openEditScheduleModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!canModifySchedule(row)) {
+    alert('您沒有權限修改此行程。')
+    return
+  }
+
+  const start = parseTimeForEdit(row.start_time, '09', '00')
+  const end = parseTimeForEdit(row.end_time, '10', '00')
+  const categoryOptions = optionHtml(formCategories, row.category)
+  const serviceTypeOptions = optionHtml(serviceScheduleTypes, row.schedule_type || '其他')
+  const subTypeOptions = optionHtml(serviceScheduleTypes, row.sub_type || '', true)
+  const carSelectOptions = optionHtml(carOptions, row.car_no || '不使用')
+  const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
+  const showTime = ['上午', '下午'].includes(row.time_type)
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>修改行程</h3>
+        <button class="icon-btn" id="closeEditModalBtn" type="button">×</button>
+      </div>
+
+      <form id="editScheduleForm" class="form-grid">
+        <label>
+          類別
+          <select name="category" id="editCategorySelect">
+            ${categoryOptions}
+          </select>
+        </label>
+
+        <label>
+          狀態
+          <input value="${escapeHtml(row.status || '未完成')}" disabled>
+        </label>
+
+        <div class="span-2 service-grid" id="editServiceBlock">
+          <label>
+            行程類型
+            <select name="schedule_type">
+              ${serviceTypeOptions}
+            </select>
+          </label>
+
+          <label>
+            附加行程
+            <select name="sub_type">
+              ${subTypeOptions}
+            </select>
+          </label>
+
+          <div class="span-2 service-record-box">
+            <div class="field-title">服務紀錄單</div>
+            <label class="service-check">
+              <input name="need_service_record" type="checkbox" id="editNeedServiceRecordCheck" ${row.need_service_record ? 'checked' : ''}>
+              <span>需要服務紀錄單</span>
+            </label>
+            <label class="service-check">
+              <input name="service_record_submitted_check" type="checkbox" id="editServiceRecordSubmittedCheck" ${row.service_record_submitted_date ? 'checked' : ''}>
+              <span>已繳交</span>
+            </label>
+          </div>
+
+          <label>
+            服務紀錄單繳交日期
+            <input name="service_record_submitted_date" type="date" value="${row.service_record_submitted_date || ''}">
+          </label>
+
+          <label>
+            公務車
+            <select name="car_no">
+              ${carSelectOptions}
+            </select>
+          </label>
+        </div>
+
+        <label class="span-2">
+          標題
+          <input name="title" required value="${escapeHtml(row.title || '')}">
+        </label>
+
+        <label class="span-2">
+          內容
+          <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
+        </label>
+
+        <label>
+          開始日期
+          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
+        </label>
+
+        <label>
+          結束日期
+          <input name="end_date" type="date" value="${row.end_date || row.start_date || todayString()}">
+        </label>
+
+        <label>
+          時間類型
+          <select name="time_type" id="editTimeTypeSelect">
+            ${timeOptions}
+          </select>
+        </label>
+
+        <div class="span-2 conditional-time ${showTime ? '' : 'hidden'}" id="editTimeRangeBlock">
+          <div class="time-select-row">
+            <label>
+              開始小時
+              <select name="start_hour">${hourOptionsHtml(start.hour)}</select>
+            </label>
+            <label>
+              開始分鐘
+              <select name="start_minute">${minuteOptionsHtml(start.minute)}</select>
+            </label>
+            <label>
+              結束小時
+              <select name="end_hour">${hourOptionsHtml(end.hour)}</select>
+            </label>
+            <label>
+              結束分鐘
+              <select name="end_minute">${minuteOptionsHtml(end.minute)}</select>
+            </label>
+          </div>
+        </div>
+
+        <label>
+          區域 / 客戶
+          <input name="customer_name" value="${escapeHtml(row.customer_name || '')}">
+        </label>
+
+        <label>
+          地點
+          <input name="location_name" value="${escapeHtml(row.location_name || '')}">
+        </label>
+
+        <label class="span-2">
+          地址
+          <input name="address" value="${escapeHtml(row.address || '')}">
+        </label>
+
+        <label class="span-2">
+          備註 / 提醒 / 證件
+          <input name="sub_type_note" value="${escapeHtml(row.sub_type_note || '')}">
+        </label>
+
+        <div class="notice span-2">
+          這一版先修改行程內容，不修改執行者。執行者修改會放下一版處理。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelEditModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存修改</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const categorySelect = document.querySelector('#editCategorySelect')
+  const serviceBlock = document.querySelector('#editServiceBlock')
+  const timeTypeSelect = document.querySelector('#editTimeTypeSelect')
+  const timeBlock = document.querySelector('#editTimeRangeBlock')
+  const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
+  const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
+  const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
+
+  function refreshEditServiceBlock() {
+    serviceBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
+  }
+
+  function refreshEditTimeBlock() {
+    timeBlock.classList.toggle('hidden', !['上午', '下午'].includes(timeTypeSelect.value))
+  }
+
+  function refreshEditServiceRecordChecks() {
+    if (!needRecordCheck.checked) {
+      submittedCheck.checked = false
+      submittedCheck.disabled = true
+      submittedDateInput.value = ''
+      submittedDateInput.disabled = true
+    } else {
+      submittedCheck.disabled = false
+      submittedDateInput.disabled = !submittedCheck.checked
+      if (submittedCheck.checked && !submittedDateInput.value) submittedDateInput.value = todayString()
+      if (!submittedCheck.checked) submittedDateInput.value = ''
+    }
+  }
+
+  categorySelect.addEventListener('change', refreshEditServiceBlock)
+  timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
+  needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
+  submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
+
+  refreshEditServiceBlock()
+  refreshEditTimeBlock()
+  refreshEditServiceRecordChecks()
+
+  document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelEditModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#editScheduleForm').addEventListener('submit', event => saveEditedSchedule(event, modal, row))
+}
+
+async function saveEditedSchedule(event, modal, originalRow) {
+  event.preventDefault()
+
+  const form = new FormData(event.target)
+  const category = form.get('category')
+  const isService = category === '服務行程'
+  const submitted = isService && form.get('service_record_submitted_check') === 'on'
+  const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
+
+  const payload = {
+    category,
+    schedule_type: isService ? (form.get('schedule_type') || '其他') : category,
+    sub_type: isService ? (form.get('sub_type') || null) : originalRow.sub_type,
+    sub_type_note: form.get('sub_type_note') || null,
+    title: form.get('title'),
+    description: form.get('description') || null,
+    start_date: form.get('start_date'),
+    end_date: form.get('end_date') || form.get('start_date'),
+    time_type: form.get('time_type'),
+    start_time: getTimeValue(form, 'start'),
+    end_time: getTimeValue(form, 'end'),
+    customer_name: isService ? (form.get('customer_name') || null) : null,
+    location_name: isService ? (form.get('location_name') || null) : null,
+    address: isService ? (form.get('address') || null) : null,
+    car_no: isService ? (form.get('car_no') || null) : null,
+    need_service_record: isService && form.get('need_service_record') === 'on',
+    service_record_submitted: submitted,
+    service_record_submitted_date: submittedDate
+  }
+
+  const { error } = await supabase
+    .from('schedules')
+    .update(payload)
+    .eq('schedule_id', originalRow.schedule_id)
+
+  if (error) {
+    alert('修改行程失敗：' + error.message)
+    return
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '修改',
+    source_type: 'schedule',
+    source_id: originalRow.schedule_id,
+    note: 'V002-1F 修改行程內容'
+  })
+
+  modal.remove()
+  await refreshData()
+  renderApp()
+}
+
 
 async function saveSchedule(event, modal) {
   event.preventDefault()
