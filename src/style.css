@@ -2363,3 +2363,96 @@ label.record-modal-check {
   }
 }
 
+
+/* V002-1H-5-3 equal field sizes for service type / extra / vehicle / document */
+.service-grid > label,
+.service-grid .extra-schedule-box,
+.vehicle-doc-row > label,
+.vehicle-doc-row .document-section {
+  min-height: 74px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+}
+
+/* 行程類型與是否有附加行程同寬同高 */
+.service-grid > label:has(select[name="schedule_type"]),
+.service-grid .extra-schedule-box {
+  height: 74px !important;
+}
+
+.service-grid .extra-schedule-box {
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+}
+
+/* 是否有附加行程：不要撐太高 */
+.service-grid .extra-schedule-box > .service-check {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 公務車與是否有證件同寬同高 */
+.vehicle-doc-row {
+  grid-template-columns: 1fr 1fr !important;
+  align-items: end !important;
+}
+
+.vehicle-doc-row > label,
+.vehicle-doc-row .document-section {
+  height: 74px !important;
+  min-height: 74px !important;
+}
+
+.vehicle-doc-row .document-section {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* 公務車 / 是否有證件 下拉欄位高度一致 */
+.service-grid select,
+.vehicle-doc-row select {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+/* 標籤文字與欄位間距一致 */
+.service-grid > label,
+.vehicle-doc-row > label,
+.vehicle-doc-row .document-section > label {
+  margin: 0 !important;
+  gap: 6px !important;
+}
+
+/* 展開後的附加行程內容另外往下排，不影響第一列高度 */
+#extraScheduleBlock {
+  margin-top: 10px !important;
+  grid-column: 1 / -1 !important;
+}
+
+/* 展開後的證件內容另外往下排，不影響第一列高度 */
+#documentOptionsBlock {
+  margin-top: 10px !important;
+}
+
+/* 手機版維持單欄 */
+@media (max-width: 768px) {
+  .vehicle-doc-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .service-grid > label:has(select[name="schedule_type"]),
+  .service-grid .extra-schedule-box,
+  .vehicle-doc-row > label,
+  .vehicle-doc-row .document-section {
+    height: auto !important;
+    min-height: 70px !important;
+  }
+}
+
