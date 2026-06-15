@@ -949,3 +949,25 @@ button {
 #editServiceBlock.hidden {
   display: none !important;
 }
+
+
+/* V002-1F-1 service location before title + medical follow-up from detail page */
+.service-location-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.service-location-top.hidden {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .service-location-top {
+    grid-template-columns: 1fr;
+  }
+}

@@ -151,6 +151,17 @@ function parseNoteTokens(row) {
     .filter(Boolean)
 }
 
+function getNoteValue(row, label) {
+  const items = parseNoteTokens(row)
+  const found = items.find(item => item.startsWith(label + '：'))
+  return found ? found.slice(label.length + 1) : ''
+}
+
+function removeNoteLabels(noteText, labels) {
+  const items = String(noteText || '').split('｜').map(item => item.trim()).filter(Boolean)
+  return items.filter(item => !labels.some(label => item.startsWith(label + '：'))).join('｜')
+}
+
 function getReminderTokens(row) {
   const type = row.schedule_type || ''
   const noteItems = parseNoteTokens(row)
@@ -571,6 +582,7 @@ function openScheduleDetail(scheduleId) {
 
       <div class="modal-actions">
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
+        ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
         ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">已完成</button>` : ''}
         ${canCancelSchedule(row) ? `<button type="button" class="danger-btn" id="detailCancelBtn">取消行程</button>` : ''}
@@ -581,6 +593,14 @@ function openScheduleDetail(scheduleId) {
   document.body.appendChild(modal)
   document.querySelector('#closeDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeDetailBtn2').addEventListener('click', () => modal.remove())
+
+  const medicalFollowBtn = document.querySelector('#detailMedicalFollowBtn')
+  if (medicalFollowBtn) {
+    medicalFollowBtn.addEventListener('click', () => {
+      modal.remove()
+      openMedicalFollowModal(scheduleId)
+    })
+  }
 
   const editBtn = document.querySelector('#detailEditBtn')
   if (editBtn) {
@@ -815,6 +835,23 @@ function openScheduleModal() {
           </label>
         </div>
 
+        <div class="span-2 form-section hidden service-location-top" data-section="service-location">
+          <label>
+            區域 / 客戶名稱
+            <input name="customer_name" placeholder="例如：客來喜">
+          </label>
+
+          <label>
+            地點
+            <input name="location_name" placeholder="例如：醫院、公司、宿舍">
+          </label>
+
+          <label class="span-2">
+            地址
+            <input name="address" placeholder="完整地址，可先空白">
+          </label>
+        </div>
+
         <div class="span-2 form-section" data-section="common-simple">
           <label>
             標題
@@ -883,28 +920,6 @@ function openScheduleModal() {
 
           </div>
 
-          <div class="span-2 conditional-service hidden" data-service-extra="醫療">
-            <div class="group-title">醫療提醒</div>
-            <div class="compact-grid">
-              <label>
-                下次回診日期
-                <input name="medical_next_date" type="date">
-              </label>
-              <label>
-                下次回診時間
-                ${compactTimeSelectHtml('medical_next', '09', '00')}
-              </label>
-              <label>
-                下次執行者
-                <select name="medical_next_staff">${staffSelectOptionsHtml()}</select>
-              </label>
-              <label>
-                掛號號碼
-                <input name="medical_register_no" placeholder="掛號號碼">
-              </label>
-            </div>
-          </div>
-
           <div class="span-2 conditional-service hidden" data-service-extra="逃跑通知">
             <div class="group-title">逃跑三日通知</div>
             <div class="compact-grid">
@@ -955,21 +970,6 @@ function openScheduleModal() {
             </div>
           </div>
 
-          <label>
-            區域 / 客戶名稱
-            <input name="customer_name" placeholder="例如：客來喜">
-          </label>
-
-          <label>
-            地點
-            <input name="location_name" placeholder="例如：醫院、公司、宿舍">
-          </label>
-
-          <label class="span-2">
-            地址
-            <input name="address" placeholder="完整地址，可先空白">
-          </label>
-
           <label class="span-2">
             附加備註
             <input name="sub_type_note" placeholder="其他補充說明">
@@ -1005,8 +1005,12 @@ function openScheduleModal() {
     if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
     if (category === '服務行程') {
-      document.querySelector('[data-section="service-top"]').classList.remove('hidden')
-      document.querySelector('[data-section="service"]').classList.remove('hidden')
+      const serviceTop = document.querySelector('[data-section="service-top"]')
+      const serviceLocation = document.querySelector('[data-section="service-location"]')
+      const serviceBlock = document.querySelector('[data-section="service"]')
+      if (serviceTop) serviceTop.classList.remove('hidden')
+      if (serviceLocation) serviceLocation.classList.remove('hidden')
+      if (serviceBlock) serviceBlock.classList.remove('hidden')
     }
   }
 
@@ -1175,6 +1179,119 @@ function buildServiceExtraNotes(form, scheduleType) {
 }
 
 
+
+function openMedicalFollowModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!isMine(row)) {
+    alert('只有行程建立者或被指派人員可以填寫回診資訊。')
+    return
+  }
+
+  const currentDate = getNoteValue(row, '下次回診').split(' ')[0] || ''
+  const currentTimeText = getNoteValue(row, '下次回診').split(' ').slice(1).join(' ')
+  const currentRegisterNo = getNoteValue(row, '掛號號碼')
+  const currentStaffText = getNoteValue(row, '下次執行者')
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel">
+      <div class="modal-header">
+        <h3>醫療回診資訊</h3>
+        <button class="icon-btn" id="closeMedicalFollowBtn" type="button">×</button>
+      </div>
+
+      <div class="notice">
+        回診資訊在「查看」頁填寫，不放在新增行程表單，避免新增服務行程時版面太複雜。
+      </div>
+
+      <div class="form-grid">
+        <label>
+          下次回診日期
+          <input name="medical_next_date" id="medicalNextDateInput" type="date" value="${currentDate}">
+        </label>
+
+        <label>
+          下次回診時間
+          <div class="compact-time-row">
+            <select id="medicalNextTimeType">
+              <option value="不指定">不指定</option>
+              <option value="上午">上午</option>
+              <option value="下午">下午</option>
+            </select>
+            <select id="medicalNextHour">${hourOptionsHtml('09')}</select>
+            <select id="medicalNextMinute">${minuteOptionsHtml('00')}</select>
+          </div>
+        </label>
+
+        <label>
+          下次執行者
+          <select id="medicalNextStaffSelect">
+            ${staffSelectOptionsHtml()}
+          </select>
+        </label>
+
+        <label>
+          掛號號碼
+          <input id="medicalRegisterNoInput" value="${escapeHtml(currentRegisterNo)}" placeholder="掛號號碼">
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="cancelMedicalFollowBtn">取消</button>
+        <button type="button" class="primary-btn" id="saveMedicalFollowBtn">儲存回診資訊</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  if (currentTimeText.includes('上午')) document.querySelector('#medicalNextTimeType').value = '上午'
+  if (currentTimeText.includes('下午')) document.querySelector('#medicalNextTimeType').value = '下午'
+
+  const staffSelect = document.querySelector('#medicalNextStaffSelect')
+  if (currentStaffText) {
+    Array.from(staffSelect.options).forEach((option, index) => {
+      if (option.textContent === currentStaffText) staffSelect.selectedIndex = index
+    })
+  }
+
+  document.querySelector('#closeMedicalFollowBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelMedicalFollowBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#saveMedicalFollowBtn').addEventListener('click', async () => {
+    const dateValue = document.querySelector('#medicalNextDateInput').value
+    const timeType = document.querySelector('#medicalNextTimeType').value
+    const hour = document.querySelector('#medicalNextHour').value
+    const minute = document.querySelector('#medicalNextMinute').value
+    const staffText = staffSelect.value ? staffSelect.options[staffSelect.selectedIndex].textContent : ''
+    const registerNo = document.querySelector('#medicalRegisterNoInput').value.trim()
+
+    const cleanNote = removeNoteLabels(row.sub_type_note, ['下次回診', '下次執行者', '掛號號碼'])
+    const newParts = []
+    if (cleanNote) newParts.push(cleanNote)
+    if (dateValue) newParts.push(`下次回診：${dateValue} ${timeType === '不指定' ? '不指定' : timeType + ' ' + hour + ':' + minute}`)
+    if (staffText) newParts.push(`下次執行者：${staffText}`)
+    if (registerNo) newParts.push(`掛號號碼：${registerNo}`)
+
+    const { error } = await supabase.rpc('update_medical_followup_info', {
+      target_schedule_id: scheduleId,
+      followup_note_value: newParts.join('｜')
+    })
+
+    if (error) {
+      alert('更新回診資訊失敗：' + error.message)
+      return
+    }
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+  })
+}
+
+
 function openEditScheduleModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -1255,6 +1372,23 @@ function openEditScheduleModal(scheduleId) {
           </label>
         </div>
 
+        <div class="span-2 service-location-top" id="editServiceLocationBlock">
+          <label>
+            區域 / 客戶
+            <input name="customer_name" value="${escapeHtml(row.customer_name || '')}">
+          </label>
+
+          <label>
+            地點
+            <input name="location_name" value="${escapeHtml(row.location_name || '')}">
+          </label>
+
+          <label class="span-2">
+            地址
+            <input name="address" value="${escapeHtml(row.address || '')}">
+          </label>
+        </div>
+
         <label class="span-2">
           標題
           <input name="title" required value="${escapeHtml(row.title || '')}">
@@ -1303,21 +1437,6 @@ function openEditScheduleModal(scheduleId) {
           </div>
         </div>
 
-        <label>
-          區域 / 客戶
-          <input name="customer_name" value="${escapeHtml(row.customer_name || '')}">
-        </label>
-
-        <label>
-          地點
-          <input name="location_name" value="${escapeHtml(row.location_name || '')}">
-        </label>
-
-        <label class="span-2">
-          地址
-          <input name="address" value="${escapeHtml(row.address || '')}">
-        </label>
-
         <label class="span-2">
           備註 / 提醒 / 證件
           <input name="sub_type_note" value="${escapeHtml(row.sub_type_note || '')}">
@@ -1339,6 +1458,7 @@ function openEditScheduleModal(scheduleId) {
 
   const categorySelect = document.querySelector('#editCategorySelect')
   const serviceBlock = document.querySelector('#editServiceBlock')
+  const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
   const timeTypeSelect = document.querySelector('#editTimeTypeSelect')
   const timeBlock = document.querySelector('#editTimeRangeBlock')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
@@ -1347,6 +1467,7 @@ function openEditScheduleModal(scheduleId) {
 
   function refreshEditServiceBlock() {
     serviceBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
+    if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
   }
 
   function refreshEditTimeBlock() {
