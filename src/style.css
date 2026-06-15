@@ -894,3 +894,40 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+/* V002-1E-9 official final logo cleanup */
+.brand {
+  padding-left: 8px;
+  padding-right: 10px;
+}
+
+.brand-logo-wrap {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.brand-logo-wrap .brand-logo-img {
+  width: 188px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.brand-subtitle {
+  margin-left: 4px;
+}
+
+.login-brand .brand-logo-img.square-logo {
+  width: 176px;
+  height: 176px;
+  object-fit: contain;
+}
+
+.mobile-header .brand-logo-img.icon-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
