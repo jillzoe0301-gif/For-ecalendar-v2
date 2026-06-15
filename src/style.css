@@ -2228,3 +2228,72 @@ label {
 .field-title + .checkbox-list {
   justify-items: start;
 }
+
+
+/* V002-1H-5 force all checkbox rows align left */
+.checkbox-list,
+.inline-check-list,
+.service-record-box,
+.extra-schedule-box,
+.document-section {
+  text-align: left !important;
+  justify-items: start !important;
+  align-items: stretch !important;
+}
+
+.check-row,
+.inline-check,
+.service-check,
+.record-modal-check {
+  justify-content: flex-start !important;
+  align-items: center !important;
+  text-align: left !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.check-row span,
+.inline-check span,
+.service-check span,
+.record-modal-check span {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  flex: 1 1 auto;
+}
+
+.check-row input[type="checkbox"],
+.inline-check input[type="checkbox"],
+.service-check input[type="checkbox"],
+.record-modal-check input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+  margin-right: 8px !important;
+}
+
+.inline-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+.inline-check {
+  width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+.checkbox-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  justify-content: stretch !important;
+}
+
+/* Prevent global label flex alignment from centering checkbox content */
+label.check-row,
+label.inline-check,
+label.service-check,
+label.record-modal-check {
+  display: flex !important;
+  flex-direction: row !important;
+}
