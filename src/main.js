@@ -796,6 +796,32 @@ function renderAuditPage() {
   `
 }
 
+
+function getAuditSourceLabel(row) {
+  if (!row) return '-'
+
+  if (row.source_type === 'schedule' && row.source_id) {
+    const schedule = schedules.find(item => item.schedule_id === row.source_id)
+    if (schedule) {
+      const type = schedule.schedule_type || schedule.category || '行程'
+      const title = schedule.title || '-'
+      const date = schedule.start_date || '-'
+      const status = schedule.status || '-'
+      return `${type}｜${title}｜${date}｜${status}`
+    }
+  }
+
+  if (row.source_type === 'service_record' && row.source_id) {
+    const schedule = schedules.find(item => item.schedule_id === row.source_id)
+    if (schedule) {
+      return `服務紀錄單｜${schedule.schedule_type || schedule.category || '行程'}｜${schedule.title || '-'}｜${schedule.start_date || '-'}`
+    }
+  }
+
+  return `${row.source_type || '-'}｜${row.source_id || '-'}`
+}
+
+
 function renderAuditList(rows) {
   if (!rows.length) return `<div class="empty-state">沒有符合條件的異動紀錄。</div>`
 
@@ -810,7 +836,7 @@ function renderAuditList(rows) {
               <strong>${escapeHtml(row.operated_by_name || '-')}</strong>
             </div>
             <div class="audit-note">${escapeHtml(row.note || '-')}</div>
-            <div class="audit-meta">${escapeHtml(row.source_type || '-')}｜${escapeHtml(row.source_id || '-')}</div>
+            <div class="audit-meta audit-source"><span>異動行程：</span>${escapeHtml(getAuditSourceLabel(row))}</div>
           </div>
         </div>
       `).join('')}

@@ -1515,3 +1515,21 @@ label {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* V002-1F-10 audit source title instead of source id */
+.audit-source {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.audit-source span {
+  color: var(--muted);
+  font-weight: 800;
+}
