@@ -898,18 +898,20 @@ button {
 
 /* V002-1E-9 official final logo cleanup */
 .brand {
-  padding-left: 8px;
-  padding-right: 10px;
+  padding-left: 4px;
+  padding-right: 8px;
 }
 
 .brand-logo-wrap {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  width: 100%;
 }
 
 .brand-logo-wrap .brand-logo-img {
-  width: 188px;
+  display: block;
+  width: 212px;
   max-width: 100%;
   height: auto;
   object-fit: contain;
@@ -917,7 +919,7 @@ button {
 }
 
 .brand-subtitle {
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .login-brand .brand-logo-img.square-logo {
