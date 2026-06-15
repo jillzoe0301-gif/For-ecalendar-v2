@@ -46,6 +46,7 @@ let staffList = []
 let loadingSchedules = false
 let schedulesError = ''
 let saving = false
+let overviewWeekOffset = 0
 let searchFilters = {
   keyword: '',
   status: '全部',
@@ -566,6 +567,34 @@ function renderApp() {
     })
   }
 
+  const prevWeekBtn = document.querySelector('#prevWeekBtn')
+  if (prevWeekBtn) {
+    prevWeekBtn.addEventListener('click', () => {
+      overviewWeekOffset -= 1
+      renderApp()
+    })
+  }
+
+  const thisWeekBtn = document.querySelector('#thisWeekBtn')
+  if (thisWeekBtn) {
+    thisWeekBtn.addEventListener('click', () => {
+      overviewWeekOffset = 0
+      renderApp()
+    })
+  }
+
+  const nextWeekBtn = document.querySelector('#nextWeekBtn')
+  if (nextWeekBtn) {
+    nextWeekBtn.addEventListener('click', () => {
+      overviewWeekOffset += 1
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('.week-day-cell').forEach(cell => {
+    cell.addEventListener('dblclick', () => openScheduleModal())
+  })
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) addBtn.addEventListener('click', openScheduleModal)
 
@@ -968,13 +997,137 @@ function renderPersonalTodo() {
   `
 }
 
-function renderScheduleOverview() {
+
+function getMonday(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function addDays(date, days) {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+function toDateKey(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function getWeekDates(offset = 0) {
+  const monday = getMonday(new Date())
+  monday.setDate(monday.getDate() + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+}
+
+function getWeekLabel(weekDates) {
+  if (!weekDates.length) return ''
+  return `${toDateKey(weekDates[0])} ～ ${toDateKey(weekDates[6])}`
+}
+
+function getOverviewStaffRows() {
+  const role = currentProfile?.role
+  if (['管理員', '主管', '行政 / 海外'].includes(role)) return staffList
+  const visibleStaffIds = new Set()
+  schedules.forEach(row => {
+    if (isMine(row)) {
+      ;(row.schedule_assignees || []).forEach(item => {
+        if (!item.deleted_at) visibleStaffIds.add(item.staff_id)
+      })
+    }
+  })
+  if (currentProfile?.staff_id) visibleStaffIds.add(currentProfile.staff_id)
+  return staffList.filter(staff => visibleStaffIds.has(staff.staff_id))
+}
+
+function getSchedulesForStaffDate(staffId, dateKey) {
+  return schedules.filter(row => {
+    if (!isVisibleSchedule(row)) return false
+    if (row.start_date !== dateKey) return false
+    return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+  })
+}
+
+function renderWeekScheduleCard(row) {
+  const contentPreview = getFirstTwoLines(row.description)
   return `
-    ${renderToolbar('行程總覽')}
-    ${renderReadStatus()}
-    ${renderScheduleList(schedules.filter(row => isVisibleSchedule(row)), '目前沒有行程資料。')}
+    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+      <span class="week-card-time">${escapeHtml(formatTime(row))}</span>
+      <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+      ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
+      ${row.sub_type ? `<span class="week-card-extra">附加：${escapeHtml(row.sub_type)}</span>` : ''}
+    </button>
   `
 }
+
+
+function renderScheduleOverview() {
+  const weekDates = getWeekDates(overviewWeekOffset)
+  const staffRows = getOverviewStaffRows()
+  const todayKey = todayString()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>行程總覽</h3>
+        <p class="muted">人員 × 週一～週日｜${getWeekLabel(weekDates)}</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="prevWeekBtn">上一週</button>
+        <button class="secondary-btn" id="thisWeekBtn">本週</button>
+        <button class="secondary-btn" id="nextWeekBtn">下一週</button>
+        <button class="primary-btn" id="addScheduleBtn">新增行程</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <div class="week-overview-scroll">
+      <table class="week-overview-table">
+        <thead>
+          <tr>
+            <th class="staff-col">人員</th>
+            ${weekDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${staffRows.map(staff => `
+            <tr>
+              <th class="staff-name-cell">
+                <strong>${escapeHtml(staff.name)}</strong>
+                <span>${escapeHtml(staff.department_name || '')}</span>
+              </th>
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                  ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : '<span class="week-empty">—</span>'}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${!staffRows.length ? '<div class="empty-state">目前沒有可顯示的人員。</div>' : ''}
+  `
+}
+
 
 function renderReadStatus() {
   if (loadingSchedules) return `<div class="notice">正在讀取行程資料...</div>`
