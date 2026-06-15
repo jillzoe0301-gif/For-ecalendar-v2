@@ -55,6 +55,16 @@ let searchFilters = {
   endDate: ''
 }
 
+let auditLogs = []
+let auditLoading = false
+let auditError = ''
+let auditFilters = {
+  keyword: '',
+  actionType: '全部',
+  startDate: '',
+  endDate: ''
+}
+
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
 }
@@ -299,7 +309,7 @@ async function loadProfile() {
 }
 
 async function refreshData() {
-  await Promise.all([loadStaff(), loadSchedules()])
+  await Promise.all([loadStaff(), loadSchedules(), loadAuditLogs()])
 }
 
 async function loadStaff() {
@@ -339,6 +349,28 @@ async function loadSchedules() {
   }
 
   loadingSchedules = false
+}
+
+
+async function loadAuditLogs() {
+  auditLoading = true
+  auditError = ''
+
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(300)
+
+  if (error) {
+    console.error(error)
+    auditLogs = []
+    auditError = error.message
+  } else {
+    auditLogs = data || []
+  }
+
+  auditLoading = false
 }
 
 function renderApp() {
@@ -438,6 +470,34 @@ function renderApp() {
         status: form.get('status') || '全部',
         category: form.get('category') || '全部',
         staffId: form.get('staffId') || '全部',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
+  const resetAuditBtn = document.querySelector('#resetAuditBtn')
+  if (resetAuditBtn) {
+    resetAuditBtn.addEventListener('click', () => {
+      auditFilters = {
+        keyword: '',
+        actionType: '全部',
+        startDate: '',
+        endDate: ''
+      }
+      renderApp()
+    })
+  }
+
+  const auditForm = document.querySelector('#auditForm')
+  if (auditForm) {
+    auditForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      auditFilters = {
+        keyword: form.get('keyword') || '',
+        actionType: form.get('actionType') || '全部',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
@@ -627,12 +687,145 @@ function renderSearchPage() {
   `
 }
 
+
+function matchesAuditFilters(row) {
+  const keyword = normalizeText(auditFilters.keyword)
+  const actionType = auditFilters.actionType
+  const startDate = auditFilters.startDate
+  const endDate = auditFilters.endDate
+  const createdDate = row.created_at ? row.created_at.slice(0, 10) : ''
+
+  if (actionType !== '全部' && row.action_type !== actionType) return false
+  if (startDate && createdDate < startDate) return false
+  if (endDate && createdDate > endDate) return false
+
+  if (keyword) {
+    const haystack = normalizeText([
+      row.operated_by_name,
+      row.action_type,
+      row.source_type,
+      row.note,
+      row.source_id
+    ].join(' '))
+    if (!haystack.includes(keyword)) return false
+  }
+
+  return true
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+function getAuditActionTypes() {
+  const types = [...new Set(auditLogs.map(row => row.action_type).filter(Boolean))]
+  return ['全部', ...types]
+}
+
+function renderAuditPage() {
+  const results = auditLogs.filter(row => matchesAuditFilters(row))
+  const actionOptions = getAuditActionTypes().map(item => `<option value="${item}" ${auditFilters.actionType === item ? 'selected' : ''}>${item}</option>`).join('')
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>異動紀錄</h3>
+        <p class="muted">查詢新增、修改、完成、取消、紀錄單、回診與執行者異動紀錄。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetAuditBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${auditLoading ? '<div class="notice">正在讀取異動紀錄...</div>' : ''}
+    ${auditError ? `<div class="error-card">讀取異動紀錄失敗：${escapeHtml(auditError)}</div>` : ''}
+
+    <form id="auditForm" class="search-panel search-panel-simple">
+      <label class="search-keyword">
+        關鍵字
+        <input name="keyword" value="${escapeHtml(auditFilters.keyword)}" placeholder="搜尋操作人、動作、備註">
+      </label>
+
+      <div class="search-row date-range-row audit-filter-row">
+        <label>
+          動作類型
+          <select name="actionType">${actionOptions}</select>
+        </label>
+
+        <label>
+          起日
+          <input name="startDate" type="date" value="${auditFilters.startDate}">
+        </label>
+
+        <label>
+          迄日
+          <input name="endDate" type="date" value="${auditFilters.endDate}">
+        </label>
+
+        <button type="submit" class="primary-btn">搜尋</button>
+      </div>
+    </form>
+
+    <div class="summary-grid search-summary">
+      <div class="summary-card">
+        <strong>${results.length}</strong>
+        <span>異動筆數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.action_type === '取消').length}</strong>
+        <span>取消</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => String(row.action_type || '').includes('修改')).length}</strong>
+        <span>修改類</span>
+      </div>
+    </div>
+
+    ${renderAuditList(results)}
+  `
+}
+
+function renderAuditList(rows) {
+  if (!rows.length) return `<div class="empty-state">沒有符合條件的異動紀錄。</div>`
+
+  return `
+    <div class="audit-list">
+      ${rows.map(row => `
+        <div class="audit-row">
+          <div class="audit-time">${escapeHtml(formatDateTime(row.created_at))}</div>
+          <div class="audit-main">
+            <div class="audit-title">
+              <span class="audit-action">${escapeHtml(row.action_type || '-')}</span>
+              <strong>${escapeHtml(row.operated_by_name || '-')}</strong>
+            </div>
+            <div class="audit-note">${escapeHtml(row.note || '-')}</div>
+            <div class="audit-meta">${escapeHtml(row.source_type || '-')}｜${escapeHtml(row.source_id || '-')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
+  if (currentPage === 'audit') return renderAuditPage()
   if (currentPage === 'users') return renderUsersPage()
 
   return `
