@@ -1680,3 +1680,120 @@ label {
 .sidebar .brand-subtitle {
   margin-left: 8px;
 }
+
+
+/* V002-1G-3 cleaner status/record pills and sidebar logo fill */
+.sidebar .brand {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow: hidden;
+}
+
+.sidebar .brand-logo-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+
+.sidebar .brand-logo-wrap .brand-logo-img {
+  width: 285px !important;
+  max-width: none !important;
+  height: auto !important;
+  margin-left: -18px;
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.sidebar .brand-subtitle {
+  margin-left: 8px;
+}
+
+/* Unified status pill base */
+.status-pill,
+.record-status-pill,
+.service-record-hint {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Schedule status: not button colors */
+.schedule-card:not(.is-completed):not(.is-cancelled) .status-pill,
+.search-result-row:not(.is-completed):not(.is-cancelled) .status-pill {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.schedule-card.is-completed .status-pill,
+.search-result-row.is-completed .status-pill {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.schedule-card.is-cancelled .status-pill,
+.search-result-row.is-cancelled .status-pill {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+/* Service record status */
+.service-record-hint.is-submitted,
+.status-已繳交 .record-status-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.service-record-hint.is-missing,
+.record-status-pill,
+.status-未繳交 .record-status-pill {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.status-超過2週 .record-status-pill {
+  background: #fef3c7;
+  color: #a16207;
+  border-color: #fde68a;
+}
+
+/* Keep actual action buttons visually separate */
+.primary-btn,
+.small-btn {
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue);
+}
+
+.secondary-btn,
+.small-secondary-btn {
+  background: #eef2ff;
+  color: var(--blue);
+  border: 1px solid #c7d2fe;
+}
+
+.danger-btn,
+.small-danger-btn {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.small-record-btn {
+  background: #fff7cc;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
