@@ -2537,3 +2537,192 @@ label.record-modal-check {
   }
 }
 
+
+/* V002-1H-5-5 extra schedule and document layout cleanup */
+
+/* 服務行程區塊統一成兩欄、向下展開 */
+.service-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 12px !important;
+}
+
+/* 行程類型要有明確背景框與邊框 */
+.service-grid > label:has(select[name="schedule_type"]) {
+  width: 100% !important;
+  min-height: 78px !important;
+  height: auto !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  box-sizing: border-box !important;
+}
+
+/* 附加行程外框改成跟證件區一樣 */
+.service-grid .extra-schedule-box {
+  width: 100% !important;
+  min-height: 78px !important;
+  height: auto !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box !important;
+}
+
+/* 是否有附加行程那一列靠左、不要置中 */
+.service-grid .extra-schedule-box > .service-check {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+}
+
+/* 附加行程 checkbox 靠左 */
+.service-grid .extra-schedule-box input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 auto !important;
+  margin: 0 8px 0 0 !important;
+}
+
+/* 附加行程文字靠左 */
+.service-grid .extra-schedule-box .service-check span {
+  flex: 1 1 auto !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  line-height: 1.4 !important;
+}
+
+/* 附加行程展開內容：一定往下延伸，不往上擠 */
+#extraScheduleBlock {
+  position: static !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 10px !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+}
+
+/* 隱藏時確實不佔空間 */
+#extraScheduleBlock.hidden {
+  display: none !important;
+}
+
+/* 附加行程展開後，下拉與備註欄位一致 */
+#extraScheduleBlock label {
+  margin: 0 !important;
+  gap: 6px !important;
+}
+
+#extraScheduleBlock select,
+#extraScheduleBlock input {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  font-size: 14px !important;
+}
+
+/* 公務車與證件同列同寬 */
+.vehicle-doc-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 12px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* 公務車、是否有證件外框一致 */
+.vehicle-doc-row > label,
+.vehicle-doc-row .document-section {
+  width: 100% !important;
+  min-height: 78px !important;
+  height: auto !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box !important;
+}
+
+/* 公務車 / 是否有證件 下拉高度一致 */
+.vehicle-doc-row select {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  font-size: 14px !important;
+}
+
+/* 證件展開內容：一定往下延伸，不往上擠 */
+#documentOptionsBlock {
+  position: static !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 10px !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+}
+
+/* 隱藏時確實不佔空間 */
+#documentOptionsBlock.hidden {
+  display: none !important;
+}
+
+/* 證件勾選靠左排列 */
+#documentOptionsBlock .inline-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+#documentOptionsBlock .inline-check {
+  width: auto !important;
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+#documentOptionsBlock .inline-check input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 8px 0 0 !important;
+}
+
+/* 手機版改單欄 */
+@media (max-width: 768px) {
+  .service-grid,
+  .vehicle-doc-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
