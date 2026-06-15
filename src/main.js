@@ -65,6 +65,16 @@ let auditFilters = {
   endDate: ''
 }
 
+let serviceRecords = []
+let serviceRecordsLoading = false
+let serviceRecordsError = ''
+let serviceRecordFilters = {
+  status: '全部',
+  staffId: '全部',
+  startDate: '',
+  endDate: ''
+}
+
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
 }
@@ -309,7 +319,7 @@ async function loadProfile() {
 }
 
 async function refreshData() {
-  await Promise.all([loadStaff(), loadSchedules(), loadAuditLogs()])
+  await Promise.all([loadStaff(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
 }
 
 async function loadStaff() {
@@ -371,6 +381,28 @@ async function loadAuditLogs() {
   }
 
   auditLoading = false
+}
+
+
+async function loadServiceRecords() {
+  serviceRecordsLoading = true
+  serviceRecordsError = ''
+
+  const { data, error } = await supabase
+    .from('service_records')
+    .select('*')
+    .order('schedule_date', { ascending: false })
+    .limit(500)
+
+  if (error) {
+    console.error(error)
+    serviceRecords = []
+    serviceRecordsError = error.message
+  } else {
+    serviceRecords = data || []
+  }
+
+  serviceRecordsLoading = false
 }
 
 function renderApp() {
@@ -498,6 +530,35 @@ function renderApp() {
       auditFilters = {
         keyword: form.get('keyword') || '',
         actionType: form.get('actionType') || '全部',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
+  
+  const resetServiceRecordFilterBtn = document.querySelector('#resetServiceRecordFilterBtn')
+  if (resetServiceRecordFilterBtn) {
+    resetServiceRecordFilterBtn.addEventListener('click', () => {
+      serviceRecordFilters = {
+        status: '全部',
+        staffId: '全部',
+        startDate: '',
+        endDate: ''
+      }
+      renderApp()
+    })
+  }
+
+  const serviceRecordFilterForm = document.querySelector('#serviceRecordFilterForm')
+  if (serviceRecordFilterForm) {
+    serviceRecordFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      serviceRecordFilters = {
+        status: form.get('status') || '全部',
+        staffId: form.get('staffId') || '全部',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
@@ -850,6 +911,7 @@ function renderPageContent() {
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'search') return renderSearchPage()
+  if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
   if (currentPage === 'users') return renderUsersPage()
@@ -953,12 +1015,196 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
   `
 }
 
-function renderRecordSubmit() {
+
+function getServiceRecordSchedule(record) {
+  if (!record || !record.schedule_id) return null
+  return schedules.find(row => row.schedule_id === record.schedule_id) || null
+}
+
+function getServiceRecordStatus(record) {
+  if (record.submitted || record.submitted_date) return '已繳交'
+
+  const scheduleDate = record.schedule_date
+  if (!scheduleDate) return '未繳交'
+
+  const diffMs = new Date(todayString()) - new Date(scheduleDate)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffDays >= 14) return '超過2週'
+  return '未繳交'
+}
+
+function getServiceRecordDays(record) {
+  if (!record.schedule_date) return '-'
+  const diffMs = new Date(todayString()) - new Date(record.schedule_date)
+  const diffDays = Math.max(0, Math.floor(diffMs / 86400000))
+  return `${diffDays} 天`
+}
+
+function matchesServiceRecordFilters(record, onlyMine = false) {
+  if (onlyMine && currentProfile?.staff_id && record.staff_id !== currentProfile.staff_id) return false
+
+  const status = getServiceRecordStatus(record)
+  if (serviceRecordFilters.status !== '全部' && status !== serviceRecordFilters.status) return false
+
+  if (serviceRecordFilters.staffId !== '全部' && record.staff_id !== serviceRecordFilters.staffId) return false
+
+  if (serviceRecordFilters.startDate && record.schedule_date < serviceRecordFilters.startDate) return false
+  if (serviceRecordFilters.endDate && record.schedule_date > serviceRecordFilters.endDate) return false
+
+  return true
+}
+
+function renderServiceRecordFilterForm(onlyMine = false) {
+  const statusOptions = ['全部', '未繳交', '超過2週', '已繳交']
+    .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
+    .join('')
+
+  const staffOptions = onlyMine
+    ? ''
+    : `<label>
+        翻譯 / 人員
+        <select name="staffId">
+          <option value="全部" ${serviceRecordFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>
+          ${staffList.map(staff => `<option value="${staff.staff_id}" ${serviceRecordFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>`).join('')}
+        </select>
+      </label>`
+
   return `
-    <h3>紀錄單繳交</h3>
-    <div class="notice">
-      翻譯專用頁。服務紀錄單提醒會在後續階段加入。
+    <form id="serviceRecordFilterForm" class="service-record-filter">
+      <label>
+        狀態
+        <select name="status">${statusOptions}</select>
+      </label>
+
+      ${staffOptions}
+
+      <label>
+        起日
+        <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
+      </label>
+
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
+      </label>
+
+      <button type="submit" class="primary-btn">篩選</button>
+    </form>
+  `
+}
+
+function renderServiceRecordSummary(records) {
+  return `
+    <div class="summary-grid service-record-summary">
+      <div class="summary-card">
+        <strong>${records.length}</strong>
+        <span>紀錄單總數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${records.filter(row => getServiceRecordStatus(row) === '未繳交').length}</strong>
+        <span>未繳交</span>
+      </div>
+      <div class="summary-card">
+        <strong>${records.filter(row => getServiceRecordStatus(row) === '超過2週').length}</strong>
+        <span>超過2週</span>
+      </div>
+      <div class="summary-card">
+        <strong>${records.filter(row => getServiceRecordStatus(row) === '已繳交').length}</strong>
+        <span>已繳交</span>
+      </div>
     </div>
+  `
+}
+
+function renderServiceRecordList(records, emptyText) {
+  if (!records.length) return `<div class="empty-state">${emptyText}</div>`
+
+  return `
+    <div class="service-record-list">
+      ${records.map(record => {
+        const schedule = getServiceRecordSchedule(record)
+        const status = getServiceRecordStatus(record)
+        const scheduleType = record.schedule_type || schedule?.schedule_type || '-'
+        const title = record.title || schedule?.title || '-'
+        const location = record.location_name || schedule?.location_name || schedule?.customer_name || '-'
+
+        return `
+          <div class="service-record-row status-${status}">
+            <div class="service-record-date">
+              <strong>${escapeHtml(record.schedule_date || '-')}</strong>
+              <span>${escapeHtml(getServiceRecordDays(record))}</span>
+            </div>
+
+            <div class="service-record-main">
+              <div class="service-record-title">${escapeHtml(scheduleType)}｜${escapeHtml(title)}</div>
+              <div class="service-record-meta">
+                ${escapeHtml(record.staff_name || '-')}｜${escapeHtml(record.department_name || '-')}｜${escapeHtml(location)}
+              </div>
+            </div>
+
+            <div class="service-record-status-wrap">
+              <span class="record-status-pill">${escapeHtml(status)}</span>
+              ${record.submitted_date ? `<span class="record-submit-date">${escapeHtml(record.submitted_date)}</span>` : ''}
+            </div>
+
+            <div class="service-record-action">
+              ${record.schedule_id ? `<button class="small-record-btn" data-record-schedule="${record.schedule_id}">繳交狀況</button>` : ''}
+              ${record.schedule_id ? `<button class="small-secondary-btn" data-view-schedule="${record.schedule_id}">查看</button>` : ''}
+            </div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+
+function renderServiceRecordDashboard() {
+  const records = serviceRecords.filter(record => matchesServiceRecordFilters(record, false))
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>服務紀錄單</h3>
+        <p class="muted">管理員 / 主管查看全部服務紀錄單繳交狀況。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetServiceRecordFilterBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${serviceRecordsLoading ? '<div class="notice">正在讀取服務紀錄單...</div>' : ''}
+    ${serviceRecordsError ? `<div class="error-card">讀取服務紀錄單失敗：${escapeHtml(serviceRecordsError)}</div>` : ''}
+
+    ${renderServiceRecordFilterForm(false)}
+    ${renderServiceRecordSummary(records)}
+    ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
+  `
+}
+
+
+function renderRecordSubmit() {
+  const records = serviceRecords.filter(record => matchesServiceRecordFilters(record, true))
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>紀錄單繳交</h3>
+        <p class="muted">翻譯查看自己的服務紀錄單繳交狀況。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetServiceRecordFilterBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${serviceRecordsLoading ? '<div class="notice">正在讀取紀錄單繳交狀況...</div>' : ''}
+    ${serviceRecordsError ? `<div class="error-card">讀取紀錄單失敗：${escapeHtml(serviceRecordsError)}</div>` : ''}
+
+    ${renderServiceRecordFilterForm(true)}
+    ${renderServiceRecordSummary(records)}
+    ${renderServiceRecordList(records, '目前沒有需要繳交的服務紀錄單。')}
   `
 }
 

@@ -1533,3 +1533,121 @@ label {
   color: var(--muted);
   font-weight: 800;
 }
+
+
+/* V002-1G service record pages */
+.service-record-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #f8fafc;
+  margin-bottom: 16px;
+}
+
+.service-record-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.service-record-list {
+  display: grid;
+  gap: 8px;
+}
+
+.service-record-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 130px auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.service-record-row.status-超過2週 {
+  background: #fff7cc;
+  border-color: #fde68a;
+}
+
+.service-record-row.status-已繳交 {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.service-record-date strong {
+  display: block;
+  color: #111827;
+}
+
+.service-record-date span,
+.service-record-meta,
+.record-submit-date {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.service-record-title {
+  font-weight: 900;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.service-record-status-wrap {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.record-status-pill {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.status-超過2週 .record-status-pill {
+  border-color: #facc15;
+  background: #fef08a;
+  color: #a16207;
+}
+
+.status-已繳交 .record-status-pill {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.service-record-action {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .service-record-filter,
+  .service-record-summary,
+  .service-record-row {
+    grid-template-columns: 1fr;
+  }
+
+  .service-record-action {
+    justify-content: stretch;
+  }
+
+  .service-record-action button,
+  .service-record-filter button {
+    width: 100%;
+  }
+}
