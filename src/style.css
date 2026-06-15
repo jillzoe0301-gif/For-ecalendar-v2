@@ -1433,3 +1433,85 @@ label {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* V002-1F-9 audit page reinforcement and extra schedule chip */
+.extra-schedule-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--blue);
+  border: 1px solid #c7d2fe;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 6px 0 2px;
+}
+
+.audit-filter-row {
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+}
+
+.audit-list {
+  display: grid;
+  gap: 8px;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.audit-time {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.audit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.audit-action {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.audit-note {
+  color: #374151;
+  line-height: 1.6;
+}
+
+.audit-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .audit-filter-row,
+  .audit-row {
+    grid-template-columns: 1fr;
+  }
+}

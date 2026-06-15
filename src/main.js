@@ -596,7 +596,7 @@ function renderSearchResultList(rows, emptyText) {
             <div class="search-result-meta">
               ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
               ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
-              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}
+              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜附加：' + escapeHtml(row.sub_type) : ''}
             </div>
           </div>
 
@@ -908,7 +908,8 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
               <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(row.schedule_type || row.category)}</span>｜${escapeHtml(row.title)}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
-              ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}${row.sub_type ? '｜附加：' + escapeHtml(row.sub_type) : ''}</div>`}
+              ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
+              ${row.sub_type ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(row.sub_type)}</div>` : ''}
               <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
               ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
