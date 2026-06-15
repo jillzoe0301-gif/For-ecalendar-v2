@@ -165,15 +165,17 @@ function getReminderTokens(row) {
 }
 
 function renderBrandLogo(kind = 'horizontal') {
-  const src = kind === 'icon' ? '/brand/for-e-icon.svg' : '/brand/for-e-logo-horizontal.svg'
-  return `<img class="brand-logo-img ${kind === 'icon' ? 'icon-logo' : ''}" src="${src}" alt="FOR-e">`
+  let src = '/brand/for-e-logo-horizontal.png'
+  if (kind === 'icon') src = '/brand/for-e-icon.png'
+  if (kind === 'square') src = '/brand/for-e-logo-square.png'
+  return `<img class="brand-logo-img ${kind === 'icon' ? 'icon-logo' : ''} ${kind === 'square' ? 'square-logo' : ''}" src="${src}" alt="FOR-e">`
 }
 
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
     <section class="login-page">
       <div class="login-card">
-        <div class="login-brand">${renderBrandLogo('horizontal')}</div>
+        <div class="login-brand">${renderBrandLogo('square')}</div>
         <h1>共享排程系統</h1>
         <p>V002-1E-4｜卡片、證件、提醒與品牌 LOGO</p>
 
@@ -467,14 +469,14 @@ function renderScheduleList(rows, emptyText) {
           <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
             <div class="schedule-card-main">
               <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
-              <div class="schedule-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title)}</div>
+              <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(row.schedule_type || row.category)}</span>｜${escapeHtml(row.title)}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               <div class="schedule-meta">${escapeHtml(row.category)}${row.sub_type ? '｜附加：' + escapeHtml(row.sub_type) : ''}</div>
               <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
               ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
               ${reminders.length ? `<div class="reminder-tags">${reminders.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
-              ${row.need_service_record ? '<div class="service-record-hint">需服務紀錄單</div>' : ''}
+              ${row.need_service_record ? `<div class="service-record-hint ${row.service_record_submitted_date ? 'is-submitted' : 'is-missing'}">${row.service_record_submitted_date ? '服務紀錄單已交' : '服務紀錄單未填日期'}</div>` : ''}
             </div>
             <div class="schedule-card-actions">
               <span class="status-pill">${row.status}</span>
@@ -541,7 +543,7 @@ function openScheduleDetail(scheduleId) {
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
-        <div class="span-2"><span>服務紀錄單</span><strong>${row.need_service_record ? '需繳交' : '不需繳交'}</strong></div>
+        <div class="span-2"><span>服務紀錄單</span><strong>${row.need_service_record ? (row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '需繳交，尚未輸入繳交日期') : '不需繳交'}</strong></div>
       </div>
 
       <div class="notice">${permissionNote}</div>
@@ -736,6 +738,39 @@ function openScheduleModal() {
           </div>
         </div>
 
+        <div class="span-2 form-section hidden service-grid service-top-grid" data-section="service-top">
+          <label>
+            行程類型
+            <select name="schedule_type" id="serviceTypeSelect">
+              ${serviceTypeOptionsHtml(false)}
+            </select>
+          </label>
+
+          <label>
+            附加行程
+            <select name="sub_type">
+              ${serviceTypeOptionsHtml(true)}
+            </select>
+          </label>
+
+          <div class="span-2 service-record-box">
+            <div class="field-title">服務紀錄單</div>
+            <label class="service-check">
+              <input name="need_service_record" type="checkbox" id="needServiceRecordCheck">
+              <span>需要服務紀錄單</span>
+            </label>
+            <label class="service-check">
+              <input name="service_record_submitted_check" type="checkbox" id="serviceRecordSubmittedCheck">
+              <span>已繳交</span>
+            </label>
+          </div>
+
+          <label class="span-2">
+            服務紀錄單繳交日期
+            <input name="service_record_submitted_date" type="date">
+          </label>
+        </div>
+
         <div class="span-2 form-section" data-section="common-simple">
           <label>
             標題
@@ -775,34 +810,6 @@ function openScheduleModal() {
         </div>
 
         <div class="span-2 form-section hidden service-grid" data-section="service">
-          <label>
-            行程類型
-            <select name="schedule_type" id="serviceTypeSelect">
-              ${serviceTypeOptionsHtml(false)}
-            </select>
-          </label>
-
-          <label>
-            附加行程
-            <select name="sub_type">
-              ${serviceTypeOptionsHtml(true)}
-            </select>
-          </label>
-
-          <label class="span-2">
-            服務紀錄單
-            <select name="service_record_status">
-              <option value="不需要">不需要</option>
-              <option value="需要，尚未繳交">需要，尚未繳交</option>
-              <option value="已繳交">已繳交</option>
-            </select>
-          </label>
-
-          <label>
-            服務紀錄單繳交日期
-            <input name="service_record_submitted_date" type="date">
-          </label>
-
           <label>
             公務車
             <select name="car_no">
@@ -950,7 +957,10 @@ function openScheduleModal() {
 
     if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
-    if (category === '服務行程') document.querySelector('[data-section="service"]').classList.remove('hidden')
+    if (category === '服務行程') {
+      document.querySelector('[data-section="service-top"]').classList.remove('hidden')
+      document.querySelector('[data-section="service"]').classList.remove('hidden')
+    }
   }
 
   function refreshTimeBlock() {
@@ -986,6 +996,30 @@ function openScheduleModal() {
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
   serviceTypeSelect.addEventListener('change', refreshServiceExtras)
   hasDocumentsSelect.addEventListener('change', refreshDocumentsBlock)
+
+  const needServiceRecordCheck = document.querySelector('#needServiceRecordCheck')
+  const serviceRecordSubmittedCheck = document.querySelector('#serviceRecordSubmittedCheck')
+  const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
+
+  function refreshServiceRecordChecks() {
+    if (!needServiceRecordCheck || !serviceRecordSubmittedCheck || !submittedDateInput) return
+    if (!needServiceRecordCheck.checked) {
+      serviceRecordSubmittedCheck.checked = false
+      submittedDateInput.value = ''
+      serviceRecordSubmittedCheck.disabled = true
+      submittedDateInput.disabled = true
+    } else {
+      serviceRecordSubmittedCheck.disabled = false
+      submittedDateInput.disabled = !serviceRecordSubmittedCheck.checked
+      if (serviceRecordSubmittedCheck.checked && !submittedDateInput.value) submittedDateInput.value = todayString()
+      if (!serviceRecordSubmittedCheck.checked) submittedDateInput.value = ''
+    }
+  }
+
+  if (needServiceRecordCheck) needServiceRecordCheck.addEventListener('change', refreshServiceRecordChecks)
+  if (serviceRecordSubmittedCheck) serviceRecordSubmittedCheck.addEventListener('change', refreshServiceRecordChecks)
+
+  refreshServiceRecordChecks()
 
   refreshFormSections()
   refreshTimeBlock()
@@ -1119,9 +1153,9 @@ async function saveSchedule(event, modal) {
 
   const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  const serviceRecordStatus = form.get('service_record_status')
-  const needServiceRecord = category === '服務行程' && serviceRecordStatus !== '不需要'
-  const submittedDate = category === '服務行程' ? (form.get('service_record_submitted_date') || null) : null
+  const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
+  const serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
+  const submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   let scheduleType = ''
   let subType = ''
@@ -1158,7 +1192,7 @@ async function saveSchedule(event, modal) {
     carNo = form.get('car_no') || null
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
-    if (serviceRecordStatus) subTypeNoteParts.push(`服務紀錄單：${serviceRecordStatus}`)
+    if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
   }
 
   const schedulePayload = {
@@ -1261,6 +1295,13 @@ async function saveSchedule(event, modal) {
 }
 
 async function completeSchedule(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+
+  if (row && row.need_service_record && !row.service_record_submitted_date) {
+    alert('此行程需要服務紀錄單，請先輸入服務紀錄單繳交日期，才可以標記已完成。')
+    return
+  }
+
   if (!confirm('確定要將此行程標記為已完成嗎？')) return
 
   const { error } = await supabase.rpc('complete_schedule', {

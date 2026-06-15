@@ -767,3 +767,82 @@ button {
     color: var(--blue);
   }
 }
+
+
+/* V002-1E-5 logo clarity and service-record checkbox */
+.brand-logo-img {
+  image-rendering: auto;
+}
+
+.brand-logo-img.square-logo {
+  width: 152px;
+  height: 152px;
+  object-fit: contain;
+}
+
+.login-brand {
+  margin-bottom: 10px;
+}
+
+.service-record-box {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.service-record-box .service-check {
+  padding: 6px 0;
+}
+
+.service-record-box input:disabled + span,
+.service-record-box input:disabled {
+  opacity: 0.55;
+}
+
+.schedule-type-prefix {
+  color: var(--blue);
+  font-weight: 950;
+}
+
+
+/* V002-1E-6 service type before title and service-record completion guard */
+.service-top-grid {
+  border-color: #c7d2fe;
+  background: #eef5ff;
+}
+
+.service-record-hint.is-submitted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.service-record-hint.is-missing {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+
+/* V002-1E-7 official PNG logo placement */
+.login-brand .brand-logo-img.square-logo {
+  width: 168px;
+  height: 168px;
+  object-fit: contain;
+}
+
+.brand-logo-wrap .brand-logo-img {
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+}
+
+.mobile-header .brand-logo-img.icon-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.brand-logo-img {
+  image-rendering: auto;
+  object-fit: contain;
+}
