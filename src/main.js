@@ -46,6 +46,14 @@ let staffList = []
 let loadingSchedules = false
 let schedulesError = ''
 let saving = false
+let searchFilters = {
+  keyword: '',
+  status: '全部',
+  category: '全部',
+  staffId: '全部',
+  startDate: '',
+  endDate: ''
+}
 
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
@@ -405,6 +413,38 @@ function renderApp() {
     })
   }
 
+  const resetSearchBtn = document.querySelector('#resetSearchBtn')
+  if (resetSearchBtn) {
+    resetSearchBtn.addEventListener('click', () => {
+      searchFilters = {
+        keyword: '',
+        status: '全部',
+        category: '全部',
+        staffId: '全部',
+        startDate: '',
+        endDate: ''
+      }
+      renderApp()
+    })
+  }
+
+  const searchForm = document.querySelector('#searchForm')
+  if (searchForm) {
+    searchForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      searchFilters = {
+        keyword: form.get('keyword') || '',
+        status: form.get('status') || '全部',
+        category: form.get('category') || '全部',
+        staffId: form.get('staffId') || '全部',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) addBtn.addEventListener('click', openScheduleModal)
 
@@ -422,10 +462,142 @@ function getPageTitle() {
   return page ? page.label : '個人行程表'
 }
 
+
+function normalizeText(value) {
+  return String(value || '').toLowerCase().trim()
+}
+
+function matchesSearchFilters(row) {
+  const keyword = normalizeText(searchFilters.keyword)
+  const status = searchFilters.status
+  const category = searchFilters.category
+  const staffId = searchFilters.staffId
+  const startDate = searchFilters.startDate
+  const endDate = searchFilters.endDate
+
+  if (status !== '全部' && row.status !== status) return false
+  if (category !== '全部' && row.category !== category) return false
+
+  if (staffId !== '全部') {
+    const assigned = (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+    if (!assigned) return false
+  }
+
+  if (startDate && row.start_date < startDate) return false
+  if (endDate && row.start_date > endDate) return false
+
+  if (keyword) {
+    const haystack = normalizeText([
+      row.title,
+      row.description,
+      row.category,
+      row.schedule_type,
+      row.sub_type,
+      row.sub_type_note,
+      row.customer_name,
+      row.location_name,
+      row.address,
+      getAssigneeNames(row)
+    ].join(' '))
+    if (!haystack.includes(keyword)) return false
+  }
+
+  return true
+}
+
+function getSearchResults() {
+  return schedules.filter(row => matchesSearchFilters(row))
+}
+
+function buildOptionList(items, selected) {
+  return items.map(item => `<option value="${item}" ${item === selected ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+function buildStaffSearchOptions() {
+  return `<option value="全部" ${searchFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
+    staffList.map(staff => `<option value="${staff.staff_id}" ${searchFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>`).join('')
+}
+
+function renderSearchPage() {
+  const results = getSearchResults()
+  const statusOptions = buildOptionList(['全部', '未完成', '已完成', '取消'], searchFilters.status)
+  const categoryOptions = buildOptionList(['全部', ...formCategories], searchFilters.category)
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>行程搜尋</h3>
+        <p class="muted">可查詢未完成、已完成與取消行程。個人頁隱藏的資料可在此查回。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetSearchBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <form id="searchForm" class="search-panel">
+      <label class="span-2">
+        關鍵字
+        <input name="keyword" value="${escapeHtml(searchFilters.keyword)}" placeholder="搜尋標題、內容、客戶、地點、備註、人員">
+      </label>
+
+      <label>
+        狀態
+        <select name="status">${statusOptions}</select>
+      </label>
+
+      <label>
+        類別
+        <select name="category">${categoryOptions}</select>
+      </label>
+
+      <label>
+        執行者
+        <select name="staffId">${buildStaffSearchOptions()}</select>
+      </label>
+
+      <label>
+        起日
+        <input name="startDate" type="date" value="${searchFilters.startDate}">
+      </label>
+
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${searchFilters.endDate}">
+      </label>
+
+      <div class="search-actions">
+        <button type="submit" class="primary-btn">搜尋</button>
+      </div>
+    </form>
+
+    <div class="summary-grid search-summary">
+      <div class="summary-card">
+        <strong>${results.length}</strong>
+        <span>搜尋結果</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.status === '已完成').length}</strong>
+        <span>已完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.status === '取消').length}</strong>
+        <span>取消</span>
+      </div>
+    </div>
+
+    ${renderScheduleList(results, '沒有符合條件的行程。')}
+  `
+}
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
+  if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'users') return renderUsersPage()
 
