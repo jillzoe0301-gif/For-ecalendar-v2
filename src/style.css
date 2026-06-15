@@ -931,3 +931,9 @@ button {
   height: 36px;
   object-fit: contain;
 }
+
+/* V002-1E-10 personal todo add form hides service schedule categories */
+
+/* V002-1E-11 personal todo form allows leave meeting activity training */
+
+/* V002-1E-12 cancelled schedules are hidden from normal card pages */

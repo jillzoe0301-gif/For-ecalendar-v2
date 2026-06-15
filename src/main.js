@@ -59,6 +59,10 @@ function todayString() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function isVisibleSchedule(row) {
+  return row && row.status !== '取消' && row.is_cancelled !== true && !row.deleted_at
+}
+
 function isMine(row) {
   const myStaffId = currentProfile?.staff_id
   if (!myStaffId) return false
@@ -409,7 +413,7 @@ function renderToolbar(title) {
         <p class="muted">V002-1E-4：卡片、證件欄位、提醒標籤與 LOGO。</p>
       </div>
       <div class="toolbar-actions">
-        <button class="primary-btn" id="addScheduleBtn">新增行程</button>
+        <button class="primary-btn" id="addScheduleBtn">${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -417,7 +421,7 @@ function renderToolbar(title) {
 }
 
 function renderPersonalSchedule() {
-  const myRows = schedules.filter(row => isMine(row))
+  const myRows = schedules.filter(row => isVisibleSchedule(row) && isMine(row))
   const today = todayString()
   const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
 
@@ -439,7 +443,7 @@ function renderPersonalSchedule() {
 }
 
 function renderPersonalTodo() {
-  const myRows = schedules.filter(row => isMine(row) && ['一般記事', '待辦事項'].includes(row.category))
+  const myRows = schedules.filter(row => isVisibleSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(row.category))
   return `
     ${renderToolbar('個人一般待辦')}
     ${renderReadStatus()}
@@ -451,7 +455,7 @@ function renderScheduleOverview() {
   return `
     ${renderToolbar('行程總覽')}
     ${renderReadStatus()}
-    ${renderScheduleList(schedules, '目前沒有行程資料。')}
+    ${renderScheduleList(schedules.filter(row => isVisibleSchedule(row)), '目前沒有行程資料。')}
   `
 }
 
@@ -610,6 +614,11 @@ function minuteOptionsHtml(defaultValue = '00') {
   }).join('')
 }
 
+function getAvailableFormCategories() {
+  if (currentPage === 'personalTodo') return ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓']
+  return formCategories
+}
+
 function serviceTypeOptionsHtml(includeEmpty = false) {
   const empty = includeEmpty ? '<option value="">無</option>' : ''
   return empty + serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
@@ -632,7 +641,8 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
 
 function openScheduleModal() {
   const defaultStaffId = currentProfile.staff_id || ''
-  const formCategoryOptions = formCategories.map(category => `<option value="${category}">${category}</option>`).join('')
+  const availableFormCategories = getAvailableFormCategories()
+  const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
   const todoOptions = todoItems.map(item => `<option value="${item}">${item}</option>`).join('')
   const leaveOptions = leaveMeetingTypes.map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = carOptions.map(item => `<option value="${item}">${item}</option>`).join('')
@@ -648,7 +658,7 @@ function openScheduleModal() {
   modal.innerHTML = `
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>新增行程</h3>
+        <h3>${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</h3>
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
       </div>
 
@@ -1139,6 +1149,13 @@ async function saveSchedule(event, modal) {
 
   const form = new FormData(event.target)
   const category = form.get('category')
+  const availableFormCategories = getAvailableFormCategories()
+  if (!availableFormCategories.includes(category)) {
+    alert('此頁面只能新增一般記事、待辦事項、請假 / 會議 / 活動 / 外訓。')
+    saving = false
+    return
+  }
+
   const executorIds = [...document.querySelectorAll('input[name="executor"]:checked')].map(input => input.value)
 
   if (!executorIds.length) {
