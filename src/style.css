@@ -971,3 +971,27 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* V002-1F-2 additional schedule toggle and cleaner personal cards */
+.extra-schedule-box {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.extra-schedule-box .service-check {
+  padding: 4px 0 8px;
+}
+
+#extraScheduleBlock,
+#editExtraScheduleBlock {
+  display: grid;
+  gap: 10px;
+}
+
+#extraScheduleBlock.hidden,
+#editExtraScheduleBlock.hidden {
+  display: none !important;
+}
