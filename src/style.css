@@ -2726,3 +2726,26 @@ label.record-modal-check {
   }
 }
 
+
+/* V002-1H-5-6 extra schedule select style */
+.extra-schedule-box select[name="has_extra_schedule"] {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  font-size: 14px !important;
+}
+
+.extra-schedule-box > label {
+  margin: 0 !important;
+  gap: 6px !important;
+}
+
+#extraScheduleBlock {
+  margin-top: 10px !important;
+}
+
+#extraScheduleBlock.hidden,
+#editExtraScheduleBlock.hidden {
+  display: none !important;
+}
+

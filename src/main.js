@@ -1816,9 +1816,12 @@ function openScheduleModal() {
           </label>
 
           <div class="extra-schedule-box">
-            <label class="service-check">
-              <input name="has_extra_schedule" type="checkbox" id="hasExtraScheduleCheck">
-              <span>是否有附加行程</span>
+            <label>
+              是否有附加行程
+              <select name="has_extra_schedule" id="hasExtraScheduleSelect">
+                <option value="否">否</option>
+                <option value="是">是</option>
+              </select>
             </label>
             <div id="extraScheduleBlock" class="hidden">
               <label>
@@ -2061,15 +2064,15 @@ function openScheduleModal() {
   serviceTypeSelect.addEventListener('change', refreshServiceExtras)
   hasDocumentsSelect.addEventListener('change', refreshDocumentsBlock)
 
-  const hasExtraScheduleCheck = document.querySelector('#hasExtraScheduleCheck')
+  const hasExtraScheduleSelect = document.querySelector('#hasExtraScheduleSelect')
   const extraScheduleBlock = document.querySelector('#extraScheduleBlock')
 
   function refreshExtraScheduleBlock() {
-    if (!hasExtraScheduleCheck || !extraScheduleBlock) return
-    extraScheduleBlock.classList.toggle('hidden', !hasExtraScheduleCheck.checked)
+    if (!hasExtraScheduleSelect || !extraScheduleBlock) return
+    extraScheduleBlock.classList.toggle('hidden', hasExtraScheduleSelect.value !== '是')
   }
 
-  if (hasExtraScheduleCheck) hasExtraScheduleCheck.addEventListener('change', refreshExtraScheduleBlock)
+  if (hasExtraScheduleSelect) hasExtraScheduleSelect.addEventListener('change', refreshExtraScheduleBlock)
 
   const needServiceRecordCheck = document.querySelector('#needServiceRecordCheck')
   const serviceRecordSubmittedCheck = document.querySelector('#serviceRecordSubmittedCheck')
@@ -2383,9 +2386,12 @@ function openEditScheduleModal(scheduleId) {
           </label>
 
           <div class="extra-schedule-box">
-            <label class="service-check">
-              <input name="has_extra_schedule" type="checkbox" id="editHasExtraScheduleCheck" ${row.sub_type ? 'checked' : ''}>
-              <span>是否有附加行程</span>
+            <label>
+              是否有附加行程
+              <select name="has_extra_schedule" id="editHasExtraScheduleSelect">
+                <option value="否" ${row.sub_type ? '' : 'selected'}>否</option>
+                <option value="是" ${row.sub_type ? 'selected' : ''}>是</option>
+              </select>
             </label>
             <div id="editExtraScheduleBlock" class="${row.sub_type ? '' : 'hidden'}">
               <label>
@@ -2515,7 +2521,7 @@ function openEditScheduleModal(scheduleId) {
   const timeBlock = document.querySelector('#editTimeRangeBlock')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
   const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
-  const editHasExtraScheduleCheck = document.querySelector('#editHasExtraScheduleCheck')
+  const editHasExtraScheduleSelect = document.querySelector('#editHasExtraScheduleSelect')
   const editExtraScheduleBlock = document.querySelector('#editExtraScheduleBlock')
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
 
@@ -2529,8 +2535,8 @@ function openEditScheduleModal(scheduleId) {
   }
 
   function refreshEditExtraScheduleBlock() {
-    if (!editHasExtraScheduleCheck || !editExtraScheduleBlock) return
-    editExtraScheduleBlock.classList.toggle('hidden', !editHasExtraScheduleCheck.checked)
+    if (!editHasExtraScheduleSelect || !editExtraScheduleBlock) return
+    editExtraScheduleBlock.classList.toggle('hidden', editHasExtraScheduleSelect.value !== '是')
   }
 
   function refreshEditServiceRecordChecks() {
@@ -2551,7 +2557,7 @@ function openEditScheduleModal(scheduleId) {
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
-  if (editHasExtraScheduleCheck) editHasExtraScheduleCheck.addEventListener('change', refreshEditExtraScheduleBlock)
+  if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
   refreshEditExtraScheduleBlock()
   refreshEditServiceBlock()
@@ -2582,7 +2588,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const payload = {
     category,
     schedule_type: isService ? (form.get('schedule_type') || '其他') : category,
-    sub_type: isService && form.get('has_extra_schedule') === 'on' ? (form.get('sub_type') || null) : null,
+    sub_type: isService && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
     sub_type_note: form.get('sub_type_note') || null,
     title: form.get('title'),
     description: form.get('description') || null,
@@ -2710,7 +2716,7 @@ async function saveSchedule(event, modal) {
 
   if (category === '服務行程') {
     scheduleType = form.get('schedule_type') || '其他'
-    subType = form.get('has_extra_schedule') === 'on' ? (form.get('sub_type') || null) : null
+    subType = form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
     customerName = form.get('customer_name') || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
