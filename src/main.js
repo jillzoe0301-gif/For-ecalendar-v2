@@ -1132,6 +1132,57 @@ function renderToolbar(title) {
   `
 }
 
+
+/* FOR-e V002-1H-4 START - service record reminder area */
+function getMyPendingServiceRecordReminders() {
+  const myStaffId = currentProfile?.staff_id
+  if (!myStaffId) return { pending: [], overdue: [] }
+
+  const pending = []
+  const overdue = []
+
+  serviceRecords
+    .filter(record => record.staff_id === myStaffId)
+    .filter(record => !(record.submitted || record.submitted_date))
+    .forEach(record => {
+      const status = getServiceRecordStatus(record)
+      if (status === '超過2週') overdue.push(record)
+      else pending.push(record)
+    })
+
+  return { pending, overdue }
+}
+
+function renderServiceRecordReminderArea() {
+  const { pending, overdue } = getMyPendingServiceRecordReminders()
+  if (!pending.length && !overdue.length) return ''
+
+  return `
+    <section class="service-record-reminder-area">
+      ${pending.length ? `
+        <div class="service-record-reminder-card is-pending">
+          <img src="/icons/須繳交.png" alt="須繳交">
+          <div>
+            <strong>您有 ${pending.length} 筆服務紀錄單未繳交，請留意繳交期限。</strong>
+            <span>未超過 14 天的紀錄單提醒</span>
+          </div>
+        </div>
+      ` : ''}
+
+      ${overdue.length ? `
+        <div class="service-record-reminder-card is-overdue">
+          <img src="/icons/超過2週.png" alt="超過2週">
+          <div>
+            <strong>您有 ${overdue.length} 筆服務紀錄單超過時間未繳交，請立即補交!!!</strong>
+            <span>已滿或超過 14 天未繳交</span>
+          </div>
+        </div>
+      ` : ''}
+    </section>
+  `
+}
+/* FOR-e V002-1H-4 END - service record reminder area */
+
 function renderPersonalSchedule() {
   const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
   const today = todayString()
@@ -1140,6 +1191,7 @@ function renderPersonalSchedule() {
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
+    ${renderServiceRecordReminderArea()}
     ${renderPersonalReminderArea()}
     <div class="summary-grid">
       <div class="summary-card">
@@ -1522,6 +1574,7 @@ function renderRecordSubmit() {
 
     ${serviceRecordsLoading ? '<div class="notice">正在讀取紀錄單繳交狀況...</div>' : ''}
     ${serviceRecordsError ? `<div class="error-card">讀取紀錄單失敗：${escapeHtml(serviceRecordsError)}</div>` : ''}
+    ${renderServiceRecordReminderArea()}
 
     ${renderServiceRecordFilterForm(true)}
     ${renderServiceRecordSummary(records)}

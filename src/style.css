@@ -2952,3 +2952,68 @@ label.record-modal-check {
   display: none !important;
 }
 /* FOR-e V002-1H-8-2 END - safe visible form rules */
+
+/* FOR-e V002-1H-4 START - service record reminder area */
+.service-record-reminder-area {
+  margin: 12px 0 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.service-record-reminder-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid transparent;
+}
+
+.service-record-reminder-card img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.service-record-reminder-card strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #111827;
+}
+
+.service-record-reminder-card span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.service-record-reminder-card.is-pending {
+  background: #fff7cc;
+  border-color: #fde68a;
+}
+
+.service-record-reminder-card.is-overdue {
+  background: #fff500;
+  border-color: #facc15;
+}
+
+.service-record-reminder-card.is-overdue strong {
+  color: #ff3131;
+  font-weight: 950;
+}
+
+@media (max-width: 768px) {
+  .service-record-reminder-card {
+    align-items: flex-start;
+  }
+
+  .service-record-reminder-card img {
+    width: 34px;
+    height: 34px;
+  }
+}
+/* FOR-e V002-1H-4 END - service record reminder area */
