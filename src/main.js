@@ -2220,7 +2220,7 @@ function fieldSpecialReminderChecksHtml() {
   return fieldSpecialReminderOptions.map(item => `
     <label class="inline-check field-special-check">
       <input type="checkbox" name="field_special_reminder" value="${item}">
-      <span>${getFieldSpecialReminderIcon(item)} ${item}</span>
+      <span>${renderFieldSpecialReminderIcon(item)} ${item}</span>
     </label>
   `).join('')
 }
@@ -2230,11 +2230,15 @@ function getFieldStaffName(staffId) {
   return staff ? `${staff.name}｜${staff.department_name || ''}` : ''
 }
 
-function getFieldSpecialReminderIcon(value) {
-  if (value === '必送件') return '📌'
-  if (value === '無法更換') return '🔒'
-  if (value === '急件') return '🚨'
-  return '⚠️'
+function getFieldSpecialReminderIconPath(value) {
+  if (value === '必送件') return '/icons/push-pin.png'
+  if (value === '無法更換') return '/icons/padlock.png'
+  if (value === '急件') return '/icons/siren.png'
+  return '/icons/siren.png'
+}
+
+function renderFieldSpecialReminderIcon(value) {
+  return `<img class="field-special-icon" src="${getFieldSpecialReminderIconPath(value)}" alt="${escapeHtml(value)}">`
 }
 
 function getFieldSpecialRemindersFromRow(row) {
@@ -2250,7 +2254,7 @@ function renderFieldSpecialReminderBadges(row) {
 
   return `
     <span class="field-special-badges">
-      ${reminders.map(item => `<span class="field-special-badge">${getFieldSpecialReminderIcon(item)} ${escapeHtml(item)}</span>`).join('')}
+      ${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(item)}</span>`).join('')}
     </span>
   `
 }
@@ -2497,7 +2501,7 @@ async function saveFieldSchedule(event, modal) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: form.get('start_date'),
-      time_type: fieldTime || '不指定',
+      time_type: fieldTime ? (Number(fieldTime.slice(0, 2)) < 12 ? '上午' : '下午') : '不指定',
       start_time: fieldTime ? `${fieldTime}:00` : null,
       end_time: null,
       customer_name: null,

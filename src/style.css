@@ -3488,3 +3488,29 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1I-2 END - field schedule add form */
+
+/* FOR-e V002-1I-2-2 START - field time constraint and uploaded icons */
+/*
+  V002-1I-2-2
+  - 修正外務單一時間寫入，避免 schedules_time_type_check 錯誤
+  - 特殊提醒改用上傳 PNG icon
+*/
+.field-special-check span,
+.field-special-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.field-special-icon {
+  width: 16px !important;
+  height: 16px !important;
+  object-fit: contain !important;
+  flex: 0 0 auto !important;
+}
+
+.field-special-badge .field-special-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+/* FOR-e V002-1I-2-2 END - field time constraint and uploaded icons */
