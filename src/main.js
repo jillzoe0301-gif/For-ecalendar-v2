@@ -30,6 +30,12 @@ const serviceScheduleTypes = [
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
   '住變資訊', '驗證提醒', '返台提醒', '宿舍', '其他'
 ]
+
+const compactServiceScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒', '宿舍']
+
+function isCompactServiceScheduleType(scheduleType) {
+  return compactServiceScheduleTypes.includes(String(scheduleType || '').trim())
+}
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '公司活動', '部門活動']
 const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
@@ -591,8 +597,7 @@ function renderApp() {
 
       <main class="main">
         <header class="mobile-header">
-          ${renderBrandLogo('icon')}
-          <span>FOR-e</span>
+          <div class="mobile-brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
         </header>
 
         <header class="topbar">
@@ -2044,18 +2049,46 @@ function openScheduleModal() {
 
   function refreshServiceExtras() {
     const selected = serviceTypeSelect.value
+    const isCompactType = isCompactServiceScheduleType(selected)
+
     document.querySelectorAll('[data-service-extra]').forEach(block => {
-      block.classList.toggle('hidden', block.dataset.serviceExtra !== selected)
+      block.classList.toggle('hidden', isCompactType || block.dataset.serviceExtra !== selected)
     })
 
-    if (selected === '收送簽文件') {
+    if (!isCompactType && selected === '收送簽文件') {
       hasDocumentsSelect.value = '是'
     }
+
     refreshDocumentsBlock()
+    refreshCompactServiceFields()
   }
 
   function refreshDocumentsBlock() {
     document.querySelector('#documentOptionsBlock').classList.toggle('hidden', hasDocumentsSelect.value !== '是')
+  }
+
+  function refreshCompactServiceFields() {
+    const isCompactType = isCompactServiceScheduleType(serviceTypeSelect.value)
+
+    const extraBox = document.querySelector('.extra-schedule-box')
+    const serviceRecordBox = document.querySelector('.service-record-box')
+    const serviceRecordDateLabel = document.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
+    const vehicleDocRow = document.querySelector('.vehicle-doc-row')
+
+    ;[extraBox, serviceRecordBox, serviceRecordDateLabel, vehicleDocRow].forEach(element => {
+      if (element) element.classList.toggle('special-service-hidden', isCompactType)
+    })
+
+    if (isCompactType) {
+      if (hasExtraScheduleSelect) hasExtraScheduleSelect.value = '否'
+      if (extraScheduleBlock) extraScheduleBlock.classList.add('hidden')
+      if (needServiceRecordCheck) needServiceRecordCheck.checked = false
+      if (serviceRecordSubmittedCheck) serviceRecordSubmittedCheck.checked = false
+      if (submittedDateInput) submittedDateInput.value = ''
+      if (hasDocumentsSelect) hasDocumentsSelect.value = '否'
+      refreshServiceRecordChecks()
+      refreshDocumentsBlock()
+    }
   }
 
   categorySelect.addEventListener('change', refreshFormSections)
@@ -2104,6 +2137,7 @@ function openScheduleModal() {
   refreshServiceExtras()
   refreshDocumentsBlock()
   refreshExtraScheduleBlock()
+  refreshCompactServiceFields()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
@@ -2517,6 +2551,7 @@ function openEditScheduleModal(scheduleId) {
   const categorySelect = document.querySelector('#editCategorySelect')
   const serviceBlock = document.querySelector('#editServiceBlock')
   const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
+  const editServiceTypeSelect = serviceBlock?.querySelector('select[name="schedule_type"]')
   const timeTypeSelect = document.querySelector('#editTimeTypeSelect')
   const timeBlock = document.querySelector('#editTimeRangeBlock')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
@@ -2528,6 +2563,30 @@ function openEditScheduleModal(scheduleId) {
   function refreshEditServiceBlock() {
     serviceBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
     if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
+    refreshEditSpecialFields()
+  }
+
+  function refreshEditSpecialFields() {
+    const isCompactType = categorySelect.value === '服務行程' && isCompactServiceScheduleType(editServiceTypeSelect?.value)
+
+    const extraBox = serviceBlock?.querySelector('.extra-schedule-box')
+    const serviceRecordBox = serviceBlock?.querySelector('.service-record-box')
+    const serviceRecordDateLabel = serviceBlock?.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
+    const carLabel = serviceBlock?.querySelector('select[name="car_no"]')?.closest('label')
+    const noteLabel = document.querySelector('#editScheduleForm input[name="sub_type_note"]')?.closest('label')
+
+    ;[extraBox, serviceRecordBox, serviceRecordDateLabel, carLabel, noteLabel].forEach(element => {
+      if (element) element.classList.toggle('special-service-hidden', isCompactType)
+    })
+
+    if (isCompactType) {
+      if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.value = '否'
+      if (editExtraScheduleBlock) editExtraScheduleBlock.classList.add('hidden')
+      if (needRecordCheck) needRecordCheck.checked = false
+      if (submittedCheck) submittedCheck.checked = false
+      if (submittedDateInput) submittedDateInput.value = ''
+      refreshEditServiceRecordChecks()
+    }
   }
 
   function refreshEditTimeBlock() {
@@ -2554,6 +2613,7 @@ function openEditScheduleModal(scheduleId) {
   }
 
   categorySelect.addEventListener('change', refreshEditServiceBlock)
+  if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', refreshEditSpecialFields)
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
@@ -2561,6 +2621,7 @@ function openEditScheduleModal(scheduleId) {
 
   refreshEditExtraScheduleBlock()
   refreshEditServiceBlock()
+  refreshEditSpecialFields()
   refreshEditTimeBlock()
   refreshEditServiceRecordChecks()
 
@@ -2582,14 +2643,16 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   const category = form.get('category')
   const isService = category === '服務行程'
-  const submitted = isService && form.get('service_record_submitted_check') === 'on'
+  const editedScheduleType = isService ? (form.get('schedule_type') || '其他') : category
+  const isCompactType = isService && isCompactServiceScheduleType(editedScheduleType)
+  const submitted = isService && !isCompactType && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   const payload = {
     category,
-    schedule_type: isService ? (form.get('schedule_type') || '其他') : category,
-    sub_type: isService && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
-    sub_type_note: form.get('sub_type_note') || null,
+    schedule_type: editedScheduleType,
+    sub_type: isService && !isCompactType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
+    sub_type_note: isCompactType ? null : (form.get('sub_type_note') || null),
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
@@ -2600,8 +2663,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
     customer_name: isService ? (form.get('customer_name') || null) : null,
     location_name: isService ? (form.get('location_name') || null) : null,
     address: isService ? (form.get('address') || null) : null,
-    car_no: isService ? (form.get('car_no') || null) : null,
-    need_service_record: isService && form.get('need_service_record') === 'on',
+    car_no: isService && !isCompactType ? (form.get('car_no') || null) : null,
+    need_service_record: isService && !isCompactType && form.get('need_service_record') === 'on',
     service_record_submitted: submitted,
     service_record_submitted_date: submittedDate
   }
@@ -2684,9 +2747,9 @@ async function saveSchedule(event, modal) {
 
   const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
-  const serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
-  const submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
+  let needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
+  let serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
+  let submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   let scheduleType = ''
   let subType = ''
@@ -2716,14 +2779,23 @@ async function saveSchedule(event, modal) {
 
   if (category === '服務行程') {
     scheduleType = form.get('schedule_type') || '其他'
-    subType = form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
+    const isCompactType = isCompactServiceScheduleType(scheduleType)
+
+    subType = !isCompactType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
     customerName = form.get('customer_name') || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
-    carNo = form.get('car_no') || null
-    subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
-    if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
-    if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
+    carNo = isCompactType ? null : (form.get('car_no') || null)
+
+    if (isCompactType) {
+      needServiceRecord = false
+      serviceRecordSubmitted = false
+      submittedDate = null
+    } else {
+      subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
+      if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
+      if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
+    }
   }
 
   const schedulePayload = {
@@ -3054,430 +3126,4 @@ async function logout() {
 
 window.addEventListener('load', loadProfile)
 
-/* FOR-e V002-1H-5-7 START - special schedule fields */
-(function () {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
-  /*
-    V002-1H-5-7｜特殊行程類型表單欄位安全隱藏
-
-    觸發行程類型：
-    逃跑、轉出、住變、驗證、返台、宿舍
-
-    原則：
-    1. 只做畫面隱藏。
-    2. 不改行程類型選項。
-    3. 不改 Supabase。
-    4. 不改原本新增 / 修改 / 儲存流程。
-    5. 不刪除欄位、不移除 DOM 結構。
-    6. 隱藏欄位如果原本有 required，暫時移除，避免儲存被擋；切回一般行程時會還原。
-  */
-
-  const SPECIAL_TYPE_KEYWORDS = [
-    '逃跑',
-    '轉出',
-    '住變',
-    '驗證',
-    '返台',
-    '宿舍',
-  ];
-
-  const SCHEDULE_TYPE_LABEL = '行程類型';
-
-  const HIDE_FIELD_LABELS = [
-    '是否有附加行程',
-    '附加行程備註',
-    '附加行程',
-    '服務紀錄單',
-    '公務車',
-    '是否有證件',
-    '證件勾選',
-    '證件 / 文件備註',
-    '證件/文件備註',
-    '證件備註',
-    '文件備註',
-    '證件',
-    '醫療回診',
-    '是否回診',
-    '回診資訊',
-    '回診日期',
-    '回診時間',
-    '下次回診',
-    '下次回診日期',
-    '下次回診時間',
-  ];
-
-  const FIELD_CONTAINER_SELECTORS = [
-    '.form-row',
-    '.form-group',
-    '.form-field',
-    '.field-row',
-    '.field',
-    '.input-row',
-    '.input-group',
-    '.modal-row',
-    '.schedule-form-row',
-    '.schedule-field',
-    '[data-field]',
-  ].join(',');
-
-  const FORM_ROOT_SELECTORS = [
-    'form',
-    '[role="dialog"]',
-    'dialog',
-    '.modal',
-    '.dialog',
-    '.popup',
-    '.drawer',
-    '.schedule-modal',
-    '.form-card',
-    '.panel',
-    '.card',
-    'main',
-    '#app',
-  ].join(',');
-
-  const LABEL_SELECTORS = [
-    'label',
-    '.form-label',
-    '.field-label',
-    '.label',
-    '.form-row',
-    '.form-group',
-    '.form-field',
-    '.field-row',
-    '.field',
-    '.input-row',
-    '.input-group',
-    '[data-field]',
-    'span',
-    'div',
-    'p',
-    'strong',
-  ].join(',');
-
-  function normalize(value) {
-    return String(value || '')
-      .replace(/\s+/g, '')
-      .replace(/[：:]/g, '')
-      .trim();
-  }
-
-  function ownReadableText(element) {
-    if (!element) return '';
-
-    const clone = element.cloneNode(true);
-
-    clone.querySelectorAll('input, select, textarea, button, option, svg, img').forEach((node) => {
-      node.remove();
-    });
-
-    return normalize(clone.textContent);
-  }
-
-  function textIncludesLabel(element, label) {
-    if (!element) return false;
-
-    const own = ownReadableText(element);
-    const all = normalize(element.textContent);
-    const target = normalize(label);
-
-    if (!target) return false;
-
-    if (label === '附加行程') {
-      return (
-        (own === target || all === target || own.startsWith(target)) &&
-        !own.includes(normalize('是否有附加行程')) &&
-        !own.includes(normalize('附加行程備註')) &&
-        !all.includes(normalize('是否有附加行程')) &&
-        !all.includes(normalize('附加行程備註'))
-      );
-    }
-
-    if (label === '證件') {
-      return (
-        own === target ||
-        own.startsWith(target) ||
-        all === target ||
-        all.startsWith(target) ||
-        all.includes(normalize('證件勾選')) ||
-        all.includes(normalize('證件備註')) ||
-        all.includes(normalize('是否有證件'))
-      );
-    }
-
-    return own.includes(target) || all.includes(target);
-  }
-
-  function countKnownFieldWords(text) {
-    const normalized = normalize(text);
-    const words = [
-      '執行狀況',
-      '類型',
-      '日期',
-      '週期',
-      '時間',
-      '行程類型',
-      '區域',
-      '客戶',
-      '地點',
-      '地址',
-      '標題',
-      '內容',
-      '執行者',
-      '是否有附加行程',
-      '附加行程',
-      '附加行程備註',
-      '服務紀錄單',
-      '公務車',
-      '是否有證件',
-      '證件',
-      '備註',
-      '回診',
-    ];
-
-    const found = new Set();
-
-    words.forEach((word) => {
-      if (normalized.includes(normalize(word))) {
-        found.add(word);
-      }
-    });
-
-    if (normalized.includes(normalize('是否有附加行程'))) {
-      found.delete('附加行程');
-    }
-
-    if (normalized.includes(normalize('附加行程備註'))) {
-      found.delete('附加行程');
-      found.delete('備註');
-    }
-
-    if (normalized.includes(normalize('行程類型'))) {
-      found.delete('類型');
-    }
-
-    return found.size;
-  }
-
-  function isReasonableFieldBlock(element) {
-    if (!element || element === document.body || element === document.documentElement) return false;
-
-    const text = normalize(element.textContent);
-
-    if (!text || text.length > 500) return false;
-
-    const controls = element.querySelectorAll('input, select, textarea');
-
-    if (!controls.length) return false;
-
-    return countKnownFieldWords(text) <= 3;
-  }
-
-  function closestFieldBlock(labelElement) {
-    if (!labelElement) return null;
-
-    const direct = labelElement.closest(FIELD_CONTAINER_SELECTORS);
-
-    if (direct && isReasonableFieldBlock(direct)) {
-      return direct;
-    }
-
-    let current = labelElement;
-
-    for (let depth = 0; current && depth < 8; depth += 1) {
-      if (isReasonableFieldBlock(current)) {
-        return current;
-      }
-
-      current = current.parentElement;
-    }
-
-    return labelElement.parentElement || labelElement;
-  }
-
-  function nearestFormRoot(element) {
-    return element.closest(FORM_ROOT_SELECTORS) || document;
-  }
-
-  function findFieldBlocksByLabel(root, label) {
-    if (!root || !root.querySelectorAll) return [];
-
-    const blocks = [];
-
-    Array.from(root.querySelectorAll(LABEL_SELECTORS)).forEach((element) => {
-      if (!textIncludesLabel(element, label)) return;
-
-      const block = closestFieldBlock(element);
-
-      if (block && !blocks.includes(block)) {
-        blocks.push(block);
-      }
-    });
-
-    return blocks;
-  }
-
-  function getControlDisplayText(control) {
-    if (!control) return '';
-
-    const tag = control.tagName ? control.tagName.toLowerCase() : '';
-
-    if (tag === 'select') {
-      const selected = control.selectedOptions && control.selectedOptions[0];
-      return `${control.value || ''} ${selected ? selected.textContent || '' : ''}`;
-    }
-
-    if (control.type === 'radio' || control.type === 'checkbox') {
-      const label = control.closest('label');
-      return `${control.value || ''} ${label ? label.textContent || '' : ''}`;
-    }
-
-    return control.value || '';
-  }
-
-  function valueMatchesSpecialType(value) {
-    const text = normalize(value);
-
-    return SPECIAL_TYPE_KEYWORDS.some((keyword) => text.includes(normalize(keyword)));
-  }
-
-  function blockHasSpecialTypeSelected(block) {
-    if (!block) return false;
-
-    const controls = Array.from(block.querySelectorAll('select, input'));
-
-    return controls.some((control) => {
-      if (control.type === 'radio' || control.type === 'checkbox') {
-        if (!control.checked) return false;
-        return valueMatchesSpecialType(getControlDisplayText(control));
-      }
-
-      return valueMatchesSpecialType(getControlDisplayText(control));
-    });
-  }
-
-  function restoreRequired(control) {
-    if (!control || !control.dataset) return;
-
-    if (control.dataset.forESpecialWasRequired === 'true') {
-      control.required = true;
-    }
-
-    delete control.dataset.forESpecialWasRequired;
-  }
-
-  function suspendRequired(control) {
-    if (!control || !control.dataset) return;
-
-    if (control.required) {
-      control.dataset.forESpecialWasRequired = 'true';
-      control.required = false;
-    }
-  }
-
-  function applyFieldVisibility(block, shouldHide) {
-    if (!block) return;
-
-    block.classList.toggle('for-e-special-schedule-hidden', shouldHide);
-
-    Array.from(block.querySelectorAll('input, select, textarea')).forEach((control) => {
-      if (shouldHide) {
-        suspendRequired(control);
-      } else {
-        restoreRequired(control);
-      }
-    });
-  }
-
-  function applyToRoot(root, shouldUseSpecialFields) {
-    const blocksToHide = [];
-
-    HIDE_FIELD_LABELS.forEach((label) => {
-      findFieldBlocksByLabel(root, label).forEach((block) => {
-        if (!blocksToHide.includes(block)) {
-          blocksToHide.push(block);
-        }
-      });
-    });
-
-    blocksToHide.forEach((block) => {
-      block.classList.add('for-e-special-schedule-controlled');
-      applyFieldVisibility(block, shouldUseSpecialFields);
-    });
-  }
-
-  function findScheduleTypeBlocks() {
-    return findFieldBlocksByLabel(document, SCHEDULE_TYPE_LABEL).filter((block) => {
-      return block.querySelector('select, input');
-    });
-  }
-
-  function applySpecialScheduleFields() {
-    findScheduleTypeBlocks().forEach((typeBlock) => {
-      const root = nearestFormRoot(typeBlock);
-      const isSpecial = blockHasSpecialTypeSelected(typeBlock);
-
-      applyToRoot(root, isSpecial);
-    });
-  }
-
-  let scheduled = false;
-
-  function scheduleApply() {
-    if (scheduled) return;
-
-    scheduled = true;
-
-    const run = window.requestAnimationFrame || function (callback) {
-      return window.setTimeout(callback, 16);
-    };
-
-    run(() => {
-      scheduled = false;
-      applySpecialScheduleFields();
-    });
-  }
-
-  function init() {
-    applySpecialScheduleFields();
-
-    document.addEventListener('change', (event) => {
-      const target = event.target;
-
-      if (!target || !target.closest) return;
-
-      const root = nearestFormRoot(target);
-
-      if (!root) return;
-
-      const scheduleTypeBlocks = findFieldBlocksByLabel(root, SCHEDULE_TYPE_LABEL);
-
-      if (!scheduleTypeBlocks.length) return;
-
-      const isInsideScheduleForm = scheduleTypeBlocks.some((block) => {
-        return block.contains(target) || root.contains(block);
-      });
-
-      if (!isInsideScheduleForm) return;
-
-      scheduleApply();
-    });
-
-    document.addEventListener('input', scheduleApply);
-
-    const observer = new MutationObserver(scheduleApply);
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
-})();
-/* FOR-e V002-1H-5-7 END - special schedule fields */

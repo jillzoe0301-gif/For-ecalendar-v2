@@ -2749,13 +2749,72 @@ label.record-modal-check {
   display: none !important;
 }
 
-/* FOR-e V002-1H-5-7 START - special schedule fields */
-/*
-  V002-1H-5-7｜特殊行程類型表單欄位安全隱藏
-  只在畫面隱藏欄位，不刪除欄位，不改原本設定。
-*/
-
+/* V002-1H-5-7-2 logo layout + exact special schedule fields */
+.special-service-hidden,
+.for-e-special-type-hidden,
 .for-e-special-schedule-hidden {
   display: none !important;
 }
-/* FOR-e V002-1H-5-7 END - special schedule fields */
+
+/* 電腦版左側 LOGO：圖示在左、FOR-e 文字在右，整體放大 */
+.sidebar .brand {
+  padding: 12px 8px 16px !important;
+  overflow: visible !important;
+}
+
+.sidebar .brand-logo-wrap {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.sidebar .brand-logo-wrap .brand-logo-img {
+  width: 214px !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-left: 0 !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sidebar .brand-subtitle {
+  margin-left: 4px !important;
+  margin-top: 8px !important;
+}
+
+/* 手機版上方 LOGO：置中、放大、透明背景 */
+.mobile-header {
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  background: transparent !important;
+  margin-bottom: 16px !important;
+}
+
+.mobile-brand-logo-wrap {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  background: transparent !important;
+}
+
+.mobile-brand-logo-wrap .brand-logo-img {
+  width: 160px !important;
+  max-width: 72vw !important;
+  height: auto !important;
+  object-fit: contain !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-header .brand-logo-img.icon-logo {
+    width: 160px !important;
+    height: auto !important;
+  }
+}
