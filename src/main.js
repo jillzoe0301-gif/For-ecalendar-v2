@@ -36,6 +36,8 @@ const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動
 const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
+const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
+const fieldSpecialReminderOptions = ['無', '必送件', '無法更換', '其他']
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
   ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
@@ -789,11 +791,21 @@ function renderApp() {
   }
 
   document.querySelectorAll('.field-week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => openScheduleModal())
+    cell.addEventListener('dblclick', () => {
+      openFieldScheduleModal({
+        date: cell.dataset.fieldDate || '',
+        staffId: cell.dataset.staffId || ''
+      })
+    })
   })
 
   const addBtn = document.querySelector('#addScheduleBtn')
-  if (addBtn) addBtn.addEventListener('click', openScheduleModal)
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      if (currentPage === 'fieldSchedule') openFieldScheduleModal()
+      else openScheduleModal()
+    })
+  }
 
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
     btn.addEventListener('click', () => openScheduleDetail(btn.dataset.viewSchedule))
@@ -2146,6 +2158,308 @@ function applyEditCompactSpecialFields() {
     resetCompactHiddenValues(form)
   }
 }
+
+
+
+/* FOR-e V002-1I-2 START - field schedule add form */
+/*
+  V002-1I-2｜新增外務行程表單
+  不改 Supabase、不改 SQL，使用既有 schedules / schedule_assignees 寫入。
+*/
+
+function fieldStaffOptionsHtml(defaultStaffId = '') {
+  const rows = getFieldStaffRows()
+  return rows.map(staff => `
+    <label class="check-row">
+      <input type="checkbox" name="field_executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
+      <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+    </label>
+  `).join('')
+}
+
+function fieldStaffSelectOptionsHtml(selectedStaffId = '') {
+  return `<option value="">未指定</option>` + getFieldStaffRows().map(staff => `
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+  `).join('')
+}
+
+function optionHtmlForItems(items, selectedValue = '') {
+  return items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+function getFieldStaffName(staffId) {
+  const staff = staffList.find(item => item.staff_id === staffId)
+  return staff ? `${staff.name}｜${staff.department_name || ''}` : ''
+}
+
+function openFieldScheduleModal(defaults = {}) {
+  const defaultDate = defaults.date || todayString()
+  const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>新增外務行程</h3>
+        <button class="icon-btn" id="closeFieldModalBtn" type="button">×</button>
+      </div>
+
+      <form id="fieldScheduleForm" class="form-grid">
+        <div class="span-2">
+          <div class="field-title">外務人員</div>
+          <div class="checkbox-list">${fieldStaffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選外務人員。</div>'}</div>
+        </div>
+
+        <label>
+          日期
+          <input name="start_date" type="date" required value="${defaultDate}">
+        </label>
+
+        <label>
+          時間類型
+          <select name="time_type" id="fieldTimeTypeSelect">
+            <option value="不指定">不指定</option>
+            <option value="上午">上午</option>
+            <option value="下午">下午</option>
+          </select>
+        </label>
+
+        <div class="span-2 conditional-time hidden" id="fieldTimeRangeBlock">
+          <div class="time-select-row">
+            <label>
+              開始小時
+              <select name="start_hour">${hourOptionsHtml('09')}</select>
+            </label>
+            <label>
+              開始分鐘
+              <select name="start_minute">${minuteOptionsHtml('00')}</select>
+            </label>
+            <label>
+              結束小時
+              <select name="end_hour">${hourOptionsHtml('10')}</select>
+            </label>
+            <label>
+              結束分鐘
+              <select name="end_minute">${minuteOptionsHtml('00')}</select>
+            </label>
+          </div>
+        </div>
+
+        <label>
+          地點
+          <input name="location_name" placeholder="例如：移民署、勞動部、客戶公司">
+        </label>
+
+        <label>
+          地址
+          <input name="address" placeholder="完整地址，可先空白">
+        </label>
+
+        <label>
+          目的
+          <select name="field_purpose">
+            ${optionHtmlForItems(fieldPurposeOptions)}
+          </select>
+        </label>
+
+        <label>
+          特殊提醒
+          <select name="field_special_reminder">
+            ${optionHtmlForItems(fieldSpecialReminderOptions)}
+          </select>
+        </label>
+
+        <label class="span-2">
+          內容
+          <textarea name="description" rows="3" placeholder="請輸入外務內容"></textarea>
+        </label>
+
+        <div class="span-2 field-items-grid">
+          <label>
+            現金
+            <input name="cash_note" placeholder="例如：金額 / 用途 / 無">
+          </label>
+
+          <label>
+            印章
+            <input name="seal_note" placeholder="例如：公司章 / 私章 / 無">
+          </label>
+
+          <label>
+            證件
+            <input name="document_note" placeholder="例如：護照 / 居留證 / 文件 / 無">
+          </label>
+        </div>
+
+        <div class="span-2 field-next-box">
+          <div class="field-title">下次領件 / 送審</div>
+          <div class="compact-grid">
+            <label>
+              下次類型
+              <select name="next_action_type">
+                <option value="">無</option>
+                <option value="下次領件">下次領件</option>
+                <option value="下次送審">下次送審</option>
+              </select>
+            </label>
+
+            <label>
+              下次日期
+              <input name="next_action_date" type="date">
+            </label>
+
+            <label>
+              下次人員
+              <select name="next_staff_id">
+                ${fieldStaffSelectOptionsHtml('')}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelFieldModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存外務</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const timeTypeSelect = document.querySelector('#fieldTimeTypeSelect')
+  const timeBlock = document.querySelector('#fieldTimeRangeBlock')
+
+  function refreshFieldTimeBlock() {
+    timeBlock.classList.toggle('hidden', !['上午', '下午'].includes(timeTypeSelect.value))
+  }
+
+  timeTypeSelect.addEventListener('change', refreshFieldTimeBlock)
+  refreshFieldTimeBlock()
+
+  document.querySelector('#closeFieldModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelFieldModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#fieldScheduleForm').addEventListener('submit', event => saveFieldSchedule(event, modal))
+}
+
+async function saveFieldSchedule(event, modal) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const executorIds = [...document.querySelectorAll('input[name="field_executor"]:checked')].map(input => input.value)
+
+    if (!executorIds.length) {
+      alert('請至少選擇一位外務人員。')
+      saving = false
+      return
+    }
+
+    const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
+    const firstStaff = selectedStaff[0]
+    const purpose = form.get('field_purpose') || '外務日'
+    const locationName = form.get('location_name') || ''
+    const address = form.get('address') || ''
+    const title = `${purpose}${locationName ? '｜' + locationName : '｜外務'}`
+    const specialReminder = form.get('field_special_reminder') || '無'
+    const nextType = form.get('next_action_type') || ''
+    const nextDate = form.get('next_action_date') || ''
+    const nextStaffId = form.get('next_staff_id') || ''
+    const nextStaffName = getFieldStaffName(nextStaffId)
+
+    const noteParts = [
+      `外務目的：${purpose}`,
+      form.get('cash_note') ? `現金：${form.get('cash_note')}` : '',
+      form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
+      form.get('document_note') ? `證件：${form.get('document_note')}` : '',
+      specialReminder && specialReminder !== '無' ? `特殊提醒：${specialReminder}` : '',
+      nextType && nextDate ? `${nextType}：${nextDate}` : '',
+      nextStaffName ? `下次人員：${nextStaffName}` : ''
+    ].filter(Boolean)
+
+    const payload = {
+      creator_profile_id: currentProfile.profile_id,
+      creator_staff_id: currentProfile.staff_id,
+      creator_name: currentProfile.name || currentProfile.email,
+      department_id: firstStaff.department_id || currentProfile.department_id,
+      department_name: firstStaff.department_name || currentProfile.department_name,
+      category: '外務行程',
+      schedule_type: '外務',
+      sub_type: purpose,
+      sub_type_note: noteParts.join('｜'),
+      title,
+      description: form.get('description') || null,
+      start_date: form.get('start_date'),
+      end_date: form.get('start_date'),
+      time_type: form.get('time_type'),
+      start_time: getTimeValue(form, 'start'),
+      end_time: getTimeValue(form, 'end'),
+      customer_name: null,
+      location_name: locationName || null,
+      address: address || null,
+      car_no: null,
+      status: '未完成',
+      need_service_record: false,
+      service_record_submitted: false,
+      service_record_submitted_date: null
+    }
+
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('schedules')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (scheduleError) {
+      console.error(scheduleError)
+      alert('新增外務行程失敗：' + scheduleError.message)
+      saving = false
+      return
+    }
+
+    const assigneeRows = selectedStaff.map(staff => ({
+      schedule_id: schedule.schedule_id,
+      staff_id: staff.staff_id,
+      staff_name: staff.name,
+      department_id: staff.department_id,
+      department_name: staff.department_name,
+      position: staff.position,
+      assignee_type: 'executor'
+    }))
+
+    const { error: assigneeError } = await supabase.from('schedule_assignees').insert(assigneeRows)
+
+    if (assigneeError) {
+      console.error(assigneeError)
+      alert('外務行程已建立，但外務人員寫入失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '新增',
+      source_type: 'schedule',
+      source_id: schedule.schedule_id,
+      note: 'V002-1I-2 新增外務行程'
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    console.error(err)
+    alert('新增外務行程失敗：' + (err?.message || err))
+    saving = false
+  }
+}
+/* FOR-e V002-1I-2 END - field schedule add form */
 
 
 function openScheduleModal() {

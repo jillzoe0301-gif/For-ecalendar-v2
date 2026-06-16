@@ -3392,26 +3392,17 @@ label.record-modal-check {
 /* FOR-e V002-1I-1 END - field schedule weekly calendar */
 
 /* FOR-e V002-1I-1-1 START - field holiday orange colors */
-/*
-  V002-1I-1-1｜外務週曆假日與今日顏色調整
-  - 週六 / 週日 / 台灣假日：淡橘底
-  - 今天：只顯示 #FF7F11 橘框
-*/
-
-/* 外務週曆：週六 / 週日 / 台灣假日淡橘底 */
 .field-week-table thead th.is-holiday,
 .field-week-day-cell.is-holiday {
   background: #FFF2D7 !important;
 }
 
-/* 外務週曆：今天不反底色，只顯示橘框 */
 .field-week-table thead th.is-today,
 .field-week-day-cell.is-today {
   position: relative;
   box-shadow: inset 0 0 0 2px #FF7F11 !important;
 }
 
-/* 今天即使剛好是週六 / 週日 / 台灣假日，也只保留橘框，不加深底色 */
 .field-week-table thead th.is-today.is-holiday,
 .field-week-day-cell.is-today.is-holiday,
 .field-week-table thead th.is-today:not(.is-holiday),
@@ -3420,9 +3411,41 @@ label.record-modal-check {
   box-shadow: inset 0 0 0 2px #FF7F11 !important;
 }
 
-/* 外務週曆：今天日期標籤改橘色 */
 .field-week-table thead th.is-today strong {
   background: #FF7F11 !important;
   color: #ffffff !important;
 }
 /* FOR-e V002-1I-1-1 END - field holiday orange colors */
+
+/* FOR-e V002-1I-2 START - field schedule add form */
+#fieldScheduleForm .field-items-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff8ed;
+}
+
+#fieldScheduleForm .field-next-box {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff8ed;
+}
+
+#fieldScheduleForm .field-next-box .compact-grid {
+  margin-top: 8px;
+}
+
+#fieldScheduleForm .checkbox-list {
+  max-height: 220px;
+}
+
+@media (max-width: 768px) {
+  #fieldScheduleForm .field-items-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1I-2 END - field schedule add form */
