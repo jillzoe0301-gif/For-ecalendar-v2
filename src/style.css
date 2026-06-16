@@ -2749,3 +2749,13 @@ label.record-modal-check {
   display: none !important;
 }
 
+/* FOR-e V002-1H-5-7 START - special schedule fields */
+/*
+  V002-1H-5-7｜特殊行程類型表單欄位安全隱藏
+  只在畫面隱藏欄位，不刪除欄位，不改原本設定。
+*/
+
+.for-e-special-schedule-hidden {
+  display: none !important;
+}
+/* FOR-e V002-1H-5-7 END - special schedule fields */

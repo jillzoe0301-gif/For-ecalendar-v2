@@ -3053,3 +3053,431 @@ async function logout() {
 }
 
 window.addEventListener('load', loadProfile)
+
+/* FOR-e V002-1H-5-7 START - special schedule fields */
+(function () {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  /*
+    V002-1H-5-7｜特殊行程類型表單欄位安全隱藏
+
+    觸發行程類型：
+    逃跑、轉出、住變、驗證、返台、宿舍
+
+    原則：
+    1. 只做畫面隱藏。
+    2. 不改行程類型選項。
+    3. 不改 Supabase。
+    4. 不改原本新增 / 修改 / 儲存流程。
+    5. 不刪除欄位、不移除 DOM 結構。
+    6. 隱藏欄位如果原本有 required，暫時移除，避免儲存被擋；切回一般行程時會還原。
+  */
+
+  const SPECIAL_TYPE_KEYWORDS = [
+    '逃跑',
+    '轉出',
+    '住變',
+    '驗證',
+    '返台',
+    '宿舍',
+  ];
+
+  const SCHEDULE_TYPE_LABEL = '行程類型';
+
+  const HIDE_FIELD_LABELS = [
+    '是否有附加行程',
+    '附加行程備註',
+    '附加行程',
+    '服務紀錄單',
+    '公務車',
+    '是否有證件',
+    '證件勾選',
+    '證件 / 文件備註',
+    '證件/文件備註',
+    '證件備註',
+    '文件備註',
+    '證件',
+    '醫療回診',
+    '是否回診',
+    '回診資訊',
+    '回診日期',
+    '回診時間',
+    '下次回診',
+    '下次回診日期',
+    '下次回診時間',
+  ];
+
+  const FIELD_CONTAINER_SELECTORS = [
+    '.form-row',
+    '.form-group',
+    '.form-field',
+    '.field-row',
+    '.field',
+    '.input-row',
+    '.input-group',
+    '.modal-row',
+    '.schedule-form-row',
+    '.schedule-field',
+    '[data-field]',
+  ].join(',');
+
+  const FORM_ROOT_SELECTORS = [
+    'form',
+    '[role="dialog"]',
+    'dialog',
+    '.modal',
+    '.dialog',
+    '.popup',
+    '.drawer',
+    '.schedule-modal',
+    '.form-card',
+    '.panel',
+    '.card',
+    'main',
+    '#app',
+  ].join(',');
+
+  const LABEL_SELECTORS = [
+    'label',
+    '.form-label',
+    '.field-label',
+    '.label',
+    '.form-row',
+    '.form-group',
+    '.form-field',
+    '.field-row',
+    '.field',
+    '.input-row',
+    '.input-group',
+    '[data-field]',
+    'span',
+    'div',
+    'p',
+    'strong',
+  ].join(',');
+
+  function normalize(value) {
+    return String(value || '')
+      .replace(/\s+/g, '')
+      .replace(/[：:]/g, '')
+      .trim();
+  }
+
+  function ownReadableText(element) {
+    if (!element) return '';
+
+    const clone = element.cloneNode(true);
+
+    clone.querySelectorAll('input, select, textarea, button, option, svg, img').forEach((node) => {
+      node.remove();
+    });
+
+    return normalize(clone.textContent);
+  }
+
+  function textIncludesLabel(element, label) {
+    if (!element) return false;
+
+    const own = ownReadableText(element);
+    const all = normalize(element.textContent);
+    const target = normalize(label);
+
+    if (!target) return false;
+
+    if (label === '附加行程') {
+      return (
+        (own === target || all === target || own.startsWith(target)) &&
+        !own.includes(normalize('是否有附加行程')) &&
+        !own.includes(normalize('附加行程備註')) &&
+        !all.includes(normalize('是否有附加行程')) &&
+        !all.includes(normalize('附加行程備註'))
+      );
+    }
+
+    if (label === '證件') {
+      return (
+        own === target ||
+        own.startsWith(target) ||
+        all === target ||
+        all.startsWith(target) ||
+        all.includes(normalize('證件勾選')) ||
+        all.includes(normalize('證件備註')) ||
+        all.includes(normalize('是否有證件'))
+      );
+    }
+
+    return own.includes(target) || all.includes(target);
+  }
+
+  function countKnownFieldWords(text) {
+    const normalized = normalize(text);
+    const words = [
+      '執行狀況',
+      '類型',
+      '日期',
+      '週期',
+      '時間',
+      '行程類型',
+      '區域',
+      '客戶',
+      '地點',
+      '地址',
+      '標題',
+      '內容',
+      '執行者',
+      '是否有附加行程',
+      '附加行程',
+      '附加行程備註',
+      '服務紀錄單',
+      '公務車',
+      '是否有證件',
+      '證件',
+      '備註',
+      '回診',
+    ];
+
+    const found = new Set();
+
+    words.forEach((word) => {
+      if (normalized.includes(normalize(word))) {
+        found.add(word);
+      }
+    });
+
+    if (normalized.includes(normalize('是否有附加行程'))) {
+      found.delete('附加行程');
+    }
+
+    if (normalized.includes(normalize('附加行程備註'))) {
+      found.delete('附加行程');
+      found.delete('備註');
+    }
+
+    if (normalized.includes(normalize('行程類型'))) {
+      found.delete('類型');
+    }
+
+    return found.size;
+  }
+
+  function isReasonableFieldBlock(element) {
+    if (!element || element === document.body || element === document.documentElement) return false;
+
+    const text = normalize(element.textContent);
+
+    if (!text || text.length > 500) return false;
+
+    const controls = element.querySelectorAll('input, select, textarea');
+
+    if (!controls.length) return false;
+
+    return countKnownFieldWords(text) <= 3;
+  }
+
+  function closestFieldBlock(labelElement) {
+    if (!labelElement) return null;
+
+    const direct = labelElement.closest(FIELD_CONTAINER_SELECTORS);
+
+    if (direct && isReasonableFieldBlock(direct)) {
+      return direct;
+    }
+
+    let current = labelElement;
+
+    for (let depth = 0; current && depth < 8; depth += 1) {
+      if (isReasonableFieldBlock(current)) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return labelElement.parentElement || labelElement;
+  }
+
+  function nearestFormRoot(element) {
+    return element.closest(FORM_ROOT_SELECTORS) || document;
+  }
+
+  function findFieldBlocksByLabel(root, label) {
+    if (!root || !root.querySelectorAll) return [];
+
+    const blocks = [];
+
+    Array.from(root.querySelectorAll(LABEL_SELECTORS)).forEach((element) => {
+      if (!textIncludesLabel(element, label)) return;
+
+      const block = closestFieldBlock(element);
+
+      if (block && !blocks.includes(block)) {
+        blocks.push(block);
+      }
+    });
+
+    return blocks;
+  }
+
+  function getControlDisplayText(control) {
+    if (!control) return '';
+
+    const tag = control.tagName ? control.tagName.toLowerCase() : '';
+
+    if (tag === 'select') {
+      const selected = control.selectedOptions && control.selectedOptions[0];
+      return `${control.value || ''} ${selected ? selected.textContent || '' : ''}`;
+    }
+
+    if (control.type === 'radio' || control.type === 'checkbox') {
+      const label = control.closest('label');
+      return `${control.value || ''} ${label ? label.textContent || '' : ''}`;
+    }
+
+    return control.value || '';
+  }
+
+  function valueMatchesSpecialType(value) {
+    const text = normalize(value);
+
+    return SPECIAL_TYPE_KEYWORDS.some((keyword) => text.includes(normalize(keyword)));
+  }
+
+  function blockHasSpecialTypeSelected(block) {
+    if (!block) return false;
+
+    const controls = Array.from(block.querySelectorAll('select, input'));
+
+    return controls.some((control) => {
+      if (control.type === 'radio' || control.type === 'checkbox') {
+        if (!control.checked) return false;
+        return valueMatchesSpecialType(getControlDisplayText(control));
+      }
+
+      return valueMatchesSpecialType(getControlDisplayText(control));
+    });
+  }
+
+  function restoreRequired(control) {
+    if (!control || !control.dataset) return;
+
+    if (control.dataset.forESpecialWasRequired === 'true') {
+      control.required = true;
+    }
+
+    delete control.dataset.forESpecialWasRequired;
+  }
+
+  function suspendRequired(control) {
+    if (!control || !control.dataset) return;
+
+    if (control.required) {
+      control.dataset.forESpecialWasRequired = 'true';
+      control.required = false;
+    }
+  }
+
+  function applyFieldVisibility(block, shouldHide) {
+    if (!block) return;
+
+    block.classList.toggle('for-e-special-schedule-hidden', shouldHide);
+
+    Array.from(block.querySelectorAll('input, select, textarea')).forEach((control) => {
+      if (shouldHide) {
+        suspendRequired(control);
+      } else {
+        restoreRequired(control);
+      }
+    });
+  }
+
+  function applyToRoot(root, shouldUseSpecialFields) {
+    const blocksToHide = [];
+
+    HIDE_FIELD_LABELS.forEach((label) => {
+      findFieldBlocksByLabel(root, label).forEach((block) => {
+        if (!blocksToHide.includes(block)) {
+          blocksToHide.push(block);
+        }
+      });
+    });
+
+    blocksToHide.forEach((block) => {
+      block.classList.add('for-e-special-schedule-controlled');
+      applyFieldVisibility(block, shouldUseSpecialFields);
+    });
+  }
+
+  function findScheduleTypeBlocks() {
+    return findFieldBlocksByLabel(document, SCHEDULE_TYPE_LABEL).filter((block) => {
+      return block.querySelector('select, input');
+    });
+  }
+
+  function applySpecialScheduleFields() {
+    findScheduleTypeBlocks().forEach((typeBlock) => {
+      const root = nearestFormRoot(typeBlock);
+      const isSpecial = blockHasSpecialTypeSelected(typeBlock);
+
+      applyToRoot(root, isSpecial);
+    });
+  }
+
+  let scheduled = false;
+
+  function scheduleApply() {
+    if (scheduled) return;
+
+    scheduled = true;
+
+    const run = window.requestAnimationFrame || function (callback) {
+      return window.setTimeout(callback, 16);
+    };
+
+    run(() => {
+      scheduled = false;
+      applySpecialScheduleFields();
+    });
+  }
+
+  function init() {
+    applySpecialScheduleFields();
+
+    document.addEventListener('change', (event) => {
+      const target = event.target;
+
+      if (!target || !target.closest) return;
+
+      const root = nearestFormRoot(target);
+
+      if (!root) return;
+
+      const scheduleTypeBlocks = findFieldBlocksByLabel(root, SCHEDULE_TYPE_LABEL);
+
+      if (!scheduleTypeBlocks.length) return;
+
+      const isInsideScheduleForm = scheduleTypeBlocks.some((block) => {
+        return block.contains(target) || root.contains(block);
+      });
+
+      if (!isInsideScheduleForm) return;
+
+      scheduleApply();
+    });
+
+    document.addEventListener('input', scheduleApply);
+
+    const observer = new MutationObserver(scheduleApply);
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();
+/* FOR-e V002-1H-5-7 END - special schedule fields */

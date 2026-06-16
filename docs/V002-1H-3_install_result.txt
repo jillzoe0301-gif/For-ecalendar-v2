@@ -1,0 +1,16 @@
+FOR-e Calendar V2｜V002-1H-3 自動套用結果
+
+狀態：失敗
+訊息：找不到可安全插入的『個人行程表』標題。請把 src/main.js 貼給我，我可以產生完全對應版更新檔。
+
+執行紀錄：
+- 🚀 FOR-e Calendar V2｜V002-1H-3｜開始自動套用
+- ✅ 找到主程式：src/main.js
+- ✅ 偵測行程資料變數：schedules
+- ✅ 偵測查看行程函式：getAssigneeNames
+- ✅ 使用提醒圖示路徑：/icons/提醒通知.png
+- ✅ 已備份：src/main.js.bak-V002-1H-3-2026-06-15T10-53-23-651Z
+- ✅ 已加入 PersonalReminderPanel import
+
+提醒：
+- ⚠️ 找不到 public/icons/提醒通知.png 或 public/提醒通知.png；程式會先使用 /icons/提醒通知.png，若圖片未放入會只影響 icon 顯示。這不是 SQL 或 LOGO 變更。
