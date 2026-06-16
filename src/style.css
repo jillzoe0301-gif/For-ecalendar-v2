@@ -3061,3 +3061,43 @@ label.record-modal-check {
   font-weight: 950 !important;
 }
 /* FOR-e V002-1H-4-2 END - reminder exact colors */
+
+/* FOR-e V002-1H-4-3 START - followup and missing record colors */
+/*
+  V002-1H-4-3｜提示顏色指定
+  - 下次回診提示：#CEDF9F
+  - 未繳交：#FDEDED
+*/
+
+/* 下次回診提示：卡片提醒標籤 */
+.reminder-tags span {
+  background: #CEDF9F !important;
+  color: #3f4f22 !important;
+  border-color: #b8cc83 !important;
+}
+
+/* 下次回診提示：附加提醒 / 警示卡 */
+.warning-card,
+.notice.medical-followup-notice,
+.medical-followup-notice {
+  background: #CEDF9F !important;
+  color: #3f4f22 !important;
+  border-color: #b8cc83 !important;
+}
+
+/* 未繳交：個人行程卡片上的服務紀錄單未繳交提示 */
+.service-record-hint.is-missing {
+  background: #FDEDED !important;
+  color: #be123c !important;
+  border-color: #f8caca !important;
+}
+
+/* 未繳交：服務紀錄單列表狀態 */
+.service-record-row.status-未繳交,
+.status-未繳交 .record-status-pill,
+.record-status-pill {
+  background: #FDEDED !important;
+  color: #be123c !important;
+  border-color: #f8caca !important;
+}
+/* FOR-e V002-1H-4-3 END - followup and missing record colors */
