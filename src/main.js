@@ -374,7 +374,7 @@ function getReminderTokens(row) {
       item.includes('抵台') ||
       item.includes('逃跑') ||
       item.includes('轉出') ||
-      item.includes('終止日') ||
+      item.includes('聘僱終止日') ||
       item.includes('住變') ||
       item.includes('驗證') ||
       item.includes('最後工作日') ||
@@ -1779,10 +1779,8 @@ function applyCreateCompactSpecialFields() {
   setCompactHidden(form.querySelector('input[name="service_record_submitted_date"]')?.closest('label'), isCompact)
   setCompactHidden(form.querySelector('.vehicle-doc-row'), isCompact)
 
-  form.querySelectorAll('[data-service-extra]').forEach(block => {
-    setCompactHidden(block, isCompact)
-  })
-
+  // 特殊類型自己的提醒欄位要保留顯示，例如逃跑三天、轉出日期、驗證日期、返台班機、住變追蹤。
+  // 這裡只隱藏附加行程、服務紀錄單、公務車、證件等不需要欄位。
   if (isCompact) {
     resetCompactHiddenValues(form)
   }
@@ -2053,52 +2051,52 @@ function openScheduleModal() {
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="逃跑通知">
-            <div class="group-title">逃跑三日通知</div>
+            <div class="group-title">逃跑通知日期</div>
             <div class="compact-grid">
-              <label>第一日日期<input name="runaway_day1" type="date"></label>
-              <label>第二日日期<input name="runaway_day2" type="date"></label>
-              <label>第三日日期<input name="runaway_day3" type="date"></label>
+              <label>逃跑第一天<input name="runaway_day1" type="date"></label>
+              <label>逃跑第二天<input name="runaway_day2" type="date"></label>
+              <label>逃跑第三天<input name="runaway_day3" type="date"></label>
             </div>
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="轉出追蹤">
-            <div class="group-title">轉出提醒</div>
+            <div class="group-title">轉出追蹤日期</div>
             <div class="compact-grid">
-              <label>終止日<input name="transfer_end_date" type="date"></label>
+              <label>聘僱終止日<input name="transfer_end_date" type="date"></label>
               <label>轉出到期日<input name="transfer_due_date" type="date"></label>
             </div>
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="返台提醒">
-            <div class="group-title">抵台提醒</div>
+            <div class="group-title">返台提醒</div>
             <div class="compact-grid">
-              <label>返台日期<input name="return_date" type="date"></label>
-              <label>班機<input name="return_flight" placeholder="班機"></label>
+              <label>返台日<input name="return_date" type="date"></label>
+              <label>返台班機<input name="return_flight" placeholder="返台班機"></label>
               <label>
-                抵台時間
+                返台班機時間
                 ${compactTimeSelectHtml('arrival', '09', '00')}
               </label>
             </div>
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="住變資訊">
-            <div class="group-title">住變提醒</div>
+            <div class="group-title">住變資訊</div>
             <div class="compact-grid">
-              <label>住變日期<input name="housing_change_date" type="date"></label>
               <label>
                 搬家時間
                 ${compactTimeSelectHtml('housing_move', '09', '00')}
               </label>
-              <label class="span-2">新地址 / 住變說明<input name="housing_note" placeholder="新地址或住變說明"></label>
+              <label class="span-2">搬家地址<input name="housing_note" placeholder="請輸入搬家地址"></label>
+              <div class="span-2 notice compact-special-note">請記得追蹤租約</div>
             </div>
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="驗證提醒">
             <div class="group-title">驗證提醒</div>
             <div class="compact-grid">
-              <label>最後工作日<input name="verify_last_work_date" type="date"></label>
-              <label>驗證日期<input name="verify_date" type="date"></label>
-              <label>離境日期<input name="verify_leave_date" type="date"></label>
+              <label>結薪日<input name="verify_last_work_date" type="date"></label>
+              <label>預計驗證日<input name="verify_date" type="date"></label>
+              <label>預計離境日<input name="verify_leave_date" type="date"></label>
             </div>
           </div>
 
@@ -2159,7 +2157,7 @@ function openScheduleModal() {
     const isCompact = isCompactSpecialScheduleType(selected)
 
     document.querySelectorAll('[data-service-extra]').forEach(block => {
-      block.classList.toggle('hidden', isCompact || block.dataset.serviceExtra !== selected)
+      block.classList.toggle('hidden', block.dataset.serviceExtra !== selected)
     })
 
     if (selected === '收送簽文件') {
@@ -2295,32 +2293,32 @@ function buildServiceExtraNotes(form, scheduleType) {
   }
 
   if (scheduleType === '逃跑通知') {
-    if (form.get('runaway_day1')) notes.push(`逃跑第一日：${form.get('runaway_day1')}`)
-    if (form.get('runaway_day2')) notes.push(`逃跑第二日：${form.get('runaway_day2')}`)
-    if (form.get('runaway_day3')) notes.push(`逃跑第三日：${form.get('runaway_day3')}`)
+    if (form.get('runaway_day1')) notes.push(`逃跑第一天：${form.get('runaway_day1')}`)
+    if (form.get('runaway_day2')) notes.push(`逃跑第二天：${form.get('runaway_day2')}`)
+    if (form.get('runaway_day3')) notes.push(`逃跑第三天：${form.get('runaway_day3')}`)
   }
 
   if (scheduleType === '轉出追蹤') {
-    if (form.get('transfer_end_date')) notes.push(`終止日：${form.get('transfer_end_date')}`)
+    if (form.get('transfer_end_date')) notes.push(`聘僱聘僱終止日：${form.get('transfer_end_date')}`)
     if (form.get('transfer_due_date')) notes.push(`轉出到期日：${form.get('transfer_due_date')}`)
   }
 
   if (scheduleType === '返台提醒') {
-    if (form.get('return_date')) notes.push(`返台日期：${form.get('return_date')}`)
-    if (form.get('return_flight')) notes.push(`班機：${form.get('return_flight')}`)
-    notes.push(`抵台時間：${getCompactTime(form, 'arrival')}`)
+    if (form.get('return_date')) notes.push(`返台日：${form.get('return_date')}`)
+    if (form.get('return_flight')) notes.push(`返台班機：${form.get('return_flight')}`)
+    notes.push(`返台班機時間：${getCompactTime(form, 'arrival')}`)
   }
 
   if (scheduleType === '住變資訊') {
-    if (form.get('housing_change_date')) notes.push(`住變日期：${form.get('housing_change_date')}`)
     notes.push(`搬家時間：${getCompactTime(form, 'housing_move')}`)
-    if (form.get('housing_note')) notes.push(`住變說明：${form.get('housing_note')}`)
+    if (form.get('housing_note')) notes.push(`搬家地址：${form.get('housing_note')}`)
+    notes.push('請記得追蹤租約')
   }
 
   if (scheduleType === '驗證提醒') {
-    if (form.get('verify_last_work_date')) notes.push(`最後工作日：${form.get('verify_last_work_date')}`)
-    if (form.get('verify_date')) notes.push(`驗證日期：${form.get('verify_date')}`)
-    if (form.get('verify_leave_date')) notes.push(`離境日期：${form.get('verify_leave_date')}`)
+    if (form.get('verify_last_work_date')) notes.push(`結薪日：${form.get('verify_last_work_date')}`)
+    if (form.get('verify_date')) notes.push(`預計驗證日：${form.get('verify_date')}`)
+    if (form.get('verify_leave_date')) notes.push(`預計離境日：${form.get('verify_leave_date')}`)
   }
 
   return notes
@@ -2698,13 +2696,6 @@ async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
   const form = new FormData(event.target)
-  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
-
-  if (!editExecutorIds.length) {
-    alert('請至少選擇一位執行者。')
-    return
-  }
-
   const category = form.get('category')
   const isService = category === '服務行程'
   const submitted = isService && form.get('service_record_submitted_check') === 'on'

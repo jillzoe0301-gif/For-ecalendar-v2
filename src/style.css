@@ -2878,3 +2878,14 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1H-7 END - personal reminder stable styles */
+
+/* FOR-e V002-1H-7-1 START - restore special fields and save */
+.compact-special-note {
+  margin: 0 !important;
+  border-radius: 14px !important;
+  background: #fff7cc !important;
+  border: 1px solid #fde68a !important;
+  color: #92400e !important;
+  font-weight: 900 !important;
+}
+/* FOR-e V002-1H-7-1 END - restore special fields and save */
