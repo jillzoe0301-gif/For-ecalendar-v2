@@ -215,6 +215,7 @@ let loadingSchedules = false
 let schedulesError = ''
 let saving = false
 let overviewWeekOffset = 0
+let fieldWeekOffset = 0
 let searchFilters = {
   keyword: '',
   status: '全部',
@@ -762,6 +763,35 @@ function renderApp() {
     cell.addEventListener('dblclick', () => openScheduleModal())
   })
 
+
+  const fieldPrevWeekBtn = document.querySelector('#fieldPrevWeekBtn')
+  if (fieldPrevWeekBtn) {
+    fieldPrevWeekBtn.addEventListener('click', () => {
+      fieldWeekOffset -= 1
+      renderApp()
+    })
+  }
+
+  const fieldThisWeekBtn = document.querySelector('#fieldThisWeekBtn')
+  if (fieldThisWeekBtn) {
+    fieldThisWeekBtn.addEventListener('click', () => {
+      fieldWeekOffset = 0
+      renderApp()
+    })
+  }
+
+  const fieldNextWeekBtn = document.querySelector('#fieldNextWeekBtn')
+  if (fieldNextWeekBtn) {
+    fieldNextWeekBtn.addEventListener('click', () => {
+      fieldWeekOffset += 1
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('.field-week-day-cell').forEach(cell => {
+    cell.addEventListener('dblclick', () => openScheduleModal())
+  })
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) addBtn.addEventListener('click', openScheduleModal)
 
@@ -1102,11 +1132,132 @@ function renderAuditList(rows) {
 }
 
 
+
+/* FOR-e V002-1I-1 START - field schedule weekly calendar */
+/*
+  V002-1I-1｜外務行程週曆骨架
+  只做畫面骨架與既有資料顯示，不改 Supabase、不改 SQL、不改新增 / 修改 / 儲存主流程。
+*/
+
+function getFieldStaffRows() {
+  const fieldRows = staffList.filter(staff => {
+    const text = [staff.role, staff.position, staff.position_name, staff.department_name].filter(Boolean).join('｜')
+    return text.includes('外務') || text.includes('宿管')
+  })
+
+  return fieldRows.length ? fieldRows : staffList
+}
+
+function isFieldScheduleRow(row) {
+  if (!row) return false
+
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+
+  return (
+    text.includes('外務') ||
+    row.category === '外務行程' ||
+    row.schedule_type === '外務行程' ||
+    row.schedule_type === '外務'
+  )
+}
+
+function getFieldSchedulesForStaffDate(staffId, dateKey) {
+  return schedules.filter(row => {
+    if (!isVisibleSchedule(row)) return false
+    if (!isFieldScheduleRow(row)) return false
+    if (row.start_date !== dateKey) return false
+
+    return (row.schedule_assignees || []).some(item => {
+      return item.staff_id === staffId && !item.deleted_at
+    })
+  })
+}
+
+function renderFieldScheduleCard(row) {
+  const contentPreview = getFirstTwoLines(row.description)
+
+  return `
+    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+      <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
+      <strong>${escapeHtml(row.schedule_type || row.category || '外務')}｜${escapeHtml(row.title || '-')}</strong>
+      ${row.location_name ? `<span class="field-week-card-preview">${escapeHtml(row.location_name)}</span>` : ''}
+      ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
+    </button>
+  `
+}
+
+function renderFieldScheduleCalendar() {
+  const weekDates = getWeekDates(fieldWeekOffset)
+  const staffRows = getFieldStaffRows()
+  const todayKey = todayString()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>外務行程</h3>
+        <p class="muted">外務人員 × 週一～週日｜${getWeekLabel(weekDates)}</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="fieldPrevWeekBtn">上一週</button>
+        <button class="secondary-btn" id="fieldThisWeekBtn">本週</button>
+        <button class="secondary-btn" id="fieldNextWeekBtn">下一週</button>
+        <button class="primary-btn" id="addScheduleBtn">新增外務</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <div class="field-week-scroll">
+      <table class="field-week-table">
+        <thead>
+          <tr>
+            <th class="field-staff-col">外務人員</th>
+            ${weekDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${staffRows.map(staff => `
+            <tr>
+              <th class="field-staff-name-cell">
+                <strong>${escapeHtml(staff.name)}</strong>
+                <span>${escapeHtml(staff.department_name || '')}</span>
+              </th>
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
+                return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
+                  ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : '<span class="field-week-empty">—</span>'}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${!staffRows.length ? '<div class="empty-state">目前沒有可顯示的外務人員。</div>' : ''}
+  `
+}
+/* FOR-e V002-1I-1 END - field schedule weekly calendar */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
+  if (currentPage === 'fieldSchedule') return renderFieldScheduleCalendar()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
