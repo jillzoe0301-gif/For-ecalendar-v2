@@ -2749,56 +2749,62 @@ label.record-modal-check {
   display: none !important;
 }
 
-/* FOR-e V002-1H-5-7-4 START - exact compact special schedule fields */
-.for-e-special-compact-hidden {
+/* FOR-e V002-1H-5-7-5 START */
+
+/* 特殊行程類型欄位隱藏：直接對既有表單區塊生效 */
+.compact-special-hidden {
   display: none !important;
 }
 
-/* 使用既有長方形 LOGO 圖檔，不再拆字重組 */
+/* 電腦版左側：使用原始長方形 PNG，不拆字、不重組字型 */
 .sidebar .brand {
   padding: 8px 0 14px 0 !important;
-  overflow: hidden;
+  overflow: visible !important;
 }
 
 .sidebar .brand-logo-wrap {
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  overflow: hidden;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  overflow: visible !important;
 }
 
 .sidebar .brand-logo-wrap .brand-logo-img {
-  display: block;
-  width: 100% !important;
-  max-width: 100% !important;
+  display: block !important;
+  width: 224px !important;
+  max-width: 224px !important;
   height: auto !important;
   margin-left: 0 !important;
-  object-fit: contain;
-  object-position: left center;
+  object-fit: contain !important;
+  object-position: left center !important;
+  background: transparent !important;
 }
 
 .sidebar .brand-subtitle {
-  margin-left: 4px;
-  margin-top: 8px;
+  margin-left: 6px !important;
+  margin-top: 8px !important;
 }
 
+/* 手機版上方：改用原始長方形 PNG，置中放大 */
 @media (max-width: 768px) {
   .mobile-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    text-align: center;
-    background: transparent;
-    font-size: 28px;
-    font-weight: 900;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 2px 0 14px !important;
+    background: transparent !important;
+    color: transparent !important;
   }
 
-  .mobile-header .brand-logo-img.icon-logo {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
+  .mobile-header .brand-logo-img {
+    width: min(250px, 72vw) !important;
+    max-width: min(250px, 72vw) !important;
+    height: auto !important;
+    object-fit: contain !important;
+    background: transparent !important;
   }
 }
-/* FOR-e V002-1H-5-7-4 END - exact compact special schedule fields */
+
+/* FOR-e V002-1H-5-7-5 END */

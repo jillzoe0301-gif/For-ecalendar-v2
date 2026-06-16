@@ -591,8 +591,7 @@ function renderApp() {
 
       <main class="main">
         <header class="mobile-header">
-          ${renderBrandLogo('icon')}
-          <span>FOR-e</span>
+          ${renderBrandLogo('horizontal')}
         </header>
 
         <header class="topbar">
@@ -1696,6 +1695,115 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
   `
 }
 
+
+// V002-1H-5-7-5｜特殊行程類型精準欄位控制
+const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒', '宿舍']
+
+function isCompactSpecialScheduleType(value) {
+  return compactSpecialScheduleTypes.includes(String(value || '').trim())
+}
+
+function setCompactHidden(element, hidden) {
+  if (!element) return
+  element.classList.toggle('compact-special-hidden', hidden)
+
+  element.querySelectorAll('input, select, textarea').forEach(control => {
+    if (hidden) {
+      if (control.required) {
+        control.dataset.compactSpecialWasRequired = 'true'
+        control.required = false
+      }
+    } else if (control.dataset.compactSpecialWasRequired === 'true') {
+      control.required = true
+      delete control.dataset.compactSpecialWasRequired
+    }
+  })
+}
+
+function resetCompactHiddenValues(form) {
+  if (!form) return
+
+  const hasExtra = form.querySelector('select[name="has_extra_schedule"]')
+  if (hasExtra) hasExtra.value = '否'
+
+  const subType = form.querySelector('select[name="sub_type"]')
+  if (subType) subType.value = ''
+
+  const subTypeNote = form.querySelector('input[name="sub_type_note"]')
+  if (subTypeNote) subTypeNote.value = ''
+
+  const needRecord = form.querySelector('input[name="need_service_record"]')
+  if (needRecord) needRecord.checked = false
+
+  const submitted = form.querySelector('input[name="service_record_submitted_check"]')
+  if (submitted) {
+    submitted.checked = false
+    submitted.disabled = true
+  }
+
+  const submittedDate = form.querySelector('input[name="service_record_submitted_date"]')
+  if (submittedDate) {
+    submittedDate.value = ''
+    submittedDate.disabled = true
+  }
+
+  const carNo = form.querySelector('select[name="car_no"]')
+  if (carNo) carNo.value = '不使用'
+
+  const hasDocuments = form.querySelector('select[name="has_documents"]')
+  if (hasDocuments) hasDocuments.value = '否'
+
+  form.querySelectorAll('input[name="document_items"]').forEach(input => {
+    input.checked = false
+  })
+
+  const documentNote = form.querySelector('input[name="document_note"]')
+  if (documentNote) documentNote.value = ''
+}
+
+function applyCreateCompactSpecialFields() {
+  const form = document.querySelector('#scheduleForm')
+  if (!form) return
+
+  const serviceTypeSelect = form.querySelector('#serviceTypeSelect')
+  if (!serviceTypeSelect) return
+
+  const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
+
+  setCompactHidden(form.querySelector('.extra-schedule-box'), isCompact)
+  setCompactHidden(form.querySelector('.service-record-box'), isCompact)
+  setCompactHidden(form.querySelector('input[name="service_record_submitted_date"]')?.closest('label'), isCompact)
+  setCompactHidden(form.querySelector('.vehicle-doc-row'), isCompact)
+
+  form.querySelectorAll('[data-service-extra]').forEach(block => {
+    setCompactHidden(block, isCompact)
+  })
+
+  if (isCompact) {
+    resetCompactHiddenValues(form)
+  }
+}
+
+function applyEditCompactSpecialFields() {
+  const form = document.querySelector('#editScheduleForm')
+  if (!form) return
+
+  const serviceTypeSelect = form.querySelector('select[name="schedule_type"]')
+  if (!serviceTypeSelect) return
+
+  const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
+
+  setCompactHidden(form.querySelector('.extra-schedule-box'), isCompact)
+  setCompactHidden(form.querySelector('.service-record-box'), isCompact)
+  setCompactHidden(form.querySelector('input[name="service_record_submitted_date"]')?.closest('label'), isCompact)
+  setCompactHidden(form.querySelector('select[name="car_no"]')?.closest('label'), isCompact)
+
+  if (isCompact) {
+    resetCompactHiddenValues(form)
+  }
+}
+
+
 function openScheduleModal() {
   const defaultStaffId = currentProfile.staff_id || ''
   const availableFormCategories = getAvailableFormCategories()
@@ -2044,14 +2152,22 @@ function openScheduleModal() {
 
   function refreshServiceExtras() {
     const selected = serviceTypeSelect.value
+    const isCompact = isCompactSpecialScheduleType(selected)
+
     document.querySelectorAll('[data-service-extra]').forEach(block => {
-      block.classList.toggle('hidden', block.dataset.serviceExtra !== selected)
+      block.classList.toggle('hidden', isCompact || block.dataset.serviceExtra !== selected)
     })
 
     if (selected === '收送簽文件') {
       hasDocumentsSelect.value = '是'
     }
+
+    if (isCompact) {
+      resetCompactHiddenValues(document.querySelector('#scheduleForm'))
+    }
+
     refreshDocumentsBlock()
+    applyCreateCompactSpecialFields()
   }
 
   function refreshDocumentsBlock() {
@@ -2104,6 +2220,7 @@ function openScheduleModal() {
   refreshServiceExtras()
   refreshDocumentsBlock()
   refreshExtraScheduleBlock()
+  applyCreateCompactSpecialFields()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
@@ -2521,6 +2638,7 @@ function openEditScheduleModal(scheduleId) {
   const timeBlock = document.querySelector('#editTimeRangeBlock')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
   const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
+  const editServiceTypeSelect = document.querySelector('#editServiceBlock select[name="schedule_type"]')
   const editHasExtraScheduleSelect = document.querySelector('#editHasExtraScheduleSelect')
   const editExtraScheduleBlock = document.querySelector('#editExtraScheduleBlock')
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
@@ -2537,6 +2655,7 @@ function openEditScheduleModal(scheduleId) {
   function refreshEditExtraScheduleBlock() {
     if (!editHasExtraScheduleSelect || !editExtraScheduleBlock) return
     editExtraScheduleBlock.classList.toggle('hidden', editHasExtraScheduleSelect.value !== '是')
+    applyEditCompactSpecialFields()
   }
 
   function refreshEditServiceRecordChecks() {
@@ -2557,12 +2676,14 @@ function openEditScheduleModal(scheduleId) {
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
+  if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', applyEditCompactSpecialFields)
   if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
   refreshEditExtraScheduleBlock()
   refreshEditServiceBlock()
   refreshEditTimeBlock()
   refreshEditServiceRecordChecks()
+  applyEditCompactSpecialFields()
 
   document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditModalBtn').addEventListener('click', () => modal.remove())
@@ -2588,8 +2709,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const payload = {
     category,
     schedule_type: isService ? (form.get('schedule_type') || '其他') : category,
-    sub_type: isService && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
-    sub_type_note: form.get('sub_type_note') || null,
+    sub_type: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
+    sub_type_note: isService && isCompactSpecialScheduleType(form.get('schedule_type')) ? null : (form.get('sub_type_note') || null),
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
@@ -2600,10 +2721,10 @@ async function saveEditedSchedule(event, modal, originalRow) {
     customer_name: isService ? (form.get('customer_name') || null) : null,
     location_name: isService ? (form.get('location_name') || null) : null,
     address: isService ? (form.get('address') || null) : null,
-    car_no: isService ? (form.get('car_no') || null) : null,
-    need_service_record: isService && form.get('need_service_record') === 'on',
-    service_record_submitted: submitted,
-    service_record_submitted_date: submittedDate
+    car_no: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) ? (form.get('car_no') || null) : null,
+    need_service_record: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && form.get('need_service_record') === 'on',
+    service_record_submitted: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && submitted,
+    service_record_submitted_date: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) ? submittedDate : null
   }
 
   const { error } = await supabase
@@ -2716,14 +2837,16 @@ async function saveSchedule(event, modal) {
 
   if (category === '服務行程') {
     scheduleType = form.get('schedule_type') || '其他'
-    subType = form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
+    subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null)
     customerName = form.get('customer_name') || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
-    carNo = form.get('car_no') || null
-    subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
-    if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
-    if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
+    carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
+    if (!isCompactSpecialScheduleType(scheduleType)) {
+      subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
+      if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
+      if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
+    }
   }
 
   const schedulePayload = {
@@ -3054,123 +3177,3 @@ async function logout() {
 
 window.addEventListener('load', loadProfile)
 
-/* FOR-e V002-1H-5-7-4 START - exact compact special schedule fields */
-(function () {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-  const SPECIAL_TYPES = new Set([
-    '逃跑通知',
-    '轉出追蹤',
-    '住變資訊',
-    '驗證提醒',
-    '返台提醒',
-    '宿舍'
-  ]);
-
-  function normalize(value) {
-    return String(value || '').replace(/\s+/g, '').replace(/[：:]/g, '').trim();
-  }
-
-  function isSpecialType(value) {
-    return SPECIAL_TYPES.has(normalize(value));
-  }
-
-  function setTempRequired(control, hidden) {
-    if (!control || !control.dataset) return;
-    if (hidden) {
-      if (control.required) {
-        control.dataset.foreTempRequired = '1';
-        control.required = false;
-      }
-    } else if (control.dataset.foreTempRequired === '1') {
-      control.required = true;
-      delete control.dataset.foreTempRequired;
-    }
-  }
-
-  function toggleHidden(target, hidden) {
-    if (!target) return;
-    target.classList.toggle('for-e-special-compact-hidden', hidden);
-    target.querySelectorAll('input, select, textarea').forEach((control) => {
-      setTempRequired(control, hidden);
-    });
-  }
-
-  function refreshCreateForm(form) {
-    if (!form) return;
-    const typeSelect = form.querySelector('#serviceTypeSelect, select[name="schedule_type"]');
-    if (!typeSelect) return;
-    const compact = isSpecialType(typeSelect.value);
-
-    const extraScheduleBox = form.querySelector('.extra-schedule-box');
-    const serviceRecordBox = form.querySelector('.service-record-box');
-    const serviceRecordDateLabel = form.querySelector('input[name="service_record_submitted_date"]')?.closest('label');
-    const vehicleDocRow = form.querySelector('.vehicle-doc-row');
-    const conditionalBlocks = form.querySelectorAll('.conditional-service');
-
-    toggleHidden(extraScheduleBox, compact);
-    toggleHidden(serviceRecordBox, compact);
-    toggleHidden(serviceRecordDateLabel, compact);
-    toggleHidden(vehicleDocRow, compact);
-    conditionalBlocks.forEach((block) => toggleHidden(block, compact));
-  }
-
-  function refreshEditForm(form) {
-    if (!form) return;
-    const typeSelect = form.querySelector('select[name="schedule_type"]');
-    if (!typeSelect) return;
-    const compact = isSpecialType(typeSelect.value);
-
-    const extraScheduleBox = form.querySelector('.extra-schedule-box');
-    const serviceRecordBox = form.querySelector('.service-record-box');
-    const serviceRecordDateLabel = form.querySelector('input[name="service_record_submitted_date"]')?.closest('label');
-    const carLabel = form.querySelector('select[name="car_no"]')?.closest('label');
-    const subTypeNoteLabel = form.querySelector('input[name="sub_type_note"]')?.closest('label');
-
-    toggleHidden(extraScheduleBox, compact);
-    toggleHidden(serviceRecordBox, compact);
-    toggleHidden(serviceRecordDateLabel, compact);
-    toggleHidden(carLabel, compact);
-    toggleHidden(subTypeNoteLabel, compact);
-  }
-
-  function refreshAllSpecialForms() {
-    const createForm = document.querySelector('#scheduleForm');
-    const editForm = document.querySelector('#editScheduleForm');
-    refreshCreateForm(createForm);
-    refreshEditForm(editForm);
-  }
-
-  let queued = false;
-  function queueRefresh() {
-    if (queued) return;
-    queued = true;
-    const run = window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
-    run(() => {
-      queued = false;
-      refreshAllSpecialForms();
-    });
-  }
-
-  function bindEvents() {
-    document.addEventListener('change', (event) => {
-      const target = event.target;
-      if (!target) return;
-      if (target.matches('#serviceTypeSelect, #editServiceBlock select[name="schedule_type"], #scheduleForm select[name="schedule_type"], #editScheduleForm select[name="schedule_type"]')) {
-        queueRefresh();
-      }
-    });
-
-    const observer = new MutationObserver(queueRefresh);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    queueRefresh();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindEvents, { once: true });
-  } else {
-    bindEvents();
-  }
-})();
-/* FOR-e V002-1H-5-7-4 END - exact compact special schedule fields */
