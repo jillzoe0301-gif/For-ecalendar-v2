@@ -3101,3 +3101,31 @@ label.record-modal-check {
   border-color: #f8caca !important;
 }
 /* FOR-e V002-1H-4-3 END - followup and missing record colors */
+
+/* FOR-e V002-1H-4-4 START - exact followup and pending record colors */
+/*
+  V002-1H-4-4｜精準顏色修正
+  只改：
+  1. 下次回診提示：#CEDF9F
+  2. 未超過 14 天的紀錄單提醒：#FDEDED
+
+  不改：
+  - 超過 14 天的紀錄單提醒
+  - 一般未繳交標籤
+  - 其他提醒事項顏色
+*/
+
+/* 下次回診提示 */
+.reminder-tags span,
+.medical-followup-notice {
+  background: #CEDF9F !important;
+  color: #3f4f22 !important;
+  border-color: #b8cc83 !important;
+}
+
+/* 未超過 14 天的紀錄單提醒 */
+.service-record-reminder-card.is-pending {
+  background: #FDEDED !important;
+  border-color: #f8caca !important;
+}
+/* FOR-e V002-1H-4-4 END - exact followup and pending record colors */
