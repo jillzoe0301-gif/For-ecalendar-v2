@@ -2808,3 +2808,73 @@ label.record-modal-check {
 }
 
 /* FOR-e V002-1H-5-7-5 END */
+
+/* FOR-e V002-1H-7 START - personal reminder stable styles */
+/*
+  個人行程表提醒區：
+  當天：粉紅 #ef9db8
+  逾期：亮黃 #fff500
+  逾期文字：紅色 #ff3131
+*/
+.personal-reminder-area {
+  margin: 12px 0 16px !important;
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.reminder-area-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.reminder-area-title img {
+  width: 34px !important;
+  height: 34px !important;
+  object-fit: contain !important;
+  flex: 0 0 auto !important;
+}
+
+.reminder-alert-card {
+  width: 100% !important;
+  border-radius: 16px !important;
+  border: 1px solid transparent !important;
+  padding: 12px !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  gap: 12px !important;
+  align-items: center !important;
+  text-align: left !important;
+  white-space: normal !important;
+  cursor: pointer !important;
+}
+
+.reminder-alert-card.is-today {
+  background: #ef9db8 !important;
+  border-color: #e879a1 !important;
+  color: #111827 !important;
+}
+
+.reminder-alert-card.is-overdue {
+  background: #fff500 !important;
+  border-color: #facc15 !important;
+  color: #111827 !important;
+}
+
+.reminder-overdue-text {
+  color: #ff3131 !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 768px) {
+  .reminder-alert-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reminder-overdue-text {
+    white-space: normal !important;
+  }
+}
+/* FOR-e V002-1H-7 END - personal reminder stable styles */

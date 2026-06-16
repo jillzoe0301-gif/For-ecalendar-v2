@@ -143,8 +143,8 @@ const reminderScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '
 
 function isReminderSchedule(row) {
   if (!row) return false
-  const typeText = [row.schedule_type, row.sub_type, row.category, row.title].filter(Boolean).join('｜')
-  return reminderScheduleTypes.some(type => typeText.includes(type))
+  const scheduleType = String(row.schedule_type || '').trim()
+  return reminderScheduleTypes.includes(scheduleType)
 }
 
 function isOverdueSchedule(row) {
@@ -158,10 +158,14 @@ function isTodaySchedule(row) {
 
 function getPersonalReminderRows() {
   return schedules
-    .filter(row => isActivePersonalSchedule(row) && isMine(row) && isReminderSchedule(row))
+    .filter(row => isActivePersonalSchedule(row))
+    .filter(row => isMine(row))
+    .filter(row => isReminderSchedule(row))
     .filter(row => isTodaySchedule(row) || isOverdueSchedule(row))
     .sort((a, b) => {
-      if (isOverdueSchedule(a) !== isOverdueSchedule(b)) return isOverdueSchedule(a) ? -1 : 1
+      const aOverdue = isOverdueSchedule(a)
+      const bOverdue = isOverdueSchedule(b)
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
       return String(a.start_date || '').localeCompare(String(b.start_date || ''))
     })
 }
@@ -3177,3 +3181,18 @@ async function logout() {
 
 window.addEventListener('load', loadProfile)
 
+/* FOR-e V002-1H-7 START - personal reminder stable rules */
+/*
+  V002-1H-7｜個人行程表提醒區測試修正
+  只穩定個人提醒區，不動 LOGO、表單欄位、權限、Supabase。
+*/
+function getPersonalReminderTestSummary() {
+  const rows = getPersonalReminderRows()
+  return {
+    total: rows.length,
+    today: rows.filter(row => isTodaySchedule(row)).length,
+    overdue: rows.filter(row => isOverdueSchedule(row)).length,
+    types: [...new Set(rows.map(row => row.schedule_type).filter(Boolean))]
+  }
+}
+/* FOR-e V002-1H-7 END - personal reminder stable rules */
