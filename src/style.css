@@ -3417,6 +3417,33 @@ label.record-modal-check {
 }
 /* FOR-e V002-1I-1-1 END - field holiday orange colors */
 
+
+/* FOR-e V002-1I-2-2 START - field time constraint and uploaded icons */
+/*
+  V002-1I-2-2
+  - 修正外務單一時間寫入，避免 schedules_time_type_check 錯誤
+  - 特殊提醒改用上傳 PNG icon
+*/
+.field-special-check span,
+.field-special-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.field-special-icon {
+  width: 16px !important;
+  height: 16px !important;
+  object-fit: contain !important;
+  flex: 0 0 auto !important;
+}
+
+.field-special-badge .field-special-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+/* FOR-e V002-1I-2-2 END - field time constraint and uploaded icons */
+
 /* FOR-e V002-1I-2 START - field schedule add form */
 #fieldScheduleForm .field-location-box,
 #fieldScheduleForm .field-special-box,
@@ -3448,53 +3475,12 @@ label.record-modal-check {
   max-height: 220px;
 }
 
-.field-special-check span {
-  font-weight: 900;
+#fieldScheduleForm .field-single-time-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(90px, 1fr);
+  gap: 8px;
 }
 
-.field-special-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 4px 0;
-}
-
-.field-special-badge {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  max-width: 100%;
-  min-height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #FFEF5F;
-  color: #7c2d12;
-  border: 1px solid #e6c93e;
-  font-size: 10px;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.field-result-btn {
-  background: #fff7ed !important;
-  color: #9a3412 !important;
-  border: 1px solid #fed7aa !important;
-}
-
-@media (max-width: 768px) {
-  #fieldScheduleForm .field-location-box,
-  #fieldScheduleForm .field-items-grid {
-    grid-template-columns: 1fr;
-  }
-}
-/* FOR-e V002-1I-2 END - field schedule add form */
-
-/* FOR-e V002-1I-2-2 START - field time constraint and uploaded icons */
-/*
-  V002-1I-2-2
-  - 修正外務單一時間寫入，避免 schedules_time_type_check 錯誤
-  - 特殊提醒改用上傳 PNG icon
-*/
 .field-special-check span,
 .field-special-badge {
   display: inline-flex !important;
@@ -3513,4 +3499,59 @@ label.record-modal-check {
   width: 14px !important;
   height: 14px !important;
 }
-/* FOR-e V002-1I-2-2 END - field time constraint and uploaded icons */
+
+.field-special-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.field-special-badge {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #FFEF5F;
+  color: #7c2d12;
+  border: 1px solid #e6c93e;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.field-result-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #FDEDED;
+  color: #be123c;
+  border: 1px solid #f8caca;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.field-result-btn {
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+  border: 1px solid #fed7aa !important;
+}
+
+@media (max-width: 768px) {
+  #fieldScheduleForm .field-location-box,
+  #fieldScheduleForm .field-items-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #fieldScheduleForm .field-single-time-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+/* FOR-e V002-1I-2 END - field schedule add form */

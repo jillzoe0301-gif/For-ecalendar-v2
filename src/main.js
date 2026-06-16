@@ -1196,6 +1196,8 @@ function renderFieldScheduleCard(row) {
       <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.schedule_type || row.category || '外務')}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
+      ${renderFieldResultBadge(row)}
+      <span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
       ${row.location_name ? `<span class="field-week-card-preview">${escapeHtml(row.location_name)}</span>` : ''}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
@@ -1900,6 +1902,7 @@ function openScheduleDetail(scheduleId) {
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
         <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(getAssigneeNames(row))}</strong></div>
+        <div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         <div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>
@@ -2182,12 +2185,11 @@ function applyEditCompactSpecialFields() {
 
 /* FOR-e V002-1I-2 START - field schedule add form */
 /*
-  V002-1I-2-1｜新增外務行程表單修正
-  - 時間改成單一時間，可空白
-  - 地點可下拉選擇並帶出地址，也可手動輸入
-  - 特殊提醒改成複選
-  - 下次領件 / 送審自動建立下一筆外務行程
-  - 外務查看可標記：已送件（完成）、要補件、送件異常、取消
+  V002-1I-2-3｜外務行程表單時間與結果操作修正
+  - 時間改成小時 + 5 分鐘選項，不需要結束時間
+  - 下次領件 / 送審增加時間，小時 + 5 分鐘選項
+  - 要補件 / 送件異常會寫入備註並刷新畫面
+  - 外務週曆卡片顯示指派者
 */
 
 function fieldStaffOptionsHtml(defaultStaffId = '') {
@@ -2214,6 +2216,38 @@ function fieldLocationOptionsHtml() {
   return `<option value="">手動輸入 / 不指定</option>` + fieldLocationOptions.map(item => `
     <option value="${escapeHtml(item.name)}" data-address="${escapeHtml(item.address)}">${escapeHtml(item.name)}</option>
   `).join('')
+}
+
+function fieldHourOptionsHtml(selectedValue = '') {
+  return `<option value="" ${selectedValue === '' ? 'selected' : ''}>不指定</option>` + Array.from({ length: 24 }, (_, i) => {
+    const value = String(i).padStart(2, '0')
+    return `<option value="${value}" ${value === selectedValue ? 'selected' : ''}>${value}</option>`
+  }).join('')
+}
+
+function fieldTimeSelectHtml(prefix, defaultHour = '', defaultMinute = '00') {
+  return `
+    <div class="compact-time-row field-single-time-row">
+      <select name="${prefix}_hour">${fieldHourOptionsHtml(defaultHour)}</select>
+      <select name="${prefix}_minute">${minuteOptionsHtml(defaultMinute)}</select>
+    </div>
+  `
+}
+
+function getFieldSingleTimeValue(form, prefix) {
+  const hour = form.get(`${prefix}_hour`) || ''
+  const minute = form.get(`${prefix}_minute`) || '00'
+  if (!hour) return ''
+  return `${hour}:${minute}`
+}
+
+function getFieldTimeTypeFromValue(timeValue) {
+  if (!timeValue) return '不指定'
+  return Number(String(timeValue).slice(0, 2)) < 12 ? '上午' : '下午'
+}
+
+function getFieldDbTimeValue(timeValue) {
+  return timeValue ? `${timeValue}:00` : null
 }
 
 function fieldSpecialReminderChecksHtml() {
@@ -2246,6 +2280,18 @@ function getFieldSpecialRemindersFromRow(row) {
   const match = note.match(/特殊提醒：([^｜]+)/)
   if (!match) return []
   return match[1].split('、').map(item => item.trim()).filter(Boolean)
+}
+
+function getFieldResultFromRow(row) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/外務結果：([^｜]+)/)
+  return match ? match[1].trim() : ''
+}
+
+function renderFieldResultBadge(row) {
+  const result = getFieldResultFromRow(row)
+  if (!result) return ''
+  return `<span class="field-result-badge">${escapeHtml(result)}</span>`
 }
 
 function renderFieldSpecialReminderBadges(row) {
@@ -2311,6 +2357,7 @@ async function updateFieldScheduleResult(scheduleId, result) {
 
   await refreshData()
   renderApp()
+  alert(`已標記外務結果：${result}`)
 }
 
 function openFieldScheduleModal(defaults = {}) {
@@ -2339,7 +2386,7 @@ function openFieldScheduleModal(defaults = {}) {
 
         <label>
           時間
-          <input name="field_time" type="time">
+          ${fieldTimeSelectHtml('field')}
         </label>
 
         <div class="span-2 field-location-box">
@@ -2413,13 +2460,18 @@ function openFieldScheduleModal(defaults = {}) {
             </label>
 
             <label>
+              下次時間
+              ${fieldTimeSelectHtml('next')}
+            </label>
+
+            <label>
               下次人員
               <select name="next_staff_id">
                 ${fieldStaffSelectOptionsHtml('')}
               </select>
             </label>
           </div>
-          <p class="field-hint">若填寫下次類型、日期與人員，儲存後會自動建立下一筆外務行程。</p>
+          <p class="field-hint">若填寫下次類型、日期與人員，儲存後會自動建立下一筆外務行程；下次時間可不填。</p>
         </div>
 
         <div class="modal-actions span-2">
@@ -2460,9 +2512,10 @@ async function saveFieldSchedule(event, modal) {
     const nextType = form.get('next_action_type') || ''
     const nextDate = form.get('next_action_date') || ''
     const nextStaffId = form.get('next_staff_id') || ''
+    const nextFieldTime = getFieldSingleTimeValue(form, 'next')
 
-    if ((nextType || nextDate || nextStaffId) && !(nextType && nextDate && nextStaffId)) {
-      alert('若要建立下次領件 / 送審行程，請完整填寫下次類型、下次日期與下次人員。')
+    if ((nextType || nextDate || nextStaffId || nextFieldTime) && !(nextType && nextDate && nextStaffId)) {
+      alert('若要建立下次領件 / 送審行程，請完整填寫下次類型、下次日期與下次人員；下次時間可不填。')
       saving = false
       return
     }
@@ -2472,7 +2525,7 @@ async function saveFieldSchedule(event, modal) {
     const purpose = form.get('field_purpose') || '外務日'
     const locationName = form.get('location_name') || ''
     const address = form.get('address') || ''
-    const fieldTime = form.get('field_time') || ''
+    const fieldTime = getFieldSingleTimeValue(form, 'field')
     const title = `${purpose}${locationName ? '｜' + locationName : '｜外務'}`
     const specialReminders = [...document.querySelectorAll('input[name="field_special_reminder"]:checked')].map(input => input.value)
     const nextStaffName = getFieldStaffName(nextStaffId)
@@ -2483,7 +2536,7 @@ async function saveFieldSchedule(event, modal) {
       form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
       form.get('document_note') ? `證件：${form.get('document_note')}` : '',
       specialReminders.length ? `特殊提醒：${specialReminders.join('、')}` : '',
-      nextType && nextDate ? `${nextType}：${nextDate}` : '',
+      nextType && nextDate ? `${nextType}：${nextDate}${nextFieldTime ? ' ' + nextFieldTime : ''}` : '',
       nextStaffName ? `下次人員：${nextStaffName}` : ''
     ].filter(Boolean)
 
@@ -2501,8 +2554,8 @@ async function saveFieldSchedule(event, modal) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: form.get('start_date'),
-      time_type: fieldTime ? (Number(fieldTime.slice(0, 2)) < 12 ? '上午' : '下午') : '不指定',
-      start_time: fieldTime ? `${fieldTime}:00` : null,
+      time_type: getFieldTimeTypeFromValue(fieldTime),
+      start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
       customer_name: null,
       location_name: locationName || null,
@@ -2553,7 +2606,7 @@ async function saveFieldSchedule(event, modal) {
       action_type: '新增',
       source_type: 'schedule',
       source_id: schedule.schedule_id,
-      note: 'V002-1I-2-1 新增外務行程'
+      note: 'V002-1I-2-3 新增外務行程'
     })
 
     if (nextType && nextDate && nextStaffId) {
@@ -2573,8 +2626,8 @@ async function saveFieldSchedule(event, modal) {
         description: `由 ${payload.start_date} ${purpose} 自動建立的下次外務行程。${payload.description ? '\n' + payload.description : ''}`,
         start_date: nextDate,
         end_date: nextDate,
-        time_type: '不指定',
-        start_time: null,
+        time_type: getFieldTimeTypeFromValue(nextFieldTime),
+        start_time: getFieldDbTimeValue(nextFieldTime),
         end_time: null,
         status: '未完成'
       }
@@ -2611,7 +2664,7 @@ async function saveFieldSchedule(event, modal) {
           action_type: '新增',
           source_type: 'schedule',
           source_id: nextSchedule.schedule_id,
-          note: `V002-1I-2-1 自動建立${nextType}行程`
+          note: `V002-1I-2-3 自動建立${nextType}行程`
         })
       }
     }
