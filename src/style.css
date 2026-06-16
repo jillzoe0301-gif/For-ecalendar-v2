@@ -2992,13 +2992,13 @@ label.record-modal-check {
 }
 
 .service-record-reminder-card.is-pending {
-  background: #fff7cc;
-  border-color: #fde68a;
+  background: #ffe4ec;
+  border-color: #f9a8d4;
 }
 
 .service-record-reminder-card.is-overdue {
-  background: #fff500;
-  border-color: #facc15;
+  background: #fff7cc;
+  border-color: #fde68a;
 }
 
 .service-record-reminder-card.is-overdue strong {
@@ -3017,3 +3017,47 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1H-4 END - service record reminder area */
+
+/* FOR-e V002-1H-4-2 START - reminder exact colors */
+/*
+  V002-1H-4-2｜提醒顏色指定
+  服務紀錄單提醒：
+  - 需繳交：#FFCFB3
+  - 超過2週：#FEFD99
+
+  提醒事項：
+  - 未過期 / 當天：#FFCDC9
+  - 超過時間：#FFEF5F
+*/
+
+/* 服務紀錄單提醒：需繳交 */
+.service-record-reminder-card.is-pending {
+  background: #FFCFB3 !important;
+  border-color: #f5a889 !important;
+}
+
+/* 服務紀錄單提醒：超過2週 */
+.service-record-reminder-card.is-overdue {
+  background: #FEFD99 !important;
+  border-color: #e6df64 !important;
+}
+
+/* 提醒事項：未過期 / 當天 */
+.reminder-alert-card.is-today {
+  background: #FFCDC9 !important;
+  border-color: #f7a9a3 !important;
+  color: #111827 !important;
+}
+
+/* 提醒事項：超過時間 */
+.reminder-alert-card.is-overdue {
+  background: #FFEF5F !important;
+  border-color: #e6c93e !important;
+  color: #111827 !important;
+}
+
+.reminder-overdue-text {
+  color: #ff3131 !important;
+  font-weight: 950 !important;
+}
+/* FOR-e V002-1H-4-2 END - reminder exact colors */
