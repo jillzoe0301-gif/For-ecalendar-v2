@@ -1492,6 +1492,7 @@ function renderFieldDetailList(rows) {
                 地點：${escapeHtml(row.location_name || '-')}
                 ${row.address ? '｜地址：' + escapeHtml(row.address) : ''}
               </div>
+              ${row.description ? `<div class="field-detail-content"><span>內容：</span>${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', '<br>')}</div>` : ''}
               ${specialReminders.length ? `<div class="field-detail-badges">${specialReminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div>` : ''}
               ${result ? `<div class="field-detail-result">${renderFieldResultReminder(row)}</div>` : ''}
             </div>
@@ -1499,8 +1500,6 @@ function renderFieldDetailList(rows) {
             <div class="field-detail-status">
               <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
-              ${canCompleteSchedule(row) ? `<button class="small-btn" data-field-complete="${row.schedule_id}">已送件</button>` : ''}
-              ${canCancelSchedule(row) ? `<button class="small-danger-btn" data-field-cancel="${row.schedule_id}">取消</button>` : ''}
             </div>
           </div>
         `
@@ -4728,3 +4727,12 @@ function getPersonalReminderTestSummary() {
   - 只依類型隱藏不需要區塊
 */
 /* FOR-e V002-1H-8-2 END - safe visible form rules */
+
+/* FOR-e V002-1J-1 START - field detail content and simplified actions */
+/*
+  V002-1J-1｜外務明細顯示內容與右側按鈕簡化
+  - 外務明細列表新增內容欄位
+  - 右側操作只保留狀態與查看
+  - 已送件 / 取消改回進入查看頁後操作，避免列表過於複雜
+*/
+/* FOR-e V002-1J-1 END - field detail content and simplified actions */

@@ -3755,3 +3755,48 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1J END - field detail page */
+
+/* FOR-e V002-1J-1 START - field detail content and simplified actions */
+/*
+  V002-1J-1｜外務明細顯示內容與右側按鈕簡化
+*/
+.field-detail-content {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid #fed7aa;
+  background: #fffaf3;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.field-detail-content span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.field-detail-status {
+  min-width: 96px;
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+
+.field-detail-status .status-pill,
+.field-detail-status .small-secondary-btn {
+  width: 88px;
+}
+
+@media (max-width: 768px) {
+  .field-detail-status {
+    align-items: stretch;
+  }
+
+  .field-detail-status .status-pill,
+  .field-detail-status .small-secondary-btn {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1J-1 END - field detail content and simplified actions */
