@@ -1680,6 +1680,27 @@ function optionHtml(items, selectedValue = '', includeEmpty = false) {
   return empty + items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
 
+
+/* FOR-e V002-1H-8-1 START - edit form category sync */
+function splitMultiValue(value) {
+  return String(value || '')
+    .split(/[、,，｜]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function checkedOptionsHtml(items, selectedItems, inputName) {
+  const selected = new Set(selectedItems || [])
+  return items.map(item => `
+    <label class="inline-check">
+      <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
+      ${item}
+    </label>
+  `).join('')
+}
+/* FOR-e V002-1H-8-1 END - edit form category sync */
+
+
 function timeTypeOptionsHtml(selectedValue = '不指定') {
   return ['不指定', '上午', '下午'].map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
@@ -2484,6 +2505,10 @@ function openEditScheduleModal(scheduleId) {
   const serviceTypeOptions = optionHtml(serviceScheduleTypes, row.schedule_type || '其他')
   const subTypeOptions = optionHtml(serviceScheduleTypes, row.sub_type || '', true)
   const carSelectOptions = optionHtml(carOptions, row.car_no || '不使用')
+  const editTodoOptions = optionHtml(todoItems, row.category === '待辦事項' ? (row.sub_type || '') : '')
+  const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
+  const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
+  const editDeliveryChecks = checkedOptionsHtml(deliveryDocumentItems, editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
   const showTime = ['上午', '下午'].includes(row.time_type)
 
@@ -2577,6 +2602,31 @@ function openEditScheduleModal(scheduleId) {
           </label>
         </div>
 
+        <div class="span-2 form-section hidden" id="editTodoBlock">
+          <label>
+            待辦項目
+            <select name="edit_todo_item">
+              ${editTodoOptions}
+            </select>
+          </label>
+        </div>
+
+        <div class="span-2 form-section hidden" id="editLeaveMeetingBlock">
+          <label>
+            類別細項
+            <select name="edit_leave_meeting_type">
+              ${editLeaveOptions}
+            </select>
+          </label>
+        </div>
+
+        <div class="span-2 form-section hidden" id="editDocumentDeliveryBlock">
+          <div class="document-delivery-box">
+            <div class="field-title">交付項目（可複選）</div>
+            <div class="inline-check-list">${editDeliveryChecks}</div>
+          </div>
+        </div>
+
         <label class="span-2">
           標題
           <input name="title" required value="${escapeHtml(row.title || '')}">
@@ -2659,8 +2709,18 @@ function openEditScheduleModal(scheduleId) {
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
 
   function refreshEditServiceBlock() {
-    serviceBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
-    if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', categorySelect.value !== '服務行程')
+    const category = categorySelect.value
+    const todoBlock = document.querySelector('#editTodoBlock')
+    const leaveBlock = document.querySelector('#editLeaveMeetingBlock')
+    const deliveryBlock = document.querySelector('#editDocumentDeliveryBlock')
+
+    serviceBlock.classList.toggle('hidden', category !== '服務行程')
+    if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', category !== '服務行程')
+    if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
+    if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
+    if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
+
+    applyEditCompactSpecialFields()
   }
 
   function refreshEditTimeBlock() {
@@ -2709,16 +2769,55 @@ async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
   const form = new FormData(event.target)
+  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
+
+  if (!editExecutorIds.length) {
+    alert('請至少選擇一位執行者。')
+    return
+  }
+
   const category = form.get('category')
   const isService = category === '服務行程'
   const submitted = isService && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
+  const editDeliveryItems = [...document.querySelectorAll('input[name="edit_delivery_items"]:checked')].map(input => input.value)
+  const editDeliveryText = editDeliveryItems.join('、')
+
+  let editScheduleType = category
+  let editSubType = null
+  let editSubTypeNote = null
+
+  if (category === '服務行程') {
+    editScheduleType = form.get('schedule_type') || '其他'
+    editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
+    editSubTypeNote = isCompactSpecialScheduleType(editScheduleType) ? null : (form.get('sub_type_note') || null)
+  }
+
+  if (category === '一般記事') {
+    editScheduleType = '一般記事'
+  }
+
+  if (category === '待辦事項') {
+    editScheduleType = '待辦事項'
+    editSubType = form.get('edit_todo_item') || null
+  }
+
+  if (category === '請假 / 會議 / 活動 / 外訓') {
+    editScheduleType = form.get('edit_leave_meeting_type') || '請假'
+    editSubType = editScheduleType
+  }
+
+  if (category === '證件交付') {
+    editScheduleType = '證件交付'
+    editSubType = editDeliveryText || null
+    editSubTypeNote = editDeliveryText ? `交付項目：${editDeliveryText}` : null
+  }
 
   const payload = {
     category,
-    schedule_type: isService ? (form.get('schedule_type') || '其他') : category,
-    sub_type: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
-    sub_type_note: isService && isCompactSpecialScheduleType(form.get('schedule_type')) ? null : (form.get('sub_type_note') || null),
+    schedule_type: editScheduleType,
+    sub_type: editSubType,
+    sub_type_note: editSubTypeNote,
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),

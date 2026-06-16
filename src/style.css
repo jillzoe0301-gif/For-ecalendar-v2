@@ -2922,3 +2922,20 @@ label.record-modal-check {
   margin: 0 8px 0 0 !important;
 }
 /* FOR-e V002-1H-8 END - simple category forms and document delivery */
+
+/* FOR-e V002-1H-8-1 START - edit form category sync */
+#editTodoBlock,
+#editLeaveMeetingBlock,
+#editDocumentDeliveryBlock {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+#editTodoBlock.hidden,
+#editLeaveMeetingBlock.hidden,
+#editDocumentDeliveryBlock.hidden {
+  display: none !important;
+}
+/* FOR-e V002-1H-8-1 END - edit form category sync */
