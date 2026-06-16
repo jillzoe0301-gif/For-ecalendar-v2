@@ -30,7 +30,6 @@ const serviceScheduleTypes = [
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
   '住變資訊', '驗證提醒', '返台提醒', '宿舍', '其他'
 ]
-
 const compactServiceScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒', '宿舍']
 
 function isCompactServiceScheduleType(scheduleType) {
@@ -582,7 +581,10 @@ function renderApp() {
     <section class="layout">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
+          <div class="brand-logo-wrap">
+            ${renderBrandLogo('icon')}
+            <span class="brand-wordmark">FOR-e</span>
+          </div>
           <div class="brand-subtitle">共享排程系統</div>
         </div>
 
@@ -597,7 +599,10 @@ function renderApp() {
 
       <main class="main">
         <header class="mobile-header">
-          <div class="mobile-brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
+          <div class="mobile-brand-logo-wrap">
+            ${renderBrandLogo('icon')}
+            <span class="brand-wordmark">FOR-e</span>
+          </div>
         </header>
 
         <header class="topbar">
@@ -1820,7 +1825,7 @@ function openScheduleModal() {
             </select>
           </label>
 
-          <div class="extra-schedule-box">
+          <div class="extra-schedule-box special-extra-box">
             <label>
               是否有附加行程
               <select name="has_extra_schedule" id="hasExtraScheduleSelect">
@@ -1842,7 +1847,7 @@ function openScheduleModal() {
             </div>
           </div>
 
-          <div class="span-2 service-record-box">
+          <div class="span-2 service-record-box special-service-record-box">
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="needServiceRecordCheck">
@@ -1854,7 +1859,7 @@ function openScheduleModal() {
             </label>
           </div>
 
-          <label class="span-2">
+          <label class="span-2 special-service-record-date">
             服務紀錄單繳交日期
             <input name="service_record_submitted_date" type="date">
           </label>
@@ -1916,7 +1921,7 @@ function openScheduleModal() {
         </div>
 
         <div class="span-2 form-section hidden service-grid" data-section="service">
-          <div class="span-2 vehicle-doc-row">
+          <div class="span-2 vehicle-doc-row special-vehicle-doc-row">
             <label>
               公務車
               <select name="car_no">
@@ -2064,34 +2069,50 @@ function openScheduleModal() {
   }
 
   function refreshDocumentsBlock() {
-    document.querySelector('#documentOptionsBlock').classList.toggle('hidden', hasDocumentsSelect.value !== '是')
+    const documentOptionsBlock = document.querySelector('#documentOptionsBlock')
+    if (!documentOptionsBlock || !hasDocumentsSelect) return
+    documentOptionsBlock.classList.toggle('hidden', hasDocumentsSelect.value !== '是')
   }
 
   function refreshCompactServiceFields() {
-    const isCompactType = isCompactServiceScheduleType(serviceTypeSelect.value)
+    const formEl = document.querySelector('#scheduleForm')
+    if (!formEl) return
 
-    const extraBox = document.querySelector('.extra-schedule-box')
-    const serviceRecordBox = document.querySelector('.service-record-box')
-    const serviceRecordDateLabel = document.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
-    const vehicleDocRow = document.querySelector('.vehicle-doc-row')
+    const isCompactType = categorySelect.value === '服務行程' && isCompactServiceScheduleType(serviceTypeSelect.value)
+    const targets = [
+      formEl.querySelector('.special-extra-box'),
+      formEl.querySelector('.special-service-record-box'),
+      formEl.querySelector('.special-service-record-date'),
+      formEl.querySelector('.special-vehicle-doc-row')
+    ]
 
-    ;[extraBox, serviceRecordBox, serviceRecordDateLabel, vehicleDocRow].forEach(element => {
+    targets.forEach(element => {
       if (element) element.classList.toggle('special-service-hidden', isCompactType)
     })
 
     if (isCompactType) {
+      const hasExtraScheduleSelect = formEl.querySelector('#hasExtraScheduleSelect')
+      const extraScheduleBlock = formEl.querySelector('#extraScheduleBlock')
+      const needServiceRecordCheck = formEl.querySelector('#needServiceRecordCheck')
+      const serviceRecordSubmittedCheck = formEl.querySelector('#serviceRecordSubmittedCheck')
+      const submittedDateInput = formEl.querySelector('input[name="service_record_submitted_date"]')
+      const hasDocumentsSelectLocal = formEl.querySelector('#hasDocumentsSelect')
+      const documentOptionsBlock = formEl.querySelector('#documentOptionsBlock')
+
       if (hasExtraScheduleSelect) hasExtraScheduleSelect.value = '否'
       if (extraScheduleBlock) extraScheduleBlock.classList.add('hidden')
       if (needServiceRecordCheck) needServiceRecordCheck.checked = false
       if (serviceRecordSubmittedCheck) serviceRecordSubmittedCheck.checked = false
       if (submittedDateInput) submittedDateInput.value = ''
-      if (hasDocumentsSelect) hasDocumentsSelect.value = '否'
-      refreshServiceRecordChecks()
-      refreshDocumentsBlock()
+      if (hasDocumentsSelectLocal) hasDocumentsSelectLocal.value = '否'
+      if (documentOptionsBlock) documentOptionsBlock.classList.add('hidden')
     }
   }
 
-  categorySelect.addEventListener('change', refreshFormSections)
+  categorySelect.addEventListener('change', () => {
+    refreshFormSections()
+    refreshCompactServiceFields()
+  })
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
   serviceTypeSelect.addEventListener('change', refreshServiceExtras)
@@ -2419,7 +2440,7 @@ function openEditScheduleModal(scheduleId) {
             </select>
           </label>
 
-          <div class="extra-schedule-box">
+          <div class="extra-schedule-box special-extra-box">
             <label>
               是否有附加行程
               <select name="has_extra_schedule" id="editHasExtraScheduleSelect">
@@ -2437,7 +2458,7 @@ function openEditScheduleModal(scheduleId) {
             </div>
           </div>
 
-          <div class="span-2 service-record-box">
+          <div class="span-2 service-record-box special-service-record-box">
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="editNeedServiceRecordCheck" ${row.need_service_record ? 'checked' : ''}>
@@ -2449,12 +2470,12 @@ function openEditScheduleModal(scheduleId) {
             </label>
           </div>
 
-          <label>
+          <label class="special-service-record-date">
             服務紀錄單繳交日期
             <input name="service_record_submitted_date" type="date" value="${row.service_record_submitted_date || ''}">
           </label>
 
-          <label>
+          <label class="special-car-field">
             公務車
             <select name="car_no">
               ${carSelectOptions}
@@ -2527,7 +2548,7 @@ function openEditScheduleModal(scheduleId) {
           </div>
         </div>
 
-        <label class="span-2">
+        <label class="span-2 special-sub-note-field">
           備註 / 提醒 / 證件
           <input name="sub_type_note" value="${escapeHtml(row.sub_type_note || '')}">
         </label>
@@ -2550,8 +2571,8 @@ function openEditScheduleModal(scheduleId) {
 
   const categorySelect = document.querySelector('#editCategorySelect')
   const serviceBlock = document.querySelector('#editServiceBlock')
-  const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
   const editServiceTypeSelect = serviceBlock?.querySelector('select[name="schedule_type"]')
+  const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
   const timeTypeSelect = document.querySelector('#editTimeTypeSelect')
   const timeBlock = document.querySelector('#editTimeRangeBlock')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
@@ -2569,13 +2590,15 @@ function openEditScheduleModal(scheduleId) {
   function refreshEditSpecialFields() {
     const isCompactType = categorySelect.value === '服務行程' && isCompactServiceScheduleType(editServiceTypeSelect?.value)
 
-    const extraBox = serviceBlock?.querySelector('.extra-schedule-box')
-    const serviceRecordBox = serviceBlock?.querySelector('.service-record-box')
-    const serviceRecordDateLabel = serviceBlock?.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
-    const carLabel = serviceBlock?.querySelector('select[name="car_no"]')?.closest('label')
-    const noteLabel = document.querySelector('#editScheduleForm input[name="sub_type_note"]')?.closest('label')
+    const targets = [
+      serviceBlock?.querySelector('.special-extra-box'),
+      serviceBlock?.querySelector('.special-service-record-box'),
+      serviceBlock?.querySelector('.special-service-record-date'),
+      serviceBlock?.querySelector('.special-car-field'),
+      document.querySelector('#editScheduleForm .special-sub-note-field')
+    ]
 
-    ;[extraBox, serviceRecordBox, serviceRecordDateLabel, carLabel, noteLabel].forEach(element => {
+    targets.forEach(element => {
       if (element) element.classList.toggle('special-service-hidden', isCompactType)
     })
 
@@ -2585,7 +2608,6 @@ function openEditScheduleModal(scheduleId) {
       if (needRecordCheck) needRecordCheck.checked = false
       if (submittedCheck) submittedCheck.checked = false
       if (submittedDateInput) submittedDateInput.value = ''
-      refreshEditServiceRecordChecks()
     }
   }
 
@@ -2643,16 +2665,16 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   const category = form.get('category')
   const isService = category === '服務行程'
-  const editedScheduleType = isService ? (form.get('schedule_type') || '其他') : category
-  const isCompactType = isService && isCompactServiceScheduleType(editedScheduleType)
-  const submitted = isService && !isCompactType && form.get('service_record_submitted_check') === 'on'
+  const editScheduleType = isService ? (form.get('schedule_type') || '其他') : category
+  const isCompactServiceType = isService && isCompactServiceScheduleType(editScheduleType)
+  const submitted = isService && !isCompactServiceType && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   const payload = {
     category,
-    schedule_type: editedScheduleType,
-    sub_type: isService && !isCompactType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
-    sub_type_note: isCompactType ? null : (form.get('sub_type_note') || null),
+    schedule_type: editScheduleType,
+    sub_type: isService && !isCompactServiceType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null,
+    sub_type_note: isCompactServiceType ? null : (form.get('sub_type_note') || null),
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
@@ -2663,8 +2685,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
     customer_name: isService ? (form.get('customer_name') || null) : null,
     location_name: isService ? (form.get('location_name') || null) : null,
     address: isService ? (form.get('address') || null) : null,
-    car_no: isService && !isCompactType ? (form.get('car_no') || null) : null,
-    need_service_record: isService && !isCompactType && form.get('need_service_record') === 'on',
+    car_no: isService && !isCompactServiceType ? (form.get('car_no') || null) : null,
+    need_service_record: isService && !isCompactServiceType && form.get('need_service_record') === 'on',
     service_record_submitted: submitted,
     service_record_submitted_date: submittedDate
   }
@@ -2747,9 +2769,11 @@ async function saveSchedule(event, modal) {
 
   const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  let needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
-  let serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
-  let submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
+  const selectedScheduleType = category === '服務行程' ? (form.get('schedule_type') || '其他') : ''
+  const isCompactServiceType = category === '服務行程' && isCompactServiceScheduleType(selectedScheduleType)
+  const needServiceRecord = category === '服務行程' && !isCompactServiceType && form.get('need_service_record') === 'on'
+  const serviceRecordSubmitted = category === '服務行程' && !isCompactServiceType && form.get('service_record_submitted_check') === 'on'
+  const submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   let scheduleType = ''
   let subType = ''
@@ -2778,24 +2802,15 @@ async function saveSchedule(event, modal) {
   }
 
   if (category === '服務行程') {
-    scheduleType = form.get('schedule_type') || '其他'
-    const isCompactType = isCompactServiceScheduleType(scheduleType)
-
-    subType = !isCompactType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
+    scheduleType = selectedScheduleType
+    subType = !isCompactServiceType && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
     customerName = form.get('customer_name') || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
-    carNo = isCompactType ? null : (form.get('car_no') || null)
-
-    if (isCompactType) {
-      needServiceRecord = false
-      serviceRecordSubmitted = false
-      submittedDate = null
-    } else {
-      subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
-      if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
-      if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
-    }
+    carNo = isCompactServiceType ? null : (form.get('car_no') || null)
+    if (!isCompactServiceType) subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
+    if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
+    if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
   }
 
   const schedulePayload = {
@@ -3125,5 +3140,4 @@ async function logout() {
 }
 
 window.addEventListener('load', loadProfile)
-
 
