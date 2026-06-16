@@ -37,7 +37,7 @@ const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
-const fieldSpecialReminderOptions = ['必送件', '無法更換', '急件']
+const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
 const fieldLocationOptions = [{"name": "內湖_印辦", "address": "台北市內湖區瑞光路550號2樓"}, {"name": "內湖_菲辦", "address": "台北市內湖區洲子街55-57號2樓"}, {"name": "台北_越辦(領件只能下午)", "address": "臺北市中山區松江路101號2樓"}, {"name": "台北_越南換護照", "address": "臺北市中山區松江路65號2，3樓"}, {"name": "台北_泰辦", "address": "台北市大安區信義路三段151號 10 樓"}, {"name": "台北_勞動部", "address": "臺北市中正區中華路1段39號10樓"}, {"name": "桃園移民署", "address": "桃園市桃園區縣府路106號1樓"}, {"name": "中壢就業中心", "address": "桃園市中壢區新興路182號"}, {"name": "桃園就業中心", "address": "桃園市桃園區縣府路59號"}, {"name": "中和就業中心", "address": "新北市中和區景安路118號"}, {"name": "板橋就業中心", "address": "新北市板橋區漢生東路163號"}, {"name": "三重就業中心(不同仲介要不同天)", "address": "新北市三重區重新路四段12號"}, {"name": "新竹就業中心", "address": "新竹市光華東街56號"}, {"name": "竹北就業中心", "address": "新竹縣竹北市光明九路7-3號"}, {"name": "宜蘭羅東就業中心", "address": "宜蘭縣羅東鎮東榮路二段91號"}, {"name": "苗栗就業中心", "address": "苗栗市中山路558號"}, {"name": "新北移民署", "address": "新北市中和區民安街135號"}, {"name": "竹北移民署", "address": "新竹縣竹北市三民路133號1樓"}, {"name": "基隆移民署", "address": "基隆市中正區義一路18號11樓A棟"}, {"name": "新竹移民署", "address": "新竹市北區中華路三段12號1樓"}]
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
@@ -1913,6 +1913,8 @@ function openScheduleDetail(scheduleId) {
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '需繳交，尚未繳交') : '不需繳交'}</strong></div>
       </div>
 
+      ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
+
       <div class="notice">${permissionNote}</div>
 
       <div class="modal-actions">
@@ -2252,11 +2254,11 @@ function getFieldDbTimeValue(timeValue) {
 }
 
 function fieldSpecialReminderChecksHtml(selectedItems = [], inputName = 'field_special_reminder') {
-  const selected = new Set(selectedItems || [])
+  const selected = new Set((selectedItems || []).map(normalizeFieldSpecialReminder))
   return fieldSpecialReminderOptions.map(item => `
     <label class="inline-check field-special-check">
       <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
-      <span>${renderFieldSpecialReminderIcon(item)} ${item}</span>
+      <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
     </label>
   `).join('')
 }
@@ -2266,15 +2268,26 @@ function getFieldStaffName(staffId) {
   return staff ? `${staff.name}｜${staff.department_name || ''}` : ''
 }
 
+function normalizeFieldSpecialReminder(value) {
+  if (value === '無法更換') return '無法更換人員'
+  return value
+}
+
 function getFieldSpecialReminderIconPath(value) {
-  if (value === '必送件') return '/icons/push-pin.png'
-  if (value === '無法更換') return '/icons/padlock.png'
-  if (value === '急件') return '/icons/siren.png'
+  const normalized = normalizeFieldSpecialReminder(value)
+  if (normalized === '必送件') return '/icons/push-pin.png'
+  if (normalized === '無法更換人員') return '/icons/padlock.png'
+  if (normalized === '急件') return '/icons/siren.png'
   return '/icons/siren.png'
 }
 
 function renderFieldSpecialReminderIcon(value) {
-  return `<img class="field-special-icon" src="${getFieldSpecialReminderIconPath(value)}" alt="${escapeHtml(value)}">`
+  const normalized = normalizeFieldSpecialReminder(value)
+  return `<img class="field-special-icon" src="${getFieldSpecialReminderIconPath(normalized)}" alt="${escapeHtml(normalized)}">`
+}
+
+function getFieldSpecialReminderDisplay(value) {
+  return normalizeFieldSpecialReminder(value)
 }
 
 function getFieldSpecialRemindersFromRow(row) {
@@ -2302,7 +2315,7 @@ function renderFieldSpecialReminderBadges(row) {
 
   return `
     <span class="field-special-badges">
-      ${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(item)}</span>`).join('')}
+      ${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}
     </span>
   `
 }
@@ -2419,6 +2432,23 @@ function getFieldNoteValue(row, label) {
   return found ? found.slice(label.length + 1) : ''
 }
 
+function renderFieldResultReminder(row) {
+  const result = getFieldResultFromRow(row)
+  if (!result) return ''
+
+  const detailLabel = result === '要補件' ? '補件項目' : '異常項目'
+  const detail = getFieldNoteValue(row, detailLabel)
+  const resultClass = result === '送件異常' ? 'is-abnormal' : 'is-supplement'
+
+  return `
+    <div class="field-result-reminder-panel ${resultClass}">
+      <div class="field-result-reminder-title">⚠️ 外務結果：${escapeHtml(result)}</div>
+      ${detail ? `<div class="field-result-reminder-detail"><span>${escapeHtml(detailLabel)}：</span>${escapeHtml(detail)}</div>` : ''}
+      <div class="field-result-reminder-note">此行程狀態維持未完成，請持續追蹤處理。</div>
+    </div>
+  `
+}
+
 function openEditFieldScheduleModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -2524,7 +2554,12 @@ function openEditFieldScheduleModal(scheduleId) {
           </label>
         </div>
 
-        ${fieldResult ? `<div class="span-2 notice">目前外務結果：${escapeHtml(fieldResult)}${supplementDetail ? '｜補件項目：' + escapeHtml(supplementDetail) : ''}${abnormalDetail ? '｜異常項目：' + escapeHtml(abnormalDetail) : ''}</div>` : ''}
+        ${fieldResult ? `<div class="span-2 field-result-reminder-panel ${fieldResult === '送件異常' ? 'is-abnormal' : 'is-supplement'}">
+          <div class="field-result-reminder-title">⚠️ 外務結果：${escapeHtml(fieldResult)}</div>
+          ${supplementDetail ? `<div class="field-result-reminder-detail"><span>補件項目：</span>${escapeHtml(supplementDetail)}</div>` : ''}
+          ${abnormalDetail ? `<div class="field-result-reminder-detail"><span>異常項目：</span>${escapeHtml(abnormalDetail)}</div>` : ''}
+          <div class="field-result-reminder-note">此行程狀態維持未完成，請持續追蹤處理。</div>
+        </div>` : ''}
 
         <div class="modal-actions span-2">
           <button type="button" class="secondary-btn" id="cancelEditFieldModalBtn">取消</button>

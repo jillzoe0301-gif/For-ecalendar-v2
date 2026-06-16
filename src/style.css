@@ -3589,3 +3589,56 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1I-2-4 END - field edit result details and creator */
+
+/* FOR-e V002-1I-2-5 START - field result reminder panel and rename reminder */
+/*
+  V002-1I-2-5
+  - 要補件 / 送件異常輸入後，查看與修改表單顯示明顯提醒欄位
+  - 無法更換 → 無法更換人員
+*/
+.field-result-reminder-panel {
+  grid-column: 1 / -1;
+  border-radius: 16px;
+  padding: 14px;
+  margin: 12px 0;
+  border: 2px solid transparent;
+  line-height: 1.6;
+}
+
+.field-result-reminder-panel.is-supplement {
+  background: #FDEDED;
+  border-color: #f8b4b4;
+  color: #7f1d1d;
+}
+
+.field-result-reminder-panel.is-abnormal {
+  background: #FFEF5F;
+  border-color: #e6c93e;
+  color: #7c2d12;
+}
+
+.field-result-reminder-title {
+  font-size: 16px;
+  font-weight: 950;
+  margin-bottom: 6px;
+}
+
+.field-result-reminder-detail {
+  font-size: 14px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.field-result-reminder-detail span {
+  font-weight: 950;
+}
+
+.field-result-reminder-note {
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 6px;
+}
+/* FOR-e V002-1I-2-5 END - field result reminder panel and rename reminder */
