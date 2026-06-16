@@ -2749,102 +2749,56 @@ label.record-modal-check {
   display: none !important;
 }
 
-/* V002-1H-5-7-3 logo + exact compact service fields */
-#scheduleForm .special-service-hidden,
-#scheduleForm .service-grid .extra-schedule-box.special-service-hidden,
-#scheduleForm .service-grid .service-record-box.special-service-hidden,
-#scheduleForm .vehicle-doc-row.special-service-hidden,
-#scheduleForm label.special-service-record-date.special-service-hidden,
-#editScheduleForm .special-service-hidden,
-#editScheduleForm .service-grid .extra-schedule-box.special-service-hidden,
-#editScheduleForm .service-grid .service-record-box.special-service-hidden,
-#editScheduleForm label.special-service-record-date.special-service-hidden,
-#editScheduleForm label.special-car-field.special-service-hidden,
-#editScheduleForm label.special-sub-note-field.special-service-hidden {
+/* FOR-e V002-1H-5-7-4 START - exact compact special schedule fields */
+.for-e-special-compact-hidden {
   display: none !important;
 }
 
-/* Desktop sidebar logo: icon left + FOR-e text right */
+/* 使用既有長方形 LOGO 圖檔，不再拆字重組 */
 .sidebar .brand {
-  padding: 14px 8px 18px !important;
-  overflow: visible !important;
+  padding: 8px 0 14px 0 !important;
+  overflow: hidden;
 }
 
 .sidebar .brand-logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sidebar .brand-logo-wrap .brand-logo-img {
+  display: block;
   width: 100% !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 12px !important;
-  overflow: visible !important;
-}
-
-.sidebar .brand-logo-wrap .brand-logo-img.icon-logo {
-  width: 58px !important;
-  height: 58px !important;
-  max-width: 58px !important;
-  flex: 0 0 58px !important;
-  margin: 0 !important;
-  object-fit: contain !important;
-  object-position: center !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.sidebar .brand-logo-wrap .brand-wordmark {
-  display: inline-flex !important;
-  align-items: center !important;
-  color: var(--blue) !important;
-  font-size: 36px !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  letter-spacing: -0.03em !important;
-  white-space: nowrap !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-left: 0 !important;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .sidebar .brand-subtitle {
-  margin: 8px 0 0 2px !important;
-  color: var(--muted) !important;
-  font-size: 13px !important;
-  line-height: 1.4 !important;
+  margin-left: 4px;
+  margin-top: 8px;
 }
 
-/* Mobile header logo: centered, larger, transparent */
-.mobile-header {
-  justify-content: center !important;
-  align-items: center !important;
-  text-align: center !important;
-  background: transparent !important;
-  margin: 4px 0 16px !important;
-}
+@media (max-width: 768px) {
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    background: transparent;
+    font-size: 28px;
+    font-weight: 900;
+  }
 
-.mobile-brand-logo-wrap {
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 10px !important;
-  background: transparent !important;
+  .mobile-header .brand-logo-img.icon-logo {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
 }
-
-.mobile-brand-logo-wrap .brand-logo-img.icon-logo {
-  width: 48px !important;
-  height: 48px !important;
-  max-width: 48px !important;
-  flex: 0 0 48px !important;
-  margin: 0 !important;
-  object-fit: contain !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.mobile-brand-logo-wrap .brand-wordmark {
-  color: var(--blue) !important;
-  font-size: 30px !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  letter-spacing: -0.03em !important;
-  white-space: nowrap !important;
-}
+/* FOR-e V002-1H-5-7-4 END - exact compact special schedule fields */
