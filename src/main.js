@@ -37,7 +37,8 @@ const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
-const fieldSpecialReminderOptions = ['無', '必送件', '無法更換', '其他']
+const fieldSpecialReminderOptions = ['必送件', '無法更換', '急件']
+const fieldLocationOptions = [{"name": "內湖_印辦", "address": "台北市內湖區瑞光路550號2樓"}, {"name": "內湖_菲辦", "address": "台北市內湖區洲子街55-57號2樓"}, {"name": "台北_越辦(領件只能下午)", "address": "臺北市中山區松江路101號2樓"}, {"name": "台北_越南換護照", "address": "臺北市中山區松江路65號2，3樓"}, {"name": "台北_泰辦", "address": "台北市大安區信義路三段151號 10 樓"}, {"name": "台北_勞動部", "address": "臺北市中正區中華路1段39號10樓"}, {"name": "桃園移民署", "address": "桃園市桃園區縣府路106號1樓"}, {"name": "中壢就業中心", "address": "桃園市中壢區新興路182號"}, {"name": "桃園就業中心", "address": "桃園市桃園區縣府路59號"}, {"name": "中和就業中心", "address": "新北市中和區景安路118號"}, {"name": "板橋就業中心", "address": "新北市板橋區漢生東路163號"}, {"name": "三重就業中心(不同仲介要不同天)", "address": "新北市三重區重新路四段12號"}, {"name": "新竹就業中心", "address": "新竹市光華東街56號"}, {"name": "竹北就業中心", "address": "新竹縣竹北市光明九路7-3號"}, {"name": "宜蘭羅東就業中心", "address": "宜蘭縣羅東鎮東榮路二段91號"}, {"name": "苗栗就業中心", "address": "苗栗市中山路558號"}, {"name": "新北移民署", "address": "新北市中和區民安街135號"}, {"name": "竹北移民署", "address": "新竹縣竹北市三民路133號1樓"}, {"name": "基隆移民署", "address": "基隆市中正區義一路18號11樓A棟"}, {"name": "新竹移民署", "address": "新竹市北區中華路三段12號1樓"}]
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
   ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
@@ -1194,6 +1195,7 @@ function renderFieldScheduleCard(row) {
     <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
       <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.schedule_type || row.category || '外務')}｜${escapeHtml(row.title || '-')}</strong>
+      ${renderFieldSpecialReminderBadges(row)}
       ${row.location_name ? `<span class="field-week-card-preview">${escapeHtml(row.location_name)}</span>` : ''}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
@@ -1914,7 +1916,9 @@ function openScheduleDetail(scheduleId) {
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
-        ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">已完成</button>` : ''}
+        ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
+        ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
+        ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
         ${canCancelSchedule(row) ? `<button type="button" class="danger-btn" id="detailCancelBtn">取消行程</button>` : ''}
       </div>
     </div>
@@ -1945,6 +1949,22 @@ function openScheduleDetail(scheduleId) {
     completeBtn.addEventListener('click', async () => {
       modal.remove()
       await completeSchedule(scheduleId)
+    })
+  }
+
+  const needSupplementBtn = document.querySelector('#detailNeedSupplementBtn')
+  if (needSupplementBtn) {
+    needSupplementBtn.addEventListener('click', async () => {
+      modal.remove()
+      await updateFieldScheduleResult(scheduleId, '要補件')
+    })
+  }
+
+  const fieldAbnormalBtn = document.querySelector('#detailFieldAbnormalBtn')
+  if (fieldAbnormalBtn) {
+    fieldAbnormalBtn.addEventListener('click', async () => {
+      modal.remove()
+      await updateFieldScheduleResult(scheduleId, '送件異常')
     })
   }
 
@@ -2160,11 +2180,14 @@ function applyEditCompactSpecialFields() {
 }
 
 
-
 /* FOR-e V002-1I-2 START - field schedule add form */
 /*
-  V002-1I-2｜新增外務行程表單
-  不改 Supabase、不改 SQL，使用既有 schedules / schedule_assignees 寫入。
+  V002-1I-2-1｜新增外務行程表單修正
+  - 時間改成單一時間，可空白
+  - 地點可下拉選擇並帶出地址，也可手動輸入
+  - 特殊提醒改成複選
+  - 下次領件 / 送審自動建立下一筆外務行程
+  - 外務查看可標記：已送件（完成）、要補件、送件異常、取消
 */
 
 function fieldStaffOptionsHtml(defaultStaffId = '') {
@@ -2187,9 +2210,103 @@ function optionHtmlForItems(items, selectedValue = '') {
   return items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
 
+function fieldLocationOptionsHtml() {
+  return `<option value="">手動輸入 / 不指定</option>` + fieldLocationOptions.map(item => `
+    <option value="${escapeHtml(item.name)}" data-address="${escapeHtml(item.address)}">${escapeHtml(item.name)}</option>
+  `).join('')
+}
+
+function fieldSpecialReminderChecksHtml() {
+  return fieldSpecialReminderOptions.map(item => `
+    <label class="inline-check field-special-check">
+      <input type="checkbox" name="field_special_reminder" value="${item}">
+      <span>${getFieldSpecialReminderIcon(item)} ${item}</span>
+    </label>
+  `).join('')
+}
+
 function getFieldStaffName(staffId) {
   const staff = staffList.find(item => item.staff_id === staffId)
   return staff ? `${staff.name}｜${staff.department_name || ''}` : ''
+}
+
+function getFieldSpecialReminderIcon(value) {
+  if (value === '必送件') return '📌'
+  if (value === '無法更換') return '🔒'
+  if (value === '急件') return '🚨'
+  return '⚠️'
+}
+
+function getFieldSpecialRemindersFromRow(row) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/特殊提醒：([^｜]+)/)
+  if (!match) return []
+  return match[1].split('、').map(item => item.trim()).filter(Boolean)
+}
+
+function renderFieldSpecialReminderBadges(row) {
+  const reminders = getFieldSpecialRemindersFromRow(row)
+  if (!reminders.length) return ''
+
+  return `
+    <span class="field-special-badges">
+      ${reminders.map(item => `<span class="field-special-badge">${getFieldSpecialReminderIcon(item)} ${escapeHtml(item)}</span>`).join('')}
+    </span>
+  `
+}
+
+function setFieldLocationFromSelect(selectElement) {
+  const selected = selectElement?.selectedOptions?.[0]
+  if (!selected) return
+
+  const form = document.querySelector('#fieldScheduleForm')
+  if (!form) return
+
+  const locationInput = form.querySelector('input[name="location_name"]')
+  const addressInput = form.querySelector('input[name="address"]')
+
+  if (selected.value && locationInput) locationInput.value = selected.value
+  if (selected.dataset.address && addressInput) addressInput.value = selected.dataset.address
+}
+
+function appendFieldResultNote(noteText, result) {
+  const parts = String(noteText || '').split('｜').map(item => item.trim()).filter(Boolean)
+  const cleaned = parts.filter(item => !item.startsWith('外務結果：'))
+  cleaned.push(`外務結果：${result}`)
+  return cleaned.join('｜')
+}
+
+async function updateFieldScheduleResult(scheduleId, result) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  const nextNote = appendFieldResultNote(row.sub_type_note, result)
+
+  const { error } = await supabase
+    .from('schedules')
+    .update({
+      status: '未完成',
+      sub_type_note: nextNote
+    })
+    .eq('schedule_id', scheduleId)
+
+  if (error) {
+    alert('更新外務結果失敗：' + error.message)
+    return
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '外務結果',
+    source_type: 'schedule',
+    source_id: scheduleId,
+    note: `外務結果：${result}`
+  })
+
+  await refreshData()
+  renderApp()
 }
 
 function openFieldScheduleModal(defaults = {}) {
@@ -2217,44 +2334,28 @@ function openFieldScheduleModal(defaults = {}) {
         </label>
 
         <label>
-          時間類型
-          <select name="time_type" id="fieldTimeTypeSelect">
-            <option value="不指定">不指定</option>
-            <option value="上午">上午</option>
-            <option value="下午">下午</option>
-          </select>
+          時間
+          <input name="field_time" type="time">
         </label>
 
-        <div class="span-2 conditional-time hidden" id="fieldTimeRangeBlock">
-          <div class="time-select-row">
-            <label>
-              開始小時
-              <select name="start_hour">${hourOptionsHtml('09')}</select>
-            </label>
-            <label>
-              開始分鐘
-              <select name="start_minute">${minuteOptionsHtml('00')}</select>
-            </label>
-            <label>
-              結束小時
-              <select name="end_hour">${hourOptionsHtml('10')}</select>
-            </label>
-            <label>
-              結束分鐘
-              <select name="end_minute">${minuteOptionsHtml('00')}</select>
-            </label>
-          </div>
+        <div class="span-2 field-location-box">
+          <label>
+            地點選擇
+            <select name="field_location_select" id="fieldLocationSelect">
+              ${fieldLocationOptionsHtml()}
+            </select>
+          </label>
+
+          <label>
+            地點
+            <input name="location_name" placeholder="可手動輸入地點">
+          </label>
+
+          <label class="span-2">
+            地址
+            <input name="address" placeholder="選擇地點後自動帶出，也可手動修改">
+          </label>
         </div>
-
-        <label>
-          地點
-          <input name="location_name" placeholder="例如：移民署、勞動部、客戶公司">
-        </label>
-
-        <label>
-          地址
-          <input name="address" placeholder="完整地址，可先空白">
-        </label>
 
         <label>
           目的
@@ -2263,12 +2364,10 @@ function openFieldScheduleModal(defaults = {}) {
           </select>
         </label>
 
-        <label>
-          特殊提醒
-          <select name="field_special_reminder">
-            ${optionHtmlForItems(fieldSpecialReminderOptions)}
-          </select>
-        </label>
+        <div class="field-special-box">
+          <div class="field-title">特殊提醒（可複選）</div>
+          <div class="inline-check-list">${fieldSpecialReminderChecksHtml()}</div>
+        </div>
 
         <label class="span-2">
           內容
@@ -2316,6 +2415,7 @@ function openFieldScheduleModal(defaults = {}) {
               </select>
             </label>
           </div>
+          <p class="field-hint">若填寫下次類型、日期與人員，儲存後會自動建立下一筆外務行程。</p>
         </div>
 
         <div class="modal-actions span-2">
@@ -2328,15 +2428,10 @@ function openFieldScheduleModal(defaults = {}) {
 
   document.body.appendChild(modal)
 
-  const timeTypeSelect = document.querySelector('#fieldTimeTypeSelect')
-  const timeBlock = document.querySelector('#fieldTimeRangeBlock')
-
-  function refreshFieldTimeBlock() {
-    timeBlock.classList.toggle('hidden', !['上午', '下午'].includes(timeTypeSelect.value))
+  const locationSelect = document.querySelector('#fieldLocationSelect')
+  if (locationSelect) {
+    locationSelect.addEventListener('change', () => setFieldLocationFromSelect(locationSelect))
   }
-
-  timeTypeSelect.addEventListener('change', refreshFieldTimeBlock)
-  refreshFieldTimeBlock()
 
   document.querySelector('#closeFieldModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelFieldModalBtn').addEventListener('click', () => modal.remove())
@@ -2358,16 +2453,24 @@ async function saveFieldSchedule(event, modal) {
       return
     }
 
+    const nextType = form.get('next_action_type') || ''
+    const nextDate = form.get('next_action_date') || ''
+    const nextStaffId = form.get('next_staff_id') || ''
+
+    if ((nextType || nextDate || nextStaffId) && !(nextType && nextDate && nextStaffId)) {
+      alert('若要建立下次領件 / 送審行程，請完整填寫下次類型、下次日期與下次人員。')
+      saving = false
+      return
+    }
+
     const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
     const firstStaff = selectedStaff[0]
     const purpose = form.get('field_purpose') || '外務日'
     const locationName = form.get('location_name') || ''
     const address = form.get('address') || ''
+    const fieldTime = form.get('field_time') || ''
     const title = `${purpose}${locationName ? '｜' + locationName : '｜外務'}`
-    const specialReminder = form.get('field_special_reminder') || '無'
-    const nextType = form.get('next_action_type') || ''
-    const nextDate = form.get('next_action_date') || ''
-    const nextStaffId = form.get('next_staff_id') || ''
+    const specialReminders = [...document.querySelectorAll('input[name="field_special_reminder"]:checked')].map(input => input.value)
     const nextStaffName = getFieldStaffName(nextStaffId)
 
     const noteParts = [
@@ -2375,7 +2478,7 @@ async function saveFieldSchedule(event, modal) {
       form.get('cash_note') ? `現金：${form.get('cash_note')}` : '',
       form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
       form.get('document_note') ? `證件：${form.get('document_note')}` : '',
-      specialReminder && specialReminder !== '無' ? `特殊提醒：${specialReminder}` : '',
+      specialReminders.length ? `特殊提醒：${specialReminders.join('、')}` : '',
       nextType && nextDate ? `${nextType}：${nextDate}` : '',
       nextStaffName ? `下次人員：${nextStaffName}` : ''
     ].filter(Boolean)
@@ -2394,9 +2497,9 @@ async function saveFieldSchedule(event, modal) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: form.get('start_date'),
-      time_type: form.get('time_type'),
-      start_time: getTimeValue(form, 'start'),
-      end_time: getTimeValue(form, 'end'),
+      time_type: fieldTime || '不指定',
+      start_time: fieldTime ? `${fieldTime}:00` : null,
+      end_time: null,
       customer_name: null,
       location_name: locationName || null,
       address: address || null,
@@ -2446,8 +2549,68 @@ async function saveFieldSchedule(event, modal) {
       action_type: '新增',
       source_type: 'schedule',
       source_id: schedule.schedule_id,
-      note: 'V002-1I-2 新增外務行程'
+      note: 'V002-1I-2-1 新增外務行程'
     })
+
+    if (nextType && nextDate && nextStaffId) {
+      const nextStaff = staffList.find(staff => staff.staff_id === nextStaffId)
+      const nextPayload = {
+        ...payload,
+        department_id: nextStaff?.department_id || payload.department_id,
+        department_name: nextStaff?.department_name || payload.department_name,
+        sub_type: nextType,
+        sub_type_note: [
+          `外務目的：${nextType}`,
+          `來源外務：${payload.start_date}｜${purpose}`,
+          locationName ? `地點：${locationName}` : '',
+          address ? `地址：${address}` : ''
+        ].filter(Boolean).join('｜'),
+        title: `${nextType}${locationName ? '｜' + locationName : '｜外務'}`,
+        description: `由 ${payload.start_date} ${purpose} 自動建立的下次外務行程。${payload.description ? '\n' + payload.description : ''}`,
+        start_date: nextDate,
+        end_date: nextDate,
+        time_type: '不指定',
+        start_time: null,
+        end_time: null,
+        status: '未完成'
+      }
+
+      const { data: nextSchedule, error: nextError } = await supabase
+        .from('schedules')
+        .insert(nextPayload)
+        .select()
+        .single()
+
+      if (nextError) {
+        console.error(nextError)
+        alert('外務行程已建立，但下次領件 / 送審行程建立失敗：' + nextError.message)
+      } else {
+        const { error: nextAssigneeError } = await supabase.from('schedule_assignees').insert([{
+          schedule_id: nextSchedule.schedule_id,
+          staff_id: nextStaff.staff_id,
+          staff_name: nextStaff.name,
+          department_id: nextStaff.department_id,
+          department_name: nextStaff.department_name,
+          position: nextStaff.position,
+          assignee_type: 'executor'
+        }])
+
+        if (nextAssigneeError) {
+          console.error(nextAssigneeError)
+          alert('下次外務行程已建立，但下次人員寫入失敗：' + nextAssigneeError.message)
+        }
+
+        await supabase.from('audit_logs').insert({
+          operated_by_profile_id: currentProfile.profile_id,
+          operated_by_staff_id: currentProfile.staff_id,
+          operated_by_name: currentProfile.name || currentProfile.email,
+          action_type: '新增',
+          source_type: 'schedule',
+          source_id: nextSchedule.schedule_id,
+          note: `V002-1I-2-1 自動建立${nextType}行程`
+        })
+      }
+    }
 
     modal.remove()
     await refreshData()

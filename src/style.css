@@ -3418,21 +3418,26 @@ label.record-modal-check {
 /* FOR-e V002-1I-1-1 END - field holiday orange colors */
 
 /* FOR-e V002-1I-2 START - field schedule add form */
-#fieldScheduleForm .field-items-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+#fieldScheduleForm .field-location-box,
+#fieldScheduleForm .field-special-box,
+#fieldScheduleForm .field-items-grid,
+#fieldScheduleForm .field-next-box {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: #fff8ed;
 }
 
-#fieldScheduleForm .field-next-box {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: #fff8ed;
+#fieldScheduleForm .field-location-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#fieldScheduleForm .field-items-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 #fieldScheduleForm .field-next-box .compact-grid {
@@ -3443,7 +3448,41 @@ label.record-modal-check {
   max-height: 220px;
 }
 
+.field-special-check span {
+  font-weight: 900;
+}
+
+.field-special-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.field-special-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #FFEF5F;
+  color: #7c2d12;
+  border: 1px solid #e6c93e;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.field-result-btn {
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+  border: 1px solid #fed7aa !important;
+}
+
 @media (max-width: 768px) {
+  #fieldScheduleForm .field-location-box,
   #fieldScheduleForm .field-items-grid {
     grid-template-columns: 1fr;
   }
