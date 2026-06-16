@@ -3129,3 +3129,83 @@ label.record-modal-check {
   border-color: #f8caca !important;
 }
 /* FOR-e V002-1H-4-4 END - exact followup and pending record colors */
+
+/* FOR-e V002-1H-5 START - assigned task tracking */
+.assigned-tracking-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.assigned-tracking-list {
+  display: grid;
+  gap: 8px;
+}
+
+.assigned-tracking-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.assigned-tracking-row.is-completed {
+  opacity: 0.65;
+  background: #f3f4f6;
+}
+
+.assigned-tracking-row.is-overdue:not(.is-completed) {
+  background: #FFEF5F;
+  border-color: #e6c93e;
+}
+
+.assigned-tracking-date strong {
+  display: block;
+  color: #111827;
+}
+
+.assigned-tracking-date span,
+.assigned-tracking-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.assigned-tracking-title {
+  font-weight: 900;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.assigned-tracking-alert {
+  margin-top: 5px;
+  color: #ff3131;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.assigned-tracking-status {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .assigned-tracking-summary,
+  .assigned-tracking-row {
+    grid-template-columns: 1fr;
+  }
+
+  .assigned-tracking-status {
+    justify-content: stretch;
+  }
+
+  .assigned-tracking-status button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1H-5 END - assigned task tracking */

@@ -8,6 +8,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
   { key: 'personalTodo', label: '個人一般待辦', mobileLabel: '待辦', roles: 'ALL', mobile: true },
+  { key: 'assignedTracking', label: '我指派的事項追蹤', mobileLabel: '指派', roles: 'ALL', mobile: true },
   { key: 'scheduleOverview', label: '行程總覽', mobileLabel: '行程', roles: 'ALL', mobile: true },
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '行政 / 海外'], mobile: false },
@@ -1104,6 +1105,7 @@ function renderAuditList(rows) {
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
+  if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
@@ -1116,6 +1118,119 @@ function renderPageContent() {
     <p>此頁面目前為權限測試佔位頁，正式功能會在下一階段逐步加入。</p>
   `
 }
+
+
+/* FOR-e V002-1H-5 START - assigned task tracking */
+function getAssignedTrackingRows() {
+  const myStaffId = currentProfile?.staff_id
+  if (!myStaffId) return []
+
+  return schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => row.creator_staff_id === myStaffId)
+    .filter(row => {
+      const assigneeIds = getAssigneeIds(row)
+      return assigneeIds.some(id => id !== myStaffId)
+    })
+    .sort((a, b) => {
+      const aOverdue = isOverdueSchedule(a) && a.status !== '已完成'
+      const bOverdue = isOverdueSchedule(b) && b.status !== '已完成'
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
+      if ((a.status === '未完成') !== (b.status === '未完成')) return a.status === '未完成' ? -1 : 1
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+    })
+}
+
+function getAssignedTrackingAssignees(row) {
+  const myStaffId = currentProfile?.staff_id
+  return (row.schedule_assignees || [])
+    .filter(item => !item.deleted_at)
+    .filter(item => item.staff_id !== myStaffId)
+    .map(item => item.staff_name)
+    .filter(Boolean)
+}
+
+function renderAssignedTrackingPage() {
+  const rows = getAssignedTrackingRows()
+  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = rows.filter(row => row.status === '已完成')
+  const overdueRows = rows.filter(row => isOverdueSchedule(row))
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>我指派的事項追蹤</h3>
+        <p class="muted">只追蹤我建立，並指派給他人的任務。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="primary-btn" id="addScheduleBtn">新增行程</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <div class="summary-grid assigned-tracking-summary">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>我指派的事項</span>
+      </div>
+      <div class="summary-card">
+        <strong>${activeRows.length}</strong>
+        <span>未完成追蹤</span>
+      </div>
+      <div class="summary-card">
+        <strong>${overdueRows.length}</strong>
+        <span>已逾期</span>
+      </div>
+      <div class="summary-card">
+        <strong>${completedRows.length}</strong>
+        <span>已完成</span>
+      </div>
+    </div>
+
+    ${renderAssignedTrackingList(rows)}
+  `
+}
+
+function renderAssignedTrackingList(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">目前沒有由我建立並指派給他人的事項。</div>`
+  }
+
+  return `
+    <div class="assigned-tracking-list">
+      ${rows.map(row => {
+        const assignees = getAssignedTrackingAssignees(row)
+        const overdue = isOverdueSchedule(row)
+        return `
+          <div class="assigned-tracking-row ${row.status === '已完成' ? 'is-completed' : ''} ${overdue ? 'is-overdue' : ''}">
+            <div class="assigned-tracking-date">
+              <strong>${escapeHtml(row.start_date || '-')}</strong>
+              <span>${escapeHtml(formatTime(row))}</span>
+            </div>
+
+            <div class="assigned-tracking-main">
+              <div class="assigned-tracking-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+              <div class="assigned-tracking-meta">
+                被指派人：${escapeHtml(assignees.length ? assignees.join('、') : '-')}
+                ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
+                ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}
+              </div>
+              ${overdue ? `<div class="assigned-tracking-alert">已逾期，請追蹤!!!</div>` : ''}
+            </div>
+
+            <div class="assigned-tracking-status">
+              <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+            </div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+/* FOR-e V002-1H-5 END - assigned task tracking */
 
 function renderToolbar(title) {
   return `
