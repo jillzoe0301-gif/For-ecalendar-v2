@@ -1723,7 +1723,7 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
 
 
 // V002-1H-5-7-5｜特殊行程類型精準欄位控制
-const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒', '宿舍']
+const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒']
 
 function isCompactSpecialScheduleType(value) {
   return compactSpecialScheduleTypes.includes(String(value || '').trim())
@@ -1796,13 +1796,15 @@ function applyCreateCompactSpecialFields() {
 
   const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
 
-  setCompactHidden(form.querySelector('.extra-schedule-box'), isCompact)
-  setCompactHidden(form.querySelector('.service-record-box'), isCompact)
-  setCompactHidden(form.querySelector('input[name="service_record_submitted_date"]')?.closest('label'), isCompact)
-  setCompactHidden(form.querySelector('.vehicle-doc-row'), isCompact)
+  form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
+    setCompactHidden(block, isCompact)
+  })
 
   // 特殊類型自己的提醒欄位要保留顯示，例如逃跑三天、轉出日期、驗證日期、返台班機、住變追蹤。
-  // 這裡只隱藏附加行程、服務紀錄單、公務車、證件等不需要欄位。
+  form.querySelectorAll('[data-service-extra]').forEach(block => {
+    block.classList.toggle('hidden', block.dataset.serviceExtra !== serviceTypeSelect.value)
+  })
+
   if (isCompact) {
     resetCompactHiddenValues(form)
   }
@@ -1817,10 +1819,9 @@ function applyEditCompactSpecialFields() {
 
   const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
 
-  setCompactHidden(form.querySelector('.extra-schedule-box'), isCompact)
-  setCompactHidden(form.querySelector('.service-record-box'), isCompact)
-  setCompactHidden(form.querySelector('input[name="service_record_submitted_date"]')?.closest('label'), isCompact)
-  setCompactHidden(form.querySelector('select[name="car_no"]')?.closest('label'), isCompact)
+  form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
+    setCompactHidden(block, isCompact)
+  })
 
   if (isCompact) {
     resetCompactHiddenValues(form)
@@ -1951,7 +1952,7 @@ function openScheduleModal() {
             </select>
           </label>
 
-          <div class="extra-schedule-box">
+          <div class="extra-schedule-box compact-hide-for-reminder">
             <label>
               是否有附加行程
               <select name="has_extra_schedule" id="hasExtraScheduleSelect">
@@ -1973,7 +1974,7 @@ function openScheduleModal() {
             </div>
           </div>
 
-          <div class="span-2 service-record-box">
+          <div class="span-2 service-record-box compact-hide-for-reminder">
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="needServiceRecordCheck">
@@ -1985,7 +1986,7 @@ function openScheduleModal() {
             </label>
           </div>
 
-          <label class="span-2">
+          <label class="span-2 compact-hide-for-reminder">
             服務紀錄單繳交日期
             <input name="service_record_submitted_date" type="date">
           </label>
@@ -2054,7 +2055,7 @@ function openScheduleModal() {
         </div>
 
         <div class="span-2 form-section hidden service-grid" data-section="service">
-          <div class="span-2 vehicle-doc-row">
+          <div class="span-2 vehicle-doc-row compact-hide-for-reminder">
             <label>
               公務車
               <select name="car_no">
@@ -2158,20 +2159,22 @@ function openScheduleModal() {
 
   function refreshFormSections() {
     const category = categorySelect.value
-    document.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
-    document.querySelector('[data-section="common-simple"]').classList.remove('hidden')
+    const form = document.querySelector('#scheduleForm')
+    if (!form) return
 
-    if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
-    if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
-    if (category === '證件交付') document.querySelector('[data-section="document-delivery"]').classList.remove('hidden')
+    form.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
+    form.querySelector('[data-section="common-simple"]')?.classList.remove('hidden')
+
+    if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
+    if (category === '請假 / 會議 / 活動 / 外訓') form.querySelector('[data-section="leave-meeting"]')?.classList.remove('hidden')
+    if (category === '證件交付') form.querySelector('[data-section="document-delivery"]')?.classList.remove('hidden')
     if (category === '服務行程') {
-      const serviceTop = document.querySelector('[data-section="service-top"]')
-      const serviceLocation = document.querySelector('[data-section="service-location"]')
-      const serviceBlock = document.querySelector('[data-section="service"]')
-      if (serviceTop) serviceTop.classList.remove('hidden')
-      if (serviceLocation) serviceLocation.classList.remove('hidden')
-      if (serviceBlock) serviceBlock.classList.remove('hidden')
+      form.querySelector('[data-section="service-top"]')?.classList.remove('hidden')
+      form.querySelector('[data-section="service-location"]')?.classList.remove('hidden')
+      form.querySelector('[data-section="service"]')?.classList.remove('hidden')
     }
+
+    applyCreateCompactSpecialFields()
   }
 
   function refreshTimeBlock() {
@@ -2188,7 +2191,6 @@ function openScheduleModal() {
 
   function refreshServiceExtras() {
     const selected = serviceTypeSelect.value
-    const isCompact = isCompactSpecialScheduleType(selected)
 
     document.querySelectorAll('[data-service-extra]').forEach(block => {
       block.classList.toggle('hidden', block.dataset.serviceExtra !== selected)
@@ -2196,10 +2198,6 @@ function openScheduleModal() {
 
     if (selected === '收送簽文件') {
       hasDocumentsSelect.value = '是'
-    }
-
-    if (isCompact) {
-      resetCompactHiddenValues(document.querySelector('#scheduleForm'))
     }
 
     refreshDocumentsBlock()
@@ -2542,7 +2540,7 @@ function openEditScheduleModal(scheduleId) {
             </select>
           </label>
 
-          <div class="extra-schedule-box">
+          <div class="extra-schedule-box compact-hide-for-reminder">
             <label>
               是否有附加行程
               <select name="has_extra_schedule" id="editHasExtraScheduleSelect">
@@ -2560,7 +2558,7 @@ function openEditScheduleModal(scheduleId) {
             </div>
           </div>
 
-          <div class="span-2 service-record-box">
+          <div class="span-2 service-record-box compact-hide-for-reminder">
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="editNeedServiceRecordCheck" ${row.need_service_record ? 'checked' : ''}>
@@ -2572,12 +2570,12 @@ function openEditScheduleModal(scheduleId) {
             </label>
           </div>
 
-          <label>
+          <label class="compact-hide-for-reminder">
             服務紀錄單繳交日期
             <input name="service_record_submitted_date" type="date" value="${row.service_record_submitted_date || ''}">
           </label>
 
-          <label>
+          <label class="compact-hide-for-reminder">
             公務車
             <select name="car_no">
               ${carSelectOptions}
@@ -3302,3 +3300,14 @@ function getPersonalReminderTestSummary() {
   }
 }
 /* FOR-e V002-1H-7 END - personal reminder stable rules */
+
+
+/* FOR-e V002-1H-8-2 START - safe visible form rules */
+/*
+  本版只處理畫面顯示規則：
+  - 不改行程類型選項
+  - 不改 Supabase
+  - 不改主要儲存流程
+  - 只依類型隱藏不需要區塊
+*/
+/* FOR-e V002-1H-8-2 END - safe visible form rules */

@@ -2939,3 +2939,16 @@ label.record-modal-check {
   display: none !important;
 }
 /* FOR-e V002-1H-8-1 END - edit form category sync */
+
+
+/* FOR-e V002-1H-8-2 START - safe visible form rules */
+.compact-hide-for-reminder.compact-special-hidden,
+.compact-special-hidden {
+  display: none !important;
+}
+
+#scheduleForm .form-section.hidden,
+#editScheduleForm .form-section.hidden {
+  display: none !important;
+}
+/* FOR-e V002-1H-8-2 END - safe visible form rules */
