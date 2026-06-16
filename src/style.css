@@ -3642,3 +3642,116 @@ label.record-modal-check {
   margin-top: 6px;
 }
 /* FOR-e V002-1I-2-5 END - field result reminder panel and rename reminder */
+
+/* FOR-e V002-1J START - field detail page */
+.field-detail-filter {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) 1.3fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff8ed;
+  margin-bottom: 16px;
+}
+
+.field-detail-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.field-detail-list {
+  display: grid;
+  gap: 8px;
+}
+
+.field-detail-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.field-detail-row.is-completed {
+  opacity: 0.65;
+  background: #f3f4f6;
+}
+
+.field-detail-row.has-result:not(.is-completed) {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.field-detail-date strong {
+  display: block;
+  color: #111827;
+}
+
+.field-detail-date span,
+.field-detail-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.field-detail-title {
+  font-weight: 900;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.field-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.field-detail-result .field-result-reminder-panel {
+  margin: 8px 0 0;
+}
+
+.field-detail-status {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .field-detail-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field-detail-filter button,
+  .field-detail-location-filter {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .field-detail-summary,
+  .field-detail-row,
+  .field-detail-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .field-detail-filter button,
+  .field-detail-location-filter {
+    grid-column: span 1;
+  }
+
+  .field-detail-status {
+    justify-content: stretch;
+  }
+
+  .field-detail-status button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1J END - field detail page */

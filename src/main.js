@@ -219,6 +219,14 @@ let schedulesError = ''
 let saving = false
 let overviewWeekOffset = 0
 let fieldWeekOffset = 0
+let fieldDetailFilters = {
+  staffId: '全部',
+  location: '',
+  purpose: '全部',
+  status: '全部',
+  startDate: '',
+  endDate: ''
+}
 let searchFilters = {
   keyword: '',
   status: '全部',
@@ -815,6 +823,51 @@ function renderApp() {
   document.querySelectorAll('[data-record-schedule]').forEach(btn => {
     btn.addEventListener('click', () => openServiceRecordModal(btn.dataset.recordSchedule))
   })
+
+
+  const resetFieldDetailFilterBtn = document.querySelector('#resetFieldDetailFilterBtn')
+  if (resetFieldDetailFilterBtn) {
+    resetFieldDetailFilterBtn.addEventListener('click', () => {
+      fieldDetailFilters = {
+        staffId: '全部',
+        location: '',
+        purpose: '全部',
+        status: '全部',
+        startDate: '',
+        endDate: ''
+      }
+      renderApp()
+    })
+  }
+
+  const fieldDetailFilterForm = document.querySelector('#fieldDetailFilterForm')
+  if (fieldDetailFilterForm) {
+    fieldDetailFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      fieldDetailFilters = {
+        staffId: form.get('staffId') || '全部',
+        location: form.get('location') || '',
+        purpose: form.get('purpose') || '全部',
+        status: form.get('status') || '全部',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('[data-field-complete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await completeSchedule(btn.dataset.fieldComplete)
+    })
+  })
+
+  document.querySelectorAll('[data-field-cancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openCancelModal(btn.dataset.fieldCancel)
+    })
+  })
 }
 
 function getPageTitle() {
@@ -1267,12 +1320,204 @@ function renderFieldScheduleCalendar() {
 /* FOR-e V002-1I-1 END - field schedule weekly calendar */
 
 
+
+/* FOR-e V002-1J START - field detail page */
+/*
+  V002-1J｜外務明細
+  只使用既有 schedules / schedule_assignees 資料，不改 SQL、不改 Supabase 結構。
+*/
+
+function getFieldDetailStaffOptionsHtml() {
+  return `<option value="全部" ${fieldDetailFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
+    getFieldStaffRows().map(staff => `
+      <option value="${staff.staff_id}" ${fieldDetailFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+    `).join('')
+}
+
+function getFieldDetailPurposeOptionsHtml() {
+  const purposes = ['全部', ...(typeof fieldPurposeOptions !== 'undefined' ? fieldPurposeOptions : [])]
+  return [...new Set(purposes)].map(item => `
+    <option value="${item}" ${fieldDetailFilters.purpose === item ? 'selected' : ''}>${item}</option>
+  `).join('')
+}
+
+function getFieldDetailStatusOptionsHtml() {
+  return ['全部', '未完成', '已完成', '取消'].map(item => `
+    <option value="${item}" ${fieldDetailFilters.status === item ? 'selected' : ''}>${item}</option>
+  `).join('')
+}
+
+function getFieldDetailRows() {
+  return schedules
+    .filter(row => isFieldScheduleRow(row))
+    .filter(row => {
+      if (fieldDetailFilters.status !== '全部' && row.status !== fieldDetailFilters.status) return false
+      if (fieldDetailFilters.startDate && row.start_date < fieldDetailFilters.startDate) return false
+      if (fieldDetailFilters.endDate && row.start_date > fieldDetailFilters.endDate) return false
+
+      if (fieldDetailFilters.staffId !== '全部') {
+        const assigned = (row.schedule_assignees || []).some(item => item.staff_id === fieldDetailFilters.staffId && !item.deleted_at)
+        if (!assigned) return false
+      }
+
+      if (fieldDetailFilters.purpose !== '全部') {
+        const purposeText = row.sub_type || getFieldNoteValue(row, '外務目的') || ''
+        if (purposeText !== fieldDetailFilters.purpose) return false
+      }
+
+      if (fieldDetailFilters.location) {
+        const keyword = String(fieldDetailFilters.location || '').trim().toLowerCase()
+        const haystack = [
+          row.location_name,
+          row.address,
+          row.title,
+          row.description,
+          row.sub_type_note
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(keyword)) return false
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (String(a.start_date || '') !== String(b.start_date || '')) {
+        return String(b.start_date || '').localeCompare(String(a.start_date || ''))
+      }
+      return String(a.start_time || '').localeCompare(String(b.start_time || ''))
+    })
+}
+
+function renderFieldDetailPage() {
+  const rows = getFieldDetailRows()
+  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = rows.filter(row => row.status === '已完成')
+  const resultRows = rows.filter(row => getFieldResultFromRow(row))
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>外務明細</h3>
+        <p class="muted">外務清單｜可依日期、人員、地點、目的與狀態篩選。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetFieldDetailFilterBtn">清除條件</button>
+        <button class="primary-btn" id="addScheduleBtn">新增外務</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <form id="fieldDetailFilterForm" class="field-detail-filter">
+      <label>
+        起日
+        <input name="startDate" type="date" value="${fieldDetailFilters.startDate}">
+      </label>
+
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${fieldDetailFilters.endDate}">
+      </label>
+
+      <label>
+        外務人員
+        <select name="staffId">${getFieldDetailStaffOptionsHtml()}</select>
+      </label>
+
+      <label>
+        目的
+        <select name="purpose">${getFieldDetailPurposeOptionsHtml()}</select>
+      </label>
+
+      <label>
+        狀態
+        <select name="status">${getFieldDetailStatusOptionsHtml()}</select>
+      </label>
+
+      <label class="field-detail-location-filter">
+        地點 / 地址 / 內容
+        <input name="location" value="${escapeHtml(fieldDetailFilters.location)}" placeholder="可搜尋地點、地址或內容">
+      </label>
+
+      <button type="submit" class="primary-btn">篩選</button>
+    </form>
+
+    <div class="summary-grid field-detail-summary">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>外務筆數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${activeRows.length}</strong>
+        <span>未完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${completedRows.length}</strong>
+        <span>已完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${resultRows.length}</strong>
+        <span>補件 / 異常</span>
+      </div>
+    </div>
+
+    ${renderFieldDetailList(rows)}
+  `
+}
+
+function renderFieldDetailList(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">目前沒有符合條件的外務明細。</div>`
+  }
+
+  return `
+    <div class="field-detail-list">
+      ${rows.map(row => {
+        const result = getFieldResultFromRow(row)
+        const specialReminders = getFieldSpecialRemindersFromRow(row)
+        return `
+          <div class="field-detail-row ${row.status === '已完成' ? 'is-completed' : ''} ${result ? 'has-result' : ''}">
+            <div class="field-detail-date">
+              <strong>${escapeHtml(row.start_date || '-')}</strong>
+              <span>${escapeHtml(formatTime(row))}</span>
+            </div>
+
+            <div class="field-detail-main">
+              <div class="field-detail-title">${escapeHtml(row.sub_type || row.schedule_type || '外務')}｜${escapeHtml(row.title || '-')}</div>
+              <div class="field-detail-meta">
+                外務人員：${escapeHtml(getAssigneeNames(row))}
+                ｜指派者：${escapeHtml(row.creator_name || '-')}
+              </div>
+              <div class="field-detail-meta">
+                地點：${escapeHtml(row.location_name || '-')}
+                ${row.address ? '｜地址：' + escapeHtml(row.address) : ''}
+              </div>
+              ${specialReminders.length ? `<div class="field-detail-badges">${specialReminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div>` : ''}
+              ${result ? `<div class="field-detail-result">${renderFieldResultReminder(row)}</div>` : ''}
+            </div>
+
+            <div class="field-detail-status">
+              <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              ${canCompleteSchedule(row) ? `<button class="small-btn" data-field-complete="${row.schedule_id}">已送件</button>` : ''}
+              ${canCancelSchedule(row) ? `<button class="small-danger-btn" data-field-cancel="${row.schedule_id}">取消</button>` : ''}
+            </div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+/* FOR-e V002-1J END - field detail page */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'fieldSchedule') return renderFieldScheduleCalendar()
+  if (currentPage === 'fieldDetail') return renderFieldDetailPage()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
