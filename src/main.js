@@ -1198,7 +1198,6 @@ function renderFieldScheduleCard(row) {
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
       <span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
-      ${row.location_name ? `<span class="field-week-card-preview">${escapeHtml(row.location_name)}</span>` : ''}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -1562,6 +1561,7 @@ function renderWeekScheduleCard(row) {
       <span class="week-card-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
+      <span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
       ${row.sub_type ? `<span class="week-card-extra">附加：${escapeHtml(row.sub_type)}</span>` : ''}
     </button>
   `
@@ -1943,7 +1943,8 @@ function openScheduleDetail(scheduleId) {
   if (editBtn) {
     editBtn.addEventListener('click', () => {
       modal.remove()
-      openEditScheduleModal(scheduleId)
+      if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
+      else openEditScheduleModal(scheduleId)
     })
   }
 
@@ -1957,17 +1958,17 @@ function openScheduleDetail(scheduleId) {
 
   const needSupplementBtn = document.querySelector('#detailNeedSupplementBtn')
   if (needSupplementBtn) {
-    needSupplementBtn.addEventListener('click', async () => {
+    needSupplementBtn.addEventListener('click', () => {
       modal.remove()
-      await updateFieldScheduleResult(scheduleId, '要補件')
+      openFieldResultModal(scheduleId, '要補件')
     })
   }
 
   const fieldAbnormalBtn = document.querySelector('#detailFieldAbnormalBtn')
   if (fieldAbnormalBtn) {
-    fieldAbnormalBtn.addEventListener('click', async () => {
+    fieldAbnormalBtn.addEventListener('click', () => {
       modal.remove()
-      await updateFieldScheduleResult(scheduleId, '送件異常')
+      openFieldResultModal(scheduleId, '送件異常')
     })
   }
 
@@ -2250,10 +2251,11 @@ function getFieldDbTimeValue(timeValue) {
   return timeValue ? `${timeValue}:00` : null
 }
 
-function fieldSpecialReminderChecksHtml() {
+function fieldSpecialReminderChecksHtml(selectedItems = [], inputName = 'field_special_reminder') {
+  const selected = new Set(selectedItems || [])
   return fieldSpecialReminderOptions.map(item => `
     <label class="inline-check field-special-check">
-      <input type="checkbox" name="field_special_reminder" value="${item}">
+      <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
       <span>${renderFieldSpecialReminderIcon(item)} ${item}</span>
     </label>
   `).join('')
@@ -2309,7 +2311,7 @@ function setFieldLocationFromSelect(selectElement) {
   const selected = selectElement?.selectedOptions?.[0]
   if (!selected) return
 
-  const form = document.querySelector('#fieldScheduleForm')
+  const form = selectElement.closest('form') || document.querySelector('#fieldScheduleForm') || document.querySelector('#editFieldScheduleForm')
   if (!form) return
 
   const locationInput = form.querySelector('input[name="location_name"]')
@@ -2326,11 +2328,19 @@ function appendFieldResultNote(noteText, result) {
   return cleaned.join('｜')
 }
 
-async function updateFieldScheduleResult(scheduleId, result) {
+async function updateFieldScheduleResult(scheduleId, result, detailText = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
-  const nextNote = appendFieldResultNote(row.sub_type_note, result)
+  const detailLabel = result === '要補件' ? '補件項目' : '異常項目'
+  let nextNote = appendFieldResultNote(row.sub_type_note, result)
+
+  if (detailText) {
+    const parts = nextNote.split('｜').map(item => item.trim()).filter(Boolean)
+    const cleaned = parts.filter(item => !item.startsWith(`${detailLabel}：`))
+    cleaned.push(`${detailLabel}：${detailText}`)
+    nextNote = cleaned.join('｜')
+  }
 
   const { error } = await supabase
     .from('schedules')
@@ -2352,12 +2362,286 @@ async function updateFieldScheduleResult(scheduleId, result) {
     action_type: '外務結果',
     source_type: 'schedule',
     source_id: scheduleId,
-    note: `外務結果：${result}`
+    note: `外務結果：${result}${detailText ? '｜' + detailLabel + '：' + detailText : ''}`
   })
 
   await refreshData()
   renderApp()
   alert(`已標記外務結果：${result}`)
+}
+
+function openFieldResultModal(scheduleId, result) {
+  const label = result === '要補件' ? '補件項目' : '異常項目'
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel">
+      <div class="modal-header">
+        <h3>${escapeHtml(result)}</h3>
+        <button class="icon-btn" id="closeFieldResultBtn" type="button">×</button>
+      </div>
+
+      <div class="notice">請輸入${escapeHtml(label)}，儲存後會寫入外務備註，行程狀態維持未完成。</div>
+
+      <label>
+        ${escapeHtml(label)}
+        <textarea id="fieldResultDetailInput" rows="4" placeholder="請輸入${escapeHtml(label)}"></textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="cancelFieldResultBtn">取消</button>
+        <button type="button" class="primary-btn" id="saveFieldResultBtn">儲存</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeFieldResultBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelFieldResultBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#saveFieldResultBtn').addEventListener('click', async () => {
+    const detail = document.querySelector('#fieldResultDetailInput').value.trim()
+    if (!detail) {
+      alert(`請輸入${label}。`)
+      return
+    }
+
+    modal.remove()
+    await updateFieldScheduleResult(scheduleId, result, detail)
+  })
+}
+
+function getFieldNoteValue(row, label) {
+  const text = String(row?.sub_type_note || '')
+  const parts = text.split('｜').map(item => item.trim()).filter(Boolean)
+  const found = parts.find(item => item.startsWith(label + '：'))
+  return found ? found.slice(label.length + 1) : ''
+}
+
+function openEditFieldScheduleModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!canModifySchedule(row)) {
+    alert('您沒有權限修改此外務行程。')
+    return
+  }
+
+  const start = parseTimeForEdit(row.start_time, '', '00')
+  const selectedIds = new Set(getAssigneeIds(row))
+  const purpose = row.sub_type || getFieldNoteValue(row, '外務目的') || '外務日'
+  const selectedReminders = getFieldSpecialRemindersFromRow(row)
+  const cashNote = getFieldNoteValue(row, '現金')
+  const sealNote = getFieldNoteValue(row, '印章')
+  const documentNote = getFieldNoteValue(row, '證件')
+  const fieldResult = getFieldResultFromRow(row)
+  const supplementDetail = getFieldNoteValue(row, '補件項目')
+  const abnormalDetail = getFieldNoteValue(row, '異常項目')
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>修改外務行程</h3>
+        <button class="icon-btn" id="closeEditFieldModalBtn" type="button">×</button>
+      </div>
+
+      <form id="editFieldScheduleForm" class="form-grid">
+        <div class="span-2">
+          <div class="field-title">外務人員</div>
+          <div class="checkbox-list">
+            ${getFieldStaffRows().map(staff => `
+              <label class="check-row">
+                <input type="checkbox" name="edit_field_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
+                <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <label>
+          日期
+          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
+        </label>
+
+        <label>
+          時間
+          ${fieldTimeSelectHtml('edit_field', row.start_time ? start.hour : '', row.start_time ? start.minute : '00')}
+        </label>
+
+        <div class="span-2 field-location-box">
+          <label>
+            地點選擇
+            <select name="field_location_select" id="editFieldLocationSelect">
+              ${fieldLocationOptionsHtml()}
+            </select>
+          </label>
+
+          <label>
+            地點
+            <input name="location_name" value="${escapeHtml(row.location_name || '')}" placeholder="可手動輸入地點">
+          </label>
+
+          <label class="span-2">
+            地址
+            <input name="address" value="${escapeHtml(row.address || '')}" placeholder="選擇地點後自動帶出，也可手動修改">
+          </label>
+        </div>
+
+        <label>
+          目的
+          <select name="field_purpose">
+            ${optionHtmlForItems(fieldPurposeOptions, purpose)}
+          </select>
+        </label>
+
+        <div class="field-special-box">
+          <div class="field-title">特殊提醒（可複選）</div>
+          <div class="inline-check-list">${fieldSpecialReminderChecksHtml(selectedReminders, 'edit_field_special_reminder')}</div>
+        </div>
+
+        <label class="span-2">
+          內容
+          <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
+        </label>
+
+        <div class="span-2 field-items-grid">
+          <label>
+            現金
+            <input name="cash_note" value="${escapeHtml(cashNote)}" placeholder="例如：金額 / 用途 / 無">
+          </label>
+
+          <label>
+            印章
+            <input name="seal_note" value="${escapeHtml(sealNote)}" placeholder="例如：公司章 / 私章 / 無">
+          </label>
+
+          <label>
+            證件
+            <input name="document_note" value="${escapeHtml(documentNote)}" placeholder="例如：護照 / 居留證 / 文件 / 無">
+          </label>
+        </div>
+
+        ${fieldResult ? `<div class="span-2 notice">目前外務結果：${escapeHtml(fieldResult)}${supplementDetail ? '｜補件項目：' + escapeHtml(supplementDetail) : ''}${abnormalDetail ? '｜異常項目：' + escapeHtml(abnormalDetail) : ''}</div>` : ''}
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelEditFieldModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存外務修改</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const locationSelect = document.querySelector('#editFieldLocationSelect')
+  if (locationSelect) {
+    locationSelect.addEventListener('change', () => setFieldLocationFromSelect(locationSelect))
+  }
+
+  document.querySelector('#closeEditFieldModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelEditFieldModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#editFieldScheduleForm').addEventListener('submit', event => saveEditedFieldSchedule(event, modal, row))
+}
+
+async function saveEditedFieldSchedule(event, modal, originalRow) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const executorIds = [...document.querySelectorAll('input[name="edit_field_executor"]:checked')].map(input => input.value)
+
+    if (!executorIds.length) {
+      alert('請至少選擇一位外務人員。')
+      saving = false
+      return
+    }
+
+    const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
+    const firstStaff = selectedStaff[0]
+    const purpose = form.get('field_purpose') || '外務日'
+    const locationName = form.get('location_name') || ''
+    const address = form.get('address') || ''
+    const fieldTime = getFieldSingleTimeValue(form, 'edit_field')
+    const specialReminders = [...document.querySelectorAll('input[name="edit_field_special_reminder"]:checked')].map(input => input.value)
+    const existingResult = getFieldResultFromRow(originalRow)
+    const supplementDetail = getFieldNoteValue(originalRow, '補件項目')
+    const abnormalDetail = getFieldNoteValue(originalRow, '異常項目')
+
+    const noteParts = [
+      `外務目的：${purpose}`,
+      form.get('cash_note') ? `現金：${form.get('cash_note')}` : '',
+      form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
+      form.get('document_note') ? `證件：${form.get('document_note')}` : '',
+      specialReminders.length ? `特殊提醒：${specialReminders.join('、')}` : '',
+      existingResult ? `外務結果：${existingResult}` : '',
+      supplementDetail ? `補件項目：${supplementDetail}` : '',
+      abnormalDetail ? `異常項目：${abnormalDetail}` : ''
+    ].filter(Boolean)
+
+    const payload = {
+      department_id: firstStaff.department_id || currentProfile.department_id,
+      department_name: firstStaff.department_name || currentProfile.department_name,
+      category: '外務行程',
+      schedule_type: '外務',
+      sub_type: purpose,
+      sub_type_note: noteParts.join('｜'),
+      title: `${purpose}${locationName ? '｜' + locationName : '｜外務'}`,
+      description: form.get('description') || null,
+      start_date: form.get('start_date'),
+      end_date: form.get('start_date'),
+      time_type: getFieldTimeTypeFromValue(fieldTime),
+      start_time: getFieldDbTimeValue(fieldTime),
+      end_time: null,
+      location_name: locationName || null,
+      address: address || null
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update(payload)
+      .eq('schedule_id', originalRow.schedule_id)
+
+    if (error) {
+      alert('修改外務行程失敗：' + error.message)
+      saving = false
+      return
+    }
+
+    const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+      target_schedule_id: originalRow.schedule_id,
+      staff_ids_value: executorIds
+    })
+
+    if (assigneeError) {
+      alert('外務行程已修改，但外務人員同步失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '修改',
+      source_type: 'schedule',
+      source_id: originalRow.schedule_id,
+      note: 'V002-1I-2-4 修改外務行程'
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    console.error(err)
+    alert('修改外務行程失敗：' + (err?.message || err))
+    saving = false
+  }
 }
 
 function openFieldScheduleModal(defaults = {}) {
