@@ -2889,3 +2889,36 @@ label.record-modal-check {
   font-weight: 900 !important;
 }
 /* FOR-e V002-1H-7-1 END - restore special fields and save */
+
+/* FOR-e V002-1H-8 START - simple category forms and document delivery */
+.document-delivery-box {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.document-delivery-box .inline-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+.document-delivery-box .inline-check {
+  width: auto !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.document-delivery-box .inline-check input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 8px 0 0 !important;
+}
+/* FOR-e V002-1H-8 END - simple category forms and document delivery */

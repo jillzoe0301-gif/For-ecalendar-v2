@@ -24,16 +24,17 @@ const pages = [
   { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true }
 ]
 
-const formCategories = ['服務行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓']
+const formCategories = ['服務行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
   '住變資訊', '驗證提醒', '返台提醒', '宿舍', '其他'
 ]
-const todoItems = ['送件', '補件', '登記', '回覆', '追蹤']
-const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '公司活動', '部門活動']
+const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
+const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
 const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
+const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
   ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
@@ -1155,7 +1156,7 @@ function renderPersonalSchedule() {
 }
 
 function renderPersonalTodo() {
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(row.category))
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(row.category))
   return `
     ${renderToolbar('個人一般待辦')}
     ${renderReadStatus()}
@@ -1665,7 +1666,7 @@ function minuteOptionsHtml(defaultValue = '00') {
 }
 
 function getAvailableFormCategories() {
-  if (currentPage === 'personalTodo') return ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓']
+  if (currentPage === 'personalTodo') return ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
   return formCategories
 }
 
@@ -1818,6 +1819,10 @@ function openScheduleModal() {
   `).join('')
   const documentChecks = documentOptions.map(item => `
     <label class="inline-check"><input type="checkbox" name="document_items" value="${item}">${item}</label>
+  `).join('')
+
+  const deliveryDocumentChecks = deliveryDocumentItems.map(item => `
+    <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
   `).join('')
 
   const modal = document.createElement('div')
@@ -2020,6 +2025,13 @@ function openScheduleModal() {
           </label>
         </div>
 
+        <div class="span-2 form-section hidden" data-section="document-delivery">
+          <div class="document-delivery-box">
+            <div class="field-title">交付項目（可複選）</div>
+            <div class="inline-check-list">${deliveryDocumentChecks}</div>
+          </div>
+        </div>
+
         <div class="span-2 form-section hidden service-grid" data-section="service">
           <div class="span-2 vehicle-doc-row">
             <label>
@@ -2130,6 +2142,7 @@ function openScheduleModal() {
 
     if (category === '待辦事項') document.querySelector('[data-section="todo"]').classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') document.querySelector('[data-section="leave-meeting"]').classList.remove('hidden')
+    if (category === '證件交付') document.querySelector('[data-section="document-delivery"]').classList.remove('hidden')
     if (category === '服務行程') {
       const serviceTop = document.querySelector('[data-section="service-top"]')
       const serviceLocation = document.querySelector('[data-section="service-location"]')
@@ -2762,16 +2775,10 @@ async function saveSchedule(event, modal) {
   event.preventDefault()
   if (saving) return
   saving = true
-  // V002-1H-4_SAVE_GUARD
+  // V002-1H-7-2_SAVE_GUARD_FIX
   try {
 
   const form = new FormData(event.target)
-  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
-
-  if (!editExecutorIds.length) {
-    alert('請至少選擇一位執行者。')
-    return
-  }
 
   const category = form.get('category')
   const availableFormCategories = getAvailableFormCategories()
@@ -2828,6 +2835,15 @@ async function saveSchedule(event, modal) {
     scheduleType = form.get('leave_meeting_type') || '請假'
     subType = scheduleType
     if (getSelectedProxyName()) subTypeNoteParts.push(`代理人：${getSelectedProxyName()}`)
+  }
+
+  if (category === '證件交付') {
+    scheduleType = '證件交付'
+    const deliveryItems = [...document.querySelectorAll('input[name="delivery_items"]:checked')]
+      .map(input => input.value)
+      .join('、')
+    subType = deliveryItems || null
+    if (deliveryItems) subTypeNoteParts.push(`交付項目：${deliveryItems}`)
   }
 
   if (category === '服務行程') {
