@@ -8,6 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const SYSTEM_VERSION = 'V002-1P-49'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2451,6 +2452,16 @@ function renderApp() {
   const runHealthDryRunBtn = document.querySelector('#runHealthDryRunBtn')
   if (runHealthDryRunBtn) {
     runHealthDryRunBtn.addEventListener('click', () => runHealthDryRunCheck())
+  }
+
+  const copyHealthReportBtn = document.querySelector('#copyHealthReportBtn')
+  if (copyHealthReportBtn) {
+    copyHealthReportBtn.addEventListener('click', () => copySystemHealthReport())
+  }
+
+  const clearUiMemoryBtn = document.querySelector('#clearUiMemoryBtn')
+  if (clearUiMemoryBtn) {
+    clearUiMemoryBtn.addEventListener('click', () => clearMyUiMemory())
   }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -6958,6 +6969,20 @@ function getHealthRows() {
   const rows = []
 
   rows.push({
+    title: '目前版本',
+    status: 'ok',
+    detail: SYSTEM_VERSION,
+    note: '用於確認前端是否已更新到最新版本。'
+  })
+
+  rows.push({
+    title: '目前網址',
+    status: window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost' ? 'ok' : 'warn',
+    detail: window.location.origin,
+    note: window.location.hostname === 'localhost' ? '本機測試網址；正式信件與重設密碼需使用 Vercel 正式網址。' : '目前瀏覽器所在網址。'
+  })
+
+  rows.push({
     title: 'Supabase 環境變數',
     status: SUPABASE_URL && SUPABASE_ANON_KEY ? 'ok' : 'bad',
     detail: SUPABASE_URL && SUPABASE_ANON_KEY ? '已設定 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY' : '缺少 Supabase URL 或 Anon Key'
@@ -7019,6 +7044,13 @@ function getHealthRows() {
     note: '管理員、主管、行政/海外、翻譯、外務/宿管/會計、一般職員會依角色控管。'
   })
 
+  rows.push({
+    title: '我的畫面記憶',
+    status: 'ok',
+    detail: getMyUiMemorySummary(),
+    note: '行程總覽 / 外務行程的篩選記憶會存在本機瀏覽器，可用下方按鈕清除。'
+  })
+
   return rows
 }
 
@@ -7048,6 +7080,81 @@ function renderSystemHealthSummary(rows) {
     </div>
   `
 }
+
+
+function getMyUiMemoryKeys() {
+  const owner = currentProfile?.staff_id || currentProfile?.email || 'guest'
+  return [
+    `for-e-overview-filters-v002-${owner}`,
+    `for-e-field-schedule-filters-v002-${owner}`,
+    `for-e-login-reminder-${owner}-${todayString()}`
+  ]
+}
+
+function getMyUiMemorySummary() {
+  const keys = getMyUiMemoryKeys()
+  const existing = keys.filter(key => localStorage.getItem(key) || sessionStorage.getItem(key))
+  return existing.length ? `目前有 ${existing.length} 筆本機畫面記憶` : '目前沒有本機畫面記憶'
+}
+
+function clearMyUiMemory() {
+  if (!confirm('確定要清除你自己的行程總覽 / 外務行程篩選記憶嗎？\\n\\n這不會刪除任何行程資料。')) return
+
+  getMyUiMemoryKeys().forEach(key => {
+    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
+  })
+
+  if (typeof overviewFilters !== 'undefined') {
+    overviewFilters = {
+      departments: [],
+      staffIds: [],
+      sortBy: 'display_order',
+      sortDir: 'asc'
+    }
+  }
+
+  if (typeof fieldScheduleFilters !== 'undefined') {
+    fieldScheduleFilters = {
+      departments: [],
+      staffIds: [],
+      sortBy: 'display_order',
+      sortDir: 'asc'
+    }
+  }
+
+  alert('已清除你的畫面篩選記憶。')
+  renderApp()
+}
+
+function getSystemHealthReportText() {
+  const rows = getHealthRows()
+  return [
+    'FOR-e 系統檢查報告',
+    `版本：${SYSTEM_VERSION}`,
+    `時間：${new Date().toLocaleString('zh-TW')}`,
+    `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
+    `角色：${currentProfile?.role || '-'}`,
+    '',
+    ...rows.map(row => {
+      const meta = getHealthStatusMeta(row.status)
+      return `【${meta.label}】${row.title}：${row.detail}${row.note ? `｜${row.note}` : ''}`
+    })
+  ].join('\\n')
+}
+
+async function copySystemHealthReport() {
+  const text = getSystemHealthReportText()
+
+  try {
+    await navigator.clipboard.writeText(text)
+    alert('系統檢查報告已複製。')
+  } catch (err) {
+    console.warn(err)
+    alert(text)
+  }
+}
+
 
 async function runHealthDryRunCheck() {
   if (!currentProfile) {
@@ -7095,8 +7202,10 @@ function renderSystemHealthPage() {
         <h3>系統檢查</h3>
         <p class="muted">正式上線前快速檢查 Supabase、資料表、角色、共用設定與帳號功能。</p>
       </div>
-      <div class="toolbar-actions">
+      <div class="toolbar-actions health-toolbar-actions">
         <button class="primary-btn" id="runHealthDryRunBtn">檢查帳號 Edge Function</button>
+        <button class="secondary-btn" id="copyHealthReportBtn">複製檢查報告</button>
+        <button class="secondary-btn" id="clearUiMemoryBtn">清除我的畫面記憶</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -7119,6 +7228,7 @@ function renderSystemHealthPage() {
         <li>行政 / 海外登入，確認可管理行程但不可管理帳號與選項。</li>
         <li>翻譯登入，確認只看自己的行程與紀錄單繳交。</li>
         <li>外務 / 宿管 / 會計與一般職員登入，確認只看自己的帳號資訊並可修改自己密碼。</li>
+        <li>確認「目前版本」為最新版本，再開始測試各角色功能。</li>
         <li>新增醫療行程，測試下次回診日期、時間、掛號號碼、下次執行人。</li>
         <li>新增外務行程，確認外務行程表、外務明細、個人行程都有同步。</li>
       </ol>
@@ -12874,3 +12984,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不再共用 checklist.png
 */
 /* FOR-e V002-1P-48 END - system health icon mapping */
+
+/* FOR-e V002-1P-49 START - health tools */
+/*
+  V002-1P-49｜系統檢查工具強化
+  - 顯示目前前端版本與目前網址
+  - 新增複製系統檢查報告
+  - 新增清除我的畫面記憶，清除行程總覽 / 外務篩選 localStorage
+  - 系統檢查頁強化上線前測試清單
+*/
+/* FOR-e V002-1P-49 END - health tools */

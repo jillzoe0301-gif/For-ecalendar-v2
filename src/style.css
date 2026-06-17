@@ -9493,3 +9493,41 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-47 END - system health check */
+
+/* FOR-e V002-1P-49 START - health tools */
+.health-toolbar-actions {
+  flex-wrap: wrap;
+}
+
+.health-toolbar-actions button {
+  min-height: 40px;
+}
+
+.summary-card.is-alert strong {
+  color: #f97316;
+}
+
+.health-card.is-warn p {
+  color: #7c2d12;
+}
+
+.health-card.is-bad p {
+  color: #991b1b;
+}
+
+.health-checklist li + li {
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .health-toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .health-toolbar-actions button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1P-49 END - health tools */
