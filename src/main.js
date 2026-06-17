@@ -1928,7 +1928,7 @@ async function saveMeetingRoomSchedule(event, modal) {
         reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
-      description: form.get('description') || null,
+      description: firstTracking || null,
       start_date: date,
       end_date: getScheduleModeEndDate(form),
       time_type: Number(startTime.slice(0, 2)) < 12 ? '上午' : '下午',
@@ -1939,9 +1939,9 @@ async function saveMeetingRoomSchedule(event, modal) {
       address: null,
       car_no: null,
       status: '未完成',
-      need_service_record: false,
-      service_record_submitted: false,
-      service_record_submitted_date: null
+      need_service_record: form.get('need_service_record') === 'on',
+      service_record_submitted: form.get('service_record_submitted') === 'on',
+      service_record_submitted_date: form.get('service_record_submitted') === 'on' ? (form.get('service_record_submitted_date') || todayString()) : null
     }
 
     const { data: schedule, error: scheduleError } = await supabase
@@ -2023,10 +2023,11 @@ function incidentResponsibleOptionsHtml(selectedStaffId = '') {
   `).join('')
 }
 
-function incidentAssistantChecksHtml() {
+function incidentAssistantChecksHtml(selectedIds = [], inputName = 'incident_assistant') {
+  const selected = new Set(selectedIds || [])
   return staffList.map(staff => `
     <label class="check-row">
-      <input type="checkbox" name="incident_assistant" value="${staff.staff_id}">
+      <input type="checkbox" name="${inputName}" value="${staff.staff_id}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
       <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
     </label>
   `).join('')
@@ -2034,6 +2035,110 @@ function incidentAssistantChecksHtml() {
 
 function incidentTypeOptionsHtml(selectedValue = '') {
   return incidentTypeOptions.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+function chineseTrackingNumber(number) {
+  const map = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十']
+  return map[number] || String(number)
+}
+
+function getIncidentTrackingEntries(row) {
+  const raw = String(row?.description || '').trim()
+  if (!raw) return []
+
+  if (!/^第.+次追蹤/.test(raw)) {
+    return [{
+      title: '第一次追蹤',
+      body: raw
+    }]
+  }
+
+  const chunks = raw
+    .split(/\n(?=第(?:一|二|三|四|五|六|七|八|九|十|十一|十二|十三|十四|十五|十六|十七|十八|十九|二十|\d+)次追蹤)/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  return chunks.map(chunk => {
+    const lines = chunk.split('\n')
+    return {
+      title: lines.shift() || '追蹤紀錄',
+      body: lines.join('\n').trim()
+    }
+  })
+}
+
+function buildIncidentTrackingEntry(index, dateText, timeText, content) {
+  const timeLabel = timeText && timeText !== '不指定' ? ` ${timeText}` : ''
+  return `第${chineseTrackingNumber(index)}次追蹤（${dateText}${timeLabel}）\n${String(content || '').trim()}`
+}
+
+function appendIncidentTrackingEntry(row, dateText, timeText, content) {
+  const current = String(row?.description || '').trim()
+  const count = getIncidentTrackingEntries(row).length
+  const nextEntry = buildIncidentTrackingEntry(count + 1, dateText, timeText, content)
+
+  if (!current) return nextEntry
+  if (!/^第.+次追蹤/.test(current)) {
+    return `${buildIncidentTrackingEntry(1, getFieldNoteValue(row, '發生日期') || row.start_date || todayString(), '', current)}\n${nextEntry}`
+  }
+
+  return `${current}\n${nextEntry}`
+}
+
+function renderIncidentTrackingHistory(row) {
+  const entries = getIncidentTrackingEntries(row)
+  if (!entries.length) return ''
+
+  return `
+    <div class="incident-history-panel">
+      <div class="incident-history-title">追蹤紀錄</div>
+      ${entries.map(entry => `
+        <div class="incident-history-item">
+          <strong>${escapeHtml(entry.title)}</strong>
+          ${entry.body ? `<p>${escapeHtml(entry.body).replaceAll('\n', '<br>')}</p>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+function buildIncidentNoteParts(form, incidentType, customerName, responsibleStaff, assistantNames, nextTime) {
+  return [
+    `異況類型：${incidentType}`,
+    `發生日期：${form.get('incident_date')}`,
+    customerName ? `客戶 / 工人：${customerName}` : '',
+    `下次追蹤：${form.get('next_follow_date')}${nextTime ? ' ' + nextTime : ''}`,
+    `負責人：${responsibleStaff.name || ''}`,
+    assistantNames.length ? `協助人員：${assistantNames.join('、')}` : '',
+    form.get('need_service_record') === 'on' ? '服務紀錄單：需要' : '服務紀錄單：不需要',
+    form.get('service_record_submitted') === 'on' ? `服務紀錄單狀態：已繳交${form.get('service_record_submitted_date') ? '｜繳交日期：' + form.get('service_record_submitted_date') : ''}` : ''
+  ].filter(Boolean)
+}
+
+function incidentServiceRecordFieldsHtml(row = null) {
+  const need = row ? !!row.need_service_record : true
+  const submitted = row ? !!row.service_record_submitted : false
+  const submittedDate = row?.service_record_submitted_date || ''
+
+  return `
+    <div class="span-2 incident-service-record-box">
+      <div class="field-title">服務紀錄單</div>
+      <div class="inline-check-list">
+        <label class="inline-check">
+          <input type="checkbox" name="need_service_record" ${need ? 'checked' : ''}>
+          需要服務紀錄單
+        </label>
+        <label class="inline-check">
+          <input type="checkbox" name="service_record_submitted" ${submitted ? 'checked' : ''}>
+          已繳交
+        </label>
+      </div>
+      <label>
+        繳交日期
+        <input name="service_record_submitted_date" type="date" value="${submittedDate}">
+      </label>
+    </div>
+  `
 }
 
 function getIncidentRows() {
@@ -2163,7 +2268,8 @@ function renderIncidentList(rows) {
               <div class="incident-meta">
                 客戶 / 工人：${escapeHtml(row.customer_name || '-')}
               </div>
-              ${row.description ? `<div class="incident-content"><span>本次追蹤：</span>${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', '<br>')}</div>` : ''}
+              ${renderIncidentTrackingHistory(row)}
+              ${row.need_service_record ? `<div class="incident-sr-badge">服務紀錄單：${row.service_record_submitted_date ? '已繳交 ' + escapeHtml(row.service_record_submitted_date) : '需繳交'}</div>` : ''}
               ${row.sub_type_note ? `<div class="incident-note">${escapeHtml(row.sub_type_note)}</div>` : ''}
             </div>
 
@@ -2178,6 +2284,186 @@ function renderIncidentList(rows) {
     </div>
   `
 }
+
+
+function openEditIncidentModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!canModifySchedule(row)) {
+    alert('您沒有權限修改此異況。')
+    return
+  }
+
+  const selectedIds = getAssigneeIds(row)
+  const responsibleId = selectedIds[0] || currentProfile?.staff_id || ''
+  const assistantIds = selectedIds.filter(id => id !== responsibleId)
+  const nextStart = parseTimeForEdit(row.start_time, '', '00')
+  const incidentType = row.sub_type || getFieldNoteValue(row, '異況類型') || '其他'
+  const incidentDate = getFieldNoteValue(row, '發生日期') || row.start_date || todayString()
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>修改異況追蹤</h3>
+        <button class="icon-btn" id="closeEditIncidentModalBtn" type="button">×</button>
+      </div>
+
+      <form id="editIncidentForm" class="form-grid">
+        <label>
+          異況類型
+          <select name="incident_type">${incidentTypeOptionsHtml(incidentType)}</select>
+        </label>
+
+        <label>
+          發生日期
+          <input name="incident_date" type="date" value="${incidentDate}" required>
+        </label>
+
+        <label class="span-2">
+          客戶 / 工人
+          <input name="customer_name" value="${escapeHtml(row.customer_name || getFieldNoteValue(row, '客戶 / 工人') || '')}">
+        </label>
+
+        <label>
+          負責人
+          <select name="responsible_staff_id">${incidentResponsibleOptionsHtml(responsibleId)}</select>
+        </label>
+
+        <label>
+          下次追蹤日期
+          <input name="next_follow_date" type="date" required value="${row.start_date || todayString()}">
+        </label>
+
+        <label class="span-2">
+          下次追蹤時間
+          ${fieldTimeSelectHtml('edit_incident_next', row.start_time ? nextStart.hour : '', row.start_time ? nextStart.minute : '00', row.time_type || '不指定')}
+        </label>
+
+        <div class="span-2">
+          <div class="field-title">協助人員（可複選）</div>
+          <div class="checkbox-list incident-assistant-list">
+            ${incidentAssistantChecksHtml(assistantIds, 'edit_incident_assistant')}
+          </div>
+        </div>
+
+        ${renderIncidentTrackingHistory(row)}
+
+        <label class="span-2">
+          新增追蹤內容
+          <textarea name="new_tracking_content" rows="4" placeholder="輸入後會新增為第${chineseTrackingNumber(getIncidentTrackingEntries(row).length + 1)}次追蹤；若只是調整下次追蹤日期，可先空白。"></textarea>
+        </label>
+
+        ${incidentServiceRecordFieldsHtml(row)}
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelEditIncidentModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存異況修改</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeEditIncidentModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelEditIncidentModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#editIncidentForm').addEventListener('submit', event => saveEditedIncident(event, modal, row))
+}
+
+async function saveEditedIncident(event, modal, originalRow) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const responsibleId = form.get('responsible_staff_id')
+    const assistantIds = [...document.querySelectorAll('input[name="edit_incident_assistant"]:checked')].map(input => input.value)
+    const selectedIds = [...new Set([responsibleId, ...assistantIds].filter(Boolean))]
+    const selectedStaff = staffList.filter(staff => selectedIds.includes(staff.staff_id))
+    const responsibleStaff = staffList.find(staff => staff.staff_id === responsibleId) || selectedStaff[0] || currentProfile
+
+    if (!selectedStaff.length) {
+      alert('請至少選擇一位負責人。')
+      saving = false
+      return
+    }
+
+    const incidentType = form.get('incident_type') || '其他'
+    const customerName = form.get('customer_name') || ''
+    const nextTime = getFieldSingleTimeValue(form, 'edit_incident_next')
+    const assistantNames = selectedStaff
+      .filter(staff => assistantIds.includes(staff.staff_id))
+      .map(staff => staff.name)
+    const newTrackingContent = String(form.get('new_tracking_content') || '').trim()
+    const nextDescription = newTrackingContent
+      ? appendIncidentTrackingEntry(originalRow, todayString(), '', newTrackingContent)
+      : originalRow.description
+
+    const payload = {
+      department_id: responsibleStaff.department_id || currentProfile.department_id,
+      department_name: responsibleStaff.department_name || currentProfile.department_name,
+      category: '異況追蹤',
+      schedule_type: '異況',
+      sub_type: incidentType,
+      sub_type_note: buildIncidentNoteParts(form, incidentType, customerName, responsibleStaff, assistantNames, nextTime).join('｜'),
+      title: `${incidentType}${customerName ? '｜' + customerName : '｜異況追蹤'}`,
+      description: nextDescription || null,
+      start_date: form.get('next_follow_date'),
+      end_date: form.get('next_follow_date'),
+      time_type: getFieldTimeTypeFromForm(form, 'edit_incident_next'),
+      start_time: getFieldDbTimeValue(nextTime),
+      end_time: null,
+      customer_name: customerName || null,
+      need_service_record: form.get('need_service_record') === 'on',
+      service_record_submitted: form.get('service_record_submitted') === 'on',
+      service_record_submitted_date: form.get('service_record_submitted') === 'on' ? (form.get('service_record_submitted_date') || todayString()) : null
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update(payload)
+      .eq('schedule_id', originalRow.schedule_id)
+
+    if (error) {
+      alert('修改異況失敗：' + error.message)
+      saving = false
+      return
+    }
+
+    const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+      target_schedule_id: originalRow.schedule_id,
+      staff_ids_value: selectedIds
+    })
+
+    if (assigneeError) {
+      alert('異況已修改，但負責 / 協助人員同步失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '修改',
+      source_type: 'schedule',
+      source_id: originalRow.schedule_id,
+      note: 'V002-1L-2 修改異況追蹤'
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    alert('修改異況失敗：' + (err?.message || err))
+    saving = false
+  }
+}
+
 
 function openIncidentModal() {
   const modal = document.createElement('div')
@@ -2228,9 +2514,11 @@ function openIncidentModal() {
         </div>
 
         <label class="span-2">
-          本次追蹤 / 處理內容
-          <textarea name="description" rows="4" required placeholder="請輸入本次追蹤、處理內容或目前狀況"></textarea>
+          第一次追蹤 / 處理內容
+          <textarea name="description" rows="4" required placeholder="請輸入第一次追蹤、處理內容或目前狀況"></textarea>
         </label>
+
+        ${incidentServiceRecordFieldsHtml()}
 
         <div class="modal-actions span-2">
           <button type="button" class="secondary-btn" id="cancelIncidentModalBtn">取消</button>
@@ -2268,6 +2556,10 @@ async function saveIncident(event, modal) {
     const incidentType = form.get('incident_type') || '其他'
     const customerName = form.get('customer_name') || ''
     const nextTime = getFieldSingleTimeValue(form, 'incident_next')
+    const assistantNames = selectedStaff
+      .filter(staff => assistantIds.includes(staff.staff_id))
+      .map(staff => staff.name)
+    const firstTracking = buildIncidentTrackingEntry(1, form.get('incident_date'), '', form.get('description'))
 
     const payload = {
       creator_profile_id: currentProfile.profile_id,
@@ -2278,14 +2570,7 @@ async function saveIncident(event, modal) {
       category: '異況追蹤',
       schedule_type: '異況',
       sub_type: incidentType,
-      sub_type_note: [
-        `異況類型：${incidentType}`,
-        `發生日期：${form.get('incident_date')}`,
-        customerName ? `客戶 / 工人：${customerName}` : '',
-        `下次追蹤：${form.get('next_follow_date')}${nextTime ? ' ' + nextTime : ''}`,
-        `負責人：${responsibleStaff.name || ''}`,
-        assistantIds.length ? `協助人員：${selectedStaff.filter(staff => assistantIds.includes(staff.staff_id)).map(staff => staff.name).join('、')}` : ''
-      ].filter(Boolean).join('｜'),
+      sub_type_note: buildIncidentNoteParts(form, incidentType, customerName, responsibleStaff, assistantNames, nextTime).join('｜'),
       title: `${incidentType}${customerName ? '｜' + customerName : '｜異況追蹤'}`,
       description: form.get('description') || null,
       start_date: form.get('next_follow_date'),
@@ -3007,6 +3292,7 @@ function openScheduleDetail(scheduleId) {
       </div>
 
       ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
+      ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row) : ''}
 
       <div class="notice">${permissionNote}</div>
 
@@ -3039,6 +3325,7 @@ function openScheduleDetail(scheduleId) {
     editBtn.addEventListener('click', () => {
       modal.remove()
       if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
+      else if (isIncidentSchedule(row)) openEditIncidentModal(scheduleId)
       else openEditScheduleModal(scheduleId)
     })
   }
@@ -5779,3 +6066,9 @@ function getPersonalReminderTestSummary() {
   schedule_assignees.assignee_type 一律使用 executor，符合現有 DB constraint。
 */
 /* FOR-e V002-1L-1-1 END - incident assignee type fix */
+
+/* FOR-e V002-1L-2 START - incident history edit service record */
+/*
+  V002-1L-2｜異況追蹤修改、追蹤紀錄與服務紀錄單選項
+*/
+/* FOR-e V002-1L-2 END - incident history edit service record */

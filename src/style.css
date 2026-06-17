@@ -4366,3 +4366,63 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1L-1 END - incident tracking */
+
+/* FOR-e V002-1L-2 START - incident history edit service record */
+.incident-history-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.incident-history-title {
+  font-size: 13px;
+  font-weight: 950;
+  color: #9a3412;
+}
+
+.incident-history-item {
+  padding: 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: #fffaf3;
+}
+
+.incident-history-item strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.incident-history-item p {
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.incident-service-record-box {
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  background: #fffaf3;
+}
+
+.incident-service-record-box .inline-check-list {
+  margin-bottom: 8px;
+}
+
+.incident-sr-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 12px;
+  font-weight: 900;
+}
+/* FOR-e V002-1L-2 END - incident history edit service record */
