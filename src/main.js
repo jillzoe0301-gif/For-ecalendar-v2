@@ -3519,6 +3519,113 @@ function renderServiceRecordStatsSection(records) {
   `
 }
 
+
+function getStatsPersonTypeSummary(rows) {
+  const map = new Map()
+
+  rows.forEach(row => {
+    const type = getStatsScheduleType(row)
+    const assignees = (row.schedule_assignees || []).filter(item => !item.deleted_at)
+
+    if (!assignees.length) {
+      const key = '未指定'
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: '未指定',
+          department: '-',
+          total: 0,
+          unfinished: 0,
+          overdue: 0,
+          completed: 0,
+          types: new Map()
+        })
+      }
+      updateStatsPersonTypeRow(map.get(key), row, type)
+      return
+    }
+
+    assignees.forEach(assignee => {
+      const key = assignee.staff_id || assignee.staff_name || '未指定'
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: assignee.staff_name || '-',
+          department: assignee.department_name || '-',
+          total: 0,
+          unfinished: 0,
+          overdue: 0,
+          completed: 0,
+          types: new Map()
+        })
+      }
+      updateStatsPersonTypeRow(map.get(key), row, type)
+    })
+  })
+
+  return [...map.values()]
+    .map(item => ({
+      ...item,
+      typeRows: [...item.types.entries()]
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count)
+    }))
+    .sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total
+      return a.name.localeCompare(b.name, 'zh-Hant')
+    })
+}
+
+function updateStatsPersonTypeRow(item, row, type) {
+  item.total += 1
+  if (row.status === '已完成') item.completed += 1
+  else if (row.status !== '取消') item.unfinished += 1
+  if (isOverdueSchedule(row)) item.overdue += 1
+  item.types.set(type, (item.types.get(type) || 0) + 1)
+}
+
+function renderPersonTypeStats(rows) {
+  const personRows = getStatsPersonTypeSummary(rows)
+
+  return `
+    <section class="clean-stats-section person-type-stats-section">
+      <div class="section-title-row">
+        <h4>人員統計（行程類型）</h4>
+        <span>依人員計算各行程類型，不含會議室</span>
+      </div>
+
+      ${personRows.length ? `
+        <div class="person-type-list">
+          <div class="person-type-head">
+            <span>人員</span>
+            <span>部門</span>
+            <span>總數</span>
+            <span>未完成</span>
+            <span>逾期</span>
+            <span>已完成</span>
+            <span>各行程類型</span>
+          </div>
+
+          ${personRows.map(row => `
+            <div class="person-type-row ${row.overdue ? 'has-overdue' : ''}">
+              <strong>${escapeHtml(row.name)}</strong>
+              <span>${escapeHtml(row.department)}</span>
+              <b>${row.total}</b>
+              <b>${row.unfinished}</b>
+              <b class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</b>
+              <b>${row.completed}</b>
+              <div class="person-type-tags">
+                ${row.typeRows.map(item => `<em>${escapeHtml(item.type)} <i>${item.count}</i></em>`).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">目前沒有統計資料。</div>'}
+    </section>
+  `
+}
+
+
 function renderStatsDashboard() {
   const rows = getStatsFilteredSchedules()
   const records = getStatsFilteredServiceRecords()
@@ -3542,6 +3649,7 @@ function renderStatsDashboard() {
     ${renderStatsMetricCards(rows, records)}
     ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
     ${renderDepartmentTypeStats(rows)}
+    ${renderPersonTypeStats(rows)}
     ${renderServiceRecordStatsSection(records)}
   `
 }
@@ -7480,3 +7588,9 @@ function getPersonalReminderTestSummary() {
   - 以橫列方式顯示行程類型、一部/二部、服務紀錄單統計
 */
 /* FOR-e V002-1N-4 END - statistics simple table style */
+
+/* FOR-e V002-1N-5 START - statistics by person type and smaller numbers */
+/*
+  V002-1N-5｜統計報表增加 BY 人員的行程類型統計，並縮小數字。
+*/
+/* FOR-e V002-1N-5 END - statistics by person type and smaller numbers */

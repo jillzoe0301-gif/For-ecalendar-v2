@@ -5406,3 +5406,109 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-4 END - statistics simple table style */
+
+/* FOR-e V002-1N-5 START - statistics by person type and smaller numbers */
+/* 數字縮小一點 */
+.clean-stat-card strong {
+  font-size: 21px !important;
+}
+
+.simple-stat-row span {
+  font-size: 17px !important;
+}
+
+.service-record-clean-main strong {
+  font-size: 18px !important;
+}
+
+.clean-number-strip b {
+  font-size: 18px !important;
+}
+
+/* BY 人員 × 行程類型統計 */
+.person-type-list {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.person-type-head,
+.person-type-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1.1fr) minmax(100px, 1fr) repeat(4, minmax(62px, 0.55fr)) minmax(260px, 2fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 860px;
+  padding: 11px 14px;
+}
+
+.person-type-head {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.person-type-row {
+  background: #ffffff;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.person-type-row.has-overdue {
+  background: #fffbeb;
+}
+
+.person-type-row strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.person-type-row > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.person-type-row > b {
+  color: #111827;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 950;
+  text-align: center;
+}
+
+.person-type-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.person-type-tags em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.person-type-tags i {
+  color: #111827;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+@media (max-width: 768px) {
+  .person-type-head,
+  .person-type-row {
+    min-width: 820px;
+  }
+}
+/* FOR-e V002-1N-5 END - statistics by person type and smaller numbers */
