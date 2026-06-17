@@ -3093,10 +3093,15 @@ async function saveIncident(event, modal) {
 
 
 
-/* FOR-e V002-1N-1 START - statistics dashboard */
+
+/* FOR-e V002-1N-2 START - statistics dashboard clean type stats */
 /*
-  V002-1N-1｜統計報表
-  使用現有 schedules / schedule_assignees / service_records，不改 SQL、不新增資料表。
+  V002-1N-2｜統計報表簡約版
+  - 會議室不列入統計
+  - 依行程類型統計
+  - 一部 / 二部依行程類型統計
+  - 服務紀錄單同步納入統計
+  - 改為簡約卡片 / 條列，不使用格線表格
 */
 
 function getMonthFirstDay(dateText = todayString()) {
@@ -3134,11 +3139,13 @@ function getStatsDateRange() {
   }
 }
 
-function getStatsCategory(row) {
-  if (isFieldScheduleRow(row)) return '外務行程'
-  if (isIncidentSchedule(row) && !isIncidentTrackingTask?.(row)) return '異況追蹤'
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
-  return row.category || '未分類'
+function isStatsExcludedSchedule(row) {
+  return typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)
+}
+
+function getStatsScheduleType(row) {
+  if (!row) return '未分類'
+  return row.schedule_type || row.category || '未分類'
 }
 
 function getStatsDepartment(row) {
@@ -3150,9 +3157,17 @@ function getAssigneeDepartmentFallback(row) {
   return assignee?.department_name || ''
 }
 
+function getStatsDepartmentGroup(departmentName) {
+  const text = String(departmentName || '')
+  if (text.includes('一部')) return '一部'
+  if (text.includes('二部')) return '二部'
+  return '其他'
+}
+
 function getStatsDepartmentOptions() {
   const names = schedules
     .filter(isVisibleSchedule)
+    .filter(row => !isStatsExcludedSchedule(row))
     .map(getStatsDepartment)
     .filter(Boolean)
 
@@ -3162,7 +3177,8 @@ function getStatsDepartmentOptions() {
 function getStatsCategoryOptions() {
   const items = schedules
     .filter(isVisibleSchedule)
-    .map(getStatsCategory)
+    .filter(row => !isStatsExcludedSchedule(row))
+    .map(getStatsScheduleType)
     .filter(Boolean)
 
   return ['全部', ...new Set(items)]
@@ -3180,13 +3196,14 @@ function getStatsFilteredSchedules() {
 
   return schedules
     .filter(isVisibleSchedule)
+    .filter(row => !isStatsExcludedSchedule(row))
     .filter(row => {
       const date = row.start_date || ''
       if (range.start && date < range.start) return false
       if (range.end && date > range.end) return false
 
       if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
-      if (statsFilters.category !== '全部' && getStatsCategory(row) !== statsFilters.category) return false
+      if (statsFilters.category !== '全部' && getStatsScheduleType(row) !== statsFilters.category) return false
 
       if (statsFilters.staffId !== '全部') {
         const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
@@ -3205,13 +3222,15 @@ function getStatsFilteredServiceRecords() {
     if (range.start && date < range.start) return false
     if (range.end && date > range.end) return false
 
+    const schedule = getServiceRecordSchedule(record)
+    if (schedule && isStatsExcludedSchedule(schedule)) return false
+
     if (statsFilters.department !== '全部' && getServiceRecordDepartment(record) !== statsFilters.department) return false
     if (statsFilters.staffId !== '全部' && record.staff_id !== statsFilters.staffId) return false
 
     if (statsFilters.category !== '全部') {
-      const schedule = getServiceRecordSchedule(record)
-      const category = schedule ? getStatsCategory(schedule) : getServiceRecordScheduleType(record)
-      if (category !== statsFilters.category && getServiceRecordScheduleType(record) !== statsFilters.category) return false
+      const type = schedule ? getStatsScheduleType(schedule) : getServiceRecordScheduleType(record)
+      if (type !== statsFilters.category) return false
     }
 
     return true
@@ -3245,68 +3264,70 @@ function getStatsCountBy(rows, getKey) {
   return [...map.values()].sort((a, b) => b.total - a.total)
 }
 
-function getStatsAssigneeSummary(rows) {
+function getServiceRecordSimpleSummary(records) {
+  return {
+    total: records.length,
+    submitted: records.filter(row => getServiceRecordStatus(row) === '已繳交').length,
+    pending: records.filter(row => getServiceRecordStatus(row) === '未繳交').length,
+    overdue: records.filter(row => getServiceRecordStatus(row) === '超過2週').length
+  }
+}
+
+function getServiceRecordDeptGroupSummary(records) {
+  const base = {
+    '一部': { key: '一部', total: 0, submitted: 0, pending: 0, overdue: 0 },
+    '二部': { key: '二部', total: 0, submitted: 0, pending: 0, overdue: 0 }
+  }
+
+  records.forEach(record => {
+    const group = getStatsDepartmentGroup(getServiceRecordDepartment(record))
+    if (!base[group]) return
+
+    const item = base[group]
+    const status = getServiceRecordStatus(record)
+    item.total += 1
+    if (status === '已繳交') item.submitted += 1
+    if (status === '未繳交') item.pending += 1
+    if (status === '超過2週') item.overdue += 1
+  })
+
+  return [base['一部'], base['二部']]
+}
+
+function getStatsTypeByDepartmentGroups(rows) {
   const map = new Map()
 
   rows.forEach(row => {
-    const assignees = (row.schedule_assignees || []).filter(item => !item.deleted_at)
-    if (!assignees.length) {
-      const key = '未指定'
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          name: '未指定',
-          department: '-',
-          total: 0,
-          completed: 0,
-          unfinished: 0,
-          overdue: 0,
-          field: 0,
-          incident: 0,
-          meeting: 0
-        })
-      }
-      updateStatsAssigneeRow(map.get(key), row)
-      return
+    const group = getStatsDepartmentGroup(getStatsDepartment(row))
+    if (!['一部', '二部'].includes(group)) return
+
+    const type = getStatsScheduleType(row)
+    const key = `${group}__${type}`
+
+    if (!map.has(key)) {
+      map.set(key, {
+        group,
+        type,
+        total: 0,
+        completed: 0,
+        unfinished: 0,
+        overdue: 0
+      })
     }
 
-    assignees.forEach(assignee => {
-      const key = assignee.staff_id || assignee.staff_name || '未指定'
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          name: assignee.staff_name || '-',
-          department: assignee.department_name || '-',
-          total: 0,
-          completed: 0,
-          unfinished: 0,
-          overdue: 0,
-          field: 0,
-          incident: 0,
-          meeting: 0
-        })
-      }
-
-      updateStatsAssigneeRow(map.get(key), row)
-    })
+    const item = map.get(key)
+    item.total += 1
+    if (row.status === '已完成') item.completed += 1
+    else if (row.status !== '取消') item.unfinished += 1
+    if (isOverdueSchedule(row)) item.overdue += 1
   })
 
-  return [...map.values()].sort((a, b) => {
-    if (b.overdue !== a.overdue) return b.overdue - a.overdue
-    if (b.unfinished !== a.unfinished) return b.unfinished - a.unfinished
-    return b.total - a.total
-  })
-}
-
-function updateStatsAssigneeRow(item, row) {
-  const category = getStatsCategory(row)
-  item.total += 1
-  if (row.status === '已完成') item.completed += 1
-  else if (row.status !== '取消') item.unfinished += 1
-  if (isOverdueSchedule(row)) item.overdue += 1
-  if (category === '外務行程') item.field += 1
-  if (category === '異況追蹤') item.incident += 1
-  if (category === '會議室預約') item.meeting += 1
+  return ['一部', '二部'].map(group => ({
+    group,
+    rows: [...map.values()]
+      .filter(item => item.group === group)
+      .sort((a, b) => b.total - a.total)
+  }))
 }
 
 function renderStatsFilterForm() {
@@ -3318,7 +3339,7 @@ function renderStatsFilterForm() {
   const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
 
   return `
-    <form id="statsFilterForm" class="stats-filter-panel">
+    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter">
       <label>
         期間
         <select name="period">${periodOptions}</select>
@@ -3345,7 +3366,7 @@ function renderStatsFilterForm() {
       </label>
 
       <label>
-        類別
+        行程類型
         <select name="category">${categoryOptions}</select>
       </label>
 
@@ -3354,69 +3375,133 @@ function renderStatsFilterForm() {
   `
 }
 
-function renderStatsSummaryCards(rows, records) {
-  const pendingServiceRecords = records.filter(record => getServiceRecordStatus(record) !== '已繳交')
-  const overdueServiceRecords = records.filter(record => getServiceRecordStatus(record) === '超過2週')
+function renderStatsMetricCards(rows, records) {
+  const sr = getServiceRecordSimpleSummary(records)
+  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const overdueRows = rows.filter(isOverdueSchedule)
 
   return `
-    <div class="summary-grid stats-summary-grid">
-      <div class="summary-card">
-        <strong>${rows.length}</strong>
+    <div class="clean-stats-metrics">
+      <div class="clean-stat-card">
         <span>行程總數</span>
+        <strong>${rows.length}</strong>
       </div>
-      <div class="summary-card">
-        <strong>${rows.filter(row => row.status !== '已完成' && row.status !== '取消').length}</strong>
+      <div class="clean-stat-card">
         <span>未完成</span>
+        <strong>${activeRows.length}</strong>
       </div>
-      <div class="summary-card">
-        <strong>${rows.filter(row => row.status === '已完成').length}</strong>
-        <span>已完成</span>
-      </div>
-      <div class="summary-card">
-        <strong>${rows.filter(isOverdueSchedule).length}</strong>
+      <div class="clean-stat-card ${overdueRows.length ? 'is-alert' : ''}">
         <span>逾期行程</span>
+        <strong>${overdueRows.length}</strong>
       </div>
-      <div class="summary-card">
-        <strong>${records.length}</strong>
-        <span>紀錄單</span>
+      <div class="clean-stat-card">
+        <span>服務紀錄單</span>
+        <strong>${sr.total}</strong>
       </div>
-      <div class="summary-card">
-        <strong>${pendingServiceRecords.length}</strong>
-        <span>紀錄單未交</span>
-      </div>
-      <div class="summary-card">
-        <strong>${overdueServiceRecords.length}</strong>
-        <span>紀錄單逾期</span>
+      <div class="clean-stat-card ${sr.pending || sr.overdue ? 'is-alert' : ''}">
+        <span>紀錄單未交 / 逾期</span>
+        <strong>${sr.pending + sr.overdue}</strong>
       </div>
     </div>
   `
 }
 
-function renderStatsBasicTable(title, subtitle, rows, columns) {
+function renderCleanTypeList(title, subtitle, rows) {
+  const maxTotal = Math.max(1, ...rows.map(row => row.total))
+
   return `
-    <section class="stats-table-section">
+    <section class="clean-stats-section">
       <div class="section-title-row">
         <h4>${title}</h4>
         <span>${subtitle || ''}</span>
       </div>
+
       ${rows.length ? `
-        <div class="stats-table-wrap">
-          <table class="stats-table">
-            <thead>
-              <tr>
-                ${columns.map(col => `<th>${escapeHtml(col.label)}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(row => `
-                <tr class="${row.overdue ? 'has-overdue' : ''}">
-                  ${columns.map(col => `<td class="${col.className ? col.className(row) : ''}">${escapeHtml(col.value(row))}</td>`).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+        <div class="clean-type-list">
+          ${rows.map(row => `
+            <div class="clean-type-row ${row.overdue ? 'has-overdue' : ''}">
+              <div class="clean-type-title">
+                <strong>${escapeHtml(row.key || row.type)}</strong>
+                <span>${row.total} 筆</span>
+              </div>
+              <div class="clean-type-bar">
+                <i style="width:${Math.max(6, Math.round((row.total / maxTotal) * 100))}%"></i>
+              </div>
+              <div class="clean-type-meta">
+                <span>未完成 ${row.unfinished}</span>
+                <span class="${row.overdue ? 'is-alert' : ''}">逾期 ${row.overdue}</span>
+                <span>已完成 ${row.completed}</span>
+              </div>
+            </div>
+          `).join('')}
         </div>
       ` : '<div class="empty-state">目前沒有統計資料。</div>'}
+    </section>
+  `
+}
+
+function renderDepartmentTypeStats(rows) {
+  const groups = getStatsTypeByDepartmentGroups(rows)
+
+  return `
+    <section class="clean-stats-section">
+      <div class="section-title-row">
+        <h4>一部、二部統計（行程類型）</h4>
+        <span>不含會議室</span>
+      </div>
+
+      <div class="department-type-grid">
+        ${groups.map(group => `
+          <div class="department-type-card">
+            <h5>${group.group}</h5>
+            ${group.rows.length ? group.rows.map(row => `
+              <div class="department-type-line ${row.overdue ? 'has-overdue' : ''}">
+                <strong>${escapeHtml(row.type)}</strong>
+                <span>${row.total} 筆</span>
+                <small>未完成 ${row.unfinished}｜逾期 ${row.overdue}｜已完成 ${row.completed}</small>
+              </div>
+            `).join('') : '<p class="muted">目前沒有資料</p>'}
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderServiceRecordStatsSection(records) {
+  const summary = getServiceRecordSimpleSummary(records)
+  const deptRows = getServiceRecordDeptGroupSummary(records)
+
+  return `
+    <section class="clean-stats-section service-record-clean-section">
+      <div class="section-title-row">
+        <h4>服務紀錄單統計</h4>
+        <span>連同行程統計一起檢視</span>
+      </div>
+
+      <div class="service-record-clean-grid">
+        <div class="service-record-clean-main ${summary.overdue ? 'has-overdue' : ''}">
+          <strong>${summary.total}</strong>
+          <span>服務紀錄單總數</span>
+          <div>
+            <small>未繳 ${summary.pending}</small>
+            <small class="${summary.overdue ? 'is-alert' : ''}">逾期 ${summary.overdue}</small>
+            <small>已交 ${summary.submitted}</small>
+          </div>
+        </div>
+
+        ${deptRows.map(row => `
+          <div class="service-record-clean-main ${row.overdue ? 'has-overdue' : ''}">
+            <strong>${escapeHtml(row.key)}</strong>
+            <span>${row.total} 筆</span>
+            <div>
+              <small>未繳 ${row.pending}</small>
+              <small class="${row.overdue ? 'is-alert' : ''}">逾期 ${row.overdue}</small>
+              <small>已交 ${row.submitted}</small>
+            </div>
+          </div>
+        `).join('')}
+      </div>
     </section>
   `
 }
@@ -3425,16 +3510,13 @@ function renderStatsDashboard() {
   const rows = getStatsFilteredSchedules()
   const records = getStatsFilteredServiceRecords()
   const range = getStatsDateRange()
-
-  const categoryRows = getStatsCountBy(rows, getStatsCategory)
-  const departmentRows = getStatsCountBy(rows, getStatsDepartment)
-  const assigneeRows = getStatsAssigneeSummary(rows)
+  const typeRows = getStatsCountBy(rows, getStatsScheduleType)
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>統計報表</h3>
-        <p class="muted">期間：${escapeHtml(range.label)}｜依行程、部門、人員與服務紀錄單彙整。</p>
+        <p class="muted">期間：${escapeHtml(range.label)}｜依行程類型、一部 / 二部與服務紀錄單統計。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetStatsFilterBtn">清除條件</button>
@@ -3444,38 +3526,14 @@ function renderStatsDashboard() {
 
     ${renderReadStatus()}
     ${renderStatsFilterForm()}
-    ${renderStatsSummaryCards(rows, records)}
-
-    ${renderStatsBasicTable('類別統計', '依行程類別彙整', categoryRows, [
-      { label: '類別', value: row => row.key },
-      { label: '總數', value: row => row.total },
-      { label: '未完成', value: row => row.unfinished },
-      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
-      { label: '已完成', value: row => row.completed }
-    ])}
-
-    ${renderStatsBasicTable('部門統計', '依部門彙整', departmentRows, [
-      { label: '部門', value: row => row.key },
-      { label: '總數', value: row => row.total },
-      { label: '未完成', value: row => row.unfinished },
-      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
-      { label: '已完成', value: row => row.completed }
-    ])}
-
-    ${renderStatsBasicTable('人員工作量統計', '依執行者彙整', assigneeRows, [
-      { label: '人員', value: row => row.name },
-      { label: '部門', value: row => row.department },
-      { label: '總數', value: row => row.total },
-      { label: '未完成', value: row => row.unfinished },
-      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
-      { label: '外務', value: row => row.field },
-      { label: '異況', value: row => row.incident },
-      { label: '會議室', value: row => row.meeting },
-      { label: '已完成', value: row => row.completed }
-    ])}
+    ${renderStatsMetricCards(rows, records)}
+    ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
+    ${renderDepartmentTypeStats(rows)}
+    ${renderServiceRecordStatsSection(records)}
   `
 }
-/* FOR-e V002-1N-1 END - statistics dashboard */
+/* FOR-e V002-1N-2 END - statistics dashboard clean type stats */
+
 
 
 function renderPageContent() {

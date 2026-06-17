@@ -4964,3 +4964,221 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-1 END - statistics dashboard */
+
+/* FOR-e V002-1N-2 START - statistics dashboard clean type stats */
+/* 簡約統計：不使用格線表格 */
+.stats-table-section,
+.stats-table-wrap,
+.stats-table {
+  display: none !important;
+}
+
+.clean-stats-filter {
+  grid-template-columns: 0.8fr repeat(5, minmax(0, 1fr)) auto;
+  background: #f8fafc;
+  border: 0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.clean-stats-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.clean-stat-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.clean-stat-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.clean-stat-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #111827;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.clean-stat-card.is-alert {
+  background: #fffbeb;
+}
+
+.clean-stat-card.is-alert strong {
+  color: #dc2626;
+}
+
+.clean-stats-section {
+  margin: 18px 0;
+}
+
+.clean-type-list {
+  display: grid;
+  gap: 10px;
+}
+
+.clean-type-row,
+.department-type-card,
+.service-record-clean-main {
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.clean-type-row.has-overdue,
+.department-type-line.has-overdue,
+.service-record-clean-main.has-overdue {
+  background: #fffbeb;
+}
+
+.clean-type-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clean-type-title strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.clean-type-title span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.clean-type-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef2f7;
+  margin: 10px 0;
+}
+
+.clean-type-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #5170ff;
+}
+
+.clean-type-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.clean-type-meta span,
+.department-type-line small,
+.service-record-clean-main small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.is-alert {
+  color: #dc2626 !important;
+}
+
+.department-type-grid,
+.service-record-clean-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.department-type-card h5 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.department-type-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  align-items: baseline;
+  padding: 10px 0;
+}
+
+.department-type-line + .department-type-line {
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.16);
+}
+
+.department-type-line strong {
+  color: #111827;
+}
+
+.department-type-line span {
+  color: #111827;
+  font-weight: 950;
+}
+
+.department-type-line small {
+  grid-column: 1 / -1;
+}
+
+.service-record-clean-grid {
+  grid-template-columns: 1.2fr 1fr 1fr;
+}
+
+.service-record-clean-main strong {
+  display: block;
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.service-record-clean-main span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.service-record-clean-main div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+@media (max-width: 1100px) {
+  .clean-stats-filter,
+  .clean-stats-metrics,
+  .department-type-grid,
+  .service-record-clean-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clean-stats-filter button {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .clean-stats-filter,
+  .clean-stats-metrics,
+  .department-type-grid,
+  .service-record-clean-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clean-stats-filter button {
+    grid-column: span 1;
+  }
+}
+/* FOR-e V002-1N-2 END - statistics dashboard clean type stats */
