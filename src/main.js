@@ -1207,28 +1207,171 @@ function getStaffLoginStatusClass(staff) {
 }
 
 async function sendPasswordResetEmail(email) {
+  openAdminPasswordResetModal(email, '')
+}
+
+function openAdminPasswordResetModal(email = '', staffName = '') {
+  if (!canManageUsers()) {
+    alert('只有管理員可以重設登入密碼。')
+    return
+  }
+
   if (!email) {
     alert('此人員尚未綁定登入 Email，無法重設密碼。')
     return
   }
 
-  if (!confirm(`確定要寄送重設密碼信到 ${email} 嗎？`)) return
+  const tempPassword = generateTemporaryPassword()
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel admin-reset-password-modal">
+      <div class="modal-header">
+        <h3>重設登入密碼</h3>
+        <button class="icon-btn" id="closeAdminResetPasswordBtn" type="button">×</button>
+      </div>
 
-  const redirectOrigin = window.location.hostname === 'localhost'
-    ? 'https://for-ecalendar-v2.vercel.app'
-    : window.location.origin
+      <form id="adminResetPasswordForm" class="form-grid">
+        <div class="span-2 login-create-user-card">
+          <strong>${escapeHtml(staffName || email)}</strong>
+          <span>${escapeHtml(email)}</span>
+        </div>
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${redirectOrigin}/`
-  })
+        <label class="span-2">
+          新臨時密碼
+          <input name="password" type="text" required minlength="4" value="${escapeHtml(tempPassword)}">
+        </label>
 
-  if (error) {
-    console.error(error)
-    alert('寄送重設密碼信失敗：' + error.message)
+        <div class="notice span-2">
+          這個重設會直接把該帳號密碼改成上方臨時密碼，不再寄送 Email，因此不會受 email rate limit 限制。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelAdminResetPasswordBtn">取消</button>
+          <button type="submit" class="primary-btn">直接重設密碼</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeAdminResetPasswordBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelAdminResetPasswordBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#adminResetPasswordForm').addEventListener('submit', event => resetLoginPasswordDirectly(event, modal, email))
+}
+
+async function resetLoginPasswordDirectly(event, modal, email) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const password = String(form.get('password') || '').trim()
+
+    if (password.length < 4) {
+      alert('臨時密碼 4 碼即可，請至少輸入 4 碼。')
+      return
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+
+    if (!accessToken) {
+      alert('登入狀態已失效，請重新登入。')
+      return
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        action: 'reset_password',
+        email,
+        password,
+        frontend_version: 'V002-1P-33'
+      })
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || '重設密碼失敗')
+    }
+
+    modal.remove()
+    alert(`密碼已重設為：${password}\n請提供給使用者登入後自行更改。`)
+  } catch (err) {
+    console.error(err)
+    alert(err.message || '重設密碼失敗。')
+  } finally {
+    saving = false
+  }
+}
+
+async function deleteStaffUser(staffId = '', staffName = '') {
+  if (!canManageUsers()) {
+    alert('只有管理員可以刪除人員。')
     return
   }
 
-  alert('已寄送重設密碼信。請使用者從信件連結回到 FOR-e 後設定新密碼。')
+  if (!staffId) {
+    alert('找不到人員資料。')
+    return
+  }
+
+  if (staffId === currentProfile?.staff_id) {
+    alert('不能刪除目前登入中的自己。')
+    return
+  }
+
+  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const loginEmail = getStaffLoginEmail(staff)
+  const name = staffName || staff?.name || '此人員'
+
+  const confirmed = confirm(`確定要刪除「${name}」嗎？\n\n此操作會將人員從清單隱藏，並停用對應 profile。${loginEmail ? '\n若有登入帳號，建議也不要再使用該帳號。' : ''}`)
+  if (!confirmed) return
+
+  if (saving) return
+  saving = true
+
+  try {
+    const { error } = await supabase
+      .from('staff')
+      .update({
+        status: '停用',
+        deleted_at: new Date().toISOString()
+      })
+      .eq('staff_id', staffId)
+
+    if (error) {
+      console.error(error)
+      alert('刪除人員失敗：' + error.message)
+      return
+    }
+
+    if (loginEmail) {
+      await supabase
+        .from('profiles')
+        .update({ status: '停用' })
+        .eq('email', loginEmail)
+    }
+
+    const settings = getFieldStaffSettings()
+    if (Object.prototype.hasOwnProperty.call(settings, staffId)) {
+      delete settings[staffId]
+      await saveFieldStaffSettings(settings)
+    }
+
+    await refreshData()
+    renderApp()
+    alert('人員已刪除。')
+  } finally {
+    saving = false
+  }
 }
 
 
@@ -1991,7 +2134,11 @@ function renderApp() {
   })
 
   document.querySelectorAll('[data-reset-password-email]').forEach(btn => {
-    btn.addEventListener('click', () => sendPasswordResetEmail(btn.dataset.resetPasswordEmail))
+    btn.addEventListener('click', () => openAdminPasswordResetModal(btn.dataset.resetPasswordEmail, btn.dataset.resetPasswordName || ''))
+  })
+
+  document.querySelectorAll('[data-delete-user]').forEach(btn => {
+    btn.addEventListener('click', () => deleteStaffUser(btn.dataset.deleteUser, btn.dataset.deleteUserName || ''))
   })
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -7618,9 +7765,10 @@ function renderUsersList(rows) {
               <div class="users-action-stack">
                 <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
                 ${loginEmail
-                  ? `<button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" ${canEditUserAccount ? '' : 'disabled'}>重設</button>`
+                  ? `<button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" data-reset-password-name="${escapeHtml(staff.name || '')}" ${canEditUserAccount ? '' : 'disabled'}>重設</button>`
                   : `<button type="button" class="small-secondary-btn users-create-login-btn" data-create-login-staff="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>建立</button>`
                 }
+                <button type="button" class="small-danger-btn users-delete-btn" data-delete-user="${staff.staff_id}" data-delete-user-name="${escapeHtml(staff.name || '')}" ${canEditUserAccount && staff.staff_id !== currentProfile?.staff_id ? '' : 'disabled'}>刪除</button>
               </div>
             </div>
           `
@@ -7830,6 +7978,11 @@ function openUserAccountModal(staffId = '') {
         </label>
 
         <label>
+          手動輸入職務
+          <input name="position_custom" placeholder="若選單沒有，再輸入新職務">
+        </label>
+
+        <label>
           角色權限
           <select name="role" required>
             ${getUserManageRoleOptions(staff?.role || '一般職員')}
@@ -7885,7 +8038,7 @@ async function saveUserAccount(event, modal, staffId = '') {
       name: String(form.get('name') || '').trim(),
       department_id: getDepartmentIdByName(departmentName),
       department_name: departmentName || null,
-      position: String(form.get('position') || '').trim() || null,
+      position: (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim()) || null,
       role: form.get('role') || '一般職員',
       status: form.get('status') || '啟用'
     }
@@ -11536,3 +11689,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 解決 Vercel build error: Expected identifier but found "!"
 */
 /* FOR-e V002-1P-32-1 END - build syntax fix */
+
+/* FOR-e V002-1P-33 START - delete user reset password position custom */
+/*
+  V002-1P-33｜人員刪除、職務手動新增、直接重設密碼
+  - 人員 / 帳號新增刪除鈕
+  - 刪除採停用 + deleted_at 軟刪除，避免破壞歷史行程
+  - 職務可手動輸入新職務
+  - 重設密碼改為直接設定臨時密碼，不再寄送 Email，避免 email rate limit exceeded
+*/
+/* FOR-e V002-1P-33 END - delete user reset password position custom */

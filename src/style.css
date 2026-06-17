@@ -7947,3 +7947,39 @@ button:disabled,
   opacity: 0.55 !important;
 }
 /* FOR-e V002-1P-31 END - role based permissions */
+
+/* FOR-e V002-1P-33 START - delete user reset password position custom */
+.small-danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.small-danger-btn:hover {
+  background: #ffe4e6;
+}
+
+.small-danger-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-reset-password-modal {
+  width: min(640px, 100%);
+}
+
+.admin-reset-password-modal input[name="password"] {
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+/* FOR-e V002-1P-33 END - delete user reset password position custom */
