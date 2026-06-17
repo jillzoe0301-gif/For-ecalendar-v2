@@ -2322,7 +2322,9 @@ async function saveIncident(event, modal) {
       department_id: staff.department_id,
       department_name: staff.department_name,
       position: staff.position,
-      assignee_type: staff.staff_id === responsibleId ? 'responsible' : 'assistant'
+      // schedule_assignees.assignee_type 目前資料庫 check constraint 只允許既有 executor 類型；
+      // 負責 / 協助角色改寫入 sub_type_note，不寫入 assignee_type，避免新增異況時失敗。
+      assignee_type: 'executor'
     }))
 
     const { error: assigneeError } = await supabase.from('schedule_assignees').insert(assigneeRows)
@@ -5769,3 +5771,11 @@ function getPersonalReminderTestSummary() {
   外務時間保留 V002-1K-1-5 的不指定 / 上午 / 下午 + 小時分鐘。
 */
 /* FOR-e V002-1K-1-6 END - field special dropdown */
+
+/* FOR-e V002-1L-1-1 START - incident assignee type fix */
+/*
+  修正新增異況時 schedule_assignees_type_check 失敗。
+  負責人 / 協助人員角色保留在 sub_type_note。
+  schedule_assignees.assignee_type 一律使用 executor，符合現有 DB constraint。
+*/
+/* FOR-e V002-1L-1-1 END - incident assignee type fix */
