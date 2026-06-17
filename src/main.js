@@ -3559,13 +3559,102 @@ function renderServiceRecordPersonPeriodStatus(records, period, title) {
         <span>${rows.length} 筆紀錄</span>
       </div>
       ${summaries.length ? `
-        <div class="sr-person-grid">
-          ${summaries.map(row => `
-            <div class="sr-person-card ${row.overdue ? 'has-overdue' : ''}">
-              <strong>${escapeHtml(row.label)}</strong>
-              ${renderServiceRecordMiniStats(row)}
-            </div>
-          `).join('')}
+        <div class="sr-person-table-wrap">
+          <table class="sr-person-status-table">
+            <thead>
+              <tr>
+                <th>人員</th>
+                <th>總數</th>
+                <th>未繳</th>
+                <th>逾期</th>
+                <th>已交</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaries.map(row => `
+                <tr class="${row.overdue ? 'has-overdue' : ''}">
+                  <td>${escapeHtml(row.label)}</td>
+                  <td>${row.total}</td>
+                  <td>${row.pending}</td>
+                  <td class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</td>
+                  <td>${row.submitted}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state">目前沒有符合條件的繳交狀況。</div>'}
+    </section>
+  `
+}
+
+
+function renderServiceRecordPersonCombinedStatus(records) {
+  const monthRows = getServiceRecordPeriodRows(records, 'month')
+  const yearRows = getServiceRecordPeriodRows(records, 'year')
+
+  const monthSummaryMap = new Map(
+    summarizeServiceRecordRows(
+      monthRows,
+      record => record.staff_id || record.staff_name || '未指定',
+      record => record.staff_name || '-'
+    ).map(row => [row.key, row])
+  )
+
+  const yearSummaryRows = summarizeServiceRecordRows(
+    yearRows,
+    record => record.staff_id || record.staff_name || '未指定',
+    record => record.staff_name || '-'
+  )
+
+  const zero = { total: 0, pending: 0, overdue: 0, submitted: 0 }
+
+  return `
+    <section class="sr-status-section sr-person-combined-section">
+      <div class="section-title-row">
+        <h4>個人員繳交狀況</h4>
+        <span>同表顯示當月 / 當年，不再一人一格</span>
+      </div>
+
+      ${yearSummaryRows.length ? `
+        <div class="sr-person-combined-wrap">
+          <table class="sr-person-combined-table">
+            <thead>
+              <tr>
+                <th rowspan="2">人員</th>
+                <th colspan="4">當月</th>
+                <th colspan="4">當年</th>
+              </tr>
+              <tr>
+                <th>總數</th>
+                <th>未繳</th>
+                <th>逾期</th>
+                <th>已交</th>
+                <th>總數</th>
+                <th>未繳</th>
+                <th>逾期</th>
+                <th>已交</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${yearSummaryRows.map(yearRow => {
+                const monthRow = monthSummaryMap.get(yearRow.key) || zero
+                return `
+                  <tr class="${yearRow.overdue || monthRow.overdue ? 'has-overdue' : ''}">
+                    <td>${escapeHtml(yearRow.label)}</td>
+                    <td>${monthRow.total}</td>
+                    <td>${monthRow.pending}</td>
+                    <td class="${monthRow.overdue ? 'is-alert' : ''}">${monthRow.overdue}</td>
+                    <td>${monthRow.submitted}</td>
+                    <td>${yearRow.total}</td>
+                    <td>${yearRow.pending}</td>
+                    <td class="${yearRow.overdue ? 'is-alert' : ''}">${yearRow.overdue}</td>
+                    <td>${yearRow.submitted}</td>
+                  </tr>
+                `
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       ` : '<div class="empty-state">目前沒有符合條件的繳交狀況。</div>'}
     </section>
@@ -3926,8 +4015,7 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
-    ${renderServiceRecordPersonPeriodStatus(records, 'month', '當月個人員繳交狀況')}
-    ${renderServiceRecordPersonPeriodStatus(records, 'year', '當年個人員繳交狀況')}
+    ${renderServiceRecordPersonCombinedStatus(records)}
     ${renderServiceRecordDepartmentStatus(records)}
     ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
@@ -6855,3 +6943,21 @@ function getPersonalReminderTestSummary() {
   - 繳交明細顯示執行者，不顯示內容
 */
 /* FOR-e V002-1M-2 END - service record month year department detail */
+
+/* FOR-e V002-1M-2-1 START - service record person status table */
+/*
+  V002-1M-2-1｜服務紀錄單個人員繳交狀況改為表格顯示
+  - 當月個人員繳交狀況改表格
+  - 當年個人員繳交狀況改表格
+  - 不再一個人一張卡片
+*/
+/* FOR-e V002-1M-2-1 END - service record person status table */
+
+/* FOR-e V002-1M-2-2 START - service record combined person table */
+/*
+  V002-1M-2-2｜服務紀錄單個人員繳交狀況合併表格
+  - 當月 / 當年合併到同一張表
+  - 不再一人一張卡片
+  - 隱藏舊的人員卡片統計樣式
+*/
+/* FOR-e V002-1M-2-2 END - service record combined person table */

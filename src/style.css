@@ -4728,3 +4728,140 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1M-2 END - service record month year department detail */
+
+/* FOR-e V002-1M-2-1 START - service record person status table */
+.sr-person-grid {
+  display: none !important;
+}
+
+.sr-person-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.sr-person-status-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+
+.sr-person-status-table th,
+.sr-person-status-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+}
+
+.sr-person-status-table th:first-child,
+.sr-person-status-table td:first-child {
+  text-align: left;
+  font-weight: 900;
+  color: #111827;
+}
+
+.sr-person-status-table thead th {
+  background: #f8fafc;
+  color: #6b7280;
+  font-weight: 900;
+}
+
+.sr-person-status-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sr-person-status-table tbody tr.has-overdue {
+  background: #fffbeb;
+}
+
+.sr-person-status-table .is-alert {
+  color: #dc2626;
+  font-weight: 950;
+}
+
+@media (max-width: 768px) {
+  .sr-person-status-table {
+    min-width: 500px;
+  }
+}
+/* FOR-e V002-1M-2-1 END - service record person status table */
+
+/* FOR-e V002-1M-2-2 START - service record combined person table */
+/* 強制隱藏舊版一人一卡片區塊 */
+.service-record-staff-summary,
+.service-record-staff-grid,
+.sr-person-grid {
+  display: none !important;
+}
+
+.sr-person-combined-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.sr-person-combined-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.sr-person-combined-table th,
+.sr-person-combined-table td {
+  padding: 9px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+}
+
+.sr-person-combined-table th:first-child,
+.sr-person-combined-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 950;
+  background: #ffffff;
+  color: #111827;
+}
+
+.sr-person-combined-table thead th {
+  background: #f8fafc;
+  color: #6b7280;
+  font-weight: 950;
+}
+
+.sr-person-combined-table thead th:first-child {
+  z-index: 2;
+  background: #f8fafc;
+}
+
+.sr-person-combined-table tbody tr.has-overdue {
+  background: #fffbeb;
+}
+
+.sr-person-combined-table tbody tr.has-overdue td:first-child {
+  background: #fffbeb;
+}
+
+.sr-person-combined-table .is-alert {
+  color: #dc2626;
+  font-weight: 950;
+}
+
+.sr-person-combined-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .sr-person-combined-table {
+    min-width: 760px;
+  }
+}
+/* FOR-e V002-1M-2-2 END - service record combined person table */
