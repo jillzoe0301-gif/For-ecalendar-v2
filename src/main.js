@@ -6389,7 +6389,7 @@ function renderOptionsPage() {
     <div class="page-toolbar">
       <div>
         <h3>選項管理</h3>
-        <p class="muted">每個選項一行，可新增、刪除與調整順序；修改後按「儲存變更」。</p>
+        <p class="muted">所有選項集中在同一頁，可直接新增、修改、刪除與調整順序。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="optionManagementForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存變更</button>
@@ -6400,48 +6400,24 @@ function renderOptionsPage() {
 
     ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
     ${renderAppSettingSyncNotice()}
-    <div class="notice option-page-notice">可直接修改、新增、刪除或調整順序；儲存後會同步到共用設定。</div>
+    <div class="notice option-page-notice">不再分大項目，所有設定集中顯示。修改完成後按「儲存變更」即可同步到共用設定。</div>
 
-    <form id="optionManagementForm" class="option-management-form">
-      <section class="option-group-card">
-        <div class="option-group-head">
-          <h4>人員 / 帳號相關</h4>
-          <p>管理新增 / 修改人員時使用的部門與職務選項；可新增、刪除，並用上移 / 下移調整順序。</p>
-        </div>
-        <div class="option-group-body">
-          ${optionTextarea('部門選項', 'userManageDepartments', optionLinesValue('userManageDepartments', userManageDefaultDepartments), '每行一個部門，順序會套用在人員新增 / 修改下拉選單', '例如：營運二部')}
-          ${optionTextarea('職務選項', 'userManagePositions', optionLinesValue('userManagePositions', userManageDefaultPositions), '每行一個職務，請勿填角色權限；管理員 / 主管等請放在角色欄位', '例如：副理')}
-        </div>
-      </section>
-
-      <section class="option-group-card">
-        <div class="option-group-head">
-          <h4>行程表單相關</h4>
-          <p>管理服務行程、待辦事項與一般行程會用到的選項。</p>
-        </div>
-        <div class="option-group-body">
-          ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '可新增或修改服務行程類型', '例如：醫療')}
-          ${scheduleTemplateEditor()}
-          ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
-          ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
-          ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
-        </div>
-      </section>
-
-      <section class="option-group-card">
-        <div class="option-group-head">
-          <h4>外務 / 會議室 / 異況</h4>
-          <p>管理外務與會議室、異況追蹤會使用到的選項。</p>
-        </div>
-        <div class="option-group-body">
-          ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改', '例如：送件')}
-          ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '每行一個特殊提醒', '例如：急件')}
-          ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址', '例如：內湖_印辦｜台北市內湖區瑞光路550號2樓')}
-          ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '每行一個異況類型', '例如：醫療異況')}
-          ${optionTextarea('異況緊急程度', 'incidentUrgencyOptions', optionLinesValue('incidentUrgencyOptions', incidentUrgencyOptions), '每行一個緊急程度，可新增或修改', '例如：緊急')}
-          ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '每行一個會議室名稱', '例如：第一會議室')}
-        </div>
-      </section>
+    <form id="optionManagementForm" class="option-management-form option-management-flat">
+      <div class="option-flat-grid">
+        ${optionTextarea('部門選項', 'userManageDepartments', optionLinesValue('userManageDepartments', userManageDefaultDepartments), '用於人員新增 / 修改的部門下拉', '例如：營運二部')}
+        ${optionTextarea('職務選項', 'userManagePositions', optionLinesValue('userManagePositions', userManageDefaultPositions), '用於人員新增 / 修改的職務下拉', '例如：副理')}
+        ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '服務行程會用到的類型', '例如：醫療')}
+        ${scheduleTemplateEditor()}
+        ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '一般待辦可選項目', '例如：送件')}
+        ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '一般行程可選細項', '例如：請假')}
+        ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '公務車下拉選項', '例如：RDG-7626｜賴黃娟')}
+        ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '外務行程目的選項', '例如：送件')}
+        ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '外務特殊提醒選項', '例如：急件')}
+        ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址', '例如：內湖_印辦｜台北市內湖區瑞光路550號2樓')}
+        ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '異況追蹤類型選項', '例如：醫療異況')}
+        ${optionTextarea('異況緊急程度', 'incidentUrgencyOptions', optionLinesValue('incidentUrgencyOptions', incidentUrgencyOptions), '異況緊急程度選項', '例如：緊急')}
+        ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '會議室名稱選項', '例如：第一會議室')}
+      </div>
 
       <div class="option-form-actions">
         <div class="option-action-tip">修改完直接按「儲存變更」即可生效。</div>
@@ -15395,12 +15371,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-76 END - option spacing template width */
 
-/* FOR-e V002-1P-77 START - schedule template half layout */
+/* FOR-e V002-1P-77 START - flat options layout */
 /*
-  V002-1P-77｜行程類型對應內容左右各半
-  - 行程類型對應內容編輯器改成左右兩半版面
-  - 左側行程類型、右側預設帶入內容各佔主要寬度的一半
-  - 移除中間過大的空白，讓畫面更整齊
-  - 其他選項管理欄位同步放鬆間距，不再太擠
+  V002-1P-77｜選項管理不分大項目
+  - 選項管理取消人員 / 行程 / 外務等大分類區塊
+  - 所有選項集中在同一個清單網格，減少空白但保留舒適間距
+  - 行程類型對應內容維持完整寬度
+  - 預設帶入內容欄位加寬加大，方便多行修改
 */
-/* FOR-e V002-1P-77 END - schedule template half layout */
+/* FOR-e V002-1P-77 END - flat options layout */
