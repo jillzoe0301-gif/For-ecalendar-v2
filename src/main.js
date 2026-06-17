@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-73'
+const SYSTEM_VERSION = 'V002-1P-74'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -6159,8 +6159,10 @@ function optionTextarea(label, name, value, hint = '', placeholder = '') {
       <div class="option-edit-body">
         <textarea class="option-hidden-textarea" name="${name}" data-option-editor-value>${escapeHtml(value)}</textarea>
         <div class="option-line-list" data-option-line-list></div>
-        <button type="button" class="secondary-btn option-add-line-btn" data-option-add-line>＋ 新增一筆</button>
-        ${placeholder ? `<div class="option-placeholder-tip">${escapeHtml(placeholder)}</div>` : ''}
+        <div class="option-mini-actions">
+          <button type="button" class="secondary-btn option-add-line-btn" data-option-add-line>＋ 新增</button>
+          ${placeholder ? `<span>${escapeHtml(placeholder)}</span>` : ''}
+        </div>
       </div>
     </section>
   `
@@ -6171,9 +6173,9 @@ function createOptionLineRow(value = '') {
   row.className = 'option-line-row'
   row.innerHTML = `
     <input data-option-line-input value="${escapeHtml(value)}" placeholder="請輸入選項內容">
-    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-up>上移</button>
-    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-down>下移</button>
-    <button type="button" class="danger-btn option-line-remove-btn" data-option-remove-line>刪除</button>
+    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-up title="上移" aria-label="上移">↑</button>
+    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-down title="下移" aria-label="下移">↓</button>
+    <button type="button" class="danger-btn option-line-remove-btn" data-option-remove-line title="刪除" aria-label="刪除">×</button>
   `
   return row
 }
@@ -6256,7 +6258,7 @@ function renderOptionsPage() {
     <div class="page-toolbar">
       <div>
         <h3>選項管理</h3>
-        <p class="muted">直接在下方新增或更新即可。每個選項一行；外務地點格式為「地點名稱｜地址」；行程類型對應內容格式為「行程類型｜內容」，換行可用 \n。</p>
+        <p class="muted">每個選項一行，可新增、刪除與調整順序；修改後按「儲存變更」。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="optionManagementForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存變更</button>
@@ -6267,7 +6269,7 @@ function renderOptionsPage() {
 
     ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
     ${renderAppSettingSyncNotice()}
-    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接修改文字、補新的一行、刪掉不要的項目，也可以用上移 / 下移調整順序後按「儲存變更」。儲存後會優先同步到 Supabase 共用設定。</div>
+    <div class="notice option-page-notice">可直接修改、新增、刪除或調整順序；儲存後會同步到共用設定。</div>
 
     <form id="optionManagementForm" class="option-management-form">
       <section class="option-group-card">
@@ -15152,11 +15154,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /* FOR-e V002-1P-65 START - production wording cleanup */
 /*
   V002-1P-65｜正式版文案清理
-  - 登入頁移除測試項目文字
-  - 系統檢查頁將測試字樣改為確認 / 驗收語氣
-  - 角色實測改為角色確認
-  - 上線前測試清單改為上線前確認清單
-  - 空白佔位頁移除測試文案
+  - 登入頁移除確認項目文字
+  - 系統檢查頁將確認字樣改為確認 / 驗收語氣
+  - 角色確認改為角色確認
+  - 上線前確認清單改為上線前確認清單
+  - 空白佔位頁移除確認文案
   - 系統版本更新為 V002-1P-65
 */
 /* FOR-e V002-1P-65 END - production wording cleanup */
@@ -15232,3 +15234,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 職務選項自動排除管理員、主管、行政/海外、外務/宿管人員/會計等角色類文字
 */
 /* FOR-e V002-1P-73 END - department position management */
+
+/* FOR-e V002-1P-74 START - compact options page */
+/*
+  V002-1P-74｜選項管理簡約化
+  - 選項管理頁面改成更乾淨、緊湊、清楚
+  - 選項列按鈕改為 ↑ / ↓ / ×，減少佔版面
+  - 部門 / 職務與其他選項維護保留新增、刪除、上移、下移
+  - 清理系統內殘留確認版文案
+*/
+/* FOR-e V002-1P-74 END - compact options page */

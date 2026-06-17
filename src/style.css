@@ -11168,3 +11168,187 @@ body {
   }
 }
 /* FOR-e V002-1P-64 END - mobile nav icon size */
+
+/* FOR-e V002-1P-74 START - compact options page */
+/* 選項管理：乾淨簡約版 */
+.option-page-notice {
+  margin-bottom: 10px !important;
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+.option-management-form {
+  display: grid;
+  gap: 12px !important;
+}
+
+.option-group-card {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.option-group-head {
+  padding: 12px 14px 9px !important;
+}
+
+.option-group-head h4 {
+  margin: 0 0 2px !important;
+  font-size: 16px !important;
+}
+
+.option-group-head p {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.option-group-body {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 10px !important;
+  padding: 12px !important;
+}
+
+.option-edit-box {
+  gap: 7px !important;
+  padding: 10px !important;
+  border-radius: 14px !important;
+}
+
+.option-edit-head {
+  display: grid;
+  gap: 2px;
+}
+
+.option-edit-head h4 {
+  margin: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+.option-edit-head p {
+  margin: 0 !important;
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+}
+
+.option-line-list {
+  display: grid !important;
+  gap: 5px !important;
+  max-height: 238px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.option-line-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 30px 30px 30px !important;
+  gap: 5px !important;
+  align-items: center !important;
+}
+
+.option-line-row input {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 6px 9px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+}
+
+.option-line-move-btn,
+.option-line-remove-btn {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+}
+
+.option-line-remove-btn {
+  font-size: 18px !important;
+}
+
+.option-mini-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.option-mini-actions span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-add-line-btn {
+  width: auto !important;
+  min-height: 34px !important;
+  margin-top: 0 !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+
+.option-placeholder-tip {
+  display: none !important;
+}
+
+.option-form-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 6;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, .22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(8px);
+}
+
+.option-action-tip {
+  font-size: 12px !important;
+}
+
+@media (max-width: 768px) {
+  .option-group-body {
+    grid-template-columns: 1fr !important;
+    padding: 10px !important;
+  }
+
+  .option-line-row {
+    grid-template-columns: minmax(0, 1fr) 32px 32px 32px !important;
+  }
+
+  .option-line-move-btn,
+  .option-line-remove-btn {
+    width: 32px !important;
+    min-width: 32px !important;
+  }
+
+  .option-mini-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .option-mini-actions span {
+    white-space: normal;
+  }
+
+  .option-form-actions {
+    position: static;
+    display: grid !important;
+  }
+
+  .option-form-actions .primary-btn {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1P-74 END - compact options page */
