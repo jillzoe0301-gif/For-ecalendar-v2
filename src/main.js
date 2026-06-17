@@ -347,6 +347,12 @@ let serviceRecordFilters = {
   endDate: ''
 }
 
+let userAccountFilters = {
+  keyword: '',
+  department: '全部',
+  role: '全部'
+}
+
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
 }
@@ -1050,6 +1056,32 @@ function renderApp() {
     resetOptionManagementBtn.addEventListener('click', () => {
       if (!confirm('確定要還原選項管理為系統預設值嗎？')) return
       resetManagedOptions()
+      renderApp()
+    })
+  }
+
+  const usersFilterForm = document.querySelector('#usersFilterForm')
+  if (usersFilterForm) {
+    usersFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      userAccountFilters = {
+        keyword: form.get('keyword') || '',
+        department: form.get('department') || '全部',
+        role: form.get('role') || '全部'
+      }
+      renderApp()
+    })
+  }
+
+  const resetUsersFilterBtn = document.querySelector('#resetUsersFilterBtn')
+  if (resetUsersFilterBtn) {
+    resetUsersFilterBtn.addEventListener('click', () => {
+      userAccountFilters = {
+        keyword: '',
+        department: '全部',
+        role: '全部'
+      }
       renderApp()
     })
   }
@@ -5173,16 +5205,139 @@ function renderRecordSubmit() {
   `
 }
 
-function renderUsersPage() {
+function getUserAccountDepartmentOptions() {
+  const names = ['全部', ...new Set(staffList.map(staff => staff.department_name).filter(Boolean))]
+  return names.map(name => `<option value="${escapeHtml(name)}" ${userAccountFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+}
+
+function getUserAccountRoleOptions() {
+  const roles = ['全部', ...new Set(staffList.map(staff => staff.role).filter(Boolean))]
+  return roles.map(role => `<option value="${escapeHtml(role)}" ${userAccountFilters.role === role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
+}
+
+function matchesUserAccountFilters(staff) {
+  if (userAccountFilters.department !== '全部' && staff.department_name !== userAccountFilters.department) return false
+  if (userAccountFilters.role !== '全部' && staff.role !== userAccountFilters.role) return false
+
+  const keyword = normalizeText(userAccountFilters.keyword)
+  if (!keyword) return true
+
+  const text = [
+    staff.name,
+    staff.department_name,
+    staff.position,
+    staff.role,
+    staff.status
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  return text.includes(keyword)
+}
+
+function renderUsersSummary(rows) {
+  const deptOne = rows.filter(staff => String(staff.department_name || '').includes('一部')).length
+  const deptTwo = rows.filter(staff => String(staff.department_name || '').includes('二部')).length
+  const translators = rows.filter(staff => String(staff.position || '').includes('翻譯') || staff.role === '翻譯').length
+
   return `
-    <h3>人員 / 帳號</h3>
+    <div class="summary-grid users-summary-grid">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>人員總數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${deptOne}</strong>
+        <span>一部人員</span>
+      </div>
+      <div class="summary-card">
+        <strong>${deptTwo}</strong>
+        <span>二部人員</span>
+      </div>
+      <div class="summary-card">
+        <strong>${translators}</strong>
+        <span>翻譯 / 紀錄單人員</span>
+      </div>
+    </div>
+  `
+}
+
+function renderUsersList(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">目前沒有符合條件的人員。</div>`
+  }
+
+  return `
+    <div class="users-table-wrap">
+      <div class="users-table">
+        <div class="users-table-head">
+          <span>人員名稱</span>
+          <span>部門</span>
+          <span>職務</span>
+          <span>角色</span>
+          <span>狀態</span>
+        </div>
+
+        ${rows.map(staff => `
+          <div class="users-table-row">
+            <strong>${escapeHtml(staff.name || '-')}</strong>
+            <span>${escapeHtml(staff.department_name || '-')}</span>
+            <span>${escapeHtml(staff.position || '-')}</span>
+            <span>${escapeHtml(staff.role || '-')}</span>
+            <span>${escapeHtml(staff.status || '啟用')}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `
+}
+
+function renderUsersPage() {
+  const rows = staffList.filter(matchesUserAccountFilters)
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>人員 / 帳號</h3>
+        <p class="muted">查看目前啟用人員、部門、職務與角色。帳號新增 / 停用後續再接 Supabase 權限管理。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
     <div class="notice">
       權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
     </div>
-    <div class="empty-state">
-      <strong>目前登入帳號</strong>
-      <p>${currentProfile.email}</p>
-    </div>
+
+    <form id="usersFilterForm" class="users-filter-panel">
+      <label>
+        關鍵字
+        <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
+      </label>
+
+      <label>
+        部門
+        <select name="department">${getUserAccountDepartmentOptions()}</select>
+      </label>
+
+      <label>
+        角色
+        <select name="role">${getUserAccountRoleOptions()}</select>
+      </label>
+
+      <button type="submit" class="primary-btn">篩選</button>
+    </form>
+
+    <section class="current-user-card">
+      <div>
+        <span>目前登入帳號</span>
+        <strong>${escapeHtml(currentProfile.name || currentProfile.email)}</strong>
+      </div>
+      <p>${escapeHtml(currentProfile.role || '-')}｜${escapeHtml(currentProfile.department_name || '-')}｜${escapeHtml(currentProfile.position_name || currentProfile.position || '-')}</p>
+    </section>
+
+    ${renderUsersSummary(rows)}
+    ${renderUsersList(rows)}
   `
 }
 
@@ -8346,3 +8501,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留 V002-1P-2-3 左側靠左對齊設定
 */
 /* FOR-e V002-1P-2-4 END - uploaded named nav icons */
+
+/* FOR-e V002-1P-4 START - users account page */
+/*
+  V002-1P-4｜人員 / 帳號頁正式列表
+  - 顯示目前啟用人員清單
+  - 支援關鍵字 / 部門 / 角色篩選
+  - 顯示人員統計與目前登入帳號
+  - 不改 SQL、不新增資料表
+*/
+/* FOR-e V002-1P-4 END - users account page */
