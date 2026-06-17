@@ -8393,3 +8393,116 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-38 END - mobile layout polish */
+
+/* FOR-e V002-1P-39 START - user account view permissions */
+/* 人員 / 帳號權限與操作按鈕整理 */
+.users-table-permission-view .users-table-head,
+.users-table-permission-view .users-table-row {
+  grid-template-columns: minmax(130px, 1.08fr) minmax(110px, 0.74fr) minmax(118px, 0.82fr) minmax(92px, 0.64fr) minmax(180px, 1.35fr) 52px minmax(76px, 0.52fr) 220px !important;
+}
+
+.users-table-row.is-deleted-user {
+  background: #f8fafc;
+  opacity: 0.74;
+}
+
+.user-status-pill.is-deleted {
+  background: #e5e7eb !important;
+  color: #475569 !important;
+}
+
+.users-action-stack-polished {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.user-action-btn {
+  width: 52px;
+  min-width: 52px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.06);
+}
+
+.user-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+.user-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.user-action-btn.is-edit {
+  background: #eef5ff;
+  border-color: #c7d2fe;
+  color: #3155d4;
+}
+
+.user-action-btn.is-reset {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.user-action-btn.is-create {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.user-action-btn.is-activate {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.user-action-btn.is-delete {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.users-action-muted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.user-self-only-notice {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+
+@media (max-width: 1100px) {
+  .users-table-permission-view .users-table-head,
+  .users-table-permission-view .users-table-row {
+    min-width: 1120px;
+  }
+}
+/* FOR-e V002-1P-39 END - user account view permissions */

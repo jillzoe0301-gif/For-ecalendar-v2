@@ -701,6 +701,72 @@ function canManageUsers() {
   return hasRolePermission('manageUsers')
 }
 
+
+function isSupervisorRole() {
+  return getRoleName() === '主管'
+}
+
+function canViewAllUserAccounts() {
+  return canManageUsers() || isSupervisorRole()
+}
+
+function canToggleUserFieldStaff() {
+  return canManageUsers() || isSupervisorRole()
+}
+
+function isStaffDeleted(staff) {
+  return Boolean(staff?.deleted_at)
+}
+
+function getStaffDisplayStatus(staff) {
+  if (isStaffDeleted(staff)) return '已刪除'
+  return staff?.status || '啟用'
+}
+
+function getStaffStatusClass(staff) {
+  if (isStaffDeleted(staff)) return 'is-deleted'
+  if (staff?.status === '停用') return 'is-disabled'
+  return ''
+}
+
+function isCurrentProfileStaff(staff) {
+  if (!currentProfile || !staff) return false
+  if (currentProfile.staff_id && staff.staff_id === currentProfile.staff_id) return true
+  if (currentProfile.email && getStaffLoginEmail(staff) === currentProfile.email) return true
+  if (currentProfile.name && staff.name === currentProfile.name) return true
+  return false
+}
+
+function canViewUserAccountRow(staff) {
+  if (canViewAllUserAccounts()) return true
+  return isCurrentProfileStaff(staff)
+}
+
+function getUserAccountVisibleRows(rows) {
+  return (rows || []).filter(canViewUserAccountRow)
+}
+
+function canEditUserProfile(staff) {
+  return canManageUsers()
+}
+
+function canResetUserPassword(staff) {
+  return canManageUsers() && Boolean(getStaffLoginEmail(staff))
+}
+
+function canCreateUserLogin(staff) {
+  return canManageUsers() && !getStaffLoginEmail(staff) && !isStaffDeleted(staff) && getStaffDisplayStatus(staff) === '啟用'
+}
+
+function canDeleteUserProfile(staff) {
+  return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && !isStaffDeleted(staff)
+}
+
+function canActivateUserProfile(staff) {
+  return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && (isStaffDeleted(staff) || getStaffDisplayStatus(staff) === '停用')
+}
+
+
 function canManageOptions() {
   return hasRolePermission('manageOptions')
 }
@@ -1332,7 +1398,7 @@ async function deleteStaffUser(staffId = '', staffName = '') {
   const loginEmail = getStaffLoginEmail(staff)
   const name = staffName || staff?.name || '此人員'
 
-  const confirmed = confirm(`確定要刪除「${name}」嗎？\n\n此操作會將人員從清單隱藏，並停用對應 profile。${loginEmail ? '\n若有登入帳號，建議也不要再使用該帳號。' : ''}`)
+  const confirmed = confirm(`確定要刪除「${name}」嗎？\n\n此操作會將人員標記為已刪除並停用，不會破壞歷史行程紀錄。${loginEmail ? '\n若有登入帳號，profile 也會同步停用。' : ''}`)
   if (!confirmed) return
 
   if (saving) return
@@ -1369,6 +1435,56 @@ async function deleteStaffUser(staffId = '', staffName = '') {
     await refreshData()
     renderApp()
     alert('人員已刪除。')
+  } finally {
+    saving = false
+  }
+}
+
+async function activateStaffUser(staffId = '', staffName = '') {
+  if (!canManageUsers()) {
+    alert('只有管理員可以啟用人員。')
+    return
+  }
+
+  if (!staffId) {
+    alert('找不到人員資料。')
+    return
+  }
+
+  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const loginEmail = getStaffLoginEmail(staff)
+  const name = staffName || staff?.name || '此人員'
+
+  if (!confirm(`確定要啟用「${name}」嗎？`)) return
+
+  if (saving) return
+  saving = true
+
+  try {
+    const { error } = await supabase
+      .from('staff')
+      .update({
+        status: '啟用',
+        deleted_at: null
+      })
+      .eq('staff_id', staffId)
+
+    if (error) {
+      console.error(error)
+      alert('啟用人員失敗：' + error.message)
+      return
+    }
+
+    if (loginEmail) {
+      await supabase
+        .from('profiles')
+        .update({ status: '啟用' })
+        .eq('email', loginEmail)
+    }
+
+    await refreshData()
+    renderApp()
+    alert('人員已啟用。')
   } finally {
     saving = false
   }
@@ -1568,7 +1684,6 @@ async function loadStaff() {
   const { data, error } = await supabase
     .from('staff')
     .select('staff_id, name, department_id, department_name, position, role, status, deleted_at, display_order')
-    .is('deleted_at', null)
     .order('display_order', { ascending: true })
 
   if (error) {
@@ -1579,7 +1694,7 @@ async function loadStaff() {
   }
 
   allStaffList = data || []
-  staffList = allStaffList.filter(staff => (staff.status || '啟用') === '啟用')
+  staffList = allStaffList.filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
 }
 
 async function loadSchedules() {
@@ -2139,6 +2254,10 @@ function renderApp() {
 
   document.querySelectorAll('[data-delete-user]').forEach(btn => {
     btn.addEventListener('click', () => deleteStaffUser(btn.dataset.deleteUser, btn.dataset.deleteUserName || ''))
+  })
+
+  document.querySelectorAll('[data-activate-user]').forEach(btn => {
+    btn.addEventListener('click', () => activateStaffUser(btn.dataset.activateUser, btn.dataset.activateUserName || ''))
   })
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -6027,7 +6146,7 @@ function getUserCsvColumns() {
     { header: '登入帳號', value: row => getStaffLoginEmail(row) || '' },
     { header: '帳號狀態', value: row => getStaffLoginStatus(row) },
     { header: '是否外務人員', value: row => isStaffFieldWorker(row) ? '是' : '否' },
-    { header: '狀態', value: row => row.status || '啟用' },
+    { header: '狀態', value: row => getStaffDisplayStatus(row) },
     { header: '顯示順序', value: row => row.display_order || '' }
   ]
 }
@@ -7660,7 +7779,7 @@ function matchesUserAccountFilters(staff) {
     staff.department_name,
     staff.position,
     staff.role,
-    staff.status,
+    getStaffDisplayStatus(staff),
     isFieldStaff ? '外務人員' : ''
   ].filter(Boolean).join(' ').toLowerCase()
 
@@ -7685,8 +7804,9 @@ function getUsersDepartmentSummary(rows) {
 }
 
 function renderUsersSummary(rows) {
-  const activeCount = rows.filter(staff => (staff.status || '啟用') === '啟用').length
-  const disabledCount = rows.filter(staff => staff.status === '停用').length
+  const activeCount = rows.filter(staff => !isStaffDeleted(staff) && (staff.status || '啟用') === '啟用').length
+  const disabledCount = rows.filter(staff => !isStaffDeleted(staff) && staff.status === '停用').length
+  const deletedCount = rows.filter(isStaffDeleted).length
   const fieldStaffCount = rows.filter(isStaffFieldWorker).length
   const boundAccountCount = rows.filter(staff => Boolean(getStaffLoginEmail(staff))).length
   const departmentStats = getUsersDepartmentSummary(rows)
@@ -7704,6 +7824,10 @@ function renderUsersSummary(rows) {
       <div class="summary-card">
         <strong>${disabledCount}</strong>
         <span>停用人員</span>
+      </div>
+      <div class="summary-card">
+        <strong>${deletedCount}</strong>
+        <span>已刪除</span>
       </div>
       <div class="summary-card">
         <strong>${fieldStaffCount}</strong>
@@ -7730,10 +7854,11 @@ function renderUsersList(rows) {
   }
 
   const canEditUserAccount = canManageUsers()
+  const canToggleFieldStaff = canToggleUserFieldStaff()
 
   return `
     <div class="users-table-wrap">
-      <div class="users-table users-table-field-staff users-table-account-manage users-table-login-manage">
+      <div class="users-table users-table-field-staff users-table-account-manage users-table-login-manage users-table-permission-view">
         <div class="users-table-head">
           <span>人員名稱</span>
           <span>部門</span>
@@ -7747,8 +7872,32 @@ function renderUsersList(rows) {
 
         ${rows.map(staff => {
           const loginEmail = getStaffLoginEmail(staff)
+          const statusText = getStaffDisplayStatus(staff)
+          const canShowActions = canEditUserAccount
+          const actionButtons = canShowActions
+            ? `
+                <button type="button" class="user-action-btn is-edit" data-edit-user="${staff.staff_id}" ${canEditUserProfile(staff) ? '' : 'disabled'}>修改</button>
+                ${canResetUserPassword(staff)
+                  ? `<button type="button" class="user-action-btn is-reset" data-reset-password-email="${escapeHtml(loginEmail)}" data-reset-password-name="${escapeHtml(staff.name || '')}">重設</button>`
+                  : ''
+                }
+                ${canCreateUserLogin(staff)
+                  ? `<button type="button" class="user-action-btn is-create" data-create-login-staff="${staff.staff_id}">建立</button>`
+                  : ''
+                }
+                ${canActivateUserProfile(staff)
+                  ? `<button type="button" class="user-action-btn is-activate" data-activate-user="${staff.staff_id}" data-activate-user-name="${escapeHtml(staff.name || '')}">啟用</button>`
+                  : ''
+                }
+                ${canDeleteUserProfile(staff)
+                  ? `<button type="button" class="user-action-btn is-delete" data-delete-user="${staff.staff_id}" data-delete-user-name="${escapeHtml(staff.name || '')}">刪除</button>`
+                  : ''
+                }
+              `
+            : `<span class="users-action-muted">${canToggleFieldStaff ? '可調整外務' : '僅檢視'}</span>`
+
           return `
-            <div class="users-table-row ${staff.status === '停用' ? 'is-disabled-user' : ''}">
+            <div class="users-table-row ${statusText === '停用' ? 'is-disabled-user' : ''} ${statusText === '已刪除' ? 'is-deleted-user' : ''}">
               <strong>${escapeHtml(staff.name || '-')}</strong>
               <span>${escapeHtml(staff.department_name || '-')}</span>
               <span>${escapeHtml(staff.position || '-')}</span>
@@ -7758,17 +7907,12 @@ function renderUsersList(rows) {
                 ${loginEmail ? `<small>${escapeHtml(loginEmail)}</small>` : `<small>尚未建立登入帳號</small>`}
               </div>
               <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
-                <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditUserAccount ? '' : 'disabled'}>
+                <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canToggleFieldStaff ? '' : 'disabled'}>
                 <span class="field-staff-switch" aria-hidden="true"></span>
               </label>
-              <span class="user-status-pill ${staff.status === '停用' ? 'is-disabled' : ''}">${escapeHtml(staff.status || '啟用')}</span>
-              <div class="users-action-stack">
-                <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
-                ${loginEmail
-                  ? `<button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" data-reset-password-name="${escapeHtml(staff.name || '')}" ${canEditUserAccount ? '' : 'disabled'}>重設</button>`
-                  : `<button type="button" class="small-secondary-btn users-create-login-btn" data-create-login-staff="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>建立</button>`
-                }
-                <button type="button" class="small-danger-btn users-delete-btn" data-delete-user="${staff.staff_id}" data-delete-user-name="${escapeHtml(staff.name || '')}" ${canEditUserAccount && staff.staff_id !== currentProfile?.staff_id ? '' : 'disabled'}>刪除</button>
+              <span class="user-status-pill ${getStaffStatusClass(staff)}">${escapeHtml(statusText)}</span>
+              <div class="users-action-stack users-action-stack-polished">
+                ${actionButtons}
               </div>
             </div>
           `
@@ -7780,54 +7924,57 @@ function renderUsersList(rows) {
 
 function renderUsersPage() {
   const sourceRows = allStaffList.length ? allStaffList : staffList
-  const rows = sourceRows.filter(matchesUserAccountFilters)
+  const rows = getUserAccountVisibleRows(sourceRows).filter(matchesUserAccountFilters)
   const canEditUserAccount = canManageUsers()
+  const canViewAllAccounts = canViewAllUserAccounts()
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>人員 / 帳號</h3>
-        <p class="muted">管理人員基本資料、角色、狀態與是否為外務人員。登入帳號 / 密碼會在下一階段串 Supabase Auth。</p>
+        <p class="muted">依角色顯示帳號資訊：管理員可全部管理；主管可看全部並調整外務；其他角色只看自己的帳號資訊。</p>
       </div>
       <div class="toolbar-actions">
         ${canEditUserAccount ? '<button class="secondary-btn" id="checkLoginFunctionBtn">檢查帳號功能</button><button class="primary-btn" id="addUserAccountBtn">新增人員</button>' : ''}
-        <button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>
+        ${canViewAllAccounts ? '<button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
 
     <div class="notice">
-      權限規則已依角色執行：管理員可管理帳號與選項；主管 / 行政可管理行程；翻譯與一般角色只能操作自己建立或被指派的事項。
+      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。
     </div>
     ${renderAppSettingSyncNotice()}
 
-    <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
-      <label>
-        關鍵字
-        <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
-      </label>
+    ${canViewAllAccounts ? `
+      <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
+        <label>
+          關鍵字
+          <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
+        </label>
 
-      <label>
-        部門
-        <select name="department">${getUserAccountDepartmentOptions()}</select>
-      </label>
+        <label>
+          部門
+          <select name="department">${getUserAccountDepartmentOptions()}</select>
+        </label>
 
-      <label>
-        角色
-        <select name="role">${getUserAccountRoleOptions()}</select>
-      </label>
+        <label>
+          角色
+          <select name="role">${getUserAccountRoleOptions()}</select>
+        </label>
 
-      <label>
-        是否外務人員
-        <select name="fieldStaff">
-          <option value="全部" ${userAccountFilters.fieldStaff === '全部' ? 'selected' : ''}>全部</option>
-          <option value="是" ${userAccountFilters.fieldStaff === '是' ? 'selected' : ''}>是</option>
-          <option value="否" ${userAccountFilters.fieldStaff === '否' ? 'selected' : ''}>否</option>
-        </select>
-      </label>
+        <label>
+          是否外務人員
+          <select name="fieldStaff">
+            <option value="全部" ${userAccountFilters.fieldStaff === '全部' ? 'selected' : ''}>全部</option>
+            <option value="是" ${userAccountFilters.fieldStaff === '是' ? 'selected' : ''}>是</option>
+            <option value="否" ${userAccountFilters.fieldStaff === '否' ? 'selected' : ''}>否</option>
+          </select>
+        </label>
 
-      <button type="submit" class="primary-btn">篩選</button>
-    </form>
+        <button type="submit" class="primary-btn">篩選</button>
+      </form>
+    ` : '<div class="notice user-self-only-notice">目前角色只顯示自己的帳號資訊，如需修改資料請洽管理員。</div>'}
 
     <section class="current-user-card">
       <div>
@@ -11709,3 +11856,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 設定新密碼頁提示改為至少 6 碼
 */
 /* FOR-e V002-1P-36 END - password min 6 */
+
+/* FOR-e V002-1P-39 START - user account view permissions */
+/*
+  V002-1P-39｜人員帳號檢視權限與操作按鈕整理
+  - 管理員：全部檢視、修改、重設、建立、刪除、啟用
+  - 主管：全部檢視，只能調整是否外務人員
+  - 行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員：只看自己的帳號資訊
+  - 右側操作按鈕統一大小、字型與樣式
+*/
+/* FOR-e V002-1P-39 END - user account view permissions */
