@@ -857,8 +857,12 @@ async function sendPasswordResetEmail(email) {
 
   if (!confirm(`確定要寄送重設密碼信到 ${email} 嗎？`)) return
 
+  const redirectOrigin = window.location.hostname === 'localhost'
+    ? 'https://for-ecalendar-v2.vercel.app'
+    : window.location.origin
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin
+    redirectTo: `${redirectOrigin}/`
   })
 
   if (error) {
@@ -867,7 +871,7 @@ async function sendPasswordResetEmail(email) {
     return
   }
 
-  alert('已寄送重設密碼信。')
+  alert('已寄送重設密碼信。請使用者從信件連結回到 FOR-e 後設定新密碼。')
 }
 
 
@@ -10376,13 +10380,112 @@ function openServiceRecordModal(scheduleId) {
 }
 
 
+
+function isPasswordRecoveryUrl() {
+  const hash = window.location.hash || ''
+  const search = window.location.search || ''
+  return hash.includes('type=recovery')
+    || search.includes('type=recovery')
+    || hash.includes('access_token=')
+}
+
+function renderPasswordRecoveryPage() {
+  document.querySelector('#app').innerHTML = `
+    <section class="login-page password-recovery-page">
+      <div class="login-card password-recovery-card">
+        <div class="login-brand">${renderBrandLogo('square')}</div>
+        <h1>設定新密碼</h1>
+        <p>請輸入新密碼，完成後即可用新密碼登入 FOR-e。</p>
+
+        <label for="newPassword">新密碼</label>
+        <input id="newPassword" type="password" placeholder="請輸入新密碼，至少 8 碼" autocomplete="new-password" />
+
+        <label for="confirmPassword">再次確認新密碼</label>
+        <input id="confirmPassword" type="password" placeholder="請再次輸入新密碼" autocomplete="new-password" />
+
+        <button id="updatePasswordBtn">更新密碼</button>
+        <button id="backToLoginBtn" class="secondary-login-btn" type="button">回登入頁</button>
+        <div id="passwordRecoveryError" class="error"></div>
+
+        <div class="login-note">
+          如果這個頁面不是由重設密碼信件開啟，請重新點選信件內的連結。
+        </div>
+      </div>
+    </section>
+  `
+
+  document.querySelector('#updatePasswordBtn').addEventListener('click', updateRecoveryPassword)
+  document.querySelector('#backToLoginBtn').addEventListener('click', async () => {
+    await supabase.auth.signOut()
+    history.replaceState(null, '', window.location.pathname)
+    renderLogin()
+  })
+  document.querySelector('#confirmPassword').addEventListener('keydown', event => {
+    if (event.key === 'Enter') updateRecoveryPassword()
+  })
+}
+
+async function updateRecoveryPassword() {
+  const newPassword = document.querySelector('#newPassword').value
+  const confirmPassword = document.querySelector('#confirmPassword').value
+  const errorText = document.querySelector('#passwordRecoveryError')
+  const updateBtn = document.querySelector('#updatePasswordBtn')
+  errorText.textContent = ''
+
+  if (!newPassword || newPassword.length < 8) {
+    errorText.textContent = '新密碼至少需要 8 碼。'
+    return
+  }
+
+  if (newPassword !== confirmPassword) {
+    errorText.textContent = '兩次輸入的新密碼不一致。'
+    return
+  }
+
+  updateBtn.disabled = true
+  updateBtn.textContent = '更新中...'
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
+  })
+
+  if (error) {
+    errorText.textContent = `更新失敗：${error.message}`
+    updateBtn.disabled = false
+    updateBtn.textContent = '更新密碼'
+    return
+  }
+
+  alert('密碼已更新，請使用新密碼登入。')
+  await supabase.auth.signOut()
+  currentProfile = null
+  history.replaceState(null, '', window.location.pathname)
+  renderLogin()
+}
+
+async function initialLoad() {
+  if (isPasswordRecoveryUrl()) {
+    const { data } = await supabase.auth.getSession()
+
+    if (!data?.session) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+
+    renderPasswordRecoveryPage()
+    return
+  }
+
+  await loadProfile()
+}
+
+
 async function logout() {
   await supabase.auth.signOut()
   currentProfile = null
   renderLogin()
 }
 
-window.addEventListener('load', loadProfile)
+window.addEventListener('load', initialLoad)
 
 /* FOR-e V002-1H-7 START - personal reminder stable rules */
 /*
@@ -10997,3 +11100,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 前端標記 V002-1P-24，方便確認部署版本
 */
 /* FOR-e V002-1P-24 END - login no staff hard fail */
+
+/* FOR-e V002-1P-29 START - password recovery page */
+/*
+  V002-1P-29｜重設密碼頁面
+  - 修正重設密碼信件導到 localhost 後無法修改密碼的問題
+  - 重設連結回到 FOR-e 後顯示設定新密碼頁
+  - resetPasswordForEmail 在 localhost 觸發時也會導向正式 Vercel 網址
+*/
+/* FOR-e V002-1P-29 END - password recovery page */
