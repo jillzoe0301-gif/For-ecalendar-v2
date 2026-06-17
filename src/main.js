@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-67'
+const SYSTEM_VERSION = 'V002-1P-69'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -10865,6 +10865,7 @@ function openUserAccountModal(staffId = '') {
   const isEdit = Boolean(staff)
   const selectedDepartment = staff?.department_name || currentProfile?.department_name || ''
   const loginEmail = getStaffLoginEmail(staff)
+  const hasRemovedPosition = Boolean(staff?.position && isRemovedUserManagePosition(staff.position))
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -10910,8 +10911,14 @@ function openUserAccountModal(staffId = '') {
 
         <label>
           手動輸入職務
-          <input name="position_custom" placeholder="若選單沒有，再輸入新職務">
+          <input name="position_custom" placeholder="若要新增新職務才填寫；留空使用左側選單">
         </label>
+
+        ${hasRemovedPosition ? `
+          <div class="notice span-2">
+            此人員目前職務「${escapeHtml(staff.position)}」已從職務選項移除。請改選或手動輸入新的職務後再儲存。
+          </div>
+        ` : ''}
 
         <label>
           角色權限
@@ -10964,7 +10971,7 @@ async function saveUserAccount(event, modal, staffId = '') {
   try {
     const form = new FormData(event.target)
     const departmentName = String(form.get('department_custom') || '').trim() || String(form.get('department_name') || '').trim()
-    const position = (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim()) || null
+    const position = (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim())
     const displayOrderValue = form.get('display_order')
     const name = String(form.get('name') || '').trim()
 
@@ -10976,6 +10983,18 @@ async function saveUserAccount(event, modal, staffId = '') {
 
     if (!departmentName) {
       alert('請選擇或輸入部門。')
+      saving = false
+      return
+    }
+
+    if (!position) {
+      alert('請選擇或輸入職務。\n\n職務欄位不可空白，請先選擇正確職務後再儲存。')
+      saving = false
+      return
+    }
+
+    if (isRemovedUserManagePosition(position)) {
+      alert('「管理員、主管、行政/海外、外務/宿管人員/會計」屬於角色權限，不可填在職務欄。\n\n請改選或輸入實際職務，例如：執行長、總經理、副總經理、副理、組長、海外行政、PT。')
       saving = false
       return
     }
@@ -15080,3 +15099,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 手動新增部門時優先建立 department_id，降低 departments / staff not-null 錯誤
 */
 /* FOR-e V002-1P-67 END - department position options */
+
+/* FOR-e V002-1P-69 START - staff position required */
+/*
+  V002-1P-69｜人員職務必填與舊職務提醒
+  - 修改 / 新增人員時，職務不可空白，避免 staff.position not-null constraint 錯誤
+  - 若原本職務是「管理員 / 主管 / 行政/海外 / 外務/宿管人員/會計」這類已移除職務，表單會提醒改選實際職務
+  - 手動輸入職務也會阻擋角色類職務，避免職務與角色混在一起
+  - 保留 V002-1P-67 部門與職務選項
+*/
+/* FOR-e V002-1P-69 END - staff position required */
