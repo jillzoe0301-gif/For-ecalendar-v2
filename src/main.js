@@ -217,12 +217,58 @@ function renderHolidayLabels(dateKey) {
 
 
 
-const reminderScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '返台提醒', '驗證提醒', '追蹤提醒事項']
+const reminderScheduleTypes = [
+  '逃跑通知',
+  '轉出追蹤',
+  '住變資訊',
+  '返台提醒',
+  '驗證提醒',
+  '追蹤提醒事項',
+  '追蹤事項',
+  '提醒事項',
+  '待確認',
+  '待通知',
+  '下次追蹤',
+  '住變提醒',
+  '轉出通知',
+  '返鄉提醒'
+]
 
 function isReminderSchedule(row) {
   if (!row) return false
-  const scheduleType = String(row.schedule_type || '').trim()
-  return reminderScheduleTypes.includes(scheduleType)
+
+  const text = [
+    row.schedule_type,
+    row.category,
+    row.sub_type,
+    row.title,
+    row.description,
+    row.sub_type_note
+  ].filter(Boolean).join('｜')
+
+  if (reminderScheduleTypes.some(type => text.includes(type))) return true
+
+  const reminderKeywords = [
+    '逃跑',
+    '轉出',
+    '住變',
+    '返台',
+    '驗證',
+    '待確認',
+    '待通知',
+    '提醒事項',
+    '追蹤提醒',
+    '追蹤事項',
+    '下次追蹤',
+    '最後工作日',
+    '聘僱終止日',
+    '離境',
+    '回診',
+    '補件',
+    '送件異常'
+  ]
+
+  return reminderKeywords.some(keyword => text.includes(keyword))
 }
 
 function isOverdueSchedule(row) {
@@ -250,7 +296,6 @@ function getPersonalReminderRows() {
 
 function renderPersonalReminderArea() {
   const rows = getPersonalReminderRows()
-  if (!rows.length) return ''
 
   return `
     <section class="personal-reminder-area">
@@ -263,7 +308,7 @@ function renderPersonalReminderArea() {
       </div>
 
       <div class="reminder-card-list">
-        ${rows.map(row => {
+        ${rows.length ? rows.map(row => {
           const overdue = isOverdueSchedule(row)
           return `
             <button type="button" class="reminder-alert-card ${overdue ? 'is-overdue' : 'is-today'}" data-view-schedule="${row.schedule_id}">
@@ -277,7 +322,7 @@ function renderPersonalReminderArea() {
               ${overdue ? `<div class="reminder-overdue-text">超過時間了!!!</div>` : `<div class="reminder-today-text">今日需處理</div>`}
             </button>
           `
-        }).join('')}
+        }).join('') : '<div class="reminder-empty-state">目前沒有待確認 / 待通知提醒。</div>'}
       </div>
     </section>
   `
@@ -4193,7 +4238,7 @@ function getScheduleColorDefinitions() {
     { key: '證件交付', label: '證件交付', defaultColor: '#EED3D9' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFDBB6' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FF6A1C' },
-    { key: '會議室預約', label: '會議室預約', defaultColor: '#FBF8F1' },
+    { key: '會議室預約', label: '會議室預約', defaultColor: '#DFD3C3' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#FFF57E' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#EED3D9' }
   ]
@@ -4251,13 +4296,15 @@ function getReadableTextColor(backgroundColor) {
 }
 
 function getScheduleColorInlineStyle(row) {
-  const accentColor = getScheduleColor(row)
-  return `background:#ffffff;border-color:${accentColor};--schedule-accent:${accentColor};`
+  const colorKey = getScheduleColorKey(row)
+  const accentColor = colorKey === '會議室預約' ? '#DFD3C3' : getScheduleColor(row)
+  return `background:#ffffff;border:2px solid ${accentColor};--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
+  const previewColor = item.key === '會議室預約' ? '#DFD3C3' : color
   return `
-    <div class="color-preview-card" style="background:#ffffff;border-color:${color};--schedule-accent:${color};">
+    <div class="color-preview-card" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
       <strong>${escapeHtml(item.label)}</strong>
       <span>白底卡片＋外框顏色標示</span>
     </div>
@@ -4530,26 +4577,46 @@ function renderPersonalSchedule() {
   `
 }
 
+function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
+  return `
+    <section class="personal-todo-notice ${todayRows.length ? 'has-today' : ''} ${overdueRows.length ? 'has-overdue' : ''}">
+      <div class="todo-notice-header">
+        <div>
+          <strong>當日待辦提醒通知</strong>
+          <span>${today}｜今天需處理 ${todayRows.length} 筆${overdueRows.length ? `｜另有 ${overdueRows.length} 筆逾期` : ''}</span>
+        </div>
+      </div>
+
+      <div class="todo-notice-list">
+        ${todayRows.length ? todayRows.map(row => `
+          <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
+            <div>
+              <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <span>${escapeHtml(row.customer_name || row.location_name || getAssigneeNames(row) || '個人待辦')}</span>
+            </div>
+            <em>查看</em>
+          </button>
+        `).join('') : '<div class="todo-notice-empty">今天沒有一般待辦事項。</div>'}
+      </div>
+    </section>
+  `
+}
+
 function renderPersonalTodo() {
   const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
   const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && todoCategories.includes(row.category))
   const today = todayString()
-  const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
+  const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
   const overdueRows = myRows.filter(row => row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
 
   return `
     ${renderToolbar('個人一般待辦')}
     ${renderReadStatus()}
-    <section class="personal-todo-alert ${todayRows.length ? 'has-today' : ''}">
-      <div>
-        <strong>今日待辦：${todayRows.length} 筆</strong>
-        <span>${overdueRows.length ? `另有 ${overdueRows.length} 筆逾期待辦需要追蹤` : '目前沒有逾期待辦'}</span>
-      </div>
-    </section>
+    ${renderPersonalTodoReminderNotice(todayRows, overdueRows, today)}
     ${todayRows.length ? `
       <section class="today-todo-list">
         <div class="section-title-row">
-          <h4>當日待辦提示</h4>
+          <h4>當日待辦明細</h4>
           <span>${today}</span>
         </div>
         ${renderScheduleList(todayRows, '今天沒有待辦事項。', true)}
@@ -8776,3 +8843,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 字體顏色恢復原本樣式
 */
 /* FOR-e V002-1P-6-2 END - colored border restore text */
+
+/* FOR-e V002-1P-6-3 START - card border reminders todo */
+/*
+  V002-1P-6-3
+  - 會議室預約卡片外框固定 #DFD3C3
+  - 行程卡片外框加粗
+  - 個人行程待確認 / 待通知提醒區固定顯示並強化辨識
+  - 個人一般待辦新增當日待辦提醒通知
+*/
+/* FOR-e V002-1P-6-3 END - card border reminders todo */

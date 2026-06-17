@@ -6653,3 +6653,138 @@ label.record-modal-check {
   opacity: 1 !important;
 }
 /* FOR-e V002-1P-6-2 END - colored border restore text */
+
+/* FOR-e V002-1P-6-3 START - card border reminders todo */
+.schedule-card[style],
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, var(--border)) !important;
+  background: #ffffff !important;
+}
+
+.meeting-room-card[style] {
+  border-color: #DFD3C3 !important;
+  --schedule-accent: #DFD3C3 !important;
+}
+
+.color-preview-card {
+  border-width: 2px !important;
+}
+
+.reminder-empty-state {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.personal-todo-notice {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+}
+
+.personal-todo-notice.has-today {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.personal-todo-notice.has-overdue {
+  border-color: #fde68a;
+}
+
+.todo-notice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.todo-notice-header strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.todo-notice-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.todo-notice-list {
+  display: grid;
+  gap: 8px;
+}
+
+.todo-notice-card {
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #fed7aa;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-notice-card strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.todo-notice-card span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.todo-notice-card em {
+  color: var(--blue);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.todo-notice-card:hover {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+  transform: translateY(-1px);
+}
+
+.todo-notice-empty {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 768px) {
+  .todo-notice-card {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-6-3 END - card border reminders todo */
