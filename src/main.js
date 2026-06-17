@@ -261,6 +261,15 @@ let auditFilters = {
 let serviceRecords = []
 let serviceRecordsLoading = false
 let serviceRecordsError = ''
+let statsFilters = {
+  period: '當月',
+  startDate: '',
+  endDate: '',
+  department: '全部',
+  staffId: '全部',
+  category: '全部'
+}
+
 let serviceRecordFilters = {
   status: '全部',
   staffId: '全部',
@@ -906,6 +915,39 @@ function renderApp() {
       await completeSchedule(btn.dataset.incidentComplete)
     })
   })
+
+
+  const statsFilterForm = document.querySelector('#statsFilterForm')
+  if (statsFilterForm) {
+    statsFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      statsFilters = {
+        period: form.get('period') || '當月',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || '',
+        department: form.get('department') || '全部',
+        staffId: form.get('staffId') || '全部',
+        category: form.get('category') || '全部'
+      }
+      renderApp()
+    })
+  }
+
+  const resetStatsFilterBtn = document.querySelector('#resetStatsFilterBtn')
+  if (resetStatsFilterBtn) {
+    resetStatsFilterBtn.addEventListener('click', () => {
+      statsFilters = {
+        period: '當月',
+        startDate: '',
+        endDate: '',
+        department: '全部',
+        staffId: '全部',
+        category: '全部'
+      }
+      renderApp()
+    })
+  }
 
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
@@ -3050,6 +3092,392 @@ async function saveIncident(event, modal) {
 /* FOR-e V002-1L-1 END - incident tracking */
 
 
+
+/* FOR-e V002-1N-1 START - statistics dashboard */
+/*
+  V002-1N-1｜統計報表
+  使用現有 schedules / schedule_assignees / service_records，不改 SQL、不新增資料表。
+*/
+
+function getMonthFirstDay(dateText = todayString()) {
+  return `${dateText.slice(0, 7)}-01`
+}
+
+function getMonthLastDay(dateText = todayString()) {
+  const year = Number(dateText.slice(0, 4))
+  const month = Number(dateText.slice(5, 7))
+  return new Date(year, month, 0).toISOString().slice(0, 10)
+}
+
+function getStatsDateRange() {
+  const today = todayString()
+  if (statsFilters.period === '當月') {
+    return {
+      start: getMonthFirstDay(today),
+      end: getMonthLastDay(today),
+      label: `${today.slice(0, 7)} 當月`
+    }
+  }
+
+  if (statsFilters.period === '當年') {
+    return {
+      start: `${today.slice(0, 4)}-01-01`,
+      end: `${today.slice(0, 4)}-12-31`,
+      label: `${today.slice(0, 4)} 當年`
+    }
+  }
+
+  return {
+    start: statsFilters.startDate || '',
+    end: statsFilters.endDate || '',
+    label: `${statsFilters.startDate || '不限起日'} ～ ${statsFilters.endDate || '不限迄日'}`
+  }
+}
+
+function getStatsCategory(row) {
+  if (isFieldScheduleRow(row)) return '外務行程'
+  if (isIncidentSchedule(row) && !isIncidentTrackingTask?.(row)) return '異況追蹤'
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
+  return row.category || '未分類'
+}
+
+function getStatsDepartment(row) {
+  return row.department_name || getAssigneeDepartmentFallback(row) || '未指定'
+}
+
+function getAssigneeDepartmentFallback(row) {
+  const assignee = (row.schedule_assignees || []).find(item => !item.deleted_at && item.department_name)
+  return assignee?.department_name || ''
+}
+
+function getStatsDepartmentOptions() {
+  const names = schedules
+    .filter(isVisibleSchedule)
+    .map(getStatsDepartment)
+    .filter(Boolean)
+
+  return ['全部', ...new Set(names)]
+}
+
+function getStatsCategoryOptions() {
+  const items = schedules
+    .filter(isVisibleSchedule)
+    .map(getStatsCategory)
+    .filter(Boolean)
+
+  return ['全部', ...new Set(items)]
+}
+
+function getStatsStaffOptionsHtml() {
+  return `<option value="全部" ${statsFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
+    staffList.map(staff => `
+      <option value="${staff.staff_id}" ${statsFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+    `).join('')
+}
+
+function getStatsFilteredSchedules() {
+  const range = getStatsDateRange()
+
+  return schedules
+    .filter(isVisibleSchedule)
+    .filter(row => {
+      const date = row.start_date || ''
+      if (range.start && date < range.start) return false
+      if (range.end && date > range.end) return false
+
+      if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
+      if (statsFilters.category !== '全部' && getStatsCategory(row) !== statsFilters.category) return false
+
+      if (statsFilters.staffId !== '全部') {
+        const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
+        if (!assigned) return false
+      }
+
+      return true
+    })
+}
+
+function getStatsFilteredServiceRecords() {
+  const range = getStatsDateRange()
+
+  return serviceRecords.filter(record => {
+    const date = record.schedule_date || ''
+    if (range.start && date < range.start) return false
+    if (range.end && date > range.end) return false
+
+    if (statsFilters.department !== '全部' && getServiceRecordDepartment(record) !== statsFilters.department) return false
+    if (statsFilters.staffId !== '全部' && record.staff_id !== statsFilters.staffId) return false
+
+    if (statsFilters.category !== '全部') {
+      const schedule = getServiceRecordSchedule(record)
+      const category = schedule ? getStatsCategory(schedule) : getServiceRecordScheduleType(record)
+      if (category !== statsFilters.category && getServiceRecordScheduleType(record) !== statsFilters.category) return false
+    }
+
+    return true
+  })
+}
+
+function getStatsCountBy(rows, getKey) {
+  const map = new Map()
+  rows.forEach(row => {
+    const key = getKey(row) || '未指定'
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        total: 0,
+        completed: 0,
+        unfinished: 0,
+        overdue: 0,
+        cancelled: 0
+      })
+    }
+
+    const item = map.get(key)
+    item.total += 1
+    if (row.status === '已完成') item.completed += 1
+    else if (row.status === '取消') item.cancelled += 1
+    else item.unfinished += 1
+
+    if (isOverdueSchedule(row)) item.overdue += 1
+  })
+
+  return [...map.values()].sort((a, b) => b.total - a.total)
+}
+
+function getStatsAssigneeSummary(rows) {
+  const map = new Map()
+
+  rows.forEach(row => {
+    const assignees = (row.schedule_assignees || []).filter(item => !item.deleted_at)
+    if (!assignees.length) {
+      const key = '未指定'
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: '未指定',
+          department: '-',
+          total: 0,
+          completed: 0,
+          unfinished: 0,
+          overdue: 0,
+          field: 0,
+          incident: 0,
+          meeting: 0
+        })
+      }
+      updateStatsAssigneeRow(map.get(key), row)
+      return
+    }
+
+    assignees.forEach(assignee => {
+      const key = assignee.staff_id || assignee.staff_name || '未指定'
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: assignee.staff_name || '-',
+          department: assignee.department_name || '-',
+          total: 0,
+          completed: 0,
+          unfinished: 0,
+          overdue: 0,
+          field: 0,
+          incident: 0,
+          meeting: 0
+        })
+      }
+
+      updateStatsAssigneeRow(map.get(key), row)
+    })
+  })
+
+  return [...map.values()].sort((a, b) => {
+    if (b.overdue !== a.overdue) return b.overdue - a.overdue
+    if (b.unfinished !== a.unfinished) return b.unfinished - a.unfinished
+    return b.total - a.total
+  })
+}
+
+function updateStatsAssigneeRow(item, row) {
+  const category = getStatsCategory(row)
+  item.total += 1
+  if (row.status === '已完成') item.completed += 1
+  else if (row.status !== '取消') item.unfinished += 1
+  if (isOverdueSchedule(row)) item.overdue += 1
+  if (category === '外務行程') item.field += 1
+  if (category === '異況追蹤') item.incident += 1
+  if (category === '會議室預約') item.meeting += 1
+}
+
+function renderStatsFilterForm() {
+  const periodOptions = ['當月', '當年', '自訂']
+    .map(item => `<option value="${item}" ${statsFilters.period === item ? 'selected' : ''}>${item}</option>`)
+    .join('')
+
+  const departmentOptions = buildServiceRecordOptionList(getStatsDepartmentOptions(), statsFilters.department)
+  const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
+
+  return `
+    <form id="statsFilterForm" class="stats-filter-panel">
+      <label>
+        期間
+        <select name="period">${periodOptions}</select>
+      </label>
+
+      <label>
+        起日
+        <input name="startDate" type="date" value="${statsFilters.startDate}">
+      </label>
+
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${statsFilters.endDate}">
+      </label>
+
+      <label>
+        部門
+        <select name="department">${departmentOptions}</select>
+      </label>
+
+      <label>
+        人員
+        <select name="staffId">${getStatsStaffOptionsHtml()}</select>
+      </label>
+
+      <label>
+        類別
+        <select name="category">${categoryOptions}</select>
+      </label>
+
+      <button type="submit" class="primary-btn">套用統計</button>
+    </form>
+  `
+}
+
+function renderStatsSummaryCards(rows, records) {
+  const pendingServiceRecords = records.filter(record => getServiceRecordStatus(record) !== '已繳交')
+  const overdueServiceRecords = records.filter(record => getServiceRecordStatus(record) === '超過2週')
+
+  return `
+    <div class="summary-grid stats-summary-grid">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>行程總數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${rows.filter(row => row.status !== '已完成' && row.status !== '取消').length}</strong>
+        <span>未完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${rows.filter(row => row.status === '已完成').length}</strong>
+        <span>已完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${rows.filter(isOverdueSchedule).length}</strong>
+        <span>逾期行程</span>
+      </div>
+      <div class="summary-card">
+        <strong>${records.length}</strong>
+        <span>紀錄單</span>
+      </div>
+      <div class="summary-card">
+        <strong>${pendingServiceRecords.length}</strong>
+        <span>紀錄單未交</span>
+      </div>
+      <div class="summary-card">
+        <strong>${overdueServiceRecords.length}</strong>
+        <span>紀錄單逾期</span>
+      </div>
+    </div>
+  `
+}
+
+function renderStatsBasicTable(title, subtitle, rows, columns) {
+  return `
+    <section class="stats-table-section">
+      <div class="section-title-row">
+        <h4>${title}</h4>
+        <span>${subtitle || ''}</span>
+      </div>
+      ${rows.length ? `
+        <div class="stats-table-wrap">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                ${columns.map(col => `<th>${escapeHtml(col.label)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr class="${row.overdue ? 'has-overdue' : ''}">
+                  ${columns.map(col => `<td class="${col.className ? col.className(row) : ''}">${escapeHtml(col.value(row))}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state">目前沒有統計資料。</div>'}
+    </section>
+  `
+}
+
+function renderStatsDashboard() {
+  const rows = getStatsFilteredSchedules()
+  const records = getStatsFilteredServiceRecords()
+  const range = getStatsDateRange()
+
+  const categoryRows = getStatsCountBy(rows, getStatsCategory)
+  const departmentRows = getStatsCountBy(rows, getStatsDepartment)
+  const assigneeRows = getStatsAssigneeSummary(rows)
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>統計報表</h3>
+        <p class="muted">期間：${escapeHtml(range.label)}｜依行程、部門、人員與服務紀錄單彙整。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetStatsFilterBtn">清除條件</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+    ${renderStatsFilterForm()}
+    ${renderStatsSummaryCards(rows, records)}
+
+    ${renderStatsBasicTable('類別統計', '依行程類別彙整', categoryRows, [
+      { label: '類別', value: row => row.key },
+      { label: '總數', value: row => row.total },
+      { label: '未完成', value: row => row.unfinished },
+      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
+      { label: '已完成', value: row => row.completed }
+    ])}
+
+    ${renderStatsBasicTable('部門統計', '依部門彙整', departmentRows, [
+      { label: '部門', value: row => row.key },
+      { label: '總數', value: row => row.total },
+      { label: '未完成', value: row => row.unfinished },
+      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
+      { label: '已完成', value: row => row.completed }
+    ])}
+
+    ${renderStatsBasicTable('人員工作量統計', '依執行者彙整', assigneeRows, [
+      { label: '人員', value: row => row.name },
+      { label: '部門', value: row => row.department },
+      { label: '總數', value: row => row.total },
+      { label: '未完成', value: row => row.unfinished },
+      { label: '逾期', value: row => row.overdue, className: row => row.overdue ? 'is-alert' : '' },
+      { label: '外務', value: row => row.field },
+      { label: '異況', value: row => row.incident },
+      { label: '會議室', value: row => row.meeting },
+      { label: '已完成', value: row => row.completed }
+    ])}
+  `
+}
+/* FOR-e V002-1N-1 END - statistics dashboard */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -3060,6 +3488,7 @@ function renderPageContent() {
   if (currentPage === 'meetingRoom') return renderMeetingRoomCalendar()
   if (currentPage === 'incident') return renderIncidentTrackingPage()
   if (currentPage === 'search') return renderSearchPage()
+  if (currentPage === 'stats') return renderStatsDashboard()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
