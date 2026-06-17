@@ -334,6 +334,8 @@ let currentPage = 'personalSchedule'
 let schedules = []
 let staffList = []
 let allStaffList = []
+let userProfileList = []
+let userProfilesError = ''
 let loadingSchedules = false
 let schedulesError = ''
 let saving = false
@@ -800,7 +802,71 @@ async function loadProfile() {
 }
 
 async function refreshData() {
-  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
+  await Promise.all([loadAppSettings(), loadStaff(), loadUserProfiles(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
+}
+
+
+async function loadUserProfiles() {
+  userProfilesError = ''
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+
+  if (error) {
+    console.warn('profiles 讀取失敗，登入帳號欄位會以可取得資料為主。', error.message)
+    userProfileList = []
+    userProfilesError = error.message
+    return
+  }
+
+  userProfileList = data || []
+}
+
+function getProfileStaffId(profile) {
+  return profile?.staff_id || profile?.staffId || profile?.staff_uuid || ''
+}
+
+function getStaffProfile(staff) {
+  if (!staff) return null
+
+  return userProfileList.find(profile => getProfileStaffId(profile) === staff.staff_id)
+    || userProfileList.find(profile => profile.name && profile.name === staff.name)
+    || null
+}
+
+function getStaffLoginEmail(staff) {
+  const profile = getStaffProfile(staff)
+  return profile?.email || staff?.email || ''
+}
+
+function getStaffLoginStatus(staff) {
+  return getStaffLoginEmail(staff) ? '已綁定' : '未綁定'
+}
+
+function getStaffLoginStatusClass(staff) {
+  return getStaffLoginEmail(staff) ? 'is-bound' : 'is-unbound'
+}
+
+async function sendPasswordResetEmail(email) {
+  if (!email) {
+    alert('此人員尚未綁定登入 Email，無法重設密碼。')
+    return
+  }
+
+  if (!confirm(`確定要寄送重設密碼信到 ${email} 嗎？`)) return
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  })
+
+  if (error) {
+    console.error(error)
+    alert('寄送重設密碼信失敗：' + error.message)
+    return
+  }
+
+  alert('已寄送重設密碼信。')
 }
 
 async function loadStaff() {
@@ -1359,6 +1425,10 @@ function renderApp() {
       window.open(`https://line.me/R/share?text=${encodeURIComponent(text)}`, '_blank')
     })
   }
+
+  document.querySelectorAll('[data-reset-password-email]').forEach(btn => {
+    btn.addEventListener('click', () => sendPasswordResetEmail(btn.dataset.resetPasswordEmail))
+  })
 
   const addUserAccountBtn = document.querySelector('#addUserAccountBtn')
   if (addUserAccountBtn) {
@@ -5230,6 +5300,8 @@ function getUserCsvColumns() {
     { header: '部門', value: row => row.department_name || '' },
     { header: '職務', value: row => row.position || '' },
     { header: '角色', value: row => row.role || '' },
+    { header: '登入帳號', value: row => getStaffLoginEmail(row) || '' },
+    { header: '帳號狀態', value: row => getStaffLoginStatus(row) },
     { header: '是否外務人員', value: row => isStaffFieldWorker(row) ? '是' : '否' },
     { header: '狀態', value: row => row.status || '啟用' },
     { header: '顯示順序', value: row => row.display_order || '' }
@@ -6754,6 +6826,7 @@ function renderUsersSummary(rows) {
   const activeCount = rows.filter(staff => (staff.status || '啟用') === '啟用').length
   const disabledCount = rows.filter(staff => staff.status === '停用').length
   const fieldStaffCount = rows.filter(isStaffFieldWorker).length
+  const boundAccountCount = rows.filter(staff => Boolean(getStaffLoginEmail(staff))).length
   const departmentStats = getUsersDepartmentSummary(rows)
 
   return `
@@ -6773,6 +6846,10 @@ function renderUsersSummary(rows) {
       <div class="summary-card">
         <strong>${fieldStaffCount}</strong>
         <span>外務人員</span>
+      </div>
+      <div class="summary-card">
+        <strong>${boundAccountCount}</strong>
+        <span>已綁定帳號</span>
       </div>
 
       ${departmentStats.map(item => `
@@ -6794,31 +6871,42 @@ function renderUsersList(rows) {
 
   return `
     <div class="users-table-wrap">
-      <div class="users-table users-table-field-staff users-table-account-manage">
+      <div class="users-table users-table-field-staff users-table-account-manage users-table-login-manage">
         <div class="users-table-head">
           <span>人員名稱</span>
           <span>部門</span>
           <span>職務</span>
           <span>角色</span>
+          <span>登入帳號</span>
           <span>外務</span>
           <span>狀態</span>
           <span>操作</span>
         </div>
 
-        ${rows.map(staff => `
-          <div class="users-table-row ${staff.status === '停用' ? 'is-disabled-user' : ''}">
-            <strong>${escapeHtml(staff.name || '-')}</strong>
-            <span>${escapeHtml(staff.department_name || '-')}</span>
-            <span>${escapeHtml(staff.position || '-')}</span>
-            <span>${escapeHtml(staff.role || '-')}</span>
-            <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
-              <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditUserAccount ? '' : 'disabled'}>
-              <span class="field-staff-switch" aria-hidden="true"></span>
-            </label>
-            <span class="user-status-pill ${staff.status === '停用' ? 'is-disabled' : ''}">${escapeHtml(staff.status || '啟用')}</span>
-            <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
-          </div>
-        `).join('')}
+        ${rows.map(staff => {
+          const loginEmail = getStaffLoginEmail(staff)
+          return `
+            <div class="users-table-row ${staff.status === '停用' ? 'is-disabled-user' : ''}">
+              <strong>${escapeHtml(staff.name || '-')}</strong>
+              <span>${escapeHtml(staff.department_name || '-')}</span>
+              <span>${escapeHtml(staff.position || '-')}</span>
+              <span>${escapeHtml(staff.role || '-')}</span>
+              <div class="login-account-cell">
+                <span class="login-status-pill ${getStaffLoginStatusClass(staff)}">${getStaffLoginStatus(staff)}</span>
+                ${loginEmail ? `<small>${escapeHtml(loginEmail)}</small>` : `<small>尚未建立登入帳號</small>`}
+              </div>
+              <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
+                <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditUserAccount ? '' : 'disabled'}>
+                <span class="field-staff-switch" aria-hidden="true"></span>
+              </label>
+              <span class="user-status-pill ${staff.status === '停用' ? 'is-disabled' : ''}">${escapeHtml(staff.status || '啟用')}</span>
+              <div class="users-action-stack">
+                <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
+                <button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" ${canEditUserAccount && loginEmail ? '' : 'disabled'}>重設</button>
+              </div>
+            </div>
+          `
+        }).join('')}
       </div>
     </div>
   `
@@ -6843,7 +6931,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      權限規則：管理員可新增 / 修改人員資料；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定；登入密碼下一階段處理。
+      權限規則：管理員可新增 / 修改人員資料、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -6956,6 +7044,7 @@ function openUserAccountModal(staffId = '') {
   const staff = getUserManageRows().find(item => item.staff_id === staffId)
   const isEdit = Boolean(staff)
   const selectedDepartment = staff?.department_name || currentProfile?.department_name || ''
+  const loginEmail = getStaffLoginEmail(staff)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -7019,8 +7108,10 @@ function openUserAccountModal(staffId = '') {
           </span>
         </label>
 
-        <div class="notice span-2">
-          這裡管理的是 staff 人員資料；登入 Email、密碼、重設密碼需另外串 Supabase Auth，下一階段處理。
+        <div class="login-account-info span-2">
+          <strong>登入帳號狀態</strong>
+          <span>${loginEmail ? `已綁定：${escapeHtml(loginEmail)}` : '尚未綁定登入帳號'}</span>
+          <small>這裡先管理人員資料與寄送重設密碼信；新增 Supabase Auth 登入帳號需由後台或 Edge Function 建立。</small>
         </div>
 
         <div class="modal-actions span-2">
@@ -10464,3 +10555,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 未執行 SQL 時仍 fallback localStorage
 */
 /* FOR-e V002-1P-16 END - shared options management */
+
+/* FOR-e V002-1P-17 START - login account status reset */
+/*
+  V002-1P-17｜人員 / 帳號加入登入帳號狀態與重設密碼
+  - 讀取 profiles 顯示登入 Email / 已綁定狀態
+  - 管理員可寄送 Supabase 重設密碼信
+  - 新增 / 修改人員視窗顯示登入帳號狀態
+  - 不在前端建立 Supabase Auth 使用者，避免暴露 service_role
+*/
+/* FOR-e V002-1P-17 END - login account status reset */
