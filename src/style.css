@@ -6282,3 +6282,72 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-4 END - users account page */
+
+/* FOR-e V002-1P-5 START - field staff checkbox */
+.users-filter-panel-field-staff {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto !important;
+}
+
+.users-summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.users-table-field-staff .users-table-head,
+.users-table-field-staff .users-table-row {
+  grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) minmax(80px, 0.55fr) !important;
+}
+
+.field-staff-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  min-width: 68px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.field-staff-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--blue);
+}
+
+.field-staff-toggle:has(input:checked) {
+  background: #eef5ff;
+  border-color: #bfdbfe;
+  color: #3155d4;
+}
+
+.field-staff-toggle input:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 1100px) {
+  .users-filter-panel-field-staff,
+  .users-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .users-filter-panel-field-staff button {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .users-filter-panel-field-staff,
+  .users-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .users-filter-panel-field-staff button {
+    grid-column: span 1;
+  }
+}
+/* FOR-e V002-1P-5 END - field staff checkbox */

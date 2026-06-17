@@ -350,7 +350,8 @@ let serviceRecordFilters = {
 let userAccountFilters = {
   keyword: '',
   department: '全部',
-  role: '全部'
+  role: '全部',
+  fieldStaff: '全部'
 }
 
 function canSeePage(page, role) {
@@ -1068,7 +1069,8 @@ function renderApp() {
       userAccountFilters = {
         keyword: form.get('keyword') || '',
         department: form.get('department') || '全部',
-        role: form.get('role') || '全部'
+        role: form.get('role') || '全部',
+        fieldStaff: form.get('fieldStaff') || '全部'
       }
       renderApp()
     })
@@ -1080,11 +1082,19 @@ function renderApp() {
       userAccountFilters = {
         keyword: '',
         department: '全部',
-        role: '全部'
+        role: '全部',
+        fieldStaff: '全部'
       }
       renderApp()
     })
   }
+
+  document.querySelectorAll('[data-field-staff-toggle]').forEach(input => {
+    input.addEventListener('change', () => {
+      setStaffFieldWorker(input.dataset.fieldStaffToggle, input.checked)
+      renderApp()
+    })
+  })
 
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
@@ -1564,13 +1574,50 @@ function getScheduleDatesFromForm(form) {
 }
 /* FOR-e V002-1K-1-4 END - schedule mode display helpers */
 
-function getFieldStaffRows() {
-  const fieldRows = staffList.filter(staff => {
-    const text = [staff.role, staff.position, staff.position_name, staff.department_name].filter(Boolean).join('｜')
-    return text.includes('外務') || text.includes('宿管')
-  })
+const fieldStaffSettingsStorageKey = 'for-e-field-staff-settings-v002'
 
-  return fieldRows.length ? fieldRows : staffList
+function getFieldStaffSettings() {
+  try {
+    const raw = localStorage.getItem(fieldStaffSettingsStorageKey)
+    return raw ? JSON.parse(raw) : {}
+  } catch (err) {
+    console.warn('外務人員設定讀取失敗', err)
+    return {}
+  }
+}
+
+function saveFieldStaffSettings(settings) {
+  localStorage.setItem(fieldStaffSettingsStorageKey, JSON.stringify(settings || {}))
+}
+
+function isDefaultFieldStaff(staff) {
+  const text = [staff.role, staff.position, staff.position_name, staff.department_name]
+    .filter(Boolean)
+    .join('｜')
+  return text.includes('外務') || text.includes('宿管')
+}
+
+function isStaffFieldWorker(staff) {
+  if (!staff?.staff_id) return false
+  const settings = getFieldStaffSettings()
+  if (Object.prototype.hasOwnProperty.call(settings, staff.staff_id)) {
+    return settings[staff.staff_id] === true
+  }
+  return isDefaultFieldStaff(staff)
+}
+
+function setStaffFieldWorker(staffId, checked) {
+  const settings = getFieldStaffSettings()
+  settings[staffId] = checked === true
+  saveFieldStaffSettings(settings)
+}
+
+function getFieldStaffRows() {
+  const settings = getFieldStaffSettings()
+  const fieldRows = staffList.filter(isStaffFieldWorker)
+
+  if (fieldRows.length) return fieldRows
+  return Object.keys(settings).length ? [] : staffList
 }
 
 function isFieldScheduleRow(row) {
@@ -5219,6 +5266,10 @@ function matchesUserAccountFilters(staff) {
   if (userAccountFilters.department !== '全部' && staff.department_name !== userAccountFilters.department) return false
   if (userAccountFilters.role !== '全部' && staff.role !== userAccountFilters.role) return false
 
+  const isFieldStaff = isStaffFieldWorker(staff)
+  if (userAccountFilters.fieldStaff === '是' && !isFieldStaff) return false
+  if (userAccountFilters.fieldStaff === '否' && isFieldStaff) return false
+
   const keyword = normalizeText(userAccountFilters.keyword)
   if (!keyword) return true
 
@@ -5227,7 +5278,8 @@ function matchesUserAccountFilters(staff) {
     staff.department_name,
     staff.position,
     staff.role,
-    staff.status
+    staff.status,
+    isFieldStaff ? '外務人員' : ''
   ].filter(Boolean).join(' ').toLowerCase()
 
   return text.includes(keyword)
@@ -5237,6 +5289,7 @@ function renderUsersSummary(rows) {
   const deptOne = rows.filter(staff => String(staff.department_name || '').includes('一部')).length
   const deptTwo = rows.filter(staff => String(staff.department_name || '').includes('二部')).length
   const translators = rows.filter(staff => String(staff.position || '').includes('翻譯') || staff.role === '翻譯').length
+  const fieldStaffCount = rows.filter(isStaffFieldWorker).length
 
   return `
     <div class="summary-grid users-summary-grid">
@@ -5256,6 +5309,10 @@ function renderUsersSummary(rows) {
         <strong>${translators}</strong>
         <span>翻譯 / 紀錄單人員</span>
       </div>
+      <div class="summary-card">
+        <strong>${fieldStaffCount}</strong>
+        <span>外務人員</span>
+      </div>
     </div>
   `
 }
@@ -5265,14 +5322,17 @@ function renderUsersList(rows) {
     return `<div class="empty-state">目前沒有符合條件的人員。</div>`
   }
 
+  const canEditFieldStaff = currentProfile?.role === '管理員'
+
   return `
     <div class="users-table-wrap">
-      <div class="users-table">
+      <div class="users-table users-table-field-staff">
         <div class="users-table-head">
           <span>人員名稱</span>
           <span>部門</span>
           <span>職務</span>
           <span>角色</span>
+          <span>外務人員</span>
           <span>狀態</span>
         </div>
 
@@ -5282,6 +5342,10 @@ function renderUsersList(rows) {
             <span>${escapeHtml(staff.department_name || '-')}</span>
             <span>${escapeHtml(staff.position || '-')}</span>
             <span>${escapeHtml(staff.role || '-')}</span>
+            <label class="field-staff-toggle">
+              <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditFieldStaff ? '' : 'disabled'}>
+              <span>${isStaffFieldWorker(staff) ? '是' : '否'}</span>
+            </label>
             <span>${escapeHtml(staff.status || '啟用')}</span>
           </div>
         `).join('')}
@@ -5297,7 +5361,7 @@ function renderUsersPage() {
     <div class="page-toolbar">
       <div>
         <h3>人員 / 帳號</h3>
-        <p class="muted">查看目前啟用人員、部門、職務與角色。帳號新增 / 停用後續再接 Supabase 權限管理。</p>
+        <p class="muted">查看目前啟用人員、部門、職務與角色。可勾選是否為外務人員，會影響外務行程的人員清單。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>
@@ -5309,7 +5373,7 @@ function renderUsersPage() {
       權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
     </div>
 
-    <form id="usersFilterForm" class="users-filter-panel">
+    <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
       <label>
         關鍵字
         <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
@@ -5323,6 +5387,15 @@ function renderUsersPage() {
       <label>
         角色
         <select name="role">${getUserAccountRoleOptions()}</select>
+      </label>
+
+      <label>
+        是否外務人員
+        <select name="fieldStaff">
+          <option value="全部" ${userAccountFilters.fieldStaff === '全部' ? 'selected' : ''}>全部</option>
+          <option value="是" ${userAccountFilters.fieldStaff === '是' ? 'selected' : ''}>是</option>
+          <option value="否" ${userAccountFilters.fieldStaff === '否' ? 'selected' : ''}>否</option>
+        </select>
       </label>
 
       <button type="submit" class="primary-btn">篩選</button>
@@ -8511,3 +8584,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不改 SQL、不新增資料表
 */
 /* FOR-e V002-1P-4 END - users account page */
+
+/* FOR-e V002-1P-5 START - field staff checkbox */
+/*
+  V002-1P-5｜人員 / 帳號增加是否外務人員勾選
+  - 管理員可勾選人員是否為外務人員
+  - 外務行程的人員清單會依勾選結果顯示
+  - 設定暫存 localStorage，不改 SQL
+*/
+/* FOR-e V002-1P-5 END - field staff checkbox */
