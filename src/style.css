@@ -11714,3 +11714,136 @@ body {
   }
 }
 /* FOR-e V002-1P-76 END - option spacing template width */
+
+/* FOR-e V002-1P-77 START - schedule template half layout */
+/* 選項管理：整體再放鬆，不要太擠 */
+.option-management-form {
+  gap: 16px !important;
+}
+
+.option-group-body {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 15px !important;
+}
+
+.option-edit-box {
+  padding: 14px !important;
+  gap: 10px !important;
+}
+
+.option-line-list {
+  gap: 7px !important;
+  max-height: 280px;
+}
+
+.option-line-row {
+  grid-template-columns: minmax(0, 1fr) 36px 36px 36px !important;
+  gap: 7px !important;
+}
+
+.option-line-row input {
+  height: 40px !important;
+  min-height: 40px !important;
+  font-size: 14px !important;
+}
+
+.option-line-move-btn,
+.option-line-remove-btn {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+/* 行程類型對應內容：畫面左右各半 */
+.schedule-template-editor-box {
+  grid-column: 1 / -1;
+}
+
+.schedule-template-list {
+  gap: 12px !important;
+  max-height: 600px;
+}
+
+.schedule-template-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px !important;
+  gap: 14px !important;
+  align-items: start !important;
+  padding: 14px !important;
+}
+
+.schedule-template-type-field,
+.schedule-template-content-field {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.schedule-template-type-field input,
+.schedule-template-content-field textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.schedule-template-type-field input {
+  height: 44px !important;
+  min-height: 44px !important;
+  font-size: 14.5px !important;
+}
+
+.schedule-template-content-field textarea {
+  min-height: 150px !important;
+  height: 150px !important;
+  max-height: 210px;
+  font-size: 14.5px !important;
+  line-height: 1.62 !important;
+}
+
+.schedule-template-row-actions {
+  justify-self: end;
+  grid-template-rows: repeat(3, 40px) !important;
+  gap: 8px !important;
+}
+
+.schedule-template-row-actions button {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+/* 中型螢幕仍維持左右各半 */
+@media (max-width: 1100px) {
+  .schedule-template-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px !important;
+  }
+}
+
+/* 手機才改成上下排列 */
+@media (max-width: 760px) {
+  .option-group-body {
+    grid-template-columns: 1fr !important;
+    gap: 13px !important;
+  }
+
+  .schedule-template-row {
+    grid-template-columns: 1fr !important;
+    gap: 11px !important;
+  }
+
+  .schedule-template-content-field textarea {
+    min-height: 165px !important;
+    height: 165px !important;
+  }
+
+  .schedule-template-row-actions {
+    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-rows: none !important;
+    justify-self: stretch;
+  }
+
+  .schedule-template-row-actions button {
+    width: 100% !important;
+  }
+}
+/* FOR-e V002-1P-77 END - schedule template half layout */

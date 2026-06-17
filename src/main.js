@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-76'
+const SYSTEM_VERSION = 'V002-1P-77'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -15394,3 +15394,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 選項管理其他項目加大一點間距與輸入框高度，避免太擠
 */
 /* FOR-e V002-1P-76 END - option spacing template width */
+
+/* FOR-e V002-1P-77 START - schedule template half layout */
+/*
+  V002-1P-77｜行程類型對應內容左右各半
+  - 行程類型對應內容編輯器改成左右兩半版面
+  - 左側行程類型、右側預設帶入內容各佔主要寬度的一半
+  - 移除中間過大的空白，讓畫面更整齊
+  - 其他選項管理欄位同步放鬆間距，不再太擠
+*/
+/* FOR-e V002-1P-77 END - schedule template half layout */
