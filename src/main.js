@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-59'
+const SYSTEM_VERSION = 'V002-1P-60'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7302,6 +7302,13 @@ function getHealthRows() {
   })
 
   rows.push({
+    title: '資料完整性',
+    status: getDataIntegrityStatus(),
+    detail: getDataIntegritySummaryText(),
+    note: '檢查行程日期、指派人員、服務紀錄單與刪除人員關聯。'
+  })
+
+  rows.push({
     title: '我的畫面記憶',
     status: 'ok',
     detail: getMyUiMemorySummary(),
@@ -7588,6 +7595,7 @@ function getLaunchTestGroups() {
         ['edge-function', '帳號 Edge Function dry_run 測試正常'],
         ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
         ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
+        ['data-integrity-audit', '資料完整性檢查沒有紅色錯誤'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
@@ -7942,6 +7950,7 @@ function getLaunchReadinessState() {
   const healthWarn = healthRows.filter(row => row.status === 'warn')
   const launchStats = getLaunchTestStats()
   const accountAudit = getAccountBindingAudit()
+  const dataAudit = getDataIntegrityAudit()
 
   const blockers = []
   const warnings = []
@@ -7949,11 +7958,13 @@ function getLaunchReadinessState() {
   healthBad.forEach(row => blockers.push(`${row.title}：${row.detail}`))
   accountAudit.duplicateLinks.forEach(item => blockers.push(`同一人員綁定多個帳號：${item.staffName}`))
   accountAudit.linkedToDeletedStaff.forEach(profile => blockers.push(`帳號仍綁到已刪除人員：${profile.email || '-'}`))
+  dataAudit.badIssues.forEach(issue => blockers.push(`資料完整性：${issue.title}｜${issue.detail}`))
 
   healthWarn.forEach(row => warnings.push(`${row.title}：${row.detail}`))
   accountAudit.linkedToMissingStaff.forEach(profile => warnings.push(`帳號綁到不存在的人員：${profile.email || '-'}`))
   accountAudit.nameFallbackRisks.forEach(profile => warnings.push(`姓名誤判綁定風險：${profile.email || '-'}`))
   accountAudit.activeUnboundStaff.forEach(staff => warnings.push(`啟用人員尚未綁定帳號：${staff.name || '-'}`))
+  dataAudit.warnIssues.forEach(issue => warnings.push(`資料完整性：${issue.title}｜${issue.detail}`))
 
   if (launchStats.remaining > 0) {
     warnings.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
@@ -7981,7 +7992,8 @@ function getLaunchReadinessState() {
     warnings,
     launchStats,
     healthRows,
-    accountAudit
+    accountAudit,
+    dataAudit
   }
 }
 
@@ -8018,6 +8030,10 @@ function renderLaunchReadinessSummary() {
         <div>
           <strong>${state.accountAudit.issues.length}</strong>
           <span>帳號綁定注意</span>
+        </div>
+        <div>
+          <strong>${state.dataAudit.issues.length}</strong>
+          <span>資料完整性注意</span>
         </div>
       </div>
 
@@ -8154,8 +8170,8 @@ function getLaunchBackupItems() {
     {
       key: 'all',
       title: '一鍵下載全部備份',
-      description: '依序下載人員、帳號綁定、行程、服務紀錄單、異動紀錄、共用設定與帳號檢查。',
-      count: getBackupStaffRows().length + userProfileList.length + getBackupScheduleRows().length + serviceRecords.length + auditLogs.length,
+      description: '依序下載人員、帳號綁定、行程、服務紀錄單、異動紀錄、共用設定、帳號檢查與資料完整性。',
+      count: getBackupStaffRows().length + userProfileList.length + getBackupScheduleRows().length + serviceRecords.length + auditLogs.length + getDataIntegrityAudit().issues.length,
       primary: true
     },
     {
@@ -8199,6 +8215,12 @@ function getLaunchBackupItems() {
       title: '帳號綁定檢查',
       description: '匯出帳號綁定檢查中需要注意或處理的項目。',
       count: getAccountBindingAudit().issues.length
+    },
+    {
+      key: 'dataIssues',
+      title: '資料完整性檢查',
+      description: '匯出行程、指派人員與服務紀錄單需要注意或處理的項目。',
+      count: getDataIntegrityAudit().issues.length
     }
   ]
 }
@@ -8207,7 +8229,7 @@ function exportLaunchBackup(type = '') {
   const normalizedType = String(type || '').trim()
 
   if (normalizedType === 'all') {
-    const types = ['staff', 'profiles', 'schedules', 'serviceRecords', 'auditLogs', 'appSettings', 'accountIssues']
+    const types = ['staff', 'profiles', 'schedules', 'serviceRecords', 'auditLogs', 'appSettings', 'accountIssues', 'dataIssues']
     types.forEach((backupType, index) => {
       setTimeout(() => exportLaunchBackup(backupType), index * 180)
     })
@@ -8249,6 +8271,11 @@ function exportLaunchBackup(type = '') {
     return
   }
 
+  if (normalizedType === 'dataIssues') {
+    downloadCsv(getBackupFilename('資料完整性檢查'), getDataIntegrityIssueColumns(), getDataIntegrityAudit().issues)
+    return
+  }
+
   alert('找不到要匯出的備份類型。')
 }
 
@@ -8282,6 +8309,188 @@ function renderLaunchBackupExportsPanel() {
       </div>
     </section>
   `
+}
+
+
+
+function makeDataIntegrityIssue(level, type, title, detail, refId = '') {
+  return { level, type, title, detail, refId }
+}
+
+function getDataIntegrityAudit() {
+  const sourceStaff = allStaffList.length ? allStaffList : staffList
+  const allStaffRows = sourceStaff || []
+  const activeStaffRows = allStaffRows.filter(staff => !isStaffDeleted(staff))
+  const deletedStaffRows = allStaffRows.filter(isStaffDeleted)
+  const allStaffIds = new Set(allStaffRows.map(staff => normalizeStaffId(staff.staff_id)).filter(Boolean))
+  const activeStaffIds = new Set(activeStaffRows.map(staff => normalizeStaffId(staff.staff_id)).filter(Boolean))
+  const deletedStaffIds = new Set(deletedStaffRows.map(staff => normalizeStaffId(staff.staff_id)).filter(Boolean))
+  const scheduleRows = getBackupScheduleRows()
+  const scheduleIds = new Set(scheduleRows.map(row => row.schedule_id).filter(Boolean))
+  const issues = []
+
+  scheduleRows.forEach(row => {
+    const ref = row.schedule_id || ''
+    const label = `${row.start_date || '-'}｜${row.category || '-'}｜${row.title || row.description || '-'}`
+
+    if (!row.start_date) {
+      issues.push(makeDataIntegrityIssue('bad', 'schedule', '行程缺少日期', label, ref))
+    }
+
+    if (row.end_date && row.start_date && String(row.end_date) < String(row.start_date)) {
+      issues.push(makeDataIntegrityIssue('bad', 'schedule', '行程結束日期早於開始日期', label, ref))
+    }
+
+    if (!row.category) {
+      issues.push(makeDataIntegrityIssue('warn', 'schedule', '行程缺少大類別', label, ref))
+    }
+
+    if (!row.title && !row.description) {
+      issues.push(makeDataIntegrityIssue('warn', 'schedule', '行程缺少標題與內容', label, ref))
+    }
+
+    const assignees = (row.schedule_assignees || []).filter(item => !item.deleted_at)
+    const shouldHaveAssignee = row.category !== '會議室預約' && row.category !== '請假 / 會議 / 活動 / 外訓'
+
+    if (shouldHaveAssignee && !assignees.length && !row.creator_staff_id) {
+      issues.push(makeDataIntegrityIssue('warn', 'schedule', '行程沒有執行者', label, ref))
+    }
+
+    assignees.forEach(item => {
+      const staffId = normalizeStaffId(item.staff_id)
+      const staffName = item.staff_name || '-'
+      if (!staffId) {
+        issues.push(makeDataIntegrityIssue('warn', 'schedule_assignee', '指派資料缺少人員 ID', `${label}｜${staffName}`, ref))
+        return
+      }
+
+      if (deletedStaffIds.has(staffId)) {
+        issues.push(makeDataIntegrityIssue('bad', 'schedule_assignee', '行程指派到已刪除人員', `${label}｜${staffName}`, ref))
+        return
+      }
+
+      if (!allStaffIds.has(staffId)) {
+        issues.push(makeDataIntegrityIssue('warn', 'schedule_assignee', '行程指派到不存在的人員', `${label}｜${staffName}｜${staffId}`, ref))
+      }
+    })
+  })
+
+  serviceRecords.forEach(record => {
+    const ref = record.record_id || record.service_record_id || record.schedule_id || ''
+    const label = `${record.schedule_date || '-'}｜${record.title || record.schedule_type || '-'}｜${record.staff_name || '-'}`
+
+    if (!record.schedule_date) {
+      issues.push(makeDataIntegrityIssue('warn', 'service_record', '服務紀錄單缺少行程日期', label, ref))
+    }
+
+    if (record.schedule_id && !scheduleIds.has(record.schedule_id)) {
+      issues.push(makeDataIntegrityIssue('warn', 'service_record', '服務紀錄單連結不到行程', label, ref))
+    }
+
+    const staffId = normalizeStaffId(record.staff_id)
+    if (staffId && !activeStaffIds.has(staffId)) {
+      const level = deletedStaffIds.has(staffId) ? 'bad' : 'warn'
+      issues.push(makeDataIntegrityIssue(level, 'service_record', deletedStaffIds.has(staffId) ? '服務紀錄單人員已刪除' : '服務紀錄單人員不存在', `${label}｜${staffId}`, ref))
+    }
+  })
+
+  const badIssues = issues.filter(issue => issue.level === 'bad')
+  const warnIssues = issues.filter(issue => issue.level === 'warn')
+
+  return {
+    scheduleCount: scheduleRows.length,
+    serviceRecordCount: serviceRecords.length,
+    staffCount: activeStaffRows.length,
+    badIssues,
+    warnIssues,
+    issues
+  }
+}
+
+function getDataIntegrityStatus() {
+  const audit = getDataIntegrityAudit()
+  if (audit.badIssues.length) return 'bad'
+  if (audit.warnIssues.length) return 'warn'
+  return 'ok'
+}
+
+function getDataIntegritySummaryText() {
+  const audit = getDataIntegrityAudit()
+  const statusText = getHealthStatusMeta(getDataIntegrityStatus()).label
+  return `${statusText}｜行程 ${audit.scheduleCount} 筆｜紀錄單 ${audit.serviceRecordCount} 筆｜需處理 ${audit.badIssues.length}｜注意 ${audit.warnIssues.length}`
+}
+
+function getDataIntegrityIssueColumns() {
+  return [
+    { header: '等級', value: row => row.level === 'bad' ? '需處理' : '注意' },
+    { header: '資料類型', value: row => row.type || '' },
+    { header: '問題', value: row => row.title || '' },
+    { header: '內容', value: row => row.detail || '' },
+    { header: '關聯ID', value: row => row.refId || '' }
+  ]
+}
+
+function renderDataIntegrityAuditPanel() {
+  const audit = getDataIntegrityAudit()
+  const meta = getHealthStatusMeta(getDataIntegrityStatus())
+  const visibleIssues = audit.issues.slice(0, 36)
+
+  return `
+    <section class="data-integrity-section ${meta.className}">
+      <div class="section-title-row">
+        <h4>資料完整性檢查</h4>
+        <span>${escapeHtml(getDataIntegritySummaryText())}</span>
+      </div>
+
+      <div class="data-integrity-summary-grid">
+        <div>
+          <strong>${audit.scheduleCount}</strong>
+          <span>行程資料</span>
+        </div>
+        <div>
+          <strong>${audit.serviceRecordCount}</strong>
+          <span>服務紀錄單</span>
+        </div>
+        <div>
+          <strong>${audit.badIssues.length}</strong>
+          <span>需處理</span>
+        </div>
+        <div>
+          <strong>${audit.warnIssues.length}</strong>
+          <span>注意</span>
+        </div>
+      </div>
+
+      ${visibleIssues.length ? `
+        <div class="data-integrity-issue-list">
+          ${visibleIssues.map(issue => `
+            <div class="data-integrity-issue is-${issue.level}">
+              <strong>${escapeHtml(issue.title)}</strong>
+              <span>${escapeHtml(issue.detail)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="empty-state">
+          <p>資料完整性檢查正常，目前沒有發現行程、指派或服務紀錄單資料異常。</p>
+        </div>
+      `}
+
+      <div class="data-integrity-actions">
+        <button type="button" class="secondary-btn" data-backup-export="dataIssues">下載資料完整性檢查</button>
+      </div>
+    </section>
+  `
+}
+
+function getDataIntegrityReportLines() {
+  const audit = getDataIntegrityAudit()
+  if (!audit.issues.length) return ['資料完整性檢查：正常']
+
+  return [
+    `資料完整性檢查：需處理 ${audit.badIssues.length} 項｜注意 ${audit.warnIssues.length} 項`,
+    ...audit.issues.map(issue => `- ${issue.level === 'bad' ? '需處理' : '注意'}｜${issue.title}：${issue.detail}`)
+  ]
 }
 
 
@@ -8319,6 +8528,7 @@ function renderSystemHealthPage() {
     ${renderRolePermissionMatrix()}
     ${renderPageAccessMatrix()}
     ${renderAccountBindingAuditPanel()}
+    ${renderDataIntegrityAuditPanel()}
     ${renderLaunchTestChecklist()}
 
     <section class="health-checklist">
@@ -14199,3 +14409,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 上線測試清單新增備份項目
 */
 /* FOR-e V002-1P-59 END - launch backup exports */
+
+/* FOR-e V002-1P-60 START - data integrity audit */
+/*
+  V002-1P-60｜資料完整性檢查
+  - 系統檢查頁新增資料完整性狀態卡片與檢查區塊
+  - 檢查行程日期、結束日期、類別、標題內容、執行者、指派到已刪除 / 不存在人員、服務紀錄單連結
+  - 正式上線狀態總結納入資料完整性錯誤
+  - 備份匯出新增資料完整性檢查 CSV
+  - 上線測試清單新增資料完整性項目
+*/
+/* FOR-e V002-1P-60 END - data integrity audit */

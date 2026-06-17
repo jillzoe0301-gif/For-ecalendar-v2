@@ -10454,3 +10454,146 @@ body {
   }
 }
 /* FOR-e V002-1P-59 END - launch backup exports */
+
+/* FOR-e V002-1P-60 START - data integrity audit */
+.data-integrity-section {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.data-integrity-section.is-ok {
+  border-color: #bbf7d0;
+  background: #f7fef9;
+}
+
+.data-integrity-section.is-warn {
+  border-color: #fde68a;
+  background: #fffdf2;
+}
+
+.data-integrity-section.is-bad {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.data-integrity-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.data-integrity-summary-grid div {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, .22);
+  background: #ffffff;
+}
+
+.data-integrity-summary-grid strong {
+  display: block;
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.data-integrity-summary-grid span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.data-integrity-issue-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.data-integrity-issue {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.data-integrity-issue strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.data-integrity-issue span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.data-integrity-issue.is-bad {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.data-integrity-issue.is-bad strong {
+  color: #b91c1c;
+}
+
+.data-integrity-issue.is-warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.data-integrity-issue.is-warn strong {
+  color: #92400e;
+}
+
+.data-integrity-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.launch-readiness-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  .launch-readiness-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .data-integrity-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .data-integrity-section {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .data-integrity-actions {
+    display: grid;
+  }
+
+  .data-integrity-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .data-integrity-summary-grid,
+  .launch-readiness-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-60 END - data integrity audit */
