@@ -3030,9 +3030,8 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
     })
 }
 
-function openMeetingRoomModal(defaults = {
+function openMeetingRoomModal(defaults = {}) {
   if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
-}) {
   const defaultDate = defaults.date || todayString()
   const roomOptions = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
   const defaultRoom = defaults.room || roomOptions[0] || ''
@@ -8821,9 +8820,8 @@ function staffOptionsSelectHtml(selectedStaffId = '') {
 }
 
 
-function openFieldScheduleModal(defaults = {
+function openFieldScheduleModal(defaults = {}) {
   if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
-}) {
   const defaultDate = defaults.date || todayString()
   const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
 
@@ -11394,3 +11392,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 一般角色新增行程時只可新增自己的個人事項
 */
 /* FOR-e V002-1P-31 END - role based permissions */
+
+/* FOR-e V002-1P-31-1 START - build fix */
+/*
+  V002-1P-31-1｜修正 P31 build failed
+  - 修正 openMeetingRoomModal(defaults = { if (...) }) 語法錯誤
+  - 修正 openFieldScheduleModal(defaults = { if (...) }) 語法錯誤
+  - 保留 P31 角色權限控管
+*/
+/* FOR-e V002-1P-31-1 END - build fix */
