@@ -832,6 +832,13 @@ function renderApp() {
 
   document.querySelector('#logoutBtn').addEventListener('click', logout)
 
+  injectExportCsvButton()
+
+  const exportCsvBtn = document.querySelector('#exportCsvBtn')
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', () => exportCurrentPageCsv())
+  }
+
   const refreshBtn = document.querySelector('#refreshBtn')
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
@@ -4707,6 +4714,244 @@ function renderColorSettingsPage() {
       }).join('')}
     </form>
   `
+}
+
+
+
+/* FOR-e V002-1P-11 START - common csv export */
+/*
+  V002-1P-11｜共通匯出 CSV
+  - 依目前頁面匯出目前篩選 / 目前週次的資料
+  - 不改 SQL
+*/
+
+const exportablePageKeys = new Set([
+  'personalSchedule',
+  'personalTodo',
+  'assignedTracking',
+  'scheduleOverview',
+  'fieldSchedule',
+  'fieldDetail',
+  'meetingRoom',
+  'incident',
+  'search',
+  'stats',
+  'serviceRecord',
+  'recordSubmit',
+  'audit',
+  'users',
+  'line'
+])
+
+function canExportCurrentPage() {
+  if (!exportablePageKeys.has(currentPage)) return false
+  if (currentPage === 'users') return currentProfile?.role === '管理員'
+  return true
+}
+
+function injectExportCsvButton() {
+  if (!canExportCurrentPage()) return
+
+  const toolbar = document.querySelector('.content-card .page-toolbar .toolbar-actions')
+  if (!toolbar || document.querySelector('#exportCsvBtn')) return
+
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.id = 'exportCsvBtn'
+  button.className = 'secondary-btn export-csv-btn'
+  button.textContent = '匯出CSV'
+
+  const refreshBtn = toolbar.querySelector('#refreshBtn')
+  if (refreshBtn) toolbar.insertBefore(button, refreshBtn)
+  else toolbar.appendChild(button)
+}
+
+function csvSafe(value) {
+  const text = value === null || value === undefined ? '' : String(value)
+  return `"${text.replaceAll('"', '""').replace(/\r?\n/g, ' ')}"`
+}
+
+function downloadCsv(filename, columns, rows) {
+  const header = columns.map(col => csvSafe(col.header)).join(',')
+  const body = rows.map(row => columns.map(col => csvSafe(typeof col.value === 'function' ? col.value(row) : row[col.value])).join(',')).join('\n')
+  const csv = '\ufeff' + [header, body].filter(Boolean).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function uniqueScheduleRows(rows) {
+  const map = new Map()
+  rows.forEach(row => {
+    if (row?.schedule_id && !map.has(row.schedule_id)) map.set(row.schedule_id, row)
+  })
+  return [...map.values()]
+}
+
+function getCurrentWeekScheduleOverviewRows() {
+  const weekDates = getWeekDates(overviewWeekOffset)
+  const rows = []
+  getOverviewStaffRows().forEach(staff => {
+    weekDates.forEach(date => {
+      rows.push(...getSchedulesForStaffDate(staff.staff_id, toDateKey(date)))
+    })
+  })
+  return uniqueScheduleRows(rows)
+}
+
+function getCurrentFieldWeekExportRows() {
+  const weekDates = getWeekDates(fieldWeekOffset)
+  const rows = []
+  getFieldStaffRows().forEach(staff => {
+    weekDates.forEach(date => {
+      rows.push(...getFieldSchedulesForStaffDate(staff.staff_id, toDateKey(date)))
+    })
+  })
+  return uniqueScheduleRows(rows)
+}
+
+function getCurrentMeetingWeekExportRows() {
+  const weekDates = getWeekDates(meetingWeekOffset)
+  const rows = []
+  getManagedListOption('meetingRoomOptions', meetingRoomOptions).forEach(room => {
+    weekDates.forEach(date => {
+      rows.push(...getMeetingSchedulesForRoomDate(room, toDateKey(date)))
+    })
+  })
+  return uniqueScheduleRows(rows)
+}
+
+function getExportSchedulesForCurrentPage() {
+  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+
+  if (currentPage === 'personalSchedule') {
+    return schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
+  }
+
+  if (currentPage === 'personalTodo') {
+    return schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && todoCategories.includes(row.category))
+  }
+
+  if (currentPage === 'assignedTracking') return getAssignedTrackingRows()
+  if (currentPage === 'scheduleOverview') return getCurrentWeekScheduleOverviewRows()
+  if (currentPage === 'fieldSchedule') return getCurrentFieldWeekExportRows()
+  if (currentPage === 'fieldDetail') return getFieldDetailRows()
+  if (currentPage === 'meetingRoom') return getCurrentMeetingWeekExportRows()
+  if (currentPage === 'incident') return getIncidentRows()
+  if (currentPage === 'search') return getSearchResults()
+  if (currentPage === 'stats') return getStatsFilteredSchedules()
+  if (currentPage === 'line') return getLineNotifyRows()
+
+  return []
+}
+
+function getScheduleCsvColumns() {
+  return [
+    { header: '日期', value: row => row.start_date || '' },
+    { header: '結束日期', value: row => row.end_date || row.start_date || '' },
+    { header: '時間', value: row => formatTime(row) },
+    { header: '類別', value: row => row.category || '' },
+    { header: '行程類型', value: row => row.schedule_type || '' },
+    { header: '附加 / 細項', value: row => row.sub_type || '' },
+    { header: '標題 / 辦理內容', value: row => row.title || '' },
+    { header: '內容', value: row => row.description || '' },
+    { header: '區域 / 客戶', value: row => row.customer_name || '' },
+    { header: '地點', value: row => row.location_name || '' },
+    { header: '地址', value: row => row.address || '' },
+    { header: '執行者', value: row => getAssigneeNames(row) },
+    { header: '指派者', value: row => row.creator_name || '' },
+    { header: '狀態', value: row => getScheduleStatusLabel(row) },
+    { header: '服務紀錄單', value: row => row.need_service_record ? (row.service_record_submitted_date ? `已繳交 ${row.service_record_submitted_date}` : '未繳交') : '不需繳交' },
+    { header: '備註 / 提醒', value: row => row.sub_type_note || '' }
+  ]
+}
+
+function getServiceRecordCsvRows() {
+  return serviceRecords.filter(record => matchesServiceRecordFilters(record, currentPage === 'recordSubmit'))
+}
+
+function getServiceRecordCsvColumns() {
+  return [
+    { header: '行程日期', value: record => record.schedule_date || '' },
+    { header: '狀態', value: record => getServiceRecordStatus(record) },
+    { header: '行程類型', value: record => getServiceRecordScheduleType(record) },
+    { header: '標題', value: record => getServiceRecordTitle(record) },
+    { header: '執行者', value: record => getServiceRecordExecutor(record) },
+    { header: '繳交人', value: record => record.staff_name || '' },
+    { header: '部門', value: record => getServiceRecordDepartment(record) },
+    { header: '地點', value: record => getServiceRecordLocation(record) },
+    { header: '繳交日期', value: record => record.submitted_date || '' }
+  ]
+}
+
+function getAuditCsvRows() {
+  return auditLogs.filter(row => matchesAuditFilters(row))
+}
+
+function getAuditCsvColumns() {
+  return [
+    { header: '時間', value: row => formatDateTime(row.created_at) },
+    { header: '動作類型', value: row => row.action_type || '' },
+    { header: '操作人', value: row => row.operated_by_name || '' },
+    { header: '來源類型', value: row => row.source_type || '' },
+    { header: '異動行程', value: row => getAuditSourceLabel(row) },
+    { header: '備註', value: row => row.note || '' }
+  ]
+}
+
+function getUserCsvRows() {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  return sourceRows.filter(matchesUserAccountFilters)
+}
+
+function getUserCsvColumns() {
+  return [
+    { header: '人員名稱', value: row => row.name || '' },
+    { header: '部門', value: row => row.department_name || '' },
+    { header: '職務', value: row => row.position || '' },
+    { header: '角色', value: row => row.role || '' },
+    { header: '是否外務人員', value: row => isStaffFieldWorker(row) ? '是' : '否' },
+    { header: '狀態', value: row => row.status || '啟用' },
+    { header: '顯示順序', value: row => row.display_order || '' }
+  ]
+}
+
+function getExportPageLabel() {
+  return getPageTitle().replace(/[\\/:*?"<>|]/g, '')
+}
+
+function exportCurrentPageCsv() {
+  let rows = []
+  let columns = []
+  const date = todayString()
+  const pageLabel = getExportPageLabel()
+
+  if (currentPage === 'serviceRecord' || currentPage === 'recordSubmit') {
+    rows = getServiceRecordCsvRows()
+    columns = getServiceRecordCsvColumns()
+  } else if (currentPage === 'audit') {
+    rows = getAuditCsvRows()
+    columns = getAuditCsvColumns()
+  } else if (currentPage === 'users') {
+    rows = getUserCsvRows()
+    columns = getUserCsvColumns()
+  } else {
+    rows = getExportSchedulesForCurrentPage()
+    columns = getScheduleCsvColumns()
+  }
+
+  if (!rows.length) {
+    alert('目前沒有可匯出的資料。')
+    return
+  }
+
+  downloadCsv(`FOR-e_${pageLabel}_${date}.csv`, columns, rows)
 }
 
 
@@ -9573,3 +9818,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顏色設定頁「顏色」欄位置中對齊表頭
 */
 /* FOR-e V002-1P-10 END - line target and color column center */
+
+/* FOR-e V002-1P-11 START - common csv export */
+/*
+  V002-1P-11｜共通匯出 CSV
+  - 依目前頁面 / 篩選條件 / 目前週次匯出
+  - 支援個人行程、待辦、指派追蹤、行程總覽、外務、會議室、異況、搜尋、統計、服務紀錄單、異動紀錄、人員與 LINE 通知資料
+*/
+/* FOR-e V002-1P-11 END - common csv export */

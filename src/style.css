@@ -7342,3 +7342,16 @@ label.record-modal-check {
   display: block !important;
 }
 /* FOR-e V002-1P-10 END - line target and color column center */
+
+/* FOR-e V002-1P-11 START - common csv export */
+.export-csv-btn {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+.export-csv-btn:hover {
+  background: #f8fafc !important;
+  color: #111827 !important;
+}
+/* FOR-e V002-1P-11 END - common csv export */
