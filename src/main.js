@@ -884,6 +884,12 @@ function renderApp() {
     })
   }
 
+  document.querySelectorAll('[data-incident-next]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openIncidentNextTrackingModal(btn.dataset.incidentNext)
+    })
+  })
+
   document.querySelectorAll('[data-incident-complete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       await completeSchedule(btn.dataset.incidentComplete)
@@ -2276,6 +2282,7 @@ function renderIncidentList(rows) {
             <div class="incident-actions">
               <span class="status-pill">${isOverdue ? '逾期' : escapeHtml(row.status || '未完成')}</span>
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              ${row.status !== '已完成' && row.status !== '取消' ? `<button class="small-btn incident-next-btn" data-incident-next="${row.schedule_id}">下次追蹤</button>` : ''}
               ${canCompleteSchedule(row) ? `<button class="small-btn" data-incident-complete="${row.schedule_id}">已完成</button>` : ''}
             </div>
           </div>
@@ -2283,6 +2290,121 @@ function renderIncidentList(rows) {
       }).join('')}
     </div>
   `
+}
+
+
+
+function openIncidentNextTrackingModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  const nextIndex = getIncidentTrackingEntries(row).length + 1
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>新增第${chineseTrackingNumber(nextIndex)}次追蹤</h3>
+        <button class="icon-btn" id="closeIncidentNextModalBtn" type="button">×</button>
+      </div>
+
+      <form id="incidentNextTrackingForm" class="form-grid">
+        <div class="span-2 incident-next-context">
+          <strong>${escapeHtml(row.title || '異況追蹤')}</strong>
+          <span>目前下次追蹤：${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}</span>
+        </div>
+
+        <label>
+          下次追蹤日期
+          <input name="next_follow_date" type="date" required value="${row.start_date || todayString()}">
+        </label>
+
+        <label class="span-2">
+          下次追蹤時間
+          ${fieldTimeSelectHtml('incident_follow_next', row.start_time ? parseTimeForEdit(row.start_time, '', '00').hour : '', row.start_time ? parseTimeForEdit(row.start_time, '', '00').minute : '00', row.time_type || '不指定')}
+        </label>
+
+        <label class="span-2">
+          第${chineseTrackingNumber(nextIndex)}次追蹤內容
+          <textarea name="tracking_content" rows="4" required placeholder="請輸入本次追蹤內容、處理狀況或待辦事項"></textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelIncidentNextModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存追蹤</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeIncidentNextModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelIncidentNextModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#incidentNextTrackingForm').addEventListener('submit', event => saveIncidentNextTracking(event, modal, row))
+}
+
+async function saveIncidentNextTracking(event, modal, row) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const nextTime = getFieldSingleTimeValue(form, 'incident_follow_next')
+    const nextFollowDate = form.get('next_follow_date')
+    const trackingContent = String(form.get('tracking_content') || '').trim()
+
+    if (!trackingContent) {
+      alert('請輸入追蹤內容。')
+      saving = false
+      return
+    }
+
+    const nextDescription = appendIncidentTrackingEntry(row, todayString(), '', trackingContent)
+    const currentNote = String(row.sub_type_note || '')
+    const noteParts = currentNote.split('｜').map(item => item.trim()).filter(Boolean)
+    const cleanedNoteParts = noteParts.filter(item => !item.startsWith('下次追蹤：'))
+    cleanedNoteParts.push(`下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+
+    const { error } = await supabase
+      .from('schedules')
+      .update({
+        description: nextDescription,
+        start_date: nextFollowDate,
+        end_date: nextFollowDate,
+        time_type: getFieldTimeTypeFromForm(form, 'incident_follow_next'),
+        start_time: getFieldDbTimeValue(nextTime),
+        end_time: null,
+        sub_type_note: cleanedNoteParts.join('｜'),
+        status: '未完成'
+      })
+      .eq('schedule_id', row.schedule_id)
+
+    if (error) {
+      alert('新增下次追蹤失敗：' + error.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '新增追蹤',
+      source_type: 'schedule',
+      source_id: row.schedule_id,
+      note: `V002-1L-3 新增下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    alert('新增下次追蹤失敗：' + (err?.message || err))
+    saving = false
+  }
 }
 
 
@@ -3300,6 +3422,7 @@ function openScheduleDetail(scheduleId) {
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
+        ${isIncidentSchedule(row) && row.status !== '取消' ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
         ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
@@ -3327,6 +3450,14 @@ function openScheduleDetail(scheduleId) {
       if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
       else if (isIncidentSchedule(row)) openEditIncidentModal(scheduleId)
       else openEditScheduleModal(scheduleId)
+    })
+  }
+
+  const incidentNextFollowBtn = document.querySelector('#detailIncidentNextFollowBtn')
+  if (incidentNextFollowBtn) {
+    incidentNextFollowBtn.addEventListener('click', () => {
+      modal.remove()
+      openIncidentNextTrackingModal(scheduleId)
     })
   }
 
@@ -6072,3 +6203,12 @@ function getPersonalReminderTestSummary() {
   V002-1L-2｜異況追蹤修改、追蹤紀錄與服務紀錄單選項
 */
 /* FOR-e V002-1L-2 END - incident history edit service record */
+
+/* FOR-e V002-1L-3 START - incident next tracking button */
+/*
+  V002-1L-3｜異況新增下次追蹤按鈕
+  - 查看異況頁新增「新增下次追蹤」按鈕
+  - 異況列表新增「下次追蹤」快捷按鈕
+  - 新增追蹤後會追加第 N 次追蹤紀錄，並更新下一次追蹤日期 / 時間
+*/
+/* FOR-e V002-1L-3 END - incident next tracking button */
