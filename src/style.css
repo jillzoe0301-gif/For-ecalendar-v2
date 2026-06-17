@@ -5303,3 +5303,106 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-3 END - statistics numbers no grid */
+
+/* FOR-e V002-1N-4 START - statistics simple table style */
+/* 統計報表改成清楚的橫列型態，不要格線 */
+.clean-type-list,
+.clean-number-list,
+.service-record-number-list,
+.clean-number-strip,
+.clean-type-bar {
+  display: none !important;
+}
+
+.simple-stat-table-wrap,
+.simple-section-card {
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.simple-section-card {
+  padding: 14px;
+}
+
+.simple-stat-table {
+  display: grid;
+}
+
+.simple-stat-head,
+.simple-stat-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(80px, 1fr));
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.simple-stat-head {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.simple-stat-row {
+  background: #ffffff;
+}
+
+.simple-stat-row + .simple-stat-row {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.simple-stat-row strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.simple-stat-row span {
+  color: #111827;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.simple-stat-row.has-overdue {
+  background: #fffbeb;
+}
+
+.simple-stat-row .is-alert {
+  color: #dc2626;
+}
+
+.department-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.simple-service-record-table .simple-stat-head,
+.simple-service-record-table .simple-stat-row {
+  grid-template-columns: minmax(140px, 1.8fr) repeat(4, minmax(80px, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .department-type-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .simple-stat-table-wrap,
+  .simple-section-card {
+    overflow-x: auto;
+  }
+
+  .simple-stat-head,
+  .simple-stat-row,
+  .simple-service-record-table .simple-stat-head,
+  .simple-service-record-table .simple-stat-row {
+    min-width: 620px;
+  }
+}
+/* FOR-e V002-1N-4 END - statistics simple table style */

@@ -3415,20 +3415,25 @@ function renderCleanTypeList(title, subtitle, rows) {
       </div>
 
       ${rows.length ? `
-        <div class="clean-type-list clean-number-list">
-          ${rows.map(row => `
-            <div class="clean-type-row clean-number-row ${row.overdue ? 'has-overdue' : ''}">
-              <div class="clean-type-title">
-                <strong>${escapeHtml(row.key || row.type)}</strong>
-              </div>
-              <div class="clean-number-strip">
-                <span><b>${row.total}</b><small>總數</small></span>
-                <span><b>${row.unfinished}</b><small>未完成</small></span>
-                <span class="${row.overdue ? 'is-alert' : ''}"><b>${row.overdue}</b><small>逾期</small></span>
-                <span><b>${row.completed}</b><small>已完成</small></span>
-              </div>
+        <div class="simple-stat-table-wrap">
+          <div class="simple-stat-table">
+            <div class="simple-stat-head">
+              <span>行程類型</span>
+              <span>總數</span>
+              <span>未完成</span>
+              <span>逾期</span>
+              <span>已完成</span>
             </div>
-          `).join('')}
+            ${rows.map(row => `
+              <div class="simple-stat-row ${row.overdue ? 'has-overdue' : ''}">
+                <strong>${escapeHtml(row.key || row.type)}</strong>
+                <span>${row.total}</span>
+                <span>${row.unfinished}</span>
+                <span class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</span>
+                <span>${row.completed}</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
       ` : '<div class="empty-state">目前沒有統計資料。</div>'}
     </section>
@@ -3447,19 +3452,28 @@ function renderDepartmentTypeStats(rows) {
 
       <div class="department-type-grid">
         ${groups.map(group => `
-          <div class="department-type-card department-number-card">
+          <div class="department-type-card simple-section-card">
             <h5>${group.group}</h5>
-            ${group.rows.length ? group.rows.map(row => `
-              <div class="department-type-line department-number-line ${row.overdue ? 'has-overdue' : ''}">
-                <strong>${escapeHtml(row.type)}</strong>
-                <div class="clean-number-strip is-compact">
-                  <span><b>${row.total}</b><small>總數</small></span>
-                  <span><b>${row.unfinished}</b><small>未完成</small></span>
-                  <span class="${row.overdue ? 'is-alert' : ''}"><b>${row.overdue}</b><small>逾期</small></span>
-                  <span><b>${row.completed}</b><small>已完成</small></span>
+            ${group.rows.length ? `
+              <div class="simple-stat-table section-mini-table">
+                <div class="simple-stat-head">
+                  <span>行程類型</span>
+                  <span>總數</span>
+                  <span>未完成</span>
+                  <span>逾期</span>
+                  <span>已完成</span>
                 </div>
+                ${group.rows.map(row => `
+                  <div class="simple-stat-row ${row.overdue ? 'has-overdue' : ''}">
+                    <strong>${escapeHtml(row.type)}</strong>
+                    <span>${row.total}</span>
+                    <span>${row.unfinished}</span>
+                    <span class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</span>
+                    <span>${row.completed}</span>
+                  </div>
+                `).join('')}
               </div>
-            `).join('') : '<p class="muted">目前沒有資料</p>'}
+            ` : '<p class="muted">目前沒有資料</p>'}
           </div>
         `).join('')}
       </div>
@@ -3470,6 +3484,7 @@ function renderDepartmentTypeStats(rows) {
 function renderServiceRecordStatsSection(records) {
   const summary = getServiceRecordSimpleSummary(records)
   const deptRows = getServiceRecordDeptGroupSummary(records)
+  const rows = [{ key: '全部', ...summary }, ...deptRows]
 
   return `
     <section class="clean-stats-section service-record-clean-section">
@@ -3478,29 +3493,28 @@ function renderServiceRecordStatsSection(records) {
         <span>連同行程統計一起檢視</span>
       </div>
 
-      <div class="service-record-number-list">
-        <div class="service-record-clean-main service-record-number-row ${summary.overdue ? 'has-overdue' : ''}">
-          <strong>全部</strong>
-          <div class="clean-number-strip">
-            <span><b>${summary.total}</b><small>總數</small></span>
-            <span><b>${summary.pending}</b><small>未繳</small></span>
-            <span class="${summary.overdue ? 'is-alert' : ''}"><b>${summary.overdue}</b><small>逾期</small></span>
-            <span><b>${summary.submitted}</b><small>已交</small></span>
+      ${rows.length ? `
+        <div class="simple-stat-table-wrap">
+          <div class="simple-stat-table simple-service-record-table">
+            <div class="simple-stat-head">
+              <span>項目</span>
+              <span>需繳交總數</span>
+              <span>已交</span>
+              <span>未繳</span>
+              <span>逾期</span>
+            </div>
+            ${rows.map(row => `
+              <div class="simple-stat-row ${row.overdue ? 'has-overdue' : ''}">
+                <strong>${escapeHtml(row.key)}</strong>
+                <span>${row.total}</span>
+                <span>${row.submitted}</span>
+                <span>${row.pending}</span>
+                <span class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</span>
+              </div>
+            `).join('')}
           </div>
         </div>
-
-        ${deptRows.map(row => `
-          <div class="service-record-clean-main service-record-number-row ${row.overdue ? 'has-overdue' : ''}">
-            <strong>${escapeHtml(row.key)}</strong>
-            <div class="clean-number-strip">
-              <span><b>${row.total}</b><small>總數</small></span>
-              <span><b>${row.pending}</b><small>未繳</small></span>
-              <span class="${row.overdue ? 'is-alert' : ''}"><b>${row.overdue}</b><small>逾期</small></span>
-              <span><b>${row.submitted}</b><small>已交</small></span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
+      ` : '<div class="empty-state">目前沒有統計資料。</div>'}
     </section>
   `
 }
@@ -7456,3 +7470,13 @@ function getPersonalReminderTestSummary() {
   - 行程類型、一部二部、服務紀錄單皆改成數字列
 */
 /* FOR-e V002-1N-3 END - statistics numbers no grid */
+
+/* FOR-e V002-1N-4 START - statistics simple table style */
+/*
+  V002-1N-4｜統計報表改成表列型態
+  - 類似你提供的列表樣式
+  - 顯示清楚數字
+  - 沒有表格格線
+  - 以橫列方式顯示行程類型、一部/二部、服務紀錄單統計
+*/
+/* FOR-e V002-1N-4 END - statistics simple table style */
