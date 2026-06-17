@@ -1,4 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+unzip -o for-e-v002-1k-1-2-meeting-field-mode-options-colors.zip
+
+npm run build
+
+git status
+git add -A
+git status
+git commit -m "V002-1K-1-2 meeting field schedule modes and meeting colors"
+git push origin mainimport { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
@@ -1567,7 +1575,7 @@ function renderMeetingRoomCard(row) {
     <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
       <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.title || '-')}</strong>
-      <span class="meeting-room-meta">預約人：${escapeHtml(row.creator_name || '-')}</span>
+      <span class="meeting-room-meta">預約人：${escapeHtml(getAssigneeNames(row) || row.creator_name || '-')}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -1679,10 +1687,7 @@ function openMeetingRoomModal(defaults = {}) {
           <select name="room" required>${meetingRoomOptionsHtml(defaultRoom)}</select>
         </label>
 
-        <label>
-          日期
-          <input name="start_date" type="date" required value="${defaultDate}">
-        </label>
+        ${scheduleModeFieldsHtml('meeting', defaultDate)}
 
         <label>
           開始時間
@@ -1707,12 +1712,16 @@ function openMeetingRoomModal(defaults = {}) {
 
         <label>
           部門
-          <input name="department" value="${escapeHtml(currentProfile?.department_name || '')}" placeholder="部門">
+          <select name="department" id="meetingDepartmentSelect">
+            ${departmentOptionsHtml(currentProfile?.department_name || '')}
+          </select>
         </label>
 
         <label>
           預約人
-          <input value="${escapeHtml(currentProfile?.name || currentProfile?.email || '')}" disabled>
+          <select name="reserver_staff_id" id="meetingReserverSelect">
+            ${staffOptionsSelectHtml(currentProfile?.staff_id || '')}
+          </select>
         </label>
 
         <label class="span-2">
@@ -1729,6 +1738,22 @@ function openMeetingRoomModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+
+  const meetingRepeatModeSelect = document.querySelector('#meetingRepeatModeSelect')
+  if (meetingRepeatModeSelect) {
+    meetingRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('meeting'))
+    refreshScheduleModeBlocks('meeting')
+  }
+
+  const meetingReserverSelect = document.querySelector('#meetingReserverSelect')
+  const meetingDepartmentSelect = document.querySelector('#meetingDepartmentSelect')
+  if (meetingReserverSelect && meetingDepartmentSelect) {
+    meetingReserverSelect.addEventListener('change', () => {
+      const option = meetingReserverSelect.selectedOptions?.[0]
+      if (option?.dataset?.department) meetingDepartmentSelect.value = option.dataset.department
+    })
+  }
+
   document.querySelector('#closeMeetingModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelMeetingModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#meetingRoomForm').addEventListener('submit', event => saveMeetingRoomSchedule(event, modal))
@@ -1743,6 +1768,14 @@ async function saveMeetingRoomSchedule(event, modal) {
     const form = new FormData(event.target)
     const room = form.get('room')
     const date = form.get('start_date')
+    const reserverStaffId = form.get('reserver_staff_id') || currentProfile.staff_id
+    const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || {
+      staff_id: currentProfile.staff_id,
+      name: currentProfile.name || currentProfile.email,
+      department_id: reserverStaff.department_id || currentProfile.department_id,
+      department_name: form.get('department') || reserverStaff.department_name || currentProfile.department_name,
+      position: currentProfile.position_name || currentProfile.position
+    }
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
 
@@ -1767,11 +1800,15 @@ async function saveMeetingRoomSchedule(event, modal) {
       category: '會議室預約',
       schedule_type: '會議室預約',
       sub_type: room,
-      sub_type_note: form.get('department') ? `部門：${form.get('department')}` : null,
+      sub_type_note: [
+        buildRepeatNote(form),
+        form.get('department') ? `部門：${form.get('department')}` : '',
+        reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
+      ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
       start_date: date,
-      end_date: date,
+      end_date: getScheduleModeEndDate(form),
       time_type: Number(startTime.slice(0, 2)) < 12 ? '上午' : '下午',
       start_time: startTime,
       end_time: endTime,
@@ -1799,11 +1836,11 @@ async function saveMeetingRoomSchedule(event, modal) {
 
     const { error: assigneeError } = await supabase.from('schedule_assignees').insert([{
       schedule_id: schedule.schedule_id,
-      staff_id: currentProfile.staff_id,
-      staff_name: currentProfile.name || currentProfile.email,
-      department_id: currentProfile.department_id,
-      department_name: currentProfile.department_name,
-      position: currentProfile.position_name || currentProfile.position,
+      staff_id: reserverStaff.staff_id,
+      staff_name: reserverStaff.name || currentProfile.email,
+      department_id: reserverStaff.department_id || currentProfile.department_id,
+      department_name: reserverStaff.department_name || form.get('department') || currentProfile.department_name,
+      position: reserverStaff.position || currentProfile.position_name || currentProfile.position,
       assignee_type: 'executor'
     }])
 
@@ -3178,6 +3215,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
     const abnormalDetail = getFieldNoteValue(originalRow, '異常項目')
 
     const noteParts = [
+      buildRepeatNote(form),
       `外務目的：${purpose}`,
       form.get('cash_note') ? `現金：${form.get('cash_note')}` : '',
       form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
@@ -3198,7 +3236,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       title: `${purpose}${locationName ? '｜' + locationName : '｜外務'}`,
       description: form.get('description') || null,
       start_date: form.get('start_date'),
-      end_date: form.get('start_date'),
+      end_date: getScheduleModeEndDate(form),
       time_type: getFieldTimeTypeFromValue(fieldTime),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
@@ -3249,6 +3287,82 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
   }
 }
 
+
+function scheduleModeFieldsHtml(prefix, defaultDate = '') {
+  return `
+    <div class="span-2 block-group schedule-mode-box">
+      <div class="group-title">行程模式</div>
+      <div class="form-grid inner-grid">
+        <label>
+          行程模式
+          <select name="repeat_mode" id="${prefix}RepeatModeSelect">
+            <option value="單日">單日</option>
+            <option value="連續日期">連續日期</option>
+            <option value="每週重複">每週重複</option>
+            <option value="每月重複">每月重複</option>
+          </select>
+        </label>
+
+        <label>
+          開始日期
+          <input name="start_date" type="date" required value="${defaultDate}">
+        </label>
+
+        <label class="hidden" id="${prefix}EndDateBlock">
+          結束日期
+          <input name="end_date" type="date" value="${defaultDate}">
+        </label>
+
+        <label class="hidden" id="${prefix}MonthlyDayBlock">
+          每月幾號
+          <select name="monthly_day">
+            ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">${i + 1} 號</option>`).join('')}
+          </select>
+        </label>
+
+        <div class="span-2 hidden" id="${prefix}WeekdayBlock">
+          <div class="field-title">重複星期</div>
+          <div class="inline-check-list">
+            ${weekdays.map(([value, label]) => `<label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function refreshScheduleModeBlocks(prefix) {
+  const modeSelect = document.querySelector(`#${prefix}RepeatModeSelect`)
+  if (!modeSelect) return
+
+  const mode = modeSelect.value
+  document.querySelector(`#${prefix}EndDateBlock`)?.classList.toggle('hidden', mode === '單日')
+  document.querySelector(`#${prefix}WeekdayBlock`)?.classList.toggle('hidden', mode !== '每週重複')
+  document.querySelector(`#${prefix}MonthlyDayBlock`)?.classList.toggle('hidden', mode !== '每月重複')
+}
+
+function getScheduleModeEndDate(form) {
+  const mode = form.get('repeat_mode') || '單日'
+  if (mode === '單日') return form.get('start_date')
+  return form.get('end_date') || form.get('start_date')
+}
+
+function departmentOptionsHtml(selectedDepartment = '') {
+  const names = [...new Set(staffList.map(staff => staff.department_name).filter(Boolean))]
+  if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
+
+  return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+}
+
+function staffOptionsSelectHtml(selectedStaffId = '') {
+  return staffList.map(staff => `
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''} data-department="${escapeHtml(staff.department_name || '')}">
+      ${staff.name}｜${staff.department_name || ''}
+    </option>
+  `).join('')
+}
+
+
 function openFieldScheduleModal(defaults = {}) {
   const defaultDate = defaults.date || todayString()
   const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
@@ -3268,10 +3382,7 @@ function openFieldScheduleModal(defaults = {}) {
           <div class="checkbox-list">${fieldStaffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選外務人員。</div>'}</div>
         </div>
 
-        <label>
-          日期
-          <input name="start_date" type="date" required value="${defaultDate}">
-        </label>
+        ${scheduleModeFieldsHtml('field', defaultDate)}
 
         <label>
           時間
@@ -3372,6 +3483,12 @@ function openFieldScheduleModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+
+  const fieldRepeatModeSelect = document.querySelector('#fieldRepeatModeSelect')
+  if (fieldRepeatModeSelect) {
+    fieldRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('field'))
+    refreshScheduleModeBlocks('field')
+  }
 
   const locationSelect = document.querySelector('#fieldLocationSelect')
   if (locationSelect) {
