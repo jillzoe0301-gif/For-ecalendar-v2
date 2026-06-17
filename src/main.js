@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-70'
+const SYSTEM_VERSION = 'V002-1P-72'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -904,8 +904,51 @@ function todayString() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function isDeletedSchedule(row) {
+  if (!row) return true
+  const statusText = String(row.status || '').trim()
+  return Boolean(
+    row.deleted_at ||
+    row.deletedAt ||
+    row.removed_at ||
+    row.is_deleted === true ||
+    row.deleted === true ||
+    statusText === '已刪除' ||
+    statusText === '刪除' ||
+    statusText.toLowerCase() === 'deleted'
+  )
+}
+
+function isCancelledSchedule(row) {
+  if (!row) return false
+  const statusText = String(row.status || '').trim()
+  return Boolean(
+    statusText === '取消' ||
+    row.is_cancelled === true ||
+    row.cancelled_at ||
+    row.cancelledAt
+  )
+}
+
 function isVisibleSchedule(row) {
-  return row && row.status !== '取消' && row.is_cancelled !== true && !row.deleted_at
+  return row && !isDeletedSchedule(row) && !isCancelledSchedule(row)
+}
+
+function isSearchableSchedule(row) {
+  return isVisibleSchedule(row)
+}
+
+function isActiveServiceRecord(record) {
+  if (!record) return false
+  if (record.deleted_at || record.deletedAt || record.is_deleted === true || record.deleted === true) return false
+
+  if (record.schedule_id) {
+    const schedule = getServiceRecordSchedule(record)
+    if (!schedule) return false
+    if (!isVisibleSchedule(schedule)) return false
+  }
+
+  return true
 }
 
 
@@ -2936,7 +2979,9 @@ function matchesSearchFilters(row) {
 }
 
 function getSearchResults() {
-  return schedules.filter(row => matchesSearchFilters(row))
+  return schedules
+    .filter(isSearchableSchedule)
+    .filter(row => matchesSearchFilters(row))
 }
 
 function buildOptionList(items, selected) {
@@ -2981,14 +3026,14 @@ function renderSearchResultList(rows, emptyText) {
 
 function renderSearchPage() {
   const results = getSearchResults()
-  const statusOptions = buildOptionList(['全部', '未完成', '已完成', '取消'], searchFilters.status)
+  const statusOptions = buildOptionList(['全部', '未完成', '已完成'], searchFilters.status)
   const categoryOptions = buildOptionList(['全部', ...new Set([...formCategories, '外務行程', '異況追蹤', '會議室預約'])], searchFilters.category)
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>行程搜尋</h3>
-        <p class="muted">搜尋已完成、取消與未完成行程；列表先簡潔顯示，需要完整內容再點查看。</p>
+        <p class="muted">搜尋已完成與未完成行程；已刪除 / 已取消行程不顯示。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetSearchBtn">清除條件</button>
@@ -3048,8 +3093,8 @@ function renderSearchPage() {
         <span>已完成</span>
       </div>
       <div class="summary-card">
-        <strong>${results.filter(row => row.status === '取消').length}</strong>
-        <span>取消</span>
+        <strong>${results.filter(row => row.status !== '已完成').length}</strong>
+        <span>未完成</span>
       </div>
     </div>
 
@@ -8198,7 +8243,7 @@ function getBackupStaffRows() {
 }
 
 function getBackupScheduleRows() {
-  return uniqueScheduleRows(schedules || [])
+  return uniqueScheduleRows(schedules || []).filter(isVisibleSchedule)
 }
 
 function getProfileBackupColumns() {
@@ -8252,7 +8297,7 @@ function getLaunchBackupItems() {
       key: 'all',
       title: '一鍵下載全部備份',
       description: '依序下載人員、帳號綁定、行程、服務紀錄單、異動紀錄、共用設定、帳號檢查與資料完整性。',
-      count: getBackupStaffRows().length + userProfileList.length + getBackupScheduleRows().length + serviceRecords.length + auditLogs.length + getDataIntegrityAudit().issues.length,
+      count: getBackupStaffRows().length + userProfileList.length + getBackupScheduleRows().length + (serviceRecords || []).filter(isActiveServiceRecord).length + auditLogs.length + getDataIntegrityAudit().issues.length,
       primary: true
     },
     {
@@ -8277,7 +8322,7 @@ function getLaunchBackupItems() {
       key: 'serviceRecords',
       title: '服務紀錄單',
       description: '匯出所有已載入服務紀錄單資料。',
-      count: serviceRecords.length
+      count: (serviceRecords || []).filter(isActiveServiceRecord).length
     },
     {
       key: 'auditLogs',
@@ -8333,7 +8378,7 @@ function exportLaunchBackup(type = '') {
   }
 
   if (normalizedType === 'serviceRecords') {
-    downloadCsv(getBackupFilename('服務紀錄單'), getServiceRecordCsvColumns(), serviceRecords || [])
+    downloadCsv(getBackupFilename('服務紀錄單'), getServiceRecordCsvColumns(), (serviceRecords || []).filter(isActiveServiceRecord))
     return
   }
 
@@ -9800,7 +9845,7 @@ function getServiceRecordPeriodRows(records, period) {
   const monthKey = today.slice(0, 7)
   const yearKey = today.slice(0, 4)
 
-  return records.filter(record => {
+  return records.filter(isActiveServiceRecord).filter(record => {
     const dateText = String(record.schedule_date || '')
     if (period === 'month') return dateText.startsWith(monthKey)
     if (period === 'year') return dateText.startsWith(yearKey)
@@ -10051,7 +10096,7 @@ function buildServiceRecordOptionList(items, selectedValue) {
 
 function getServiceRecordMonthlyRows(records) {
   const monthKey = todayString().slice(0, 7)
-  return records.filter(record => String(record.schedule_date || '').startsWith(monthKey))
+  return records.filter(isActiveServiceRecord).filter(record => String(record.schedule_date || '').startsWith(monthKey))
 }
 
 function getServiceRecordStaffSummary(records) {
@@ -10136,6 +10181,7 @@ function getServiceRecordDays(record) {
 }
 
 function matchesServiceRecordFilters(record, onlyMine = false) {
+  if (!isActiveServiceRecord(record)) return false
   if (onlyMine && currentProfile?.staff_id && record.staff_id !== currentProfile.staff_id) return false
 
   const status = getServiceRecordStatus(record)
@@ -15147,3 +15193,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 若仍有其他歷史資料 FK 擋住，會提示改用停用
 */
 /* FOR-e V002-1P-70 END - staff delete unbind profiles */
+
+/* FOR-e V002-1P-72 START - hide deleted schedules everywhere */
+/*
+  V002-1P-72｜刪除 / 取消行程殘留資料隱藏
+  - 行程搜尋改為只顯示有效行程，已刪除 / 已取消行程不顯示
+  - 服務紀錄單頁面與紀錄單繳交頁會排除已刪除 / 已取消 / 找不到原行程的紀錄單
+  - 統計報表延續有效行程規則，避免已刪除 / 已取消行程殘留在統計數據
+  - 備份匯出的行程與服務紀錄單也排除已刪除 / 已取消殘留資料
+  - 新增 isDeletedSchedule / isCancelledSchedule / isActiveServiceRecord 共用判斷，避免各頁規則不一致
+*/
+/* FOR-e V002-1P-72 END - hide deleted schedules everywhere */
