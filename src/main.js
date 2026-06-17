@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-56'
+const SYSTEM_VERSION = 'V002-1P-57'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7286,6 +7286,13 @@ function getHealthRows() {
   })
 
   rows.push({
+    title: '帳號綁定狀態',
+    status: getAccountBindingStatus(),
+    detail: getAccountBindingSummaryText(),
+    note: '可用人員 / 帳號頁的「重綁」修正帳號與人員對應。'
+  })
+
+  rows.push({
     title: '我的畫面記憶',
     status: 'ok',
     detail: getMyUiMemorySummary(),
@@ -7569,6 +7576,7 @@ function getLaunchTestGroups() {
         ['vercel-prod', '正式 Vercel 網址可正常開啟'],
         ['supabase-ok', 'Supabase 環境變數、staff、schedules、service_records、audit_logs 皆正常'],
         ['edge-function', '帳號 Edge Function dry_run 測試正常'],
+        ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
@@ -7753,6 +7761,169 @@ function renderLaunchTestChecklist() {
 }
 
 
+
+function getAccountBindingAudit() {
+  const sourceStaff = allStaffList.length ? allStaffList : staffList
+  const activeStaffRows = (sourceStaff || []).filter(staff => !isStaffDeleted(staff))
+  const deletedStaffRows = (sourceStaff || []).filter(isStaffDeleted)
+  const activeStaffIds = new Set(activeStaffRows.map(staff => normalizeStaffId(staff.staff_id)).filter(Boolean))
+  const deletedStaffIds = new Set(deletedStaffRows.map(staff => normalizeStaffId(staff.staff_id)).filter(Boolean))
+  const linkedProfiles = userProfileList.filter(profile => normalizeStaffId(getProfileStaffId(profile)))
+  const linkedByStaffId = {}
+
+  linkedProfiles.forEach(profile => {
+    const staffId = normalizeStaffId(getProfileStaffId(profile))
+    if (!staffId) return
+    if (!linkedByStaffId[staffId]) linkedByStaffId[staffId] = []
+    linkedByStaffId[staffId].push(profile)
+  })
+
+  const duplicateLinks = Object.entries(linkedByStaffId)
+    .filter(([, profiles]) => profiles.length > 1)
+    .map(([staffId, profiles]) => ({
+      staffId,
+      staffName: activeStaffRows.find(staff => normalizeStaffId(staff.staff_id) === staffId)?.name || staffId,
+      emails: profiles.map(profile => profile.email).filter(Boolean)
+    }))
+
+  const linkedToDeletedStaff = linkedProfiles.filter(profile => deletedStaffIds.has(normalizeStaffId(getProfileStaffId(profile))))
+  const linkedToMissingStaff = linkedProfiles.filter(profile => {
+    const staffId = normalizeStaffId(getProfileStaffId(profile))
+    return staffId && !activeStaffIds.has(staffId) && !deletedStaffIds.has(staffId)
+  })
+
+  const activeUnboundStaff = activeStaffRows.filter(staff => {
+    const status = getStaffDisplayStatus(staff)
+    return status !== '停用' && !getStaffLoginEmail(staff)
+  })
+
+  const activeProfilesWithoutStaffId = userProfileList.filter(profile => {
+    return isActiveLoginProfile(profile) && !normalizeStaffId(getProfileStaffId(profile))
+  })
+
+  const nameFallbackRisks = activeProfilesWithoutStaffId.filter(profile => {
+    return profile.name && activeStaffRows.some(staff => staff.name === profile.name && !getStaffLoginEmail(staff))
+  })
+
+  const issues = [
+    ...duplicateLinks.map(item => ({
+      level: 'bad',
+      title: '同一人員綁定多個登入帳號',
+      detail: `${item.staffName}｜${item.emails.join('、') || item.staffId}`
+    })),
+    ...linkedToDeletedStaff.map(profile => ({
+      level: 'bad',
+      title: '登入帳號仍綁到已刪除人員',
+      detail: `${profile.email || '-'}｜staff_id：${normalizeStaffId(getProfileStaffId(profile))}`
+    })),
+    ...linkedToMissingStaff.map(profile => ({
+      level: 'warn',
+      title: '登入帳號綁到不存在的人員',
+      detail: `${profile.email || '-'}｜staff_id：${normalizeStaffId(getProfileStaffId(profile))}`
+    })),
+    ...nameFallbackRisks.map(profile => ({
+      level: 'warn',
+      title: '可能被姓名誤判為已綁定',
+      detail: `${profile.email || '-'}｜${profile.name || '-'}`
+    })),
+    ...activeUnboundStaff.map(staff => ({
+      level: 'warn',
+      title: '啟用人員尚未綁定登入帳號',
+      detail: `${staff.name || '-'}｜${staff.department_name || '-'}`
+    }))
+  ]
+
+  return {
+    activeStaffCount: activeStaffRows.length,
+    deletedStaffCount: deletedStaffRows.length,
+    linkedProfileCount: linkedProfiles.length,
+    duplicateLinks,
+    linkedToDeletedStaff,
+    linkedToMissingStaff,
+    activeUnboundStaff,
+    nameFallbackRisks,
+    issues
+  }
+}
+
+function getAccountBindingStatus() {
+  const audit = getAccountBindingAudit()
+  if (audit.duplicateLinks.length || audit.linkedToDeletedStaff.length) return 'bad'
+  if (audit.linkedToMissingStaff.length || audit.nameFallbackRisks.length || audit.activeUnboundStaff.length) return 'warn'
+  return 'ok'
+}
+
+function getAccountBindingSummaryText() {
+  const audit = getAccountBindingAudit()
+  const statusText = getHealthStatusMeta(getAccountBindingStatus()).label
+  return `${statusText}｜有效人員 ${audit.activeStaffCount} 位｜已綁定 ${audit.linkedProfileCount} 個帳號｜需注意 ${audit.issues.length} 項`
+}
+
+function renderAccountBindingAuditPanel() {
+  const audit = getAccountBindingAudit()
+  const status = getAccountBindingStatus()
+  const meta = getHealthStatusMeta(status)
+  const visibleIssues = audit.issues.slice(0, 30)
+
+  return `
+    <section class="account-binding-section ${meta.className}">
+      <div class="section-title-row">
+        <h4>帳號綁定檢查</h4>
+        <span>${escapeHtml(getAccountBindingSummaryText())}</span>
+      </div>
+
+      <div class="account-binding-summary-grid">
+        <div>
+          <strong>${audit.activeStaffCount}</strong>
+          <span>有效人員</span>
+        </div>
+        <div>
+          <strong>${audit.deletedStaffCount}</strong>
+          <span>已刪除不顯示</span>
+        </div>
+        <div>
+          <strong>${audit.linkedProfileCount}</strong>
+          <span>已綁定帳號</span>
+        </div>
+        <div>
+          <strong>${audit.issues.length}</strong>
+          <span>需注意</span>
+        </div>
+      </div>
+
+      ${visibleIssues.length ? `
+        <div class="account-binding-issue-list">
+          ${visibleIssues.map(issue => `
+            <div class="account-binding-issue is-${issue.level}">
+              <strong>${escapeHtml(issue.title)}</strong>
+              <span>${escapeHtml(issue.detail)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="empty-state">
+          <p>帳號綁定檢查正常，目前沒有發現需要處理的綁定問題。</p>
+        </div>
+      `}
+
+      <div class="notice">
+        若要更換登入 Email，請到「人員 / 帳號」按「重綁」。若只是暫時不用請改成「停用」；若按「刪除」，人員會永久移除且不會出現在名單。
+      </div>
+    </section>
+  `
+}
+
+function getAccountBindingReportLines() {
+  const audit = getAccountBindingAudit()
+  if (!audit.issues.length) return ['帳號綁定檢查：正常']
+
+  return [
+    `帳號綁定檢查：需注意 ${audit.issues.length} 項`,
+    ...audit.issues.map(issue => `- ${issue.title}：${issue.detail}`)
+  ]
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -7783,6 +7954,7 @@ function renderSystemHealthPage() {
     ${renderCurrentRolePermissionSummary()}
     ${renderRolePermissionMatrix()}
     ${renderPageAccessMatrix()}
+    ${renderAccountBindingAuditPanel()}
     ${renderLaunchTestChecklist()}
 
     <section class="health-checklist">
@@ -13633,3 +13805,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 刪除的人員不會出現在人員名單；停用人員仍會留在名單上
 */
 /* FOR-e V002-1P-56 END - rebind account hide deleted */
+
+/* FOR-e V002-1P-57 START - account binding audit */
+/*
+  V002-1P-57｜帳號綁定檢查
+  - 系統檢查頁新增帳號綁定狀態卡片
+  - 新增帳號綁定檢查區塊，檢查重複綁定、綁到已刪除人員、綁到不存在人員、姓名 fallback 風險、啟用人員未綁定
+  - 複製系統檢查報告會帶入帳號綁定檢查結果
+  - 正式上線前測試清單新增帳號綁定檢查項目
+*/
+/* FOR-e V002-1P-57 END - account binding audit */

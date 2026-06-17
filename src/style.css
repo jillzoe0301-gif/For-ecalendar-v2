@@ -10065,3 +10065,121 @@ body {
   }
 }
 /* FOR-e V002-1P-56 END - rebind account hide deleted */
+
+/* FOR-e V002-1P-57 START - account binding audit */
+.account-binding-section {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.account-binding-section.is-ok {
+  border-color: #bbf7d0;
+  background: #f7fef9;
+}
+
+.account-binding-section.is-warn {
+  border-color: #fde68a;
+  background: #fffdf2;
+}
+
+.account-binding-section.is-bad {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.account-binding-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.account-binding-summary-grid div {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #ffffff;
+}
+
+.account-binding-summary-grid strong {
+  display: block;
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.account-binding-summary-grid span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.account-binding-issue-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.account-binding-issue {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.account-binding-issue strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.account-binding-issue span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.account-binding-issue.is-bad {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.account-binding-issue.is-bad strong {
+  color: #b91c1c;
+}
+
+.account-binding-issue.is-warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.account-binding-issue.is-warn strong {
+  color: #92400e;
+}
+
+@media (max-width: 760px) {
+  .account-binding-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-binding-section {
+    padding: 12px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .account-binding-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-57 END - account binding audit */
