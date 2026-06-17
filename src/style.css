@@ -7622,3 +7622,221 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-17 END - login account status reset */
+
+/* FOR-e V002-1P-18 START - create login account */
+.users-create-login-btn {
+  min-width: 48px;
+  color: #3155d4 !important;
+}
+
+.login-account-modal {
+  width: min(720px, 100%);
+}
+
+.login-create-user-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #eef5ff;
+  border: 1px solid #c7d2fe;
+}
+
+.login-create-user-card strong {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.login-create-user-card span {
+  color: #3155d4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.login-password-tip div {
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+/* FOR-e V002-1P-18 END - create login account */
+
+/* FOR-e V002-1P-19 START - merged shared options and login reminder */
+.login-reminder-modal {
+  width: min(860px, 100%);
+}
+
+.login-reminder-hello {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  background: #eef5ff;
+  border: 1px solid #c7d2fe;
+}
+
+.login-reminder-hello strong {
+  color: #111827;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.login-reminder-hello span {
+  color: #3155d4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.login-reminder-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.login-reminder-summary div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.login-reminder-summary div.is-danger {
+  border-color: #F62440;
+  background: #fff1f3;
+}
+
+.login-reminder-summary strong {
+  color: #111827;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.login-reminder-summary div.is-danger strong {
+  color: #F62440;
+}
+
+.login-reminder-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.login-reminder-body {
+  display: grid;
+  gap: 12px;
+  max-height: 54vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.login-reminder-section {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.login-reminder-section.is-overdue {
+  background: #fff1f3;
+}
+
+.login-reminder-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.login-reminder-section-title strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.login-reminder-section-title span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.login-reminder-list {
+  display: grid;
+  gap: 7px;
+}
+
+.login-reminder-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.login-reminder-item strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.login-reminder-item span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-reminder-item em {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 950;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.login-reminder-section.is-overdue .login-reminder-item {
+  border-color: #F62440;
+}
+
+.login-reminder-section.is-overdue .login-reminder-item em {
+  color: #F62440;
+}
+
+.login-reminder-empty,
+.login-reminder-more {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .login-reminder-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .login-reminder-item {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-19 END - merged shared options and login reminder */

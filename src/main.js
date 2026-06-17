@@ -799,6 +799,7 @@ async function loadProfile() {
   currentPage = 'personalSchedule'
   await refreshData()
   renderApp()
+  maybeOpenLoginDailyReminder()
 }
 
 async function refreshData() {
@@ -868,6 +869,153 @@ async function sendPasswordResetEmail(email) {
 
   alert('已寄送重設密碼信。')
 }
+
+
+function generateTemporaryPassword() {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+  const numbers = '23456789'
+  const symbols = '!@#$%'
+
+  const pick = text => text[Math.floor(Math.random() * text.length)]
+  let value = [
+    pick(letters.toUpperCase()),
+    pick(letters.toLowerCase()),
+    pick(numbers),
+    pick(symbols)
+  ]
+
+  const pool = letters + numbers + symbols
+  while (value.length < 12) value.push(pick(pool))
+
+  return value.sort(() => Math.random() - 0.5).join('')
+}
+
+function openLoginAccountModal(staffId = '') {
+  if (currentProfile?.role !== '管理員') {
+    alert('只有管理員可以建立登入帳號。')
+    return
+  }
+
+  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  if (!staff) {
+    alert('找不到人員資料。')
+    return
+  }
+
+  const existingEmail = getStaffLoginEmail(staff)
+  if (existingEmail) {
+    alert('此人員已經綁定登入帳號，可使用重設密碼功能。')
+    return
+  }
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel login-account-modal">
+      <div class="modal-header">
+        <h3>建立登入帳號</h3>
+        <button class="icon-btn" id="closeLoginAccountModalBtn" type="button">×</button>
+      </div>
+
+      <form id="loginAccountForm" class="form-grid">
+        <div class="span-2 login-create-user-card">
+          <strong>${escapeHtml(staff.name || '-')}</strong>
+          <span>${escapeHtml(staff.department_name || '-')}｜${escapeHtml(staff.position || '-')}｜${escapeHtml(staff.role || '-')}</span>
+        </div>
+
+        <label class="span-2">
+          登入 Email
+          <input name="email" type="email" required placeholder="例如：user@company.com">
+        </label>
+
+        <label>
+          臨時密碼
+          <input name="password" type="text" required minlength="8" value="${escapeHtml(generateTemporaryPassword())}">
+        </label>
+
+        <label class="login-password-tip">
+          說明
+          <div>建立後請讓使用者登入並自行更改密碼；也可以之後使用「重設」寄送重設密碼信。</div>
+        </label>
+
+        <div class="notice span-2">
+          建立登入帳號會透過 Supabase Edge Function 執行。請先部署 admin-create-user function，且不要把 service_role key 放到前端。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelLoginAccountModalBtn">取消</button>
+          <button type="submit" class="primary-btn">建立登入帳號</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeLoginAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelLoginAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#loginAccountForm').addEventListener('submit', event => createLoginAccountForStaff(event, modal, staff.staff_id))
+}
+
+async function createLoginAccountForStaff(event, modal, staffId) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const email = String(form.get('email') || '').trim()
+    const password = String(form.get('password') || '').trim()
+
+    if (!email) {
+      alert('請輸入登入 Email。')
+      return
+    }
+
+    if (password.length < 8) {
+      alert('臨時密碼至少需要 8 碼。')
+      return
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+
+    if (!accessToken) {
+      alert('登入狀態已失效，請重新登入。')
+      return
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        staff_id: staffId,
+        email,
+        password
+      })
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || '建立登入帳號失敗')
+    }
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+    alert('登入帳號已建立。')
+  } catch (err) {
+    console.error(err)
+    alert(err.message || '建立登入帳號失敗。請確認 Edge Function 是否已部署。')
+  } finally {
+    saving = false
+  }
+}
+
 
 async function loadStaff() {
   const { data, error } = await supabase
@@ -1425,6 +1573,10 @@ function renderApp() {
       window.open(`https://line.me/R/share?text=${encodeURIComponent(text)}`, '_blank')
     })
   }
+
+  document.querySelectorAll('[data-create-login-staff]').forEach(btn => {
+    btn.addEventListener('click', () => openLoginAccountModal(btn.dataset.createLoginStaff))
+  })
 
   document.querySelectorAll('[data-reset-password-email]').forEach(btn => {
     btn.addEventListener('click', () => sendPasswordResetEmail(btn.dataset.resetPasswordEmail))
@@ -5598,6 +5750,143 @@ function exportCurrentPageCsv(filterOptions = null) {
 }
 
 
+
+function getLoginDailyReminderRows() {
+  const today = todayString()
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
+
+  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+
+  return {
+    todaySchedules: myRows
+      .filter(row => scheduleMatchesDateByMode(row, today))
+      .filter(row => row.status !== '已完成' && row.status !== '取消')
+      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b)))),
+
+    todayTodos: myRows
+      .filter(row => todoCategories.includes(row.category))
+      .filter(row => scheduleMatchesDateByMode(row, today))
+      .filter(row => row.status !== '已完成' && row.status !== '取消')
+      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b)))),
+
+    overdueTasks: myRows
+      .filter(row => isOverdueSchedule(row))
+      .filter(row => !isReminderSchedule(row))
+      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || ''))),
+
+    reminderRows: myRows
+      .filter(row => isReminderSchedule(row))
+      .filter(row => row.status !== '已完成' && row.status !== '取消')
+      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+  }
+}
+
+function renderLoginReminderItem(row) {
+  return `
+    <button type="button" class="login-reminder-item" data-login-view-schedule="${row.schedule_id}">
+      <div>
+        <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+        <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row) || '-')}</span>
+        ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
+      </div>
+      <em>${isOverdueSchedule(row) ? '逾期' : '查看'}</em>
+    </button>
+  `
+}
+
+function renderLoginReminderSection(title, rows, emptyText, className = '') {
+  return `
+    <section class="login-reminder-section ${className}">
+      <div class="login-reminder-section-title">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${rows.length} 筆</span>
+      </div>
+      <div class="login-reminder-list">
+        ${rows.length ? rows.slice(0, 8).map(renderLoginReminderItem).join('') : `<div class="login-reminder-empty">${escapeHtml(emptyText)}</div>`}
+        ${rows.length > 8 ? `<div class="login-reminder-more">尚有 ${rows.length - 8} 筆，請到對應頁面查看。</div>` : ''}
+      </div>
+    </section>
+  `
+}
+
+function maybeOpenLoginDailyReminder() {
+  if (!currentProfile?.staff_id) return
+
+  const key = `for-e-login-reminder-${currentProfile.staff_id}-${todayString()}`
+  if (sessionStorage.getItem(key) === 'shown') return
+
+  const groups = getLoginDailyReminderRows()
+  const total = groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
+
+  if (!total) {
+    sessionStorage.setItem(key, 'shown')
+    return
+  }
+
+  setTimeout(() => {
+    sessionStorage.setItem(key, 'shown')
+    openLoginDailyReminderModal(groups)
+  }, 250)
+}
+
+function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop login-reminder-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel login-reminder-modal">
+      <div class="modal-header">
+        <h3>今日提醒總覽</h3>
+        <button class="icon-btn" id="closeLoginReminderBtn" type="button">×</button>
+      </div>
+
+      <div class="login-reminder-hello">
+        <strong>${escapeHtml(currentProfile?.name || '您好')}</strong>
+        <span>${todayString()}｜今日行程、待辦、逾期與待確認事項</span>
+      </div>
+
+      <div class="login-reminder-summary">
+        <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
+        <div><strong>${groups.todayTodos.length}</strong><span>今日待辦</span></div>
+        <div class="${groups.overdueTasks.length ? 'is-danger' : ''}"><strong>${groups.overdueTasks.length}</strong><span>任務逾期</span></div>
+        <div><strong>${groups.reminderRows.length}</strong><span>待確認 / 待通知</span></div>
+      </div>
+
+      <div class="login-reminder-body">
+        ${renderLoginReminderSection('任務逾期通知', groups.overdueTasks, '目前沒有逾期任務。', 'is-overdue')}
+        ${renderLoginReminderSection('待確認 / 待通知提醒', groups.reminderRows, '目前沒有待確認 / 待通知提醒。')}
+        ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有一般待辦。')}
+        ${renderLoginReminderSection('今日行程', groups.todaySchedules, '今天沒有待處理行程。')}
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="closeLoginReminderBtn2">今天先關閉</button>
+        <button type="button" class="primary-btn" id="goPersonalScheduleBtn">前往個人行程表</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const close = () => modal.remove()
+  document.querySelector('#closeLoginReminderBtn').addEventListener('click', close)
+  document.querySelector('#closeLoginReminderBtn2').addEventListener('click', close)
+
+  document.querySelector('#goPersonalScheduleBtn').addEventListener('click', () => {
+    modal.remove()
+    currentPage = 'personalSchedule'
+    renderApp()
+  })
+
+  modal.querySelectorAll('[data-login-view-schedule]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scheduleId = btn.dataset.loginViewSchedule
+      modal.remove()
+      openScheduleDetail(scheduleId)
+    })
+  })
+}
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -6902,7 +7191,10 @@ function renderUsersList(rows) {
               <span class="user-status-pill ${staff.status === '停用' ? 'is-disabled' : ''}">${escapeHtml(staff.status || '啟用')}</span>
               <div class="users-action-stack">
                 <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
-                <button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" ${canEditUserAccount && loginEmail ? '' : 'disabled'}>重設</button>
+                ${loginEmail
+                  ? `<button type="button" class="small-secondary-btn users-reset-btn" data-reset-password-email="${escapeHtml(loginEmail)}" ${canEditUserAccount ? '' : 'disabled'}>重設</button>`
+                  : `<button type="button" class="small-secondary-btn users-create-login-btn" data-create-login-staff="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>建立</button>`
+                }
               </div>
             </div>
           `
@@ -6931,7 +7223,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      權限規則：管理員可新增 / 修改人員資料、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定。
+      權限規則：管理員可新增 / 修改人員資料、建立登入帳號、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -7111,7 +7403,7 @@ function openUserAccountModal(staffId = '') {
         <div class="login-account-info span-2">
           <strong>登入帳號狀態</strong>
           <span>${loginEmail ? `已綁定：${escapeHtml(loginEmail)}` : '尚未綁定登入帳號'}</span>
-          <small>這裡先管理人員資料與寄送重設密碼信；新增 Supabase Auth 登入帳號需由後台或 Edge Function 建立。</small>
+          <small>這裡管理人員資料；若尚未綁定登入帳號，可在人員列表點「建立」建立 Supabase Auth 帳號。</small>
         </div>
 
         <div class="modal-actions span-2">
@@ -10565,3 +10857,22 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不在前端建立 Supabase Auth 使用者，避免暴露 service_role
 */
 /* FOR-e V002-1P-17 END - login account status reset */
+
+/* FOR-e V002-1P-18 START - create login account */
+/*
+  V002-1P-18｜建立登入帳號
+  - 人員未綁定登入帳號時顯示「建立」
+  - 透過 Supabase Edge Function admin-create-user 建立 Auth 使用者
+  - 建立後寫入 profiles 並綁定 staff_id
+  - 前端不保存 service_role key
+*/
+/* FOR-e V002-1P-18 END - create login account */
+
+/* FOR-e V002-1P-19 START - merged shared options and login reminder */
+/*
+  V002-1P-19｜合併共用選項與登入提醒
+  - 修復 V002-1P-17 / 1P-18 可能覆蓋 V002-1P-16 選項共用化的問題
+  - 選項管理恢復 Supabase app_settings.managed_options 共用
+  - 登入後顯示今日提醒總覽：今日行程、今日待辦、任務逾期、待確認 / 待通知
+*/
+/* FOR-e V002-1P-19 END - merged shared options and login reminder */
