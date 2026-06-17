@@ -35,6 +35,24 @@ const serviceScheduleTypes = [
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
   '住變資訊', '驗證提醒', '返台提醒', '宿舍', '其他'
 ]
+const scheduleContentTemplates = [
+  { type: '面談', content: '面談對象：\n面談原因：\n處理內容：\n後續追蹤：' },
+  { type: '上線 / 教育訓練', content: '上線 / 教育訓練內容：\n參與人員：\n注意事項：' },
+  { type: '定期 / 開會', content: '會議主題：\n參與人員：\n會議重點：\n待辦事項：' },
+  { type: '送工', content: '送工人員：\n雇主 / 地點：\n送工狀況：\n需追蹤事項：' },
+  { type: '銀行', content: '辦理項目：\n銀行名稱：\n辦理結果：\n需補件 / 追蹤：' },
+  { type: '醫療', content: '就醫原因：\n醫院 / 診所：\n診療結果：\n下次回診：' },
+  { type: '車禍處理', content: '事故狀況：\n處理進度：\n聯絡對象：\n後續追蹤：' },
+  { type: '結薪', content: '結薪對象：\n結薪期間：\n結薪狀況：\n備註：' },
+  { type: '收送簽文件', content: '文件項目：\n收 / 送件對象：\n處理結果：\n下次追蹤：' },
+  { type: '逃跑通知', content: '逃跑狀況：\n通知對象：\n處理進度：\n下次追蹤：' },
+  { type: '轉出追蹤', content: '轉出原因：\n轉出進度：\n聯絡對象：\n下次追蹤：' },
+  { type: '住變資訊', content: '住變地址：\n搬遷狀況：\n租約 / 文件：\n下次追蹤：' },
+  { type: '驗證提醒', content: '驗證項目：\n預計驗證日：\n需準備文件：\n下次追蹤：' },
+  { type: '返台提醒', content: '返台人員：\n返台日期：\n班機資訊：\n需處理事項：' },
+  { type: '宿舍', content: '宿舍地點：\n處理事項：\n處理結果：\n後續追蹤：' },
+  { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' }
+]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
@@ -956,6 +974,8 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       const nextOptions = {
+        serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
+        scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
         leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
@@ -3760,6 +3780,70 @@ function locationLinesValue() {
     .join('\n')
 }
 
+function parseTemplateLines(value) {
+  return String(value || '')
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const [type, ...contentParts] = line.split('｜')
+      return {
+        type: String(type || '').trim(),
+        content: contentParts.join('｜').trim().replaceAll('\\n', '\n')
+      }
+    })
+    .filter(item => item.type)
+}
+
+function getManagedScheduleContentTemplates() {
+  const options = getManagedOptions()
+  const list = Array.isArray(options.scheduleContentTemplates) ? options.scheduleContentTemplates : scheduleContentTemplates
+  return (list || [])
+    .map(item => ({
+      type: String(item?.type || '').trim(),
+      content: String(item?.content || '').trim()
+    }))
+    .filter(item => item.type)
+}
+
+function templateLinesValue() {
+  return getManagedScheduleContentTemplates()
+    .map(item => `${item.type}｜${String(item.content || '').replaceAll('\n', '\\n')}`)
+    .join('\n')
+}
+
+function getScheduleTypeTemplate(type) {
+  const key = String(type || '').trim()
+  if (!key) return ''
+  const found = getManagedScheduleContentTemplates().find(item => item.type === key)
+  return found?.content || ''
+}
+
+function getCurrentFormScheduleType(form) {
+  const category = form?.querySelector('[name="category"]')?.value || ''
+  if (category === '服務行程') return form.querySelector('[name="schedule_type"]')?.value || ''
+  if (category === '待辦事項') return form.querySelector('[name="todo_item"]')?.value || '待辦事項'
+  if (category === '請假 / 會議 / 活動 / 外訓') return form.querySelector('[name="leave_meeting_type"]')?.value || ''
+  if (category === '證件交付') return '證件交付'
+  if (category === '一般記事') return '一般記事'
+  return ''
+}
+
+function applyScheduleTypeTemplateToForm(form, force = false) {
+  if (!form) return false
+  const description = form.querySelector('textarea[name="description"]')
+  if (!description) return false
+
+  const scheduleType = getCurrentFormScheduleType(form)
+  const template = getScheduleTypeTemplate(scheduleType)
+  if (!template) return false
+
+  if (!force && description.value.trim()) return true
+  description.value = template
+  description.dispatchEvent(new Event('input', { bubbles: true }))
+  return true
+}
+
 function optionTextarea(label, name, value, hint = '') {
   return `
     <label class="option-edit-box">
@@ -3789,6 +3873,8 @@ function renderOptionsPage() {
     <div class="notice">每個選項一行；外務地點格式為「地點名稱｜地址」。</div>
 
     <form id="optionManagementForm" class="option-management-form">
+      ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '用於服務行程的行程類型，可新增或修改')}
+      ${optionTextarea('行程類型對應內容', 'scheduleContentTemplates', templateLinesValue(), '格式：行程類型｜要帶入的內容；可用 \\n 表示換行')}
       ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '用於個人一般待辦的待辦項目')}
       ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '用於一般行程表單的類別細項')}
       ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改')}
@@ -4984,7 +5070,7 @@ function getAvailableFormCategories() {
 
 function serviceTypeOptionsHtml(includeEmpty = false) {
   const empty = includeEmpty ? '<option value="">無</option>' : ''
-  return empty + serviceScheduleTypes.map(type => `<option value="${type}">${type}</option>`).join('')
+  return empty + getManagedListOption('serviceScheduleTypes', serviceScheduleTypes).map(type => `<option value="${type}">${type}</option>`).join('')
 }
 
 function optionHtml(items, selectedValue = '', includeEmpty = false) {
@@ -6315,8 +6401,12 @@ function openScheduleModal() {
 
           <label>
             內容
-            <textarea name="description" rows="3" placeholder="請輸入內容"></textarea>
+            <textarea name="description" rows="3" placeholder="請輸入內容；可手動輸入，也可依行程類型帶入"></textarea>
           </label>
+          <div class="span-2 schedule-template-row">
+            <button type="button" class="secondary-btn" id="applyScheduleTypeContentBtn">帶入對應內容</button>
+            <span>依行程類型帶入預設內容；已輸入內容時，按此按鈕才會覆蓋。</span>
+          </div>
         </div>
 
         <div class="span-2 form-section hidden" data-section="todo">
@@ -6506,11 +6596,37 @@ function openScheduleModal() {
     document.querySelector('#documentOptionsBlock').classList.toggle('hidden', hasDocumentsSelect.value !== '是')
   }
 
-  categorySelect.addEventListener('change', refreshFormSections)
+  categorySelect.addEventListener('change', () => {
+    refreshFormSections()
+    applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false)
+  })
+
+  const todoItemSelect = document.querySelector('select[name="todo_item"]')
+  if (todoItemSelect) {
+    todoItemSelect.addEventListener('change', () => applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false))
+  }
+
+  const leaveMeetingTypeSelect = document.querySelector('select[name="leave_meeting_type"]')
+  if (leaveMeetingTypeSelect) {
+    leaveMeetingTypeSelect.addEventListener('change', () => applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false))
+  }
+
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
-  serviceTypeSelect.addEventListener('change', refreshServiceExtras)
+  serviceTypeSelect.addEventListener('change', () => {
+    refreshServiceExtras()
+    applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false)
+  })
   hasDocumentsSelect.addEventListener('change', refreshDocumentsBlock)
+
+  const applyScheduleTypeContentBtn = document.querySelector('#applyScheduleTypeContentBtn')
+  if (applyScheduleTypeContentBtn) {
+    applyScheduleTypeContentBtn.addEventListener('click', () => {
+      const form = document.querySelector('#scheduleForm')
+      const applied = applyScheduleTypeTemplateToForm(form, true)
+      if (!applied) alert('目前行程類型沒有設定對應內容，請到選項管理新增。')
+    })
+  }
 
   const hasExtraScheduleSelect = document.querySelector('#hasExtraScheduleSelect')
   const extraScheduleBlock = document.querySelector('#extraScheduleBlock')
@@ -6798,8 +6914,8 @@ function openEditScheduleModal(scheduleId) {
   const start = parseTimeForEdit(row.start_time, '09', '00')
   const end = parseTimeForEdit(row.end_time, '10', '00')
   const categoryOptions = optionHtml(formCategories, row.category)
-  const serviceTypeOptions = optionHtml(serviceScheduleTypes, row.schedule_type || '其他')
-  const subTypeOptions = optionHtml(serviceScheduleTypes, row.sub_type || '', true)
+  const serviceTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.schedule_type || '其他')
+  const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
   const carSelectOptions = optionHtml(carOptions, row.car_no || '不使用')
   const editTodoOptions = optionHtml(todoItems, row.category === '待辦事項' ? (row.sub_type || '') : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
@@ -7760,3 +7876,12 @@ function getPersonalReminderTestSummary() {
   - 服務紀錄單統計回到服務紀錄單頁面查看
 */
 /* FOR-e V002-1N-7 END - remove service record from stats */
+
+/* FOR-e V002-1O-2 START - schedule type content templates */
+/*
+  V002-1O-2｜行程類型自動帶出對應內容
+  - 新增行程時，依行程類型自動帶入內容
+  - 內容可手動輸入，也可按「帶入對應內容」覆蓋帶入
+  - 選項管理可新增 / 修改服務行程類型與行程類型對應內容
+*/
+/* FOR-e V002-1O-2 END - schedule type content templates */

@@ -5634,3 +5634,33 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1O-1 END - options management */
+
+/* FOR-e V002-1O-2 START - schedule type content templates */
+.schedule-template-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -4px;
+}
+
+.schedule-template-row span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.option-edit-box textarea[name="scheduleContentTemplates"] {
+  min-height: 220px;
+}
+
+@media (max-width: 768px) {
+  .schedule-template-row {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .schedule-template-row button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1O-2 END - schedule type content templates */
