@@ -5728,3 +5728,59 @@ label.record-modal-check {
   V002-1O-3｜選項管理頁面視覺重整
 */
 /* FOR-e V002-1O-3 END - options page redesign */
+
+/* FOR-e V002-1O-4 START - option line editor */
+.option-hidden-textarea {
+  display: none !important;
+}
+
+.option-line-list {
+  display: grid;
+  gap: 8px;
+}
+
+.option-line-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-line-row input {
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.option-line-remove-btn {
+  min-height: 38px;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+}
+
+.option-add-line-btn {
+  width: fit-content;
+  margin-top: 10px;
+}
+
+.option-placeholder-tip {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .option-line-row {
+    grid-template-columns: 1fr;
+  }
+
+  .option-line-remove-btn,
+  .option-add-line-btn {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1O-4 END - option line editor */

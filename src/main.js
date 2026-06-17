@@ -970,8 +970,10 @@ function renderApp() {
 
   const optionManagementForm = document.querySelector('#optionManagementForm')
   if (optionManagementForm) {
+    initOptionLineEditors(optionManagementForm)
     optionManagementForm.addEventListener('submit', event => {
       event.preventDefault()
+      syncOptionLineEditors(event.target)
       const form = new FormData(event.target)
       const nextOptions = {
         serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
@@ -3846,16 +3848,80 @@ function applyScheduleTypeTemplateToForm(form, force = false) {
 
 function optionTextarea(label, name, value, hint = '', placeholder = '') {
   return `
-    <section class="option-edit-box">
+    <section class="option-edit-box" data-option-editor="${name}">
       <div class="option-edit-head">
         <h4>${escapeHtml(label)}</h4>
         ${hint ? `<p>${escapeHtml(hint)}</p>` : ''}
       </div>
       <div class="option-edit-body">
-        <textarea name="${name}" rows="6" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>
+        <textarea class="option-hidden-textarea" name="${name}" data-option-editor-value>${escapeHtml(value)}</textarea>
+        <div class="option-line-list" data-option-line-list></div>
+        <button type="button" class="secondary-btn option-add-line-btn" data-option-add-line>＋ 新增一筆</button>
+        ${placeholder ? `<div class="option-placeholder-tip">${escapeHtml(placeholder)}</div>` : ''}
       </div>
     </section>
   `
+}
+
+function createOptionLineRow(value = '') {
+  const row = document.createElement('div')
+  row.className = 'option-line-row'
+  row.innerHTML = `
+    <input data-option-line-input value="${escapeHtml(value)}" placeholder="請輸入選項內容">
+    <button type="button" class="danger-btn option-line-remove-btn" data-option-remove-line>刪除</button>
+  `
+  return row
+}
+
+function syncOptionLineEditor(editor) {
+  if (!editor) return
+  const textarea = editor.querySelector('[data-option-editor-value]')
+  const values = [...editor.querySelectorAll('[data-option-line-input]')]
+    .map(input => input.value.trim())
+    .filter(Boolean)
+  if (textarea) textarea.value = values.join('\n')
+}
+
+function syncOptionLineEditors(root = document) {
+  root.querySelectorAll('[data-option-editor]').forEach(syncOptionLineEditor)
+}
+
+function initOptionLineEditors(root = document) {
+  root.querySelectorAll('[data-option-editor]').forEach(editor => {
+    if (editor.dataset.optionEditorReady === 'true') return
+    editor.dataset.optionEditorReady = 'true'
+
+    const textarea = editor.querySelector('[data-option-editor-value]')
+    const list = editor.querySelector('[data-option-line-list]')
+    const addBtn = editor.querySelector('[data-option-add-line]')
+    if (!textarea || !list || !addBtn) return
+
+    const values = String(textarea.value || '').split('\n').map(item => item.trim()).filter(Boolean)
+    const initialRows = values.length ? values : ['']
+    initialRows.forEach(value => list.appendChild(createOptionLineRow(value)))
+
+    addBtn.addEventListener('click', () => {
+      const row = createOptionLineRow('')
+      list.appendChild(row)
+      const input = row.querySelector('[data-option-line-input]')
+      if (input) input.focus()
+      syncOptionLineEditor(editor)
+    })
+
+    list.addEventListener('click', event => {
+      const btn = event.target.closest('[data-option-remove-line]')
+      if (!btn) return
+      const row = btn.closest('.option-line-row')
+      if (row) row.remove()
+      if (!list.querySelector('.option-line-row')) {
+        list.appendChild(createOptionLineRow(''))
+      }
+      syncOptionLineEditor(editor)
+    })
+
+    list.addEventListener('input', () => syncOptionLineEditor(editor))
+    syncOptionLineEditor(editor)
+  })
 }
 
 function renderOptionsPage() {
@@ -7917,3 +7983,12 @@ function getPersonalReminderTestSummary() {
   - 同時保留原本儲存邏輯
 */
 /* FOR-e V002-1O-3 END - options page redesign */
+
+/* FOR-e V002-1O-4 START - option line editor */
+/*
+  V002-1O-4｜選項管理單筆新增 / 刪除
+  - 每個選項改成一列一筆
+  - 支援「新增一筆」與「刪除」
+  - 儲存時仍沿用原本 localStorage 選項管理邏輯
+*/
+/* FOR-e V002-1O-4 END - option line editor */
