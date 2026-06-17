@@ -3844,13 +3844,17 @@ function applyScheduleTypeTemplateToForm(form, force = false) {
   return true
 }
 
-function optionTextarea(label, name, value, hint = '') {
+function optionTextarea(label, name, value, hint = '', placeholder = '') {
   return `
-    <label class="option-edit-box">
-      <span>${escapeHtml(label)}</span>
-      ${hint ? `<small>${escapeHtml(hint)}</small>` : ''}
-      <textarea name="${name}" rows="7">${escapeHtml(value)}</textarea>
-    </label>
+    <section class="option-edit-box">
+      <div class="option-edit-head">
+        <h4>${escapeHtml(label)}</h4>
+        ${hint ? `<p>${escapeHtml(hint)}</p>` : ''}
+      </div>
+      <div class="option-edit-body">
+        <textarea name="${name}" rows="6" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>
+      </div>
+    </section>
   `
 }
 
@@ -3861,30 +3865,49 @@ function renderOptionsPage() {
     <div class="page-toolbar">
       <div>
         <h3>選項管理</h3>
-        <p class="muted">維護常用下拉選項。第一版先儲存在目前瀏覽器，後續可再接 Supabase 共用選項表。</p>
+        <p class="muted">直接在下方新增或更新即可。每個選項一行；外務地點格式為「地點名稱｜地址」；行程類型對應內容格式為「行程類型｜內容」，換行可用 \n。</p>
       </div>
       <div class="toolbar-actions">
+        <button type="submit" form="optionManagementForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存變更</button>
         <button class="secondary-btn" id="resetOptionManagementBtn" ${canEdit ? '' : 'disabled'}>還原預設</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
-    <div class="notice">每個選項一行；外務地點格式為「地點名稱｜地址」。</div>
+    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接在原本清單裡修改文字、補新的一行，或刪掉不要的項目後按「儲存變更」。</div>
 
     <form id="optionManagementForm" class="option-management-form">
-      ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '用於服務行程的行程類型，可新增或修改')}
-      ${optionTextarea('行程類型對應內容', 'scheduleContentTemplates', templateLinesValue(), '格式：行程類型｜要帶入的內容；可用 \\n 表示換行')}
-      ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '用於個人一般待辦的待辦項目')}
-      ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '用於一般行程表單的類別細項')}
-      ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改')}
-      ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '可複選的特殊提醒')}
-      ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '用於異況追蹤')}
-      ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '用於會議室預約週曆')}
-      ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址')}
+      <section class="option-group-card">
+        <div class="option-group-head">
+          <h4>行程表單相關</h4>
+          <p>管理服務行程、待辦事項與一般行程會用到的選項。</p>
+        </div>
+        <div class="option-group-body">
+          ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '可新增或修改服務行程類型', '例如：醫療')}
+          ${optionTextarea('行程類型對應內容', 'scheduleContentTemplates', templateLinesValue(), '依行程類型帶入內容；格式：行程類型｜內容', '例如：醫療｜就醫原因：\\n醫院 / 診所：')}
+          ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
+          ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
+        </div>
+      </section>
+
+      <section class="option-group-card">
+        <div class="option-group-head">
+          <h4>外務 / 會議室 / 異況</h4>
+          <p>管理外務與會議室、異況追蹤會使用到的選項。</p>
+        </div>
+        <div class="option-group-body">
+          ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改', '例如：送件')}
+          ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '每行一個特殊提醒', '例如：急件')}
+          ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址', '例如：內湖_印辦｜台北市內湖區瑞光路550號2樓')}
+          ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '每行一個異況類型', '例如：醫療異況')}
+          ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '每行一個會議室名稱', '例如：第一會議室')}
+        </div>
+      </section>
 
       <div class="option-form-actions">
-        <button type="submit" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存選項</button>
+        <div class="option-action-tip">修改完直接按「儲存變更」即可生效。</div>
+        <button type="submit" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存變更</button>
       </div>
     </form>
   `
@@ -7885,3 +7908,12 @@ function getPersonalReminderTestSummary() {
   - 選項管理可新增 / 修改服務行程類型與行程類型對應內容
 */
 /* FOR-e V002-1O-2 END - schedule type content templates */
+
+/* FOR-e V002-1O-3 START - options page redesign */
+/*
+  V002-1O-3｜選項管理頁面重整
+  - 改成更直覺的新增 / 更新頁面
+  - 移除大面積空白感
+  - 同時保留原本儲存邏輯
+*/
+/* FOR-e V002-1O-3 END - options page redesign */

@@ -5590,47 +5590,105 @@ label.record-modal-check {
 /* FOR-e V002-1O-1 START - options management */
 .option-management-form {
   display: grid;
+  gap: 16px;
+}
+
+.option-page-notice {
+  margin-bottom: 14px;
+}
+
+.option-group-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.option-group-head {
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: #fafbfd;
+}
+
+.option-group-head h4 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 950;
+  color: #111827;
+}
+
+.option-group-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.option-group-body {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  padding: 16px;
 }
 
 .option-edit-box {
   display: grid;
-  gap: 6px;
-  padding: 14px;
+  gap: 10px;
+  padding: 16px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: #ffffff;
 }
 
-.option-edit-box span {
+.option-edit-head h4 {
+  margin: 0 0 4px;
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 950;
 }
 
-.option-edit-box small {
+.option-edit-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.option-edit-body textarea,
+.option-edit-box textarea {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.option-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.option-action-tip {
   color: var(--muted);
   font-size: 12px;
 }
 
-.option-edit-box textarea {
-  min-height: 150px;
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.55;
-}
-
-.option-form-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-@media (max-width: 900px) {
-  .option-management-form {
+@media (max-width: 960px) {
+  .option-group-body {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .option-form-actions {
+    display: grid;
+  }
+
+  .option-form-actions .primary-btn {
+    width: 100%;
   }
 }
 /* FOR-e V002-1O-1 END - options management */
@@ -5664,3 +5722,9 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1O-2 END - schedule type content templates */
+
+/* FOR-e V002-1O-3 START - options page redesign */
+/*
+  V002-1O-3｜選項管理頁面視覺重整
+*/
+/* FOR-e V002-1O-3 END - options page redesign */
