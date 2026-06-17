@@ -5784,3 +5784,60 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1O-4 END - option line editor */
+
+/* FOR-e V002-1M-2-3 START - service record statistics style */
+.service-record-combined-wrap {
+  overflow-x: auto;
+}
+
+.service-record-combined-head,
+.service-record-combined-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.8fr) repeat(8, minmax(74px, 0.7fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 920px;
+  padding: 12px 16px;
+}
+
+.service-record-combined-head {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.service-record-combined-row {
+  background: #ffffff;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.service-record-combined-row.has-overdue {
+  background: #fffbeb;
+}
+
+.service-record-combined-row strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.service-record-combined-row b {
+  color: #111827;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 900;
+  text-align: center;
+}
+
+.service-record-combined-row b.is-alert {
+  color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+  .service-record-combined-head,
+  .service-record-combined-row {
+    min-width: 960px;
+  }
+}
+/* FOR-e V002-1M-2-3 END - service record statistics style */

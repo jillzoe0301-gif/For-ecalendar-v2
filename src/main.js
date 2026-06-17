@@ -7992,3 +7992,112 @@ function getPersonalReminderTestSummary() {
   - 儲存時仍沿用原本 localStorage 選項管理邏輯
 */
 /* FOR-e V002-1O-4 END - option line editor */
+
+/* FOR-e V002-1M-2-3 START - service record statistics style */
+function buildServiceRecordCombinedRows(records, groupBy = 'staff') {
+  const monthRows = getServiceRecordPeriodRows(records, 'month')
+  const yearRows = getServiceRecordPeriodRows(records, 'year')
+
+  const getKey = record => groupBy === 'department'
+    ? (record.department_name || '未指定')
+    : (record.staff_id || record.staff_name || '未指定')
+
+  const getLabel = record => groupBy === 'department'
+    ? (record.department_name || '未指定')
+    : (record.staff_name || '-')
+
+  const monthMap = new Map(
+    summarizeServiceRecordRows(monthRows, getKey, getLabel)
+      .map(row => [row.key, row])
+  )
+  const yearMap = new Map(
+    summarizeServiceRecordRows(yearRows, getKey, getLabel)
+      .map(row => [row.key, row])
+  )
+
+  const keys = [...new Set([...monthMap.keys(), ...yearMap.keys()])]
+  return keys.map(key => {
+    const month = monthMap.get(key) || { total: 0, pending: 0, overdue: 0, submitted: 0, label: key }
+    const year = yearMap.get(key) || { total: 0, pending: 0, overdue: 0, submitted: 0, label: key }
+    return {
+      key,
+      label: month.label || year.label || key,
+      month,
+      year
+    }
+  }).sort((a, b) => {
+    const aScore = a.month.overdue + a.year.overdue
+    const bScore = b.month.overdue + b.year.overdue
+    if (bScore !== aScore) return bScore - aScore
+    const aPending = a.month.pending + a.year.pending
+    const bPending = b.month.pending + b.year.pending
+    if (bPending !== aPending) return bPending - aPending
+    return String(a.label).localeCompare(String(b.label), 'zh-Hant')
+  })
+}
+
+function renderServiceRecordPeriodValueCell(value, alert = false) {
+  return `<b class="${alert && value ? 'is-alert' : ''}">${value || 0}</b>`
+}
+
+function renderServiceRecordCombinedTable(title, subtitle, rows, firstColumnTitle = '人員') {
+  return `
+    <section class="clean-stats-section">
+      <div class="section-title-row">
+        <h4>${title}</h4>
+        <span>${subtitle}</span>
+      </div>
+
+      ${rows.length ? `
+        <div class="simple-stat-table-wrap service-record-combined-wrap">
+          <div class="service-record-combined-head">
+            <span>${firstColumnTitle}</span>
+            <span>當月總數</span>
+            <span>當月未繳</span>
+            <span>當月逾期</span>
+            <span>當月已交</span>
+            <span>當年總數</span>
+            <span>當年未繳</span>
+            <span>當年逾期</span>
+            <span>當年已交</span>
+          </div>
+
+          ${rows.map(row => `
+            <div class="service-record-combined-row ${(row.month.overdue + row.year.overdue) ? 'has-overdue' : ''}">
+              <strong>${escapeHtml(row.label)}</strong>
+              ${renderServiceRecordPeriodValueCell(row.month.total)}
+              ${renderServiceRecordPeriodValueCell(row.month.pending)}
+              ${renderServiceRecordPeriodValueCell(row.month.overdue, true)}
+              ${renderServiceRecordPeriodValueCell(row.month.submitted)}
+              ${renderServiceRecordPeriodValueCell(row.year.total)}
+              ${renderServiceRecordPeriodValueCell(row.year.pending)}
+              ${renderServiceRecordPeriodValueCell(row.year.overdue, true)}
+              ${renderServiceRecordPeriodValueCell(row.year.submitted)}
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">目前沒有符合條件的服務紀錄單。</div>'}
+    </section>
+  `
+}
+
+function renderServiceRecordPersonCombinedStatus(records) {
+  const rows = buildServiceRecordCombinedRows(records, 'staff')
+  return renderServiceRecordCombinedTable(
+    '個人員繳交狀況',
+    '同表顯示當月 / 當年，呈現方式與統計報表一致',
+    rows,
+    '人員'
+  )
+}
+
+function renderServiceRecordDepartmentStatus(records) {
+  const rows = buildServiceRecordCombinedRows(records, 'department')
+  return renderServiceRecordCombinedTable(
+    '一部、二部繳交狀況',
+    '以部門為單位顯示當月 / 當年服務紀錄單狀況',
+    rows,
+    '部門'
+  )
+}
+/* FOR-e V002-1M-2-3 END - service record statistics style */
