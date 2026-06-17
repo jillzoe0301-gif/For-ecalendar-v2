@@ -949,6 +949,37 @@ function renderApp() {
     })
   }
 
+
+  const optionManagementForm = document.querySelector('#optionManagementForm')
+  if (optionManagementForm) {
+    optionManagementForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      const nextOptions = {
+        todoItems: parseOptionLines(form.get('todoItems')),
+        leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
+        fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
+        fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
+        incidentTypeOptions: parseOptionLines(form.get('incidentTypeOptions')),
+        meetingRoomOptions: parseOptionLines(form.get('meetingRoomOptions')),
+        fieldLocationOptions: parseLocationLines(form.get('fieldLocationOptions'))
+      }
+
+      saveManagedOptions(nextOptions)
+      alert('選項已儲存。')
+      renderApp()
+    })
+  }
+
+  const resetOptionManagementBtn = document.querySelector('#resetOptionManagementBtn')
+  if (resetOptionManagementBtn) {
+    resetOptionManagementBtn.addEventListener('click', () => {
+      if (!confirm('確定要還原選項管理為系統預設值嗎？')) return
+      resetManagedOptions()
+      renderApp()
+    })
+  }
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
     addBtn.addEventListener('click', () => {
@@ -1737,7 +1768,7 @@ function renderFieldDetailList(rows) {
 function isMeetingRoomSchedule(row) {
   if (!row) return false
   const text = [row.category, row.schedule_type, row.sub_type, row.title, row.location_name, row.sub_type_note].filter(Boolean).join('｜')
-  return row.category === '會議室預約' || row.schedule_type === '會議室預約' || text.includes('會議室預約') || meetingRoomOptions.includes(row.location_name)
+  return row.category === '會議室預約' || row.schedule_type === '會議室預約' || text.includes('會議室預約') || getManagedListOption('meetingRoomOptions', meetingRoomOptions).includes(row.location_name)
 }
 
 function getMeetingSchedulesForRoomDate(room, dateKey) {
@@ -1798,7 +1829,7 @@ function renderMeetingRoomCalendar() {
           </tr>
         </thead>
         <tbody>
-          ${meetingRoomOptions.map(room => `
+          ${getManagedListOption('meetingRoomOptions', meetingRoomOptions).map(room => `
             <tr>
               <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
               ${weekDates.map(date => {
@@ -1817,7 +1848,7 @@ function renderMeetingRoomCalendar() {
 }
 
 function meetingRoomOptionsHtml(selectedRoom = '') {
-  return meetingRoomOptions.map(room => `<option value="${room}" ${room === selectedRoom ? 'selected' : ''}>${room}</option>`).join('')
+  return getManagedListOption('meetingRoomOptions', meetingRoomOptions).map(room => `<option value="${room}" ${room === selectedRoom ? 'selected' : ''}>${room}</option>`).join('')
 }
 
 function getMeetingTimeValue(form, prefix) {
@@ -1849,7 +1880,8 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
 
 function openMeetingRoomModal(defaults = {}) {
   const defaultDate = defaults.date || todayString()
-  const defaultRoom = defaults.room || meetingRoomOptions[0] || ''
+  const roomOptions = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
+  const defaultRoom = defaults.room || roomOptions[0] || ''
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -2191,7 +2223,7 @@ function incidentAssistantChecksHtml(selectedIds = [], inputName = 'incident_ass
 }
 
 function incidentTypeOptionsHtml(selectedValue = '') {
-  return incidentTypeOptions.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+  return getManagedListOption('incidentTypeOptions', incidentTypeOptions).map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
 
 function chineseTrackingNumber(number) {
@@ -3652,6 +3684,128 @@ function renderStatsDashboard() {
 
 
 
+
+/* FOR-e V002-1O-1 START - options management */
+/*
+  V002-1O-1｜選項管理
+  不改 SQL。第一版先存在瀏覽器 localStorage，讓選項可立即維護。
+*/
+
+const managedOptionsStorageKey = 'for-e-managed-options-v002'
+
+function getManagedOptions() {
+  try {
+    const raw = localStorage.getItem(managedOptionsStorageKey)
+    return raw ? JSON.parse(raw) : {}
+  } catch (err) {
+    console.warn('選項管理讀取失敗', err)
+    return {}
+  }
+}
+
+function saveManagedOptions(value) {
+  localStorage.setItem(managedOptionsStorageKey, JSON.stringify(value || {}))
+}
+
+function resetManagedOptions() {
+  localStorage.removeItem(managedOptionsStorageKey)
+}
+
+function getManagedListOption(key, fallback = []) {
+  const options = getManagedOptions()
+  const list = Array.isArray(options[key]) ? options[key] : fallback
+  return [...new Set((list || []).map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function getManagedLocationOptions() {
+  const options = getManagedOptions()
+  const list = Array.isArray(options.fieldLocationOptions) ? options.fieldLocationOptions : fieldLocationOptions
+  return (list || [])
+    .map(item => ({
+      name: String(item?.name || '').trim(),
+      address: String(item?.address || '').trim()
+    }))
+    .filter(item => item.name)
+}
+
+function parseOptionLines(value) {
+  return [...new Set(String(value || '')
+    .split(/\n+/)
+    .map(item => item.trim())
+    .filter(Boolean))]
+}
+
+function parseLocationLines(value) {
+  return String(value || '')
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const [name, ...addressParts] = line.split('｜')
+      return {
+        name: String(name || '').trim(),
+        address: addressParts.join('｜').trim()
+      }
+    })
+    .filter(item => item.name)
+}
+
+function optionLinesValue(key, fallback = []) {
+  return getManagedListOption(key, fallback).join('\n')
+}
+
+function locationLinesValue() {
+  return getManagedLocationOptions()
+    .map(item => `${item.name}｜${item.address || ''}`)
+    .join('\n')
+}
+
+function optionTextarea(label, name, value, hint = '') {
+  return `
+    <label class="option-edit-box">
+      <span>${escapeHtml(label)}</span>
+      ${hint ? `<small>${escapeHtml(hint)}</small>` : ''}
+      <textarea name="${name}" rows="7">${escapeHtml(value)}</textarea>
+    </label>
+  `
+}
+
+function renderOptionsPage() {
+  const canEdit = currentProfile?.role === '管理員'
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>選項管理</h3>
+        <p class="muted">維護常用下拉選項。第一版先儲存在目前瀏覽器，後續可再接 Supabase 共用選項表。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetOptionManagementBtn" ${canEdit ? '' : 'disabled'}>還原預設</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
+    <div class="notice">每個選項一行；外務地點格式為「地點名稱｜地址」。</div>
+
+    <form id="optionManagementForm" class="option-management-form">
+      ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '用於個人一般待辦的待辦項目')}
+      ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '用於一般行程表單的類別細項')}
+      ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改')}
+      ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '可複選的特殊提醒')}
+      ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '用於異況追蹤')}
+      ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '用於會議室預約週曆')}
+      ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址')}
+
+      <div class="option-form-actions">
+        <button type="submit" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存選項</button>
+      </div>
+    </form>
+  `
+}
+/* FOR-e V002-1O-1 END - options management */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -3666,6 +3820,7 @@ function renderPageContent() {
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
+  if (currentPage === 'options') return renderOptionsPage()
   if (currentPage === 'users') return renderUsersPage()
 
   return `
@@ -5016,7 +5171,7 @@ function optionHtmlForItems(items, selectedValue = '') {
 }
 
 function fieldLocationOptionsHtml() {
-  return `<option value="">手動輸入 / 不指定</option>` + fieldLocationOptions.map(item => `
+  return `<option value="">手動輸入 / 不指定</option>` + getManagedLocationOptions().map(item => `
     <option value="${escapeHtml(item.name)}" data-address="${escapeHtml(item.address)}">${escapeHtml(item.name)}</option>
   `).join('')
 }
@@ -5078,7 +5233,7 @@ function fieldSpecialReminderChecksHtml(selectedItems = [], inputName = 'field_s
         <span class="field-special-dropdown-value">${escapeHtml(selectedText)}</span>
       </summary>
       <div class="field-special-dropdown-panel">
-        ${fieldSpecialReminderOptions.map(item => `
+        ${getManagedListOption('fieldSpecialReminderOptions', fieldSpecialReminderOptions).map(item => `
           <label class="inline-check field-special-check">
             <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
             <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
@@ -5367,7 +5522,7 @@ function openEditFieldScheduleModal(scheduleId) {
         <label>
           目的
           <select name="field_purpose">
-            ${optionHtmlForItems(fieldPurposeOptions, purpose)}
+            ${optionHtmlForItems(getManagedListOption('fieldPurposeOptions', fieldPurposeOptions), purpose)}
           </select>
         </label>
 
@@ -5693,7 +5848,7 @@ function openFieldScheduleModal(defaults = {}) {
         <label>
           目的
           <select name="field_purpose">
-            ${optionHtmlForItems(fieldPurposeOptions)}
+            ${optionHtmlForItems(getManagedListOption('fieldPurposeOptions', fieldPurposeOptions))}
           </select>
         </label>
 
@@ -5976,8 +6131,8 @@ function openScheduleModal() {
   const defaultStaffId = currentProfile.staff_id || ''
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
-  const todoOptions = todoItems.map(item => `<option value="${item}">${item}</option>`).join('')
-  const leaveOptions = leaveMeetingTypes.map(item => `<option value="${item}">${item}</option>`).join('')
+  const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${item}">${item}</option>`).join('')
+  const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = carOptions.map(item => `<option value="${item}">${item}</option>`).join('')
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
