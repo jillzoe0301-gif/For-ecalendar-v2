@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-57'
+const SYSTEM_VERSION = 'V002-1P-58'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2703,6 +2703,11 @@ function renderApp() {
   const copyLaunchTestBtn = document.querySelector('#copyLaunchTestBtn')
   if (copyLaunchTestBtn) {
     copyLaunchTestBtn.addEventListener('click', () => copyLaunchTestReport())
+  }
+
+  const copyLaunchReadinessBtn = document.querySelector('#copyLaunchReadinessBtn')
+  if (copyLaunchReadinessBtn) {
+    copyLaunchReadinessBtn.addEventListener('click', () => copyLaunchReadinessReport())
   }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -7384,6 +7389,7 @@ function getSystemHealthReportText() {
     `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
     `角色：${currentProfile?.role || '-'}`,
     `上線測試進度：${getLaunchTestStats().done}/${getLaunchTestStats().total}（${getLaunchTestStats().percent}%）`,
+    `上線狀態：${getLaunchReadinessState().title}`,
     '',
     ...rows.map(row => {
       const meta = getHealthStatusMeta(row.status)
@@ -7924,6 +7930,156 @@ function getAccountBindingReportLines() {
 }
 
 
+
+function getLaunchReadinessState() {
+  const healthRows = getHealthRows()
+  const healthBad = healthRows.filter(row => row.status === 'bad')
+  const healthWarn = healthRows.filter(row => row.status === 'warn')
+  const launchStats = getLaunchTestStats()
+  const accountAudit = getAccountBindingAudit()
+
+  const blockers = []
+  const warnings = []
+
+  healthBad.forEach(row => blockers.push(`${row.title}：${row.detail}`))
+  accountAudit.duplicateLinks.forEach(item => blockers.push(`同一人員綁定多個帳號：${item.staffName}`))
+  accountAudit.linkedToDeletedStaff.forEach(profile => blockers.push(`帳號仍綁到已刪除人員：${profile.email || '-'}`))
+
+  healthWarn.forEach(row => warnings.push(`${row.title}：${row.detail}`))
+  accountAudit.linkedToMissingStaff.forEach(profile => warnings.push(`帳號綁到不存在的人員：${profile.email || '-'}`))
+  accountAudit.nameFallbackRisks.forEach(profile => warnings.push(`姓名誤判綁定風險：${profile.email || '-'}`))
+  accountAudit.activeUnboundStaff.forEach(staff => warnings.push(`啟用人員尚未綁定帳號：${staff.name || '-'}`))
+
+  if (launchStats.remaining > 0) {
+    warnings.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
+  }
+
+  let status = 'ok'
+  let title = '可以進入正式上線前最終確認'
+  let message = '目前沒有紅色阻擋項目，可以依照測試清單完成最後確認。'
+
+  if (blockers.length) {
+    status = 'bad'
+    title = '暫不建議正式上線'
+    message = '目前仍有紅色阻擋項目，請先處理後再上線。'
+  } else if (warnings.length || launchStats.remaining > 0) {
+    status = 'warn'
+    title = '可以測試，但上線前仍需確認'
+    message = '目前沒有紅色阻擋項目，但仍有注意項目或測試項目未完成。'
+  }
+
+  return {
+    status,
+    title,
+    message,
+    blockers,
+    warnings,
+    launchStats,
+    healthRows,
+    accountAudit
+  }
+}
+
+function renderLaunchReadinessSummary() {
+  const state = getLaunchReadinessState()
+  const meta = getHealthStatusMeta(state.status)
+  const visibleBlockers = state.blockers.slice(0, 12)
+  const visibleWarnings = state.warnings.slice(0, 16)
+
+  return `
+    <section class="launch-readiness-card ${meta.className}">
+      <div class="launch-readiness-head">
+        <div>
+          <h4>正式上線狀態總結</h4>
+          <strong>${escapeHtml(state.title)}</strong>
+          <p>${escapeHtml(state.message)}</p>
+        </div>
+        <span>${meta.label}</span>
+      </div>
+
+      <div class="launch-readiness-metrics">
+        <div>
+          <strong>${state.blockers.length}</strong>
+          <span>阻擋項目</span>
+        </div>
+        <div>
+          <strong>${state.warnings.length}</strong>
+          <span>注意項目</span>
+        </div>
+        <div>
+          <strong>${state.launchStats.percent}%</strong>
+          <span>測試完成</span>
+        </div>
+        <div>
+          <strong>${state.accountAudit.issues.length}</strong>
+          <span>帳號綁定注意</span>
+        </div>
+      </div>
+
+      ${visibleBlockers.length ? `
+        <div class="launch-readiness-list is-bad">
+          <h5>阻擋項目</h5>
+          ${visibleBlockers.map(item => `<p>${escapeHtml(item)}</p>`).join('')}
+        </div>
+      ` : ''}
+
+      ${visibleWarnings.length ? `
+        <div class="launch-readiness-list is-warn">
+          <h5>注意項目</h5>
+          ${visibleWarnings.map(item => `<p>${escapeHtml(item)}</p>`).join('')}
+        </div>
+      ` : ''}
+
+      ${!visibleBlockers.length && !visibleWarnings.length ? `
+        <div class="empty-state">
+          <p>目前沒有阻擋項目或注意項目。請完成實際操作測試後，即可進入正式上線確認。</p>
+        </div>
+      ` : ''}
+
+      <div class="launch-readiness-actions">
+        <button type="button" class="secondary-btn" id="copyLaunchReadinessBtn">複製上線狀態報告</button>
+      </div>
+    </section>
+  `
+}
+
+function getLaunchReadinessReportText() {
+  const state = getLaunchReadinessState()
+
+  return [
+    'FOR-e 正式上線狀態報告',
+    `版本：${SYSTEM_VERSION}`,
+    `時間：${new Date().toLocaleString('zh-TW')}`,
+    `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
+    `角色：${currentProfile?.role || '-'}`,
+    `狀態：${getHealthStatusMeta(state.status).label}｜${state.title}`,
+    `測試進度：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
+    `阻擋項目：${state.blockers.length}`,
+    `注意項目：${state.warnings.length}`,
+    '',
+    '阻擋項目：',
+    ...(state.blockers.length ? state.blockers.map(item => `- ${item}`) : ['- 無']),
+    '',
+    '注意項目：',
+    ...(state.warnings.length ? state.warnings.map(item => `- ${item}`) : ['- 無']),
+    '',
+    ...getAccountBindingReportLines()
+  ].join('\\n')
+}
+
+async function copyLaunchReadinessReport() {
+  const text = getLaunchReadinessReportText()
+
+  try {
+    await navigator.clipboard.writeText(text)
+    alert('上線狀態報告已複製。')
+  } catch (err) {
+    console.warn(err)
+    alert(text)
+  }
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -7944,6 +8100,8 @@ function renderSystemHealthPage() {
     <div class="notice">
       這一頁只做系統狀態檢查，不會修改資料。若出現「需處理」，請優先執行 Supabase RLS baseline 或檢查對應資料表。
     </div>
+
+    ${renderLaunchReadinessSummary()}
 
     ${renderSystemHealthSummary(rows)}
 
@@ -13815,3 +13973,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 正式上線前測試清單新增帳號綁定檢查項目
 */
 /* FOR-e V002-1P-57 END - account binding audit */
+
+/* FOR-e V002-1P-58 START - launch readiness summary */
+/*
+  V002-1P-58｜正式上線狀態總結
+  - 系統檢查頁新增正式上線狀態總結
+  - 自動彙整紅色阻擋項目、注意項目、測試進度、帳號綁定狀態
+  - 新增複製上線狀態報告
+  - 系統檢查報告加入上線狀態
+*/
+/* FOR-e V002-1P-58 END - launch readiness summary */

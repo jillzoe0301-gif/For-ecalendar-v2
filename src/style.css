@@ -10183,3 +10183,185 @@ body {
   }
 }
 /* FOR-e V002-1P-57 END - account binding audit */
+
+/* FOR-e V002-1P-58 START - launch readiness summary */
+.launch-readiness-card {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 16px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.launch-readiness-card.is-ok {
+  border-color: #bbf7d0;
+  background: #f7fef9;
+}
+
+.launch-readiness-card.is-warn {
+  border-color: #fde68a;
+  background: #fffdf2;
+}
+
+.launch-readiness-card.is-bad {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.launch-readiness-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.launch-readiness-head h4 {
+  margin: 0 0 6px;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.launch-readiness-head strong {
+  display: block;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.launch-readiness-head p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.55;
+}
+
+.launch-readiness-head > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.launch-readiness-card.is-ok .launch-readiness-head > span {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.launch-readiness-card.is-warn .launch-readiness-head > span {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.launch-readiness-card.is-bad .launch-readiness-head > span {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.launch-readiness-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.launch-readiness-metrics div {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, .22);
+  background: rgba(255, 255, 255, .82);
+}
+
+.launch-readiness-metrics strong {
+  display: block;
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.launch-readiness-metrics span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.launch-readiness-list {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, .22);
+}
+
+.launch-readiness-list h5 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.launch-readiness-list p {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid #cbd5e1;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.launch-readiness-list.is-bad p {
+  border-left-color: #f87171;
+  color: #991b1b;
+}
+
+.launch-readiness-list.is-warn p {
+  border-left-color: #facc15;
+  color: #92400e;
+}
+
+.launch-readiness-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .launch-readiness-head {
+    display: grid;
+  }
+
+  .launch-readiness-head > span {
+    justify-self: start;
+  }
+
+  .launch-readiness-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .launch-readiness-actions {
+    display: grid;
+  }
+
+  .launch-readiness-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .launch-readiness-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-58 END - launch readiness summary */
