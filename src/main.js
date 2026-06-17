@@ -890,6 +890,8 @@ function renderApp() {
     })
   })
 
+  bindIncidentTrackingEditButtons(document)
+
   document.querySelectorAll('[data-incident-complete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       await completeSchedule(btn.dataset.incidentComplete)
@@ -2091,16 +2093,19 @@ function appendIncidentTrackingEntry(row, dateText, timeText, content) {
   return `${current}\n${nextEntry}`
 }
 
-function renderIncidentTrackingHistory(row) {
+function renderIncidentTrackingHistory(row, editable = false) {
   const entries = getIncidentTrackingEntries(row)
   if (!entries.length) return ''
 
   return `
     <div class="incident-history-panel">
       <div class="incident-history-title">追蹤紀錄</div>
-      ${entries.map(entry => `
+      ${entries.map((entry, index) => `
         <div class="incident-history-item">
-          <strong>${escapeHtml(entry.title)}</strong>
+          <div class="incident-history-item-head">
+            <strong>${escapeHtml(entry.title)}</strong>
+            ${editable ? `<button type="button" class="small-secondary-btn incident-tracking-edit-btn" data-incident-tracking-edit="${row.schedule_id}" data-tracking-index="${index}">修改</button>` : ''}
+          </div>
           ${entry.body ? `<p>${escapeHtml(entry.body).replaceAll('\n', '<br>')}</p>` : ''}
         </div>
       `).join('')}
@@ -2294,6 +2299,132 @@ function renderIncidentList(rows) {
 
 
 
+
+function bindIncidentTrackingEditButtons(root = document) {
+  root.querySelectorAll('[data-incident-tracking-edit]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      openIncidentTrackingEditModal(btn.dataset.incidentTrackingEdit, Number(btn.dataset.trackingIndex))
+    })
+  })
+}
+
+function rebuildIncidentDescription(entries) {
+  return entries
+    .map(entry => {
+      const title = String(entry.title || '').trim()
+      const body = String(entry.body || '').trim()
+      return body ? `${title}\n${body}` : title
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function openIncidentTrackingEditModal(scheduleId, trackingIndex) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!canModifySchedule(row)) {
+    alert('您沒有權限修改此追蹤項目。')
+    return
+  }
+
+  const entries = getIncidentTrackingEntries(row)
+  const entry = entries[trackingIndex]
+  if (!entry) {
+    alert('找不到追蹤項目。')
+    return
+  }
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>修改追蹤項目</h3>
+        <button class="icon-btn" id="closeIncidentTrackingEditBtn" type="button">×</button>
+      </div>
+
+      <form id="incidentTrackingEditForm" class="form-grid">
+        <label class="span-2">
+          追蹤標題
+          <input name="tracking_title" required value="${escapeHtml(entry.title || '')}">
+        </label>
+
+        <label class="span-2">
+          追蹤內容
+          <textarea name="tracking_body" rows="5" required>${escapeHtml(entry.body || '')}</textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelIncidentTrackingEditBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存修改</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeIncidentTrackingEditBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelIncidentTrackingEditBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#incidentTrackingEditForm').addEventListener('submit', event => saveIncidentTrackingEdit(event, modal, row, trackingIndex))
+}
+
+async function saveIncidentTrackingEdit(event, modal, row, trackingIndex) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const entries = getIncidentTrackingEntries(row)
+    const current = entries[trackingIndex]
+    if (!current) {
+      alert('找不到追蹤項目。')
+      saving = false
+      return
+    }
+
+    entries[trackingIndex] = {
+      title: form.get('tracking_title') || current.title,
+      body: form.get('tracking_body') || ''
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update({
+        description: rebuildIncidentDescription(entries)
+      })
+      .eq('schedule_id', row.schedule_id)
+
+    if (error) {
+      alert('修改追蹤項目失敗：' + error.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '修改追蹤',
+      source_type: 'schedule',
+      source_id: row.schedule_id,
+      note: `V002-1L-4 修改追蹤項目：${form.get('tracking_title') || current.title}`
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    alert('修改追蹤項目失敗：' + (err?.message || err))
+    saving = false
+  }
+}
+
+
 function openIncidentNextTrackingModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -2471,7 +2602,7 @@ function openEditIncidentModal(scheduleId) {
           </div>
         </div>
 
-        ${renderIncidentTrackingHistory(row)}
+        ${renderIncidentTrackingHistory(row, true)}
 
         <label class="span-2">
           新增追蹤內容
@@ -2489,6 +2620,7 @@ function openEditIncidentModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  bindIncidentTrackingEditButtons(modal)
   document.querySelector('#closeEditIncidentModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditIncidentModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#editIncidentForm').addEventListener('submit', event => saveEditedIncident(event, modal, row))
@@ -3414,7 +3546,7 @@ function openScheduleDetail(scheduleId) {
       </div>
 
       ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
-      ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row) : ''}
+      ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
 
       <div class="notice">${permissionNote}</div>
 
@@ -3432,6 +3564,7 @@ function openScheduleDetail(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  bindIncidentTrackingEditButtons(modal)
   document.querySelector('#closeDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeDetailBtn2').addEventListener('click', () => modal.remove())
 
@@ -6212,3 +6345,11 @@ function getPersonalReminderTestSummary() {
   - 新增追蹤後會追加第 N 次追蹤紀錄，並更新下一次追蹤日期 / 時間
 */
 /* FOR-e V002-1L-3 END - incident next tracking button */
+
+/* FOR-e V002-1L-4 START - incident tracking item edit */
+/*
+  V002-1L-4｜異況追蹤項目可修改
+  - 每一筆追蹤紀錄可修改標題與內容
+  - 修改後保留第一次、第二次、第三次追蹤順序
+*/
+/* FOR-e V002-1L-4 END - incident tracking item edit */

@@ -4452,3 +4452,28 @@ label.record-modal-check {
   font-size: 13px;
 }
 /* FOR-e V002-1L-3 END - incident next tracking button */
+
+/* FOR-e V002-1L-4 START - incident tracking item edit */
+.incident-history-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.incident-history-item-head strong {
+  flex: 1;
+  margin-bottom: 0 !important;
+}
+
+.incident-tracking-edit-btn {
+  width: auto !important;
+  min-width: 52px;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+}
+
+#incidentTrackingEditForm textarea {
+  min-height: 140px;
+}
+/* FOR-e V002-1L-4 END - incident tracking item edit */
