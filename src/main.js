@@ -2241,7 +2241,7 @@ async function saveMeetingRoomSchedule(event, modal) {
         reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
-      description: firstTracking || null,
+      description: form.get('description') || null,
       start_date: date,
       end_date: getScheduleModeEndDate(form),
       time_type: Number(startTime.slice(0, 2)) < 12 ? '上午' : '下午',
@@ -4240,7 +4240,7 @@ function getScheduleColorDefinitions() {
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FF6A1C' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#DFD3C3' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#FFF57E' },
-    { key: '提醒事項', label: '提醒事項', defaultColor: '#EED3D9' }
+    { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8383' }
   ]
 }
 
@@ -4248,6 +4248,12 @@ function getScheduleColorSettings() {
   try {
     const raw = localStorage.getItem(scheduleColorStorageKey)
     const saved = raw ? JSON.parse(raw) : {}
+
+    if (saved['提醒事項'] === '#EED3D9') {
+      saved['提醒事項'] = '#FF8383'
+      localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
+    }
+
     return {
       ...Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor])),
       ...saved
@@ -8853,3 +8859,20 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 個人一般待辦新增當日待辦提醒通知
 */
 /* FOR-e V002-1P-6-3 END - card border reminders todo */
+
+/* FOR-e V002-1P-6-4 START - meeting firstTracking fix */
+/*
+  V002-1P-6-4｜修正新增會議室預約 firstTracking is not defined
+  - 原因：會議室預約 payload 誤用了異況追蹤的 firstTracking 變數
+  - 修正：會議室 description 改回讀取表單 description
+*/
+/* FOR-e V002-1P-6-4 END - meeting firstTracking fix */
+
+/* FOR-e V002-1P-6-5 START - reminder color and color picker align */
+/*
+  V002-1P-6-5
+  - 提醒事項預設色改為 #FF8383
+  - 舊版 localStorage 若仍是 #EED3D9，會自動更新為 #FF8383
+  - 顏色設定頁的顏色選擇靠左對齊
+*/
+/* FOR-e V002-1P-6-5 END - reminder color and color picker align */

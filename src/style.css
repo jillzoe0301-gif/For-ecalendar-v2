@@ -6788,3 +6788,39 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-6-3 END - card border reminders todo */
+
+/* FOR-e V002-1P-6-5 START - reminder color and color picker align */
+.color-setting-row label {
+  justify-content: flex-start !important;
+  gap: 10px !important;
+}
+
+.color-setting-row label span {
+  min-width: 150px;
+  text-align: left !important;
+}
+
+.color-setting-row input[type="color"] {
+  margin-left: 0 !important;
+  justify-self: start !important;
+}
+
+.color-code-input {
+  text-align: left !important;
+}
+
+.color-preview-card {
+  justify-items: start !important;
+  text-align: left !important;
+}
+
+@media (max-width: 900px) {
+  .color-setting-row label {
+    justify-content: flex-start !important;
+  }
+
+  .color-setting-row label span {
+    min-width: 120px;
+  }
+}
+/* FOR-e V002-1P-6-5 END - reminder color and color picker align */
