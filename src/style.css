@@ -7183,3 +7183,49 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-7 END - users add edit staff */
+
+/* FOR-e V002-1P-8 START - no completion position select color header align */
+/* 顏色設定：表頭文字與下方內容欄位對齊 */
+.color-settings-header {
+  align-items: center !important;
+}
+
+.color-settings-header span {
+  justify-self: start !important;
+  text-align: left !important;
+  padding: 0 !important;
+}
+
+.color-settings-header span:nth-child(2) {
+  justify-self: start !important;
+  padding-left: 0 !important;
+}
+
+.color-settings-header span:nth-child(3),
+.color-settings-header span:nth-child(4) {
+  justify-self: start !important;
+}
+
+.color-item-name,
+.color-picker-cell,
+.color-code-input,
+.color-preview-card {
+  justify-self: start !important;
+}
+
+.color-picker-cell {
+  width: 100% !important;
+}
+
+/* 不需完成控管的行程狀態 */
+.status-pill.is-calendar-only {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* 新增 / 修改人員：職務下拉與一般欄位一致 */
+.user-account-modal select[name="position"] {
+  width: 100%;
+}
+/* FOR-e V002-1P-8 END - no completion position select color header align */

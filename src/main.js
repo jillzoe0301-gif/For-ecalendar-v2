@@ -273,6 +273,7 @@ function isReminderSchedule(row) {
 
 function isOverdueSchedule(row) {
   if (!row || !row.start_date) return false
+  if (isNoCompletionControlSchedule(row)) return false
   return row.start_date < todayString() && row.status !== '已完成' && row.status !== '取消'
 }
 
@@ -416,6 +417,35 @@ function isVisibleSchedule(row) {
   return row && row.status !== '取消' && row.is_cancelled !== true && !row.deleted_at
 }
 
+
+function isNoCompletionControlSchedule(row) {
+  if (!row) return false
+
+  if (row.category === '請假 / 會議 / 活動 / 外訓') return true
+
+  const noCompletionTypes = [
+    '請假',
+    '返鄉',
+    '會議',
+    '外訓',
+    '活動',
+    '部門活動',
+    '公司活動',
+    '教育訓練'
+  ]
+
+  if (row.category !== '會議室預約' && noCompletionTypes.includes(row.schedule_type)) return true
+  if (row.category !== '會議室預約' && noCompletionTypes.includes(row.sub_type)) return true
+
+  return false
+}
+
+function getScheduleStatusLabel(row) {
+  if (isNoCompletionControlSchedule(row)) return '行事曆顯示'
+  return row?.status || '未完成'
+}
+
+
 function isActivePersonalSchedule(row) {
   return isVisibleSchedule(row) && row.status !== '已完成' && row.is_completed !== true
 }
@@ -435,6 +465,7 @@ function isAssignedToMe(row) {
 
 function canCompleteSchedule(row) {
   if (!currentProfile) return false
+  if (isNoCompletionControlSchedule(row)) return false
   if (row.status === '已完成' || row.status === '取消') return false
   if (isPowerRole()) return true
   return row.creator_staff_id === currentProfile.staff_id || isAssignedToMe(row)
@@ -2005,7 +2036,7 @@ function renderFieldDetailList(rows) {
             </div>
 
             <div class="field-detail-status">
-              <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
+              <span class="status-pill">${escapeHtml(getScheduleStatusLabel(row))}</span>
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
             </div>
           </div>
@@ -3697,8 +3728,9 @@ function renderStatsFilterForm() {
 }
 
 function renderStatsMetricCards(rows) {
-  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
-  const completedRows = rows.filter(row => row.status === '已完成')
+  const completionRows = rows.filter(row => !isNoCompletionControlSchedule(row))
+  const activeRows = completionRows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = completionRows.filter(row => row.status === '已完成')
   const overdueRows = rows.filter(isOverdueSchedule)
 
   return `
@@ -4427,6 +4459,7 @@ function getAssignedTrackingRows() {
 
   return schedules
     .filter(row => isVisibleSchedule(row))
+    .filter(row => !isNoCompletionControlSchedule(row))
     .filter(row => row.creator_staff_id === myStaffId)
     .filter(row => {
       const assigneeIds = getAssigneeIds(row)
@@ -4879,7 +4912,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               ${row.need_service_record ? `<div class="service-record-hint ${row.service_record_submitted_date ? 'is-submitted' : 'is-missing'}">${row.service_record_submitted_date ? '服務紀錄單已交' : '服務紀錄單未填日期'}</div>` : ''}
             </div>
             <div class="schedule-card-actions">
-              <span class="status-pill">${row.status}</span>
+              <span class="status-pill ${isNoCompletionControlSchedule(row) ? 'is-calendar-only' : ''}">${escapeHtml(getScheduleStatusLabel(row))}</span>
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>\n              ${row.need_service_record ? `<button class="small-record-btn" data-record-schedule="${row.schedule_id}">紀錄單</button>` : ``}
             </div>
           </div>
@@ -5750,6 +5783,37 @@ function getUserManageDepartmentOptions(selectedDepartment = '') {
   return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
+
+function getUserManagePositionOptions(selectedPosition = '') {
+  const defaultPositions = [
+    '營運經理',
+    '部門主管',
+    '行政主管',
+    '服務主管',
+    '主任',
+    '副主任',
+    '營運秘書',
+    '行政',
+    '翻譯',
+    '外務',
+    '宿管',
+    '會計',
+    '一般職員'
+  ]
+
+  const existingPositions = getUserManageRows()
+    .map(staff => staff.position)
+    .filter(Boolean)
+
+  const positions = [...new Set([...defaultPositions, ...existingPositions])]
+  if (selectedPosition && !positions.includes(selectedPosition)) positions.unshift(selectedPosition)
+
+  return `<option value="">請選擇職務</option>` + positions.map(position => `
+    <option value="${escapeHtml(position)}" ${position === selectedPosition ? 'selected' : ''}>${escapeHtml(position)}</option>
+  `).join('')
+}
+
+
 function getDepartmentIdByName(name) {
   const row = getUserManageRows().find(staff => staff.department_name === name && staff.department_id)
   return row?.department_id || null
@@ -5809,7 +5873,9 @@ function openUserAccountModal(staffId = '') {
 
         <label>
           職務
-          <input name="position" value="${escapeHtml(staff?.position || '')}" placeholder="例如：翻譯、行政、外務">
+          <select name="position">
+            ${getUserManagePositionOptions(staff?.position || '')}
+          </select>
         </label>
 
         <label>
@@ -5933,9 +5999,12 @@ function openScheduleDetail(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
-  const permissionNote = canModifySchedule(row)
-    ? '您可以管理此行程，包含修改內容與執行者。'
-    : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。'
+  const noCompletionControl = isNoCompletionControlSchedule(row)
+  const permissionNote = noCompletionControl
+    ? '此類行程只顯示在行事曆，不控管是否已完成。'
+    : (canModifySchedule(row)
+      ? '您可以管理此行程，包含修改內容與執行者。'
+      : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。')
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -5947,7 +6016,7 @@ function openScheduleDetail(scheduleId) {
       </div>
 
       <div class="detail-grid">
-        <div><span>狀態</span><strong>${escapeHtml(row.status)}</strong></div>
+        <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
         <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
@@ -9187,3 +9256,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不處理 Supabase Auth 登入密碼
 */
 /* FOR-e V002-1P-7 END - users add edit staff */
+
+/* FOR-e V002-1P-8 START - no completion position select color header align */
+/*
+  V002-1P-8
+  - 請假 / 會議 / 外訓 / 活動只顯示於行事曆，不控管已完成
+  - 此類行程不列入逾期任務、不出現已完成按鈕、不列入指派追蹤
+  - 統計未完成 / 已完成排除此類不控管行程
+  - 新增 / 修改人員的職務改為下拉選項
+  - 顏色設定表頭與內容對齊
+*/
+/* FOR-e V002-1P-8 END - no completion position select color header align */
