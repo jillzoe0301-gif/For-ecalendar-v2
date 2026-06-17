@@ -264,6 +264,9 @@ let serviceRecordsError = ''
 let serviceRecordFilters = {
   status: '全部',
   staffId: '全部',
+  department: '全部',
+  scheduleType: '全部',
+  keyword: '',
   startDate: '',
   endDate: ''
 }
@@ -736,6 +739,9 @@ function renderApp() {
       serviceRecordFilters = {
         status: '全部',
         staffId: '全部',
+        department: '全部',
+        scheduleType: '全部',
+        keyword: '',
         startDate: '',
         endDate: ''
       }
@@ -751,6 +757,9 @@ function renderApp() {
       serviceRecordFilters = {
         status: form.get('status') || '全部',
         staffId: form.get('staffId') || '全部',
+        department: form.get('department') || '全部',
+        scheduleType: form.get('scheduleType') || '全部',
+        keyword: form.get('keyword') || '',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
@@ -3453,6 +3462,104 @@ function getServiceRecordSchedule(record) {
   return schedules.find(row => row.schedule_id === record.schedule_id) || null
 }
 
+function getServiceRecordDepartment(record) {
+  const schedule = getServiceRecordSchedule(record)
+  return record.department_name || schedule?.department_name || '-'
+}
+
+function getServiceRecordScheduleType(record) {
+  const schedule = getServiceRecordSchedule(record)
+  return record.schedule_type || schedule?.schedule_type || schedule?.category || '-'
+}
+
+function getServiceRecordTitle(record) {
+  const schedule = getServiceRecordSchedule(record)
+  return record.title || schedule?.title || '-'
+}
+
+function getServiceRecordLocation(record) {
+  const schedule = getServiceRecordSchedule(record)
+  return record.location_name || schedule?.location_name || schedule?.customer_name || '-'
+}
+
+function getServiceRecordDepartmentOptions() {
+  return ['全部', ...new Set(serviceRecords.map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
+}
+
+function getServiceRecordTypeOptions() {
+  return ['全部', ...new Set(serviceRecords.map(getServiceRecordScheduleType).filter(item => item && item !== '-'))]
+}
+
+function buildServiceRecordOptionList(items, selectedValue) {
+  return items.map(item => `<option value="${escapeHtml(item)}" ${selectedValue === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')
+}
+
+function getServiceRecordMonthlyRows(records) {
+  const monthKey = todayString().slice(0, 7)
+  return records.filter(record => String(record.schedule_date || '').startsWith(monthKey))
+}
+
+function getServiceRecordStaffSummary(records) {
+  const map = new Map()
+
+  records.forEach(record => {
+    const key = record.staff_id || record.staff_name || '未指定'
+    if (!map.has(key)) {
+      map.set(key, {
+        staffName: record.staff_name || '-',
+        departmentName: getServiceRecordDepartment(record),
+        total: 0,
+        pending: 0,
+        overdue: 0,
+        submitted: 0
+      })
+    }
+
+    const item = map.get(key)
+    const status = getServiceRecordStatus(record)
+    item.total += 1
+    if (status === '已繳交') item.submitted += 1
+    if (status === '超過2週') item.overdue += 1
+    if (status === '未繳交') item.pending += 1
+  })
+
+  return [...map.values()].sort((a, b) => {
+    if (b.overdue !== a.overdue) return b.overdue - a.overdue
+    if (b.pending !== a.pending) return b.pending - a.pending
+    return b.total - a.total
+  })
+}
+
+function renderServiceRecordStaffSummary(records, onlyMine = false) {
+  if (onlyMine) return ''
+
+  const rows = getServiceRecordStaffSummary(records)
+  if (!rows.length) return ''
+
+  return `
+    <div class="service-record-staff-summary">
+      <div class="section-title-row">
+        <h4>人員繳交統計</h4>
+        <span>依超過2週與未繳交排序</span>
+      </div>
+      <div class="service-record-staff-grid">
+        ${rows.map(row => `
+          <div class="service-record-staff-card ${row.overdue ? 'has-overdue' : ''}">
+            <strong>${escapeHtml(row.staffName)}</strong>
+            <span>${escapeHtml(row.departmentName || '-')}</span>
+            <div>
+              <b>${row.total}</b><small>總數</small>
+              <b>${row.pending}</b><small>未繳</small>
+              <b>${row.overdue}</b><small>逾期</small>
+              <b>${row.submitted}</b><small>已交</small>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `
+}
+
 function getServiceRecordStatus(record) {
   if (record.submitted || record.submitted_date) return '已繳交'
 
@@ -3481,6 +3588,25 @@ function matchesServiceRecordFilters(record, onlyMine = false) {
 
   if (serviceRecordFilters.staffId !== '全部' && record.staff_id !== serviceRecordFilters.staffId) return false
 
+  if ((serviceRecordFilters.department || '全部') !== '全部' && getServiceRecordDepartment(record) !== serviceRecordFilters.department) return false
+  if ((serviceRecordFilters.scheduleType || '全部') !== '全部' && getServiceRecordScheduleType(record) !== serviceRecordFilters.scheduleType) return false
+
+  const keyword = normalizeText(serviceRecordFilters.keyword)
+  if (keyword) {
+    const schedule = getServiceRecordSchedule(record)
+    const haystack = [
+      record.staff_name,
+      getServiceRecordDepartment(record),
+      getServiceRecordScheduleType(record),
+      getServiceRecordTitle(record),
+      getServiceRecordLocation(record),
+      schedule?.description,
+      schedule?.sub_type_note
+    ].filter(Boolean).join(' ').toLowerCase()
+
+    if (!haystack.includes(keyword)) return false
+  }
+
   if (serviceRecordFilters.startDate && record.schedule_date < serviceRecordFilters.startDate) return false
   if (serviceRecordFilters.endDate && record.schedule_date > serviceRecordFilters.endDate) return false
 
@@ -3492,6 +3618,9 @@ function renderServiceRecordFilterForm(onlyMine = false) {
     .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
     .join('')
 
+  const departmentOptions = buildServiceRecordOptionList(getServiceRecordDepartmentOptions(), serviceRecordFilters.department || '全部')
+  const typeOptions = buildServiceRecordOptionList(getServiceRecordTypeOptions(), serviceRecordFilters.scheduleType || '全部')
+
   const staffOptions = onlyMine
     ? ''
     : `<label>
@@ -3502,14 +3631,27 @@ function renderServiceRecordFilterForm(onlyMine = false) {
         </select>
       </label>`
 
+  const departmentField = onlyMine
+    ? ''
+    : `<label>
+        部門
+        <select name="department">${departmentOptions}</select>
+      </label>`
+
   return `
-    <form id="serviceRecordFilterForm" class="service-record-filter">
+    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded">
       <label>
         狀態
         <select name="status">${statusOptions}</select>
       </label>
 
       ${staffOptions}
+      ${departmentField}
+
+      <label>
+        行程類型
+        <select name="scheduleType">${typeOptions}</select>
+      </label>
 
       <label>
         起日
@@ -3521,14 +3663,21 @@ function renderServiceRecordFilterForm(onlyMine = false) {
         <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
       </label>
 
+      <label class="service-record-keyword-filter">
+        關鍵字
+        <input name="keyword" value="${escapeHtml(serviceRecordFilters.keyword || '')}" placeholder="搜尋客戶、行程、內容、人員">
+      </label>
+
       <button type="submit" class="primary-btn">篩選</button>
     </form>
   `
 }
 
 function renderServiceRecordSummary(records) {
+  const monthlyRows = getServiceRecordMonthlyRows(records)
+
   return `
-    <div class="summary-grid service-record-summary">
+    <div class="summary-grid service-record-summary service-record-summary-upgraded">
       <div class="summary-card">
         <strong>${records.length}</strong>
         <span>紀錄單總數</span>
@@ -3545,6 +3694,10 @@ function renderServiceRecordSummary(records) {
         <strong>${records.filter(row => getServiceRecordStatus(row) === '已繳交').length}</strong>
         <span>已繳交</span>
       </div>
+      <div class="summary-card">
+        <strong>${monthlyRows.length}</strong>
+        <span>本月紀錄</span>
+      </div>
     </div>
   `
 }
@@ -3557,9 +3710,9 @@ function renderServiceRecordList(records, emptyText) {
       ${records.map(record => {
         const schedule = getServiceRecordSchedule(record)
         const status = getServiceRecordStatus(record)
-        const scheduleType = record.schedule_type || schedule?.schedule_type || '-'
-        const title = record.title || schedule?.title || '-'
-        const location = record.location_name || schedule?.location_name || schedule?.customer_name || '-'
+        const scheduleType = getServiceRecordScheduleType(record)
+        const title = getServiceRecordTitle(record)
+        const location = getServiceRecordLocation(record)
 
         return `
           <div class="service-record-row status-${status}">
@@ -3571,8 +3724,9 @@ function renderServiceRecordList(records, emptyText) {
             <div class="service-record-main">
               <div class="service-record-title">${escapeHtml(scheduleType)}｜${escapeHtml(title)}</div>
               <div class="service-record-meta">
-                ${escapeHtml(record.staff_name || '-')}｜${escapeHtml(record.department_name || '-')}｜${escapeHtml(location)}
+                ${escapeHtml(record.staff_name || '-')}｜${escapeHtml(getServiceRecordDepartment(record))}｜${escapeHtml(location)}
               </div>
+              ${schedule?.description ? `<div class="service-record-preview">${escapeHtml(getFirstTwoLines(schedule.description)).replaceAll('\n', '<br>')}</div>` : ''}
             </div>
 
             <div class="service-record-status-wrap">
@@ -3611,6 +3765,7 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
+    ${renderServiceRecordStaffSummary(records, false)}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
   `
 }
@@ -6515,3 +6670,13 @@ function getPersonalReminderTestSummary() {
   - 新增異況後，第一次追蹤會自動建立一筆當天行程，並同步到負責 / 協助人員
 */
 /* FOR-e V002-1L-6 END - search categories and incident created day schedule */
+
+/* FOR-e V002-1M-1 START - service record dashboard upgrade */
+/*
+  V002-1M-1｜服務紀錄單總表強化
+  - 增加部門 / 行程類型 / 關鍵字篩選
+  - 增加本月紀錄統計
+  - 增加人員繳交統計
+  - 列表增加行程內容預覽
+*/
+/* FOR-e V002-1M-1 END - service record dashboard upgrade */
