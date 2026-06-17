@@ -7863,3 +7863,7 @@ label.record-modal-check {
 /* FOR-e V002-1P-23 START - robust login staff lookup */
 /* V002-1P-23：建立登入帳號錯誤提示強化 */
 /* FOR-e V002-1P-23 END - robust login staff lookup */
+
+/* FOR-e V002-1P-24 START - login no staff hard fail */
+/* V002-1P-24：建立登入帳號 staff fallback 強化 */
+/* FOR-e V002-1P-24 END - login no staff hard fail */

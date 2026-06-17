@@ -1003,7 +1003,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
       body: JSON.stringify({
         staff_id: normalizedStaffId,
         staff_snapshot: getStaffSnapshotForFunction(staff),
-        frontend_version: 'V002-1P-23',
+        frontend_version: 'V002-1P-24',
         email,
         password
       })
@@ -7352,7 +7352,8 @@ function getStaffSnapshotForFunction(staff) {
     department_name: staff.department_name || '',
     position: staff.position || staff.position_name || '',
     role: staff.role || '一般職員',
-    status: staff.status || '啟用'
+    status: staff.status || '啟用',
+    display_order: staff.display_order || null
   }
 }
 
@@ -10988,3 +10989,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 建立失敗時顯示 staff_id / hint / code
 */
 /* FOR-e V002-1P-23 END - robust login staff lookup */
+
+/* FOR-e V002-1P-24 START - login no staff hard fail */
+/*
+  V002-1P-24｜建立登入帳號不再因 staff 查不到直接失敗
+  - staff_snapshot 增加 display_order
+  - 前端標記 V002-1P-24，方便確認部署版本
+*/
+/* FOR-e V002-1P-24 END - login no staff hard fail */
