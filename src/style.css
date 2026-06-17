@@ -5182,3 +5182,124 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-2 END - statistics dashboard clean type stats */
+
+/* FOR-e V002-1N-3 START - statistics numbers no grid */
+/* 統計報表：數字清楚、不要格線 */
+.clean-type-bar {
+  display: none !important;
+}
+
+.clean-number-list,
+.service-record-number-list {
+  display: grid;
+  gap: 10px;
+}
+
+.clean-number-row,
+.service-record-number-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(360px, 2fr);
+  gap: 14px;
+  align-items: center;
+  border: 0 !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.clean-number-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.clean-number-strip span {
+  display: grid;
+  gap: 3px;
+  place-items: center;
+  min-height: 54px;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.clean-number-strip b {
+  color: #111827;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.clean-number-strip small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.clean-number-strip span.is-alert,
+.clean-number-strip .is-alert {
+  background: #fff7ed;
+}
+
+.clean-number-strip .is-alert b,
+.clean-number-strip span.is-alert b {
+  color: #dc2626;
+}
+
+.department-number-card {
+  border: 0 !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.department-number-line {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(300px, 2fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.department-number-line + .department-number-line {
+  box-shadow: none !important;
+  border-top: 0 !important;
+}
+
+.clean-number-strip.is-compact {
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
+}
+
+.clean-number-strip.is-compact span {
+  min-height: 46px;
+}
+
+.clean-number-strip.is-compact b {
+  font-size: 18px;
+}
+
+.service-record-number-row > strong,
+.clean-number-row .clean-type-title strong,
+.department-number-line > strong {
+  font-size: 15px;
+  font-weight: 950;
+  color: #111827;
+}
+
+.service-record-clean-main div {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .clean-number-row,
+  .service-record-number-row,
+  .department-number-line {
+    grid-template-columns: 1fr;
+  }
+
+  .clean-number-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clean-number-strip.is-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* FOR-e V002-1N-3 END - statistics numbers no grid */
