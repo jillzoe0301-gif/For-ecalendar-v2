@@ -5512,3 +5512,52 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-5 END - statistics by person type and smaller numbers */
+
+/* FOR-e V002-1N-6 START - person type columns */
+.person-type-column-list {
+  overflow-x: auto;
+}
+
+.person-type-column-head,
+.person-type-column-row {
+  min-width: 980px;
+}
+
+.person-type-column-head span {
+  text-align: center;
+}
+
+.person-type-column-head span:first-child,
+.person-type-column-head span:nth-child(2) {
+  text-align: left;
+}
+
+.person-type-column-row strong,
+.person-type-column-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-type-column-row > b {
+  font-size: 15px !important;
+  text-align: center;
+}
+
+.person-type-column-row .type-stat-number {
+  color: #111827;
+  font-weight: 950;
+}
+
+.person-type-tags {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .person-type-column-head,
+  .person-type-column-row {
+    min-width: 1040px;
+  }
+}
+/* FOR-e V002-1N-6 END - person type columns */

@@ -3586,37 +3586,38 @@ function updateStatsPersonTypeRow(item, row, type) {
 
 function renderPersonTypeStats(rows) {
   const personRows = getStatsPersonTypeSummary(rows)
+  const typeKeys = [...new Set(rows.map(getStatsScheduleType).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'zh-Hant'))
+  const columnTemplate = `minmax(110px, 1.1fr) minmax(110px, 1fr) repeat(4, minmax(58px, 0.55fr)) repeat(${Math.max(typeKeys.length, 1)}, minmax(74px, 0.65fr))`
 
   return `
     <section class="clean-stats-section person-type-stats-section">
       <div class="section-title-row">
         <h4>人員統計（行程類型）</h4>
-        <span>依人員計算各行程類型，不含會議室</span>
+        <span>每個行程類型獨立列出，不含會議室</span>
       </div>
 
       ${personRows.length ? `
-        <div class="person-type-list">
-          <div class="person-type-head">
+        <div class="person-type-list person-type-column-list">
+          <div class="person-type-head person-type-column-head" style="grid-template-columns:${columnTemplate}">
             <span>人員</span>
             <span>部門</span>
             <span>總數</span>
             <span>未完成</span>
             <span>逾期</span>
             <span>已完成</span>
-            <span>各行程類型</span>
+            ${typeKeys.map(type => `<span>${escapeHtml(type)}</span>`).join('')}
           </div>
 
           ${personRows.map(row => `
-            <div class="person-type-row ${row.overdue ? 'has-overdue' : ''}">
+            <div class="person-type-row person-type-column-row ${row.overdue ? 'has-overdue' : ''}" style="grid-template-columns:${columnTemplate}">
               <strong>${escapeHtml(row.name)}</strong>
               <span>${escapeHtml(row.department)}</span>
               <b>${row.total}</b>
               <b>${row.unfinished}</b>
               <b class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</b>
               <b>${row.completed}</b>
-              <div class="person-type-tags">
-                ${row.typeRows.map(item => `<em>${escapeHtml(item.type)} <i>${item.count}</i></em>`).join('')}
-              </div>
+              ${typeKeys.map(type => `<b class="type-stat-number">${row.types.get(type) || 0}</b>`).join('')}
             </div>
           `).join('')}
         </div>
@@ -7594,3 +7595,11 @@ function getPersonalReminderTestSummary() {
   V002-1N-5｜統計報表增加 BY 人員的行程類型統計，並縮小數字。
 */
 /* FOR-e V002-1N-5 END - statistics by person type and smaller numbers */
+
+/* FOR-e V002-1N-6 START - person type columns */
+/*
+  V002-1N-6｜人員統計各行程類型獨立列出
+  - 每個行程類型變成獨立欄位
+  - 不再用標籤塞在同一欄
+*/
+/* FOR-e V002-1N-6 END - person type columns */
