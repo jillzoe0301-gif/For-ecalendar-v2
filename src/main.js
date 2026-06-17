@@ -33,6 +33,7 @@ const serviceScheduleTypes = [
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
+const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
@@ -219,6 +220,7 @@ let schedulesError = ''
 let saving = false
 let overviewWeekOffset = 0
 let fieldWeekOffset = 0
+let meetingWeekOffset = 0
 let fieldDetailFilters = {
   staffId: '全部',
   location: '',
@@ -808,10 +810,43 @@ function renderApp() {
     })
   })
 
+
+  const meetingPrevWeekBtn = document.querySelector('#meetingPrevWeekBtn')
+  if (meetingPrevWeekBtn) {
+    meetingPrevWeekBtn.addEventListener('click', () => {
+      meetingWeekOffset -= 1
+      renderApp()
+    })
+  }
+
+  const meetingThisWeekBtn = document.querySelector('#meetingThisWeekBtn')
+  if (meetingThisWeekBtn) {
+    meetingThisWeekBtn.addEventListener('click', () => {
+      meetingWeekOffset = 0
+      renderApp()
+    })
+  }
+
+  const meetingNextWeekBtn = document.querySelector('#meetingNextWeekBtn')
+  if (meetingNextWeekBtn) {
+    meetingNextWeekBtn.addEventListener('click', () => {
+      meetingWeekOffset += 1
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('.meeting-week-day-cell').forEach(cell => {
+    cell.addEventListener('dblclick', () => openMeetingRoomModal({
+      date: cell.dataset.meetingDate || '',
+      room: cell.dataset.meetingRoom || ''
+    }))
+  })
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
     addBtn.addEventListener('click', () => {
       if (currentPage === 'fieldSchedule') openFieldScheduleModal()
+      else if (currentPage === 'meetingRoom') openMeetingRoomModal()
       else openScheduleModal()
     })
   }
@@ -1510,6 +1545,296 @@ function renderFieldDetailList(rows) {
 /* FOR-e V002-1J END - field detail page */
 
 
+
+/* FOR-e V002-1K-1 START - meeting room weekly calendar */
+function isMeetingRoomSchedule(row) {
+  if (!row) return false
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.location_name, row.sub_type_note].filter(Boolean).join('｜')
+  return row.category === '會議室預約' || row.schedule_type === '會議室預約' || text.includes('會議室預約') || meetingRoomOptions.includes(row.location_name)
+}
+
+function getMeetingSchedulesForRoomDate(room, dateKey) {
+  return schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isMeetingRoomSchedule(row))
+    .filter(row => row.start_date === dateKey)
+    .filter(row => row.location_name === room || row.sub_type === room)
+    .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+}
+
+function renderMeetingRoomCard(row) {
+  return `
+    <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+      <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
+      <strong>${escapeHtml(row.title || '-')}</strong>
+      <span class="meeting-room-meta">預約人：${escapeHtml(row.creator_name || '-')}</span>
+      ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
+    </button>
+  `
+}
+
+function renderMeetingRoomCalendar() {
+  const weekDates = getWeekDates(meetingWeekOffset)
+  const todayKey = todayString()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>會議室預約</h3>
+        <p class="muted">會議室 × 週一～週日｜${getWeekLabel(weekDates)}</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="meetingPrevWeekBtn">上一週</button>
+        <button class="secondary-btn" id="meetingThisWeekBtn">本週</button>
+        <button class="secondary-btn" id="meetingNextWeekBtn">下一週</button>
+        <button class="primary-btn" id="addScheduleBtn">新增預約</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <div class="meeting-week-scroll">
+      <table class="meeting-week-table">
+        <thead>
+          <tr>
+            <th class="meeting-room-col">會議室</th>
+            ${weekDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${meetingRoomOptions.map(room => `
+            <tr>
+              <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getMeetingSchedulesForRoomDate(room, key)
+                return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
+                  ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+function meetingRoomOptionsHtml(selectedRoom = '') {
+  return meetingRoomOptions.map(room => `<option value="${room}" ${room === selectedRoom ? 'selected' : ''}>${room}</option>`).join('')
+}
+
+function getMeetingTimeValue(form, prefix) {
+  const hour = form.get(`${prefix}_hour`) || '00'
+  const minute = form.get(`${prefix}_minute`) || '00'
+  return `${hour}:${minute}:00`
+}
+
+function getMeetingTimeMinutes(value) {
+  const [hour, minute] = String(value || '00:00:00').split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function hasMeetingRoomConflict(room, date, startTime, endTime) {
+  const start = getMeetingTimeMinutes(startTime)
+  const end = getMeetingTimeMinutes(endTime)
+
+  return schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isMeetingRoomSchedule(row))
+    .filter(row => row.start_date === date)
+    .filter(row => row.location_name === room)
+    .some(row => {
+      const rowStart = getMeetingTimeMinutes(row.start_time || '00:00:00')
+      const rowEnd = getMeetingTimeMinutes(row.end_time || row.start_time || '23:59:00')
+      return start < rowEnd && end > rowStart
+    })
+}
+
+function openMeetingRoomModal(defaults = {}) {
+  const defaultDate = defaults.date || todayString()
+  const defaultRoom = defaults.room || meetingRoomOptions[0] || ''
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>新增會議室預約</h3>
+        <button class="icon-btn" id="closeMeetingModalBtn" type="button">×</button>
+      </div>
+
+      <form id="meetingRoomForm" class="form-grid">
+        <label>
+          會議室
+          <select name="room" required>${meetingRoomOptionsHtml(defaultRoom)}</select>
+        </label>
+
+        <label>
+          日期
+          <input name="start_date" type="date" required value="${defaultDate}">
+        </label>
+
+        <label>
+          開始時間
+          <div class="compact-time-row">
+            <select name="start_hour">${hourOptionsHtml('09')}</select>
+            <select name="start_minute">${minuteOptionsHtml('00')}</select>
+          </div>
+        </label>
+
+        <label>
+          結束時間
+          <div class="compact-time-row">
+            <select name="end_hour">${hourOptionsHtml('10')}</select>
+            <select name="end_minute">${minuteOptionsHtml('00')}</select>
+          </div>
+        </label>
+
+        <label class="span-2">
+          會議名稱
+          <input name="title" required placeholder="請輸入會議名稱">
+        </label>
+
+        <label>
+          部門
+          <input name="department" value="${escapeHtml(currentProfile?.department_name || '')}" placeholder="部門">
+        </label>
+
+        <label>
+          預約人
+          <input value="${escapeHtml(currentProfile?.name || currentProfile?.email || '')}" disabled>
+        </label>
+
+        <label class="span-2">
+          內容 / 備註
+          <textarea name="description" rows="3" placeholder="會議內容或備註"></textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelMeetingModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存預約</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeMeetingModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelMeetingModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#meetingRoomForm').addEventListener('submit', event => saveMeetingRoomSchedule(event, modal))
+}
+
+async function saveMeetingRoomSchedule(event, modal) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const room = form.get('room')
+    const date = form.get('start_date')
+    const startTime = getMeetingTimeValue(form, 'start')
+    const endTime = getMeetingTimeValue(form, 'end')
+
+    if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
+      alert('結束時間必須晚於開始時間。')
+      saving = false
+      return
+    }
+
+    if (hasMeetingRoomConflict(room, date, startTime, endTime)) {
+      alert('此會議室該時段已有預約，請更換時間或會議室。')
+      saving = false
+      return
+    }
+
+    const payload = {
+      creator_profile_id: currentProfile.profile_id,
+      creator_staff_id: currentProfile.staff_id,
+      creator_name: currentProfile.name || currentProfile.email,
+      department_id: currentProfile.department_id,
+      department_name: currentProfile.department_name,
+      category: '會議室預約',
+      schedule_type: '會議室預約',
+      sub_type: room,
+      sub_type_note: form.get('department') ? `部門：${form.get('department')}` : null,
+      title: form.get('title'),
+      description: form.get('description') || null,
+      start_date: date,
+      end_date: date,
+      time_type: Number(startTime.slice(0, 2)) < 12 ? '上午' : '下午',
+      start_time: startTime,
+      end_time: endTime,
+      customer_name: null,
+      location_name: room,
+      address: null,
+      car_no: null,
+      status: '未完成',
+      need_service_record: false,
+      service_record_submitted: false,
+      service_record_submitted_date: null
+    }
+
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('schedules')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (scheduleError) {
+      alert('新增會議室預約失敗：' + scheduleError.message)
+      saving = false
+      return
+    }
+
+    const { error: assigneeError } = await supabase.from('schedule_assignees').insert([{
+      schedule_id: schedule.schedule_id,
+      staff_id: currentProfile.staff_id,
+      staff_name: currentProfile.name || currentProfile.email,
+      department_id: currentProfile.department_id,
+      department_name: currentProfile.department_name,
+      position: currentProfile.position_name || currentProfile.position,
+      assignee_type: 'executor'
+    }])
+
+    if (assigneeError) {
+      alert('會議室預約已建立，但同步個人行程失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '新增',
+      source_type: 'schedule',
+      source_id: schedule.schedule_id,
+      note: 'V002-1K-1 新增會議室預約'
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    alert('新增會議室預約失敗：' + (err?.message || err))
+    saving = false
+  }
+}
+/* FOR-e V002-1K-1 END - meeting room weekly calendar */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -1517,6 +1842,7 @@ function renderPageContent() {
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'fieldSchedule') return renderFieldScheduleCalendar()
   if (currentPage === 'fieldDetail') return renderFieldDetailPage()
+  if (currentPage === 'meetingRoom') return renderMeetingRoomCalendar()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
