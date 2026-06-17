@@ -8664,3 +8664,144 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-40 END - own password and mobile cards */
+
+/* FOR-e V002-1P-41 START - overview filters medical mobile width */
+.overview-filter-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  margin: 10px 0 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+
+.medical-followup-inline-box {
+  border: 1px solid #bfdbfe;
+  background: #eef5ff;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+/* 行程總覽：日期欄位加寬，避免行程卡片跑出框框 */
+.week-overview-table {
+  table-layout: fixed !important;
+}
+
+.week-overview-table .staff-col,
+.week-overview-table .staff-name-cell {
+  width: 132px !important;
+  min-width: 132px !important;
+  max-width: 132px !important;
+}
+
+.week-overview-table th:not(.staff-col),
+.week-overview-table td.week-day-cell {
+  width: 210px !important;
+  min-width: 210px !important;
+  max-width: 210px !important;
+}
+
+.week-day-cell {
+  vertical-align: top !important;
+  overflow: hidden !important;
+  padding: 8px !important;
+}
+
+.week-schedule-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.week-schedule-card strong,
+.week-schedule-card span {
+  max-width: 100% !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 900px) {
+  .overview-filter-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .overview-filter-panel button {
+    min-height: 40px;
+  }
+
+  .week-overview-table {
+    min-width: 1640px !important;
+    table-layout: fixed !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell {
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell {
+    width: 214px !important;
+    min-width: 214px !important;
+    max-width: 214px !important;
+  }
+
+  .week-day-cell {
+    overflow: hidden !important;
+    min-height: 176px !important;
+    padding: 8px !important;
+  }
+
+  .week-schedule-card {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 8px !important;
+    padding: 9px !important;
+    border-radius: 13px !important;
+    z-index: auto !important;
+  }
+
+  .week-schedule-card strong {
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  .week-card-time,
+  .week-card-preview,
+  .week-card-extra {
+    font-size: 11px !important;
+    line-height: 1.42 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .week-overview-table {
+    min-width: 1580px !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell {
+    width: 206px !important;
+    min-width: 206px !important;
+    max-width: 206px !important;
+  }
+}
+/* FOR-e V002-1P-41 END - overview filters medical mobile width */

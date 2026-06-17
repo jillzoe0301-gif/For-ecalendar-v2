@@ -342,6 +342,10 @@ let saving = false
 let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
+let overviewFilters = {
+  department: '全部',
+  staffId: '全部'
+}
 let fieldWeekOffset = 0
 let meetingWeekOffset = 0
 let fieldDetailFilters = {
@@ -2046,6 +2050,41 @@ function renderApp() {
         keyword: form.get('keyword') || '',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
+  const overviewFilterForm = document.querySelector('#overviewFilterForm')
+  if (overviewFilterForm) {
+    overviewFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      overviewFilters = {
+        department: form.get('department') || '全部',
+        staffId: form.get('staffId') || '全部'
+      }
+      renderApp()
+    })
+  }
+
+  const overviewDepartmentFilter = document.querySelector('#overviewDepartmentFilter')
+  if (overviewDepartmentFilter) {
+    overviewDepartmentFilter.addEventListener('change', () => {
+      overviewFilters = {
+        department: overviewDepartmentFilter.value || '全部',
+        staffId: '全部'
+      }
+      renderApp()
+    })
+  }
+
+  const resetOverviewFilterBtn = document.querySelector('#resetOverviewFilterBtn')
+  if (resetOverviewFilterBtn) {
+    resetOverviewFilterBtn.addEventListener('click', () => {
+      overviewFilters = {
+        department: '全部',
+        staffId: '全部'
       }
       renderApp()
     })
@@ -3838,6 +3877,10 @@ async function createIncidentTrackingSchedule(parentRow, trackingTitle, tracking
 
   if (assigneeError) {
     throw assigneeError
+  }
+
+  if (category === '服務行程' && scheduleType === '醫療') {
+    await createMedicalFollowupScheduleFromForm(form, schedule, schedulePayload)
   }
 
   await supabase.from('audit_logs').insert({
@@ -7047,9 +7090,27 @@ function getWeekLabel(weekDates) {
   return `${toDateKey(weekDates[0])} ～ ${toDateKey(weekDates[6])}`
 }
 
-function getOverviewStaffRows() {
+function getOverviewDepartmentOptions() {
+  const rows = getOverviewBaseStaffRows()
+  const names = ['全部', ...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  return names.map(name => `<option value="${escapeHtml(name)}" ${overviewFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+}
+
+function getOverviewStaffFilterOptions() {
+  let rows = getOverviewBaseStaffRows()
+  if (overviewFilters.department !== '全部') {
+    rows = rows.filter(staff => staff.department_name === overviewFilters.department)
+  }
+
+  return `<option value="全部" ${overviewFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` + rows.map(staff => `
+    <option value="${escapeHtml(staff.staff_id)}" ${overviewFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
+  `).join('')
+}
+
+function getOverviewBaseStaffRows() {
   const role = currentProfile?.role
   if (['管理員', '主管', '行政 / 海外'].includes(role)) return staffList
+
   const visibleStaffIds = new Set()
   schedules.forEach(row => {
     if (isMine(row)) {
@@ -7058,14 +7119,29 @@ function getOverviewStaffRows() {
       })
     }
   })
+
   if (currentProfile?.staff_id) visibleStaffIds.add(currentProfile.staff_id)
   return staffList.filter(staff => visibleStaffIds.has(staff.staff_id))
+}
+
+function getOverviewStaffRows() {
+  let rows = getOverviewBaseStaffRows()
+
+  if (overviewFilters.department !== '全部') {
+    rows = rows.filter(staff => staff.department_name === overviewFilters.department)
+  }
+
+  if (overviewFilters.staffId !== '全部') {
+    rows = rows.filter(staff => staff.staff_id === overviewFilters.staffId)
+  }
+
+  return rows
 }
 
 function getSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
-    if (row.start_date !== dateKey) return false
+    if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
   })
 }
@@ -7105,6 +7181,25 @@ function renderScheduleOverview() {
     </div>
 
     ${renderReadStatus()}
+
+    <form id="overviewFilterForm" class="overview-filter-panel">
+      <label>
+        部門
+        <select name="department" id="overviewDepartmentFilter">
+          ${getOverviewDepartmentOptions()}
+        </select>
+      </label>
+
+      <label>
+        人員
+        <select name="staffId" id="overviewStaffFilter">
+          ${getOverviewStaffFilterOptions()}
+        </select>
+      </label>
+
+      <button type="submit" class="primary-btn">套用篩選</button>
+      <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部人員</button>
+    </form>
 
     <div class="week-overview-scroll">
       <table class="week-overview-table">
@@ -9948,6 +10043,31 @@ function openScheduleModal() {
 
           </div>
 
+          <div class="span-2 conditional-service hidden medical-followup-inline-box" data-service-extra="醫療">
+            <div class="group-title">醫療回診資訊</div>
+            <div class="compact-grid">
+              <label>
+                下次回診日期
+                <input name="medical_next_date" type="date">
+              </label>
+              <label>
+                下次回診時間
+                ${compactTimeSelectHtml('medical_next', '09', '00')}
+              </label>
+              <label>
+                掛號號碼
+                <input name="medical_register_no" placeholder="請輸入掛號號碼">
+              </label>
+              <label>
+                下次執行人
+                <select name="medical_next_staff">
+                  ${staffSelectOptionsHtml()}
+                </select>
+              </label>
+            </div>
+            <p class="field-hint">此處會寫入行程備註；之後也可在查看行程頁點「回診資訊」修改。</p>
+          </div>
+
           <div class="span-2 conditional-service hidden" data-service-extra="逃跑通知">
             <div class="group-title">逃跑通知日期</div>
             <div class="compact-grid">
@@ -10213,7 +10333,7 @@ function buildServiceExtraNotes(form, scheduleType) {
 
   if (scheduleType === '醫療') {
     if (form.get('medical_next_date')) notes.push(`下次回診：${form.get('medical_next_date')} ${getCompactTime(form, 'medical_next')}`)
-    if (getStaffNameFromSelect('medical_next_staff')) notes.push(`下次執行者：${getStaffNameFromSelect('medical_next_staff')}`)
+    if (getStaffNameFromSelect('medical_next_staff')) notes.push(`下次執行人：${getStaffNameFromSelect('medical_next_staff')}`)
     if (form.get('medical_register_no')) notes.push(`掛號號碼：${form.get('medical_register_no')}`)
   }
 
@@ -10250,6 +10370,94 @@ function buildServiceExtraNotes(form, scheduleType) {
 }
 
 
+async function createMedicalFollowupScheduleFromForm(form, originalSchedule, originalPayload) {
+  const nextDate = form.get('medical_next_date')
+  const nextStaffId = form.get('medical_next_staff')
+
+  if (!nextDate || !nextStaffId) return
+
+  const nextStaff = staffList.find(staff => staff.staff_id === nextStaffId)
+  if (!nextStaff) return
+
+  const nextTimeType = form.get('medical_next_time_type') || '不指定'
+  const nextHour = form.get('medical_next_hour') || '09'
+  const nextMinute = form.get('medical_next_minute') || '00'
+  const nextStartTime = nextTimeType === '不指定' ? null : `${nextHour}:${nextMinute}:00`
+  const registerNo = form.get('medical_register_no') || ''
+  const originalTitle = originalPayload.title || '醫療回診'
+
+  const followPayload = {
+    creator_profile_id: currentProfile.profile_id,
+    creator_staff_id: currentProfile.staff_id,
+    creator_name: currentProfile.name || currentProfile.email,
+    department_id: nextStaff.department_id || currentProfile.department_id,
+    department_name: nextStaff.department_name || currentProfile.department_name,
+    category: '服務行程',
+    schedule_type: '醫療',
+    sub_type: null,
+    sub_type_note: [
+      '行程模式：單日',
+      `原醫療行程：${originalSchedule.schedule_id}`,
+      `掛號號碼：${registerNo || '未填寫'}`,
+      `下次執行人：${nextStaff.name || ''}`
+    ].filter(Boolean).join('｜'),
+    title: `回診｜${originalTitle}`,
+    description: `由醫療行程自動建立下一次回診。\n原行程：${originalTitle}`,
+    start_date: nextDate,
+    end_date: nextDate,
+    time_type: nextTimeType,
+    start_time: nextStartTime,
+    end_time: null,
+    customer_name: originalPayload.customer_name || null,
+    location_name: originalPayload.location_name || null,
+    address: originalPayload.address || null,
+    car_no: null,
+    status: '未完成',
+    need_service_record: true,
+    service_record_submitted: false,
+    service_record_submitted_date: null
+  }
+
+  const { data: followSchedule, error: followError } = await supabase
+    .from('schedules')
+    .insert(followPayload)
+    .select()
+    .single()
+
+  if (followError) {
+    console.error(followError)
+    alert('主行程已建立，但下次回診行程建立失敗：' + followError.message)
+    return
+  }
+
+  const { error: assigneeError } = await supabase.from('schedule_assignees').insert([{
+    schedule_id: followSchedule.schedule_id,
+    staff_id: nextStaff.staff_id,
+    staff_name: nextStaff.name,
+    department_id: nextStaff.department_id,
+    department_name: nextStaff.department_name,
+    position: nextStaff.position,
+    assignee_type: 'executor'
+  }])
+
+  if (assigneeError) {
+    console.error(assigneeError)
+    alert('下次回診行程已建立，但執行人寫入失敗：' + assigneeError.message)
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '新增',
+    source_type: 'schedule',
+    source_id: followSchedule.schedule_id,
+    note: `自動建立下次回診｜原行程 ${originalSchedule.schedule_id}`
+  })
+}
+
+
+
 
 function openMedicalFollowModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
@@ -10263,7 +10471,7 @@ function openMedicalFollowModal(scheduleId) {
   const currentDate = getNoteValue(row, '下次回診').split(' ')[0] || ''
   const currentTimeText = getNoteValue(row, '下次回診').split(' ').slice(1).join(' ')
   const currentRegisterNo = getNoteValue(row, '掛號號碼')
-  const currentStaffText = getNoteValue(row, '下次執行者')
+  const currentStaffText = getNoteValue(row, '下次執行人') || getNoteValue(row, '下次執行者')
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -11993,3 +12201,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 手機版週曆卡片加寬欄位、修正卡片 overflow，避免內容被遮擋
 */
 /* FOR-e V002-1P-40 END - own password and mobile cards */
+
+/* FOR-e V002-1P-41 START - overview filters medical mobile width */
+/*
+  V002-1P-41｜行程總覽篩選、醫療回診欄位、手機日期欄加寬
+  - 行程總覽新增部門 / 人員篩選
+  - 行程總覽支援連續 / 每週 / 每月重複行程顯示
+  - 新增醫療行程時可填下次回診日期、時間、掛號號碼、下次執行人
+  - 醫療有下次回診日期與執行人時，自動建立下一筆回診行程
+*/
+/* FOR-e V002-1P-41 END - overview filters medical mobile width */
