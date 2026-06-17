@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-52'
+const SYSTEM_VERSION = 'V002-1P-54'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18,7 +18,7 @@ const pages = [
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '行政 / 海外'], mobile: false },
   { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
-  { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外', '翻譯'], mobile: true },
+  { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
   { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
   { key: 'stats', label: '統計報表', mobileLabel: '統計', roles: ['管理員', '主管'], mobile: false },
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
@@ -631,7 +631,7 @@ const rolePermissionMatrix = {
     createPersonalSchedule: true,
     createFieldSchedule: false,
     createMeetingRoom: false,
-    createIncident: true,
+    createIncident: false,
     assignAllStaff: false,
     manageUsers: false,
     manageOptions: false,
@@ -797,7 +797,7 @@ function canDeleteUserProfile(staff) {
 }
 
 function canActivateUserProfile(staff) {
-  return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && (isStaffDeleted(staff) || getStaffDisplayStatus(staff) === '停用')
+  return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && getStaffDisplayStatus(staff) === '停用'
 }
 
 
@@ -1536,43 +1536,65 @@ async function deleteStaffUser(staffId = '', staffName = '') {
   const loginEmail = getStaffLoginEmail(staff)
   const name = staffName || staff?.name || '此人員'
 
-  const confirmed = confirm(`確定要刪除「${name}」嗎？\n\n此操作會將人員標記為已刪除並停用，不會破壞歷史行程紀錄。${loginEmail ? '\n若有登入帳號，profile 也會同步停用。' : ''}`)
+  const confirmed = confirm(
+    `確定要永久刪除「${name}」嗎？\n\n` +
+    `按「刪除」後會直接從人員名單移除，不會再出現在人員 / 帳號頁。\n` +
+    `如果只是暫時不用，請改按「修改」並把狀態改成「停用」，停用人員會繼續留在人員名單上。` +
+    `${loginEmail ? '\n\n此人員若有登入帳號，系統會同步停用 profile 並解除人員綁定。' : ''}`
+  )
   if (!confirmed) return
 
   if (saving) return
   saving = true
 
   try {
-    const { error } = await supabase
-      .from('staff')
-      .update({
-        status: '停用',
-        deleted_at: new Date().toISOString()
-      })
-      .eq('staff_id', staffId)
-
-    if (error) {
-      console.error(error)
-      alert('刪除人員失敗：' + error.message)
-      return
-    }
-
-    if (loginEmail) {
-      await supabase
-        .from('profiles')
-        .update({ status: '停用' })
-        .eq('email', loginEmail)
-    }
-
     const settings = getFieldStaffSettings()
     if (Object.prototype.hasOwnProperty.call(settings, staffId)) {
       delete settings[staffId]
       await saveFieldStaffSettings(settings)
     }
 
+    const { error } = await supabase
+      .from('staff')
+      .delete()
+      .eq('staff_id', staffId)
+
+    if (error) {
+      console.error(error)
+      alert(
+        '永久刪除人員失敗：' + error.message +
+        '\n\n若此人員已有歷史資料導致資料庫不允許刪除，請改用「修改」把狀態設為「停用」。'
+      )
+      return
+    }
+
+    if (loginEmail) {
+      try {
+        const profile = getStaffProfile(staff)
+        const profilePayload = {}
+
+        if (profile && Object.prototype.hasOwnProperty.call(profile, 'status')) {
+          profilePayload.status = '停用'
+        }
+
+        if (profile && Object.prototype.hasOwnProperty.call(profile, 'staff_id')) {
+          profilePayload.staff_id = null
+        }
+
+        if (Object.keys(profilePayload).length) {
+          await supabase
+            .from('profiles')
+            .update(profilePayload)
+            .eq('email', loginEmail)
+        }
+      } catch (err) {
+        console.warn('人員已刪除，但 profile 停用 / 解除綁定失敗。', err)
+      }
+    }
+
     await refreshData()
     renderApp()
-    alert('人員已刪除。')
+    alert('人員已永久刪除，不會再出現在人員名單。')
   } finally {
     saving = false
   }
@@ -6514,7 +6536,7 @@ function getAuditCsvColumns() {
 
 function getUserCsvRows() {
   const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
-  return sourceRows.filter(matchesUserAccountFilters)
+  return sourceRows.filter(staff => !isStaffDeleted(staff)).filter(matchesUserAccountFilters)
 }
 
 function getUserCsvColumns() {
@@ -7352,7 +7374,7 @@ function getLaunchTestGroups() {
         ['admin-role', '管理員：可使用人員 / 帳號、選項管理、系統檢查、全部行程管理'],
         ['manager-role', '主管：可看選項管理，可看全部人員但只能調整外務人員'],
         ['admin-overseas-role', '行政 / 海外：可管理行程、外務、異況，但不可管理帳號與選項'],
-        ['translator-role', '翻譯：可看顏色設定、異況追蹤、紀錄單繳交與自己的行程'],
+        ['translator-role', '翻譯：可看顏色設定、紀錄單繳交與自己的行程'],
         ['field-accounting-role', '外務 / 宿管人員 / 會計：可看外務行程、會議室、異動紀錄與自己的帳號'],
         ['staff-role', '一般職員：不顯示 LINE 通知、不顯示異動紀錄，只看自己的帳號與行程']
       ]
@@ -8995,7 +9017,7 @@ function renderRecordSubmit() {
 }
 
 function getUserAccountDepartmentOptions() {
-  const sourceRows = allStaffList.length ? allStaffList : staffList
+  const sourceRows = (allStaffList.length ? allStaffList : staffList).filter(staff => !isStaffDeleted(staff))
   const names = ['全部', ...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
   return names.map(name => `<option value="${escapeHtml(name)}" ${userAccountFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
@@ -9049,7 +9071,6 @@ function getUsersDepartmentSummary(rows) {
 function renderUsersSummary(rows) {
   const activeCount = rows.filter(staff => !isStaffDeleted(staff) && (staff.status || '啟用') === '啟用').length
   const disabledCount = rows.filter(staff => !isStaffDeleted(staff) && staff.status === '停用').length
-  const deletedCount = rows.filter(isStaffDeleted).length
   const fieldStaffCount = rows.filter(isStaffFieldWorker).length
   const boundAccountCount = rows.filter(staff => Boolean(getStaffLoginEmail(staff))).length
   const departmentStats = getUsersDepartmentSummary(rows)
@@ -9067,10 +9088,6 @@ function renderUsersSummary(rows) {
       <div class="summary-card">
         <strong>${disabledCount}</strong>
         <span>停用人員</span>
-      </div>
-      <div class="summary-card">
-        <strong>${deletedCount}</strong>
-        <span>已刪除</span>
       </div>
       <div class="summary-card">
         <strong>${fieldStaffCount}</strong>
@@ -9191,7 +9208,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。
+      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員若按「刪除」會永久移除人員；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -9240,7 +9257,8 @@ function renderUsersPage() {
 
 
 function getUserManageRows() {
-  return allStaffList.length ? allStaffList : staffList
+  const rows = allStaffList.length ? allStaffList : staffList
+  return (rows || []).filter(staff => !isStaffDeleted(staff))
 }
 
 
@@ -13362,3 +13380,24 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統檢查報告加入上線測試進度
 */
 /* FOR-e V002-1P-52 END - launch test checklist */
+
+/* FOR-e V002-1P-53 START - remove translator incident access */
+/*
+  V002-1P-53｜翻譯移除異況追蹤權限
+  - 翻譯不顯示異況追蹤
+  - 翻譯 createIncident 權限改為 false
+  - 翻譯仍保留顏色設定與紀錄單繳交
+  - 系統檢查與上線測試清單同步更新
+*/
+/* FOR-e V002-1P-53 END - remove translator incident access */
+
+/* FOR-e V002-1P-54 START - hard delete staff */
+/*
+  V002-1P-54｜人員永久刪除與停用分流
+  - 人員按「刪除」改為真正刪除 staff 資料列
+  - 刪除後不會再出現在人員 / 帳號頁
+  - 停用維持用「修改」把狀態改為停用，停用人員會繼續留在人員名單上
+  - 舊版 soft delete 的 deleted_at 人員也不再顯示
+  - 系統版本更新為 V002-1P-54
+*/
+/* FOR-e V002-1P-54 END - hard delete staff */
