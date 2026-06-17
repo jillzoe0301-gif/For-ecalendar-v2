@@ -368,6 +368,9 @@ let auditError = ''
 let auditFilters = {
   keyword: '',
   actionType: '全部',
+  sourceType: '全部',
+  department: '全部',
+  staffId: '全部',
   startDate: '',
   endDate: ''
 }
@@ -885,6 +888,9 @@ function renderApp() {
       auditFilters = {
         keyword: '',
         actionType: '全部',
+        sourceType: '全部',
+        department: '全部',
+        staffId: '全部',
         startDate: '',
         endDate: ''
       }
@@ -900,6 +906,9 @@ function renderApp() {
       auditFilters = {
         keyword: form.get('keyword') || '',
         actionType: form.get('actionType') || '全部',
+        sourceType: form.get('sourceType') || '全部',
+        department: form.get('department') || '全部',
+        staffId: form.get('staffId') || '全部',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
@@ -908,6 +917,10 @@ function renderApp() {
   }
 
   
+  document.querySelectorAll('[data-view-audit-index]').forEach(btn => {
+    btn.addEventListener('click', () => openAuditDetailModal(Number(btn.dataset.viewAuditIndex)))
+  })
+
   const resetServiceRecordFilterBtn = document.querySelector('#resetServiceRecordFilterBtn')
   if (resetServiceRecordFilterBtn) {
     resetServiceRecordFilterBtn.addEventListener('click', () => {
@@ -1497,16 +1510,166 @@ function renderSearchPage() {
 }
 
 
+
+function getAuditFilteredRows() {
+  return auditLogs.filter(row => matchesAuditFilters(row))
+}
+
+function getAuditSourceTypes() {
+  const types = [...new Set(auditLogs.map(row => row.source_type).filter(Boolean))]
+  return ['全部', ...types]
+}
+
+function getAuditSourceTypeOptions() {
+  return getAuditSourceTypes().map(item => `<option value="${escapeHtml(item)}" ${auditFilters.sourceType === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')
+}
+
+function getAuditDepartmentOptions() {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  const names = ['全部', ...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
+  return names.map(name => `<option value="${escapeHtml(name)}" ${auditFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+}
+
+function getAuditStaffOptions() {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  return `<option value="全部" ${auditFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
+    sourceRows.map(staff => `<option value="${escapeHtml(staff.staff_id)}" ${auditFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>`).join('')
+}
+
+function getAuditRelatedSchedule(row) {
+  if (!row?.source_id) return null
+  if (row.source_type === 'schedule' || row.source_type === 'service_record') {
+    return schedules.find(item => item.schedule_id === row.source_id) || null
+  }
+  return null
+}
+
+function getAuditRowStaffIds(row) {
+  const ids = new Set()
+
+  if (row?.operated_by_staff_id) ids.add(row.operated_by_staff_id)
+
+  const schedule = getAuditRelatedSchedule(row)
+  if (schedule) {
+    if (schedule.creator_staff_id) ids.add(schedule.creator_staff_id)
+    getAssigneeIds(schedule).forEach(id => ids.add(id))
+  }
+
+  return [...ids].filter(Boolean)
+}
+
+function getAuditRowDepartmentNames(row) {
+  const names = new Set()
+  getAuditRowStaffIds(row).forEach(staffId => {
+    const staff = (typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList).find(item => item.staff_id === staffId)
+    if (staff?.department_name) names.add(staff.department_name)
+  })
+
+  const schedule = getAuditRelatedSchedule(row)
+  if (schedule?.department_name) names.add(schedule.department_name)
+
+  return [...names].filter(Boolean)
+}
+
+function renderAuditSummary(results) {
+  return `
+    <div class="summary-grid search-summary audit-summary-grid">
+      <div class="summary-card">
+        <strong>${results.length}</strong>
+        <span>異動筆數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.action_type === '新增').length}</strong>
+        <span>新增</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => String(row.action_type || '').includes('修改')).length}</strong>
+        <span>修改類</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.action_type === '取消').length}</strong>
+        <span>取消</span>
+      </div>
+      <div class="summary-card">
+        <strong>${results.filter(row => row.source_type === 'schedule').length}</strong>
+        <span>行程異動</span>
+      </div>
+    </div>
+  `
+}
+
+function openAuditDetailModal(index) {
+  const rows = getAuditFilteredRows()
+  const row = rows[index]
+  if (!row) return
+
+  const schedule = getAuditRelatedSchedule(row)
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel audit-detail-panel">
+      <div class="modal-header">
+        <h3>異動紀錄明細</h3>
+        <button class="icon-btn" id="closeAuditDetailBtn" type="button">×</button>
+      </div>
+
+      <div class="detail-grid">
+        <div><span>異動時間</span><strong>${escapeHtml(formatDateTime(row.created_at))}</strong></div>
+        <div><span>動作類型</span><strong>${escapeHtml(row.action_type || '-')}</strong></div>
+        <div><span>操作人</span><strong>${escapeHtml(row.operated_by_name || '-')}</strong></div>
+        <div><span>來源類型</span><strong>${escapeHtml(row.source_type || '-')}</strong></div>
+        <div class="span-2"><span>來源 ID</span><strong>${escapeHtml(row.source_id || '-')}</strong></div>
+        <div class="span-2"><span>異動對象</span><strong>${escapeHtml(getAuditSourceLabel(row))}</strong></div>
+        <div class="span-2"><span>備註</span><strong>${escapeHtml(row.note || '-')}</strong></div>
+        ${schedule ? `
+          <div><span>行程日期</span><strong>${escapeHtml(schedule.start_date || '-')}</strong></div>
+          <div><span>行程時間</span><strong>${escapeHtml(formatTime(schedule))}</strong></div>
+          <div><span>行程類型</span><strong>${escapeHtml(schedule.schedule_type || schedule.category || '-')}</strong></div>
+          <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(schedule))}</strong></div>
+          <div class="span-2"><span>執行者</span><strong>${escapeHtml(getAssigneeNames(schedule) || '-')}</strong></div>
+          <div class="span-2"><span>行程內容</span><strong>${escapeHtml(schedule.title || '-')}</strong></div>
+        ` : ''}
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="closeAuditDetailBtn2">關閉</button>
+        ${schedule ? `<button type="button" class="primary-btn" id="openAuditSourceScheduleBtn">查看原行程</button>` : ''}
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeAuditDetailBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#closeAuditDetailBtn2').addEventListener('click', () => modal.remove())
+
+  const openScheduleBtn = document.querySelector('#openAuditSourceScheduleBtn')
+  if (openScheduleBtn && schedule) {
+    openScheduleBtn.addEventListener('click', () => {
+      modal.remove()
+      openScheduleDetail(schedule.schedule_id)
+    })
+  }
+}
+
+
 function matchesAuditFilters(row) {
   const keyword = normalizeText(auditFilters.keyword)
   const actionType = auditFilters.actionType
+  const sourceType = auditFilters.sourceType || '全部'
+  const department = auditFilters.department || '全部'
+  const staffId = auditFilters.staffId || '全部'
   const startDate = auditFilters.startDate
   const endDate = auditFilters.endDate
   const createdDate = row.created_at ? row.created_at.slice(0, 10) : ''
 
   if (actionType !== '全部' && row.action_type !== actionType) return false
+  if (sourceType !== '全部' && row.source_type !== sourceType) return false
   if (startDate && createdDate < startDate) return false
   if (endDate && createdDate > endDate) return false
+
+  if (department !== '全部' && !getAuditRowDepartmentNames(row).includes(department)) return false
+  if (staffId !== '全部' && !getAuditRowStaffIds(row).includes(staffId)) return false
 
   if (keyword) {
     const haystack = normalizeText([
@@ -1514,7 +1677,9 @@ function matchesAuditFilters(row) {
       row.action_type,
       row.source_type,
       row.note,
-      row.source_id
+      row.source_id,
+      getAuditSourceLabel(row),
+      getAuditRowDepartmentNames(row).join(' ')
     ].join(' '))
     if (!haystack.includes(keyword)) return false
   }
@@ -1542,8 +1707,8 @@ function getAuditActionTypes() {
 }
 
 function renderAuditPage() {
-  const results = auditLogs.filter(row => matchesAuditFilters(row))
-  const actionOptions = getAuditActionTypes().map(item => `<option value="${item}" ${auditFilters.actionType === item ? 'selected' : ''}>${item}</option>`).join('')
+  const results = getAuditFilteredRows()
+  const actionOptions = getAuditActionTypes().map(item => `<option value="${escapeHtml(item)}" ${auditFilters.actionType === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')
 
   return `
     <div class="page-toolbar">
@@ -1560,22 +1725,41 @@ function renderAuditPage() {
     ${auditLoading ? '<div class="notice">正在讀取異動紀錄...</div>' : ''}
     ${auditError ? `<div class="error-card">讀取異動紀錄失敗：${escapeHtml(auditError)}</div>` : ''}
 
-    <form id="auditForm" class="search-panel search-panel-simple">
+    <form id="auditForm" class="search-panel search-panel-simple audit-filter-panel">
       <label class="search-keyword">
         關鍵字
-        <input name="keyword" value="${escapeHtml(auditFilters.keyword)}" placeholder="搜尋操作人、動作、備註">
+        <input name="keyword" value="${escapeHtml(auditFilters.keyword)}" placeholder="搜尋操作人、動作、備註、異動行程">
       </label>
 
-      <div class="search-row date-range-row audit-filter-row">
+      <div class="search-row audit-filter-row">
         <label>
           動作類型
           <select name="actionType">${actionOptions}</select>
         </label>
 
         <label>
+          來源類型
+          <select name="sourceType">${getAuditSourceTypeOptions()}</select>
+        </label>
+
+        <label>
+          部門
+          <select name="department">${getAuditDepartmentOptions()}</select>
+        </label>
+
+        <label>
+          人員
+          <select name="staffId">${getAuditStaffOptions()}</select>
+        </label>
+      </div>
+
+      <div class="search-row date-range-row audit-date-row">
+        <label>
           起日
           <input name="startDate" type="date" value="${auditFilters.startDate}">
         </label>
+
+        <span class="date-range-separator">至</span>
 
         <label>
           迄日
@@ -1586,21 +1770,7 @@ function renderAuditPage() {
       </div>
     </form>
 
-    <div class="summary-grid search-summary">
-      <div class="summary-card">
-        <strong>${results.length}</strong>
-        <span>異動筆數</span>
-      </div>
-      <div class="summary-card">
-        <strong>${results.filter(row => row.action_type === '取消').length}</strong>
-        <span>取消</span>
-      </div>
-      <div class="summary-card">
-        <strong>${results.filter(row => String(row.action_type || '').includes('修改')).length}</strong>
-        <span>修改類</span>
-      </div>
-    </div>
-
+    ${renderAuditSummary(results)}
     ${renderAuditList(results)}
   `
 }
@@ -1635,17 +1805,21 @@ function renderAuditList(rows) {
   if (!rows.length) return `<div class="empty-state">沒有符合條件的異動紀錄。</div>`
 
   return `
-    <div class="audit-list">
-      ${rows.map(row => `
+    <div class="audit-list audit-list-detail">
+      ${rows.map((row, index) => `
         <div class="audit-row">
           <div class="audit-time">${escapeHtml(formatDateTime(row.created_at))}</div>
           <div class="audit-main">
             <div class="audit-title">
               <span class="audit-action">${escapeHtml(row.action_type || '-')}</span>
               <strong>${escapeHtml(row.operated_by_name || '-')}</strong>
+              <em>${escapeHtml(row.source_type || '-')}</em>
             </div>
             <div class="audit-note">${escapeHtml(row.note || '-')}</div>
             <div class="audit-meta audit-source"><span>異動行程：</span>${escapeHtml(getAuditSourceLabel(row))}</div>
+          </div>
+          <div class="audit-actions">
+            <button type="button" class="small-secondary-btn" data-view-audit-index="${index}">查看</button>
           </div>
         </div>
       `).join('')}
@@ -10093,3 +10267,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顏色設定預覽欄位寬度統一
 */
 /* FOR-e V002-1P-12 END - export filters mobile color preview */
+
+/* FOR-e V002-1P-13 START - audit detail and filters */
+/*
+  V002-1P-13｜異動紀錄查詢強化
+  - 新增來源類型 / 部門 / 人員篩選
+  - 列表新增查看明細
+  - 明細可回到原行程
+  - 異動紀錄統計增加來源與動作摘要
+*/
+/* FOR-e V002-1P-13 END - audit detail and filters */
