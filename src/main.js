@@ -2017,6 +2017,104 @@ function isIncidentSchedule(row) {
   return row.category === '異況追蹤' || row.schedule_type === '異況' || text.includes('異況類型：')
 }
 
+function isIncidentTrackingTask(row) {
+  const note = String(row?.sub_type_note || '')
+  return note.includes('來源異況：') || note.includes('追蹤項目：')
+}
+
+function incidentTrackingTargetChecksHtml(selectedIds = [], inputName = 'incident_tracking_target') {
+  const selected = new Set(selectedIds || [])
+  return staffList.map(staff => `
+    <label class="check-row">
+      <input type="checkbox" name="${inputName}" value="${staff.staff_id}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
+      <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+    </label>
+  `).join('')
+}
+
+async function createIncidentTrackingSchedule(parentRow, trackingTitle, trackingContent, followDate, followTime, targetIds, sourceNote = '') {
+  const selectedStaff = staffList.filter(staff => targetIds.includes(staff.staff_id))
+  if (!selectedStaff.length) {
+    throw new Error('請至少選擇一位執行對象。')
+  }
+
+  const firstStaff = selectedStaff[0]
+  const targetNames = selectedStaff.map(staff => staff.name).join('、')
+  const payload = {
+    creator_profile_id: currentProfile.profile_id,
+    creator_staff_id: currentProfile.staff_id,
+    creator_name: currentProfile.name || currentProfile.email,
+    department_id: firstStaff.department_id || parentRow.department_id || currentProfile.department_id,
+    department_name: firstStaff.department_name || parentRow.department_name || currentProfile.department_name,
+    category: '異況追蹤',
+    schedule_type: '異況',
+    sub_type: trackingTitle,
+    sub_type_note: [
+      `來源異況：${parentRow.schedule_id}`,
+      `追蹤項目：${trackingTitle}`,
+      parentRow.sub_type ? `異況類型：${parentRow.sub_type}` : '',
+      parentRow.customer_name ? `客戶 / 工人：${parentRow.customer_name}` : '',
+      `執行對象：${targetNames}`,
+      sourceNote
+    ].filter(Boolean).join('｜'),
+    title: `${trackingTitle}｜${parentRow.title || parentRow.customer_name || '異況追蹤'}`,
+    description: trackingContent || null,
+    start_date: followDate,
+    end_date: followDate,
+    time_type: getFieldTimeTypeFromValue(followTime),
+    start_time: getFieldDbTimeValue(followTime),
+    end_time: null,
+    customer_name: parentRow.customer_name || null,
+    location_name: null,
+    address: null,
+    car_no: null,
+    status: '未完成',
+    need_service_record: !!parentRow.need_service_record,
+    service_record_submitted: false,
+    service_record_submitted_date: null
+  }
+
+  const { data: schedule, error: scheduleError } = await supabase
+    .from('schedules')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (scheduleError) {
+    throw scheduleError
+  }
+
+  const assigneeRows = selectedStaff.map(staff => ({
+    schedule_id: schedule.schedule_id,
+    staff_id: staff.staff_id,
+    staff_name: staff.name,
+    department_id: staff.department_id,
+    department_name: staff.department_name,
+    position: staff.position,
+    assignee_type: 'executor'
+  }))
+
+  const { error: assigneeError } = await supabase
+    .from('schedule_assignees')
+    .insert(assigneeRows)
+
+  if (assigneeError) {
+    throw assigneeError
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '新增追蹤行程',
+    source_type: 'schedule',
+    source_id: schedule.schedule_id,
+    note: `V002-1L-5 ${trackingTitle}上行程｜執行對象：${targetNames}`
+  })
+
+  return schedule
+}
+
 function incidentStaffOptionsHtml(selectedStaffId = '全部') {
   return `<option value="全部" ${selectedStaffId === '全部' ? 'selected' : ''}>全部人員</option>` +
     staffList.map(staff => `
@@ -2156,6 +2254,7 @@ function getIncidentRows() {
   return schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isIncidentSchedule(row))
+    .filter(row => !isIncidentTrackingTask(row))
     .filter(row => {
       if (incidentFilters.status !== '全部' && row.status !== incidentFilters.status) return false
 
@@ -2456,6 +2555,14 @@ function openIncidentNextTrackingModal(scheduleId) {
           ${fieldTimeSelectHtml('incident_follow_next', row.start_time ? parseTimeForEdit(row.start_time, '', '00').hour : '', row.start_time ? parseTimeForEdit(row.start_time, '', '00').minute : '00', row.time_type || '不指定')}
         </label>
 
+        <div class="span-2 incident-tracking-target-box">
+          <div class="field-title">執行對象（可複選）</div>
+          <div class="checkbox-list incident-tracking-target-list">
+            ${incidentTrackingTargetChecksHtml(getAssigneeIds(row))}
+          </div>
+          <p class="field-hint">儲存後會自動建立一筆追蹤行程，並同步到所選執行對象的個人行程表。</p>
+        </div>
+
         <label class="span-2">
           第${chineseTrackingNumber(nextIndex)}次追蹤內容
           <textarea name="tracking_content" rows="4" required placeholder="請輸入本次追蹤內容、處理狀況或待辦事項"></textarea>
@@ -2485,6 +2592,7 @@ async function saveIncidentNextTracking(event, modal, row) {
     const nextTime = getFieldSingleTimeValue(form, 'incident_follow_next')
     const nextFollowDate = form.get('next_follow_date')
     const trackingContent = String(form.get('tracking_content') || '').trim()
+    const targetIds = [...document.querySelectorAll('input[name="incident_tracking_target"]:checked')].map(input => input.value)
 
     if (!trackingContent) {
       alert('請輸入追蹤內容。')
@@ -2492,11 +2600,21 @@ async function saveIncidentNextTracking(event, modal, row) {
       return
     }
 
-    const nextDescription = appendIncidentTrackingEntry(row, todayString(), '', trackingContent)
+    if (!targetIds.length) {
+      alert('請至少選擇一位執行對象。')
+      saving = false
+      return
+    }
+
+    const nextIndex = getIncidentTrackingEntries(row).length + 1
+    const trackingTitle = `第${chineseTrackingNumber(nextIndex)}次追蹤`
+    const targetNames = staffList.filter(staff => targetIds.includes(staff.staff_id)).map(staff => staff.name).join('、')
+    const nextDescription = appendIncidentTrackingEntry(row, todayString(), '', `${trackingContent}\n執行對象：${targetNames}`)
     const currentNote = String(row.sub_type_note || '')
     const noteParts = currentNote.split('｜').map(item => item.trim()).filter(Boolean)
-    const cleanedNoteParts = noteParts.filter(item => !item.startsWith('下次追蹤：'))
+    const cleanedNoteParts = noteParts.filter(item => !item.startsWith('下次追蹤：') && !item.startsWith('下次執行對象：'))
     cleanedNoteParts.push(`下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+    cleanedNoteParts.push(`下次執行對象：${targetNames}`)
 
     const { error } = await supabase
       .from('schedules')
@@ -2518,6 +2636,8 @@ async function saveIncidentNextTracking(event, modal, row) {
       return
     }
 
+    await createIncidentTrackingSchedule(row, trackingTitle, trackingContent, nextFollowDate, nextTime, targetIds, `母案件下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+
     await supabase.from('audit_logs').insert({
       operated_by_profile_id: currentProfile.profile_id,
       operated_by_staff_id: currentProfile.staff_id,
@@ -2525,7 +2645,7 @@ async function saveIncidentNextTracking(event, modal, row) {
       action_type: '新增追蹤',
       source_type: 'schedule',
       source_id: row.schedule_id,
-      note: `V002-1L-3 新增下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`
+      note: `V002-1L-5 新增下次追蹤並上行程：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`
     })
 
     modal.remove()
@@ -6353,3 +6473,12 @@ function getPersonalReminderTestSummary() {
   - 修改後保留第一次、第二次、第三次追蹤順序
 */
 /* FOR-e V002-1L-4 END - incident tracking item edit */
+
+/* FOR-e V002-1L-5 START - incident tracking schedule target */
+/*
+  V002-1L-5｜異況追蹤項目上行程＋執行對象
+  - 新增下次追蹤時可選執行對象
+  - 儲存後建立一筆追蹤行程並寫入執行對象
+  - 追蹤行程同步到所選人員的個人行程與行程總覽
+*/
+/* FOR-e V002-1L-5 END - incident tracking schedule target */

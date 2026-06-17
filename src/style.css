@@ -4477,3 +4477,28 @@ label.record-modal-check {
   min-height: 140px;
 }
 /* FOR-e V002-1L-4 END - incident tracking item edit */
+
+/* FOR-e V002-1L-5 START - incident tracking schedule target */
+.incident-tracking-target-box {
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  background: #fffaf3;
+}
+
+.incident-tracking-target-list {
+  max-height: 180px;
+  margin-top: 6px;
+}
+
+.incident-tracking-target-list .check-row {
+  min-height: 34px;
+}
+
+.incident-tracking-target-box .field-hint {
+  margin-top: 8px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+/* FOR-e V002-1L-5 END - incident tracking schedule target */
