@@ -1276,6 +1276,108 @@ async function sendPasswordResetEmail(email) {
   openAdminPasswordResetModal(email, '')
 }
 
+
+function getOwnPasswordEmail(staff = null) {
+  if (staff && !isCurrentProfileStaff(staff)) return ''
+  return getStaffLoginEmail(staff) || currentProfile?.email || ''
+}
+
+function canChangeOwnPassword(staff = null) {
+  return Boolean(getOwnPasswordEmail(staff))
+}
+
+function openOwnPasswordModal(email = currentProfile?.email || '') {
+  const loginEmail = email || currentProfile?.email || ''
+
+  if (!loginEmail) {
+    alert('目前帳號沒有 Email，無法修改密碼。')
+    return
+  }
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel own-password-modal">
+      <div class="modal-header">
+        <h3>修改我的密碼</h3>
+        <button class="icon-btn" id="closeOwnPasswordBtn" type="button">×</button>
+      </div>
+
+      <form id="ownPasswordForm" class="form-grid">
+        <div class="span-2 login-create-user-card">
+          <strong>${escapeHtml(currentProfile?.name || '我的帳號')}</strong>
+          <span>${escapeHtml(loginEmail)}</span>
+        </div>
+
+        <label>
+          新密碼
+          <input name="password" type="password" required minlength="6" placeholder="請輸入至少 6 碼">
+        </label>
+
+        <label>
+          再次確認新密碼
+          <input name="confirmPassword" type="password" required minlength="6" placeholder="再次輸入新密碼">
+        </label>
+
+        <div class="notice span-2">
+          所有角色都可以修改自己的登入密碼。新密碼至少 6 碼，且不可與舊密碼相同。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelOwnPasswordBtn">取消</button>
+          <button type="submit" class="primary-btn">更新密碼</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeOwnPasswordBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelOwnPasswordBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#ownPasswordForm').addEventListener('submit', event => updateOwnPassword(event, modal))
+}
+
+async function updateOwnPassword(event, modal) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const password = String(form.get('password') || '').trim()
+    const confirmPassword = String(form.get('confirmPassword') || '').trim()
+
+    if (password.length < 6) {
+      alert('新密碼至少需要 6 碼。')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      alert('兩次輸入的新密碼不一致。')
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      const message = String(error.message || '')
+      if (message.includes('different from the old password')) {
+        alert('更新失敗：新密碼不能與舊密碼相同，請換一組 6 碼以上密碼。')
+      } else {
+        alert(`更新失敗：${message}`)
+      }
+      return
+    }
+
+    modal.remove()
+    alert('密碼已更新，請下次登入使用新密碼。')
+  } finally {
+    saving = false
+  }
+}
+
+
 function openAdminPasswordResetModal(email = '', staffName = '') {
   if (!canManageUsers()) {
     alert('只有管理員可以重設登入密碼。')
@@ -2264,6 +2366,15 @@ function renderApp() {
   if (checkLoginFunctionBtn) {
     checkLoginFunctionBtn.addEventListener('click', () => checkLoginFunctionStatus())
   }
+
+  const changeMyPasswordBtn = document.querySelector('#changeMyPasswordBtn')
+  if (changeMyPasswordBtn) {
+    changeMyPasswordBtn.addEventListener('click', () => openOwnPasswordModal())
+  }
+
+  document.querySelectorAll('[data-change-own-password]').forEach(btn => {
+    btn.addEventListener('click', () => openOwnPasswordModal(btn.dataset.changeOwnPassword || currentProfile?.email || ''))
+  })
 
   const addUserAccountBtn = document.querySelector('#addUserAccountBtn')
   if (addUserAccountBtn) {
@@ -7872,11 +7983,16 @@ function renderUsersList(rows) {
 
         ${rows.map(staff => {
           const loginEmail = getStaffLoginEmail(staff)
+          const ownPasswordEmail = getOwnPasswordEmail(staff)
+          const selfPasswordButton = ownPasswordEmail
+            ? `<button type="button" class="user-action-btn is-self-password" data-change-own-password="${escapeHtml(ownPasswordEmail)}">密碼</button>`
+            : ''
           const statusText = getStaffDisplayStatus(staff)
           const canShowActions = canEditUserAccount
           const actionButtons = canShowActions
             ? `
                 <button type="button" class="user-action-btn is-edit" data-edit-user="${staff.staff_id}" ${canEditUserProfile(staff) ? '' : 'disabled'}>修改</button>
+                ${selfPasswordButton}
                 ${canResetUserPassword(staff)
                   ? `<button type="button" class="user-action-btn is-reset" data-reset-password-email="${escapeHtml(loginEmail)}" data-reset-password-name="${escapeHtml(staff.name || '')}">重設</button>`
                   : ''
@@ -7894,7 +8010,7 @@ function renderUsersList(rows) {
                   : ''
                 }
               `
-            : `<span class="users-action-muted">${canToggleFieldStaff ? '可調整外務' : '僅檢視'}</span>`
+            : `${selfPasswordButton}${selfPasswordButton ? '' : `<span class="users-action-muted">${canToggleFieldStaff ? '可調整外務' : '僅檢視'}</span>`}`
 
           return `
             <div class="users-table-row ${statusText === '停用' ? 'is-disabled-user' : ''} ${statusText === '已刪除' ? 'is-deleted-user' : ''}">
@@ -7935,6 +8051,7 @@ function renderUsersPage() {
         <p class="muted">依角色顯示帳號資訊：管理員可全部管理；主管可看全部並調整外務；其他角色只看自己的帳號資訊。</p>
       </div>
       <div class="toolbar-actions">
+        <button class="secondary-btn self-password-btn" id="changeMyPasswordBtn">修改我的密碼</button>
         ${canEditUserAccount ? '<button class="secondary-btn" id="checkLoginFunctionBtn">檢查帳號功能</button><button class="primary-btn" id="addUserAccountBtn">新增人員</button>' : ''}
         ${canViewAllAccounts ? '<button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -7942,7 +8059,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。
+      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -7974,7 +8091,7 @@ function renderUsersPage() {
 
         <button type="submit" class="primary-btn">篩選</button>
       </form>
-    ` : '<div class="notice user-self-only-notice">目前角色只顯示自己的帳號資訊，如需修改資料請洽管理員。</div>'}
+    ` : '<div class="notice user-self-only-notice">目前角色只顯示自己的帳號資訊；如需修改基本資料請洽管理員，但可以自行修改登入密碼。</div>'}
 
     <section class="current-user-card">
       <div>
@@ -11866,3 +11983,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 右側操作按鈕統一大小、字型與樣式
 */
 /* FOR-e V002-1P-39 END - user account view permissions */
+
+/* FOR-e V002-1P-40 START - own password and mobile cards */
+/*
+  V002-1P-40｜所有角色可修改自己密碼、手機行程卡片避免遮擋
+  - 人員 / 帳號頁新增「修改我的密碼」按鈕
+  - 自己的人員列顯示「密碼」按鈕，所有角色皆可用
+  - 自改密碼使用 Supabase Auth updateUser，不需管理員、不需 Edge Function
+  - 手機版週曆卡片加寬欄位、修正卡片 overflow，避免內容被遮擋
+*/
+/* FOR-e V002-1P-40 END - own password and mobile cards */

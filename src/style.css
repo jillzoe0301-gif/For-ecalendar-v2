@@ -8506,3 +8506,161 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-39 END - user account view permissions */
+
+/* FOR-e V002-1P-40 START - own password and mobile cards */
+.self-password-btn {
+  border-color: #c7d2fe !important;
+  background: #eef5ff !important;
+  color: #3155d4 !important;
+  font-weight: 950 !important;
+}
+
+.user-action-btn.is-self-password {
+  background: #eef5ff;
+  border-color: #c7d2fe;
+  color: #3155d4;
+}
+
+.own-password-modal {
+  width: min(640px, 100%);
+}
+
+/* 週曆卡片共通：避免內容超出儲存格造成遮擋 */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.week-schedule-card strong,
+.week-card-time,
+.week-card-preview,
+.week-card-extra,
+.field-week-schedule-card strong,
+.field-week-card-time,
+.field-week-card-preview,
+.meeting-room-card strong,
+.meeting-room-time,
+.meeting-room-meta,
+.meeting-room-preview {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* 手機版行程總覽 / 外務 / 會議室：欄位加寬、卡片不再擠出格線 */
+@media (max-width: 900px) {
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    min-width: 1280px !important;
+    table-layout: fixed !important;
+  }
+
+  .week-overview-table .staff-col,
+  .field-week-table .field-staff-col,
+  .meeting-week-table .meeting-room-col,
+  .staff-name-cell,
+  .field-staff-name-cell,
+  .meeting-room-name-cell {
+    width: 116px !important;
+    min-width: 116px !important;
+    max-width: 116px !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .field-week-table th:not(.field-staff-col),
+  .meeting-week-table th:not(.meeting-room-col),
+  .week-day-cell,
+  .field-week-day-cell,
+  .meeting-week-day-cell {
+    width: 166px !important;
+    min-width: 166px !important;
+    max-width: 166px !important;
+  }
+
+  .week-day-cell,
+  .field-week-day-cell,
+  .meeting-week-day-cell {
+    height: auto !important;
+    min-height: 168px !important;
+    overflow: visible !important;
+    padding: 7px !important;
+  }
+
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 8px !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  .week-schedule-card strong,
+  .field-week-schedule-card strong,
+  .meeting-room-card strong {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.42 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .week-card-time,
+  .week-card-preview,
+  .week-card-extra,
+  .field-week-card-time,
+  .field-week-card-preview,
+  .meeting-room-time,
+  .meeting-room-meta,
+  .meeting-room-preview {
+    display: block !important;
+    font-size: 11px !important;
+    line-height: 1.42 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .week-day-cell.is-today,
+  .field-week-day-cell.is-today,
+  .meeting-week-day-cell.is-today {
+    overflow: visible !important;
+    z-index: 1 !important;
+  }
+
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-room-scroll {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    min-width: 1240px !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .field-week-table th:not(.field-staff-col),
+  .meeting-week-table th:not(.meeting-room-col),
+  .week-day-cell,
+  .field-week-day-cell,
+  .meeting-week-day-cell {
+    width: 160px !important;
+    min-width: 160px !important;
+    max-width: 160px !important;
+  }
+}
+/* FOR-e V002-1P-40 END - own password and mobile cards */
