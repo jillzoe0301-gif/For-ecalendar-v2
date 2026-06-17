@@ -3153,9 +3153,8 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
     })
 }
 
-function openMeetingRoomModal(defaults = {
+function openMeetingRoomModal(defaults = {}) {
   if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
-}) {
   const defaultDate = defaults.date || todayString()
   const roomOptions = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
   const defaultRoom = defaults.room || roomOptions[0] || ''
@@ -8947,9 +8946,8 @@ function staffOptionsSelectHtml(selectedStaffId = '') {
 }
 
 
-function openFieldScheduleModal(defaults = {
+function openFieldScheduleModal(defaults = {}) {
   if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
-}) {
   const defaultDate = defaults.date || todayString()
   const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
 
@@ -11529,3 +11527,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 修改人員角色後會嘗試同步 profiles，並立即套用目前登入者權限
 */
 /* FOR-e V002-1P-32 END - password 4 and role sync */
+
+/* FOR-e V002-1P-32-1 START - build syntax fix */
+/*
+  V002-1P-32-1｜Build syntax fix
+  - 修正 openMeetingRoomModal 的權限判斷誤放在參數預設值內
+  - 修正 openFieldScheduleModal 的權限判斷誤放在參數預設值內
+  - 解決 Vercel build error: Expected identifier but found "!"
+*/
+/* FOR-e V002-1P-32-1 END - build syntax fix */
