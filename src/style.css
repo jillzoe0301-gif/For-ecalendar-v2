@@ -7032,3 +7032,78 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-6-6 END - overdue meeting repeat color layout */
+
+/* FOR-e V002-1P-6-7 START - color picker bigger overdue red */
+/* 顏色設定：顏色選擇框加大 */
+.color-settings-header,
+.color-setting-row-clean {
+  grid-template-columns: minmax(170px, 1fr) 96px 120px minmax(220px, 1.3fr) !important;
+}
+
+.color-picker-cell {
+  min-height: 44px !important;
+}
+
+.color-picker-cell input[type="color"],
+.color-setting-row-clean input[type="color"],
+.color-setting-row input[type="color"] {
+  width: 56px !important;
+  height: 40px !important;
+  min-width: 56px !important;
+  border-radius: 12px !important;
+  padding: 3px !important;
+  cursor: pointer;
+}
+
+/* 任務逾期通知：指定配色 #F62440 */
+.personal-overdue-task-area {
+  --overdue-alert-color: #F62440;
+  --overdue-alert-bg: #fff1f3;
+}
+
+.overdue-task-title {
+  background: var(--overdue-alert-bg) !important;
+  border-color: var(--overdue-alert-color) !important;
+}
+
+.overdue-task-title span {
+  color: var(--overdue-alert-color) !important;
+}
+
+.overdue-task-title em {
+  background: var(--overdue-alert-color) !important;
+  color: #ffffff !important;
+}
+
+.overdue-task-card {
+  border-color: var(--overdue-alert-color) !important;
+}
+
+.overdue-task-card b {
+  color: var(--overdue-alert-color) !important;
+}
+
+.overdue-task-card:hover {
+  box-shadow: 0 8px 20px rgba(246, 36, 64, 0.14) !important;
+}
+
+@media (max-width: 900px) {
+  .color-setting-row-clean {
+    grid-template-columns: 1fr 84px 116px !important;
+  }
+
+  .color-picker-cell input[type="color"],
+  .color-setting-row-clean input[type="color"],
+  .color-setting-row input[type="color"] {
+    width: 54px !important;
+    height: 38px !important;
+    min-width: 54px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .color-setting-row-clean {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1P-6-7 END - color picker bigger overdue red */
