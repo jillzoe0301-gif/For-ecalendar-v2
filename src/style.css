@@ -4631,3 +4631,100 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1M-1 END - service record dashboard upgrade */
+
+/* FOR-e V002-1M-2 START - service record month year department detail */
+.sr-status-section {
+  margin: 16px 0;
+}
+
+.sr-person-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sr-person-card,
+.sr-department-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.sr-person-card.has-overdue,
+.sr-department-card:has(.is-alert) {
+  border-color: #facc15;
+  background: #fffbeb;
+}
+
+.sr-person-card > strong,
+.sr-department-card > strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  margin-bottom: 8px;
+}
+
+.sr-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sr-mini-stats span {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.sr-mini-stats b {
+  color: #111827;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sr-mini-stats .is-alert b {
+  color: #dc2626;
+}
+
+.sr-department-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sr-department-period {
+  padding: 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  margin-top: 8px;
+}
+
+.sr-department-period > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.service-record-preview {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .sr-person-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .sr-person-grid,
+  .sr-department-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1M-2 END - service record month year department detail */

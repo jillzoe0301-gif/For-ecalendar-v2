@@ -3482,6 +3482,165 @@ function getServiceRecordLocation(record) {
   return record.location_name || schedule?.location_name || schedule?.customer_name || '-'
 }
 
+function getServiceRecordExecutor(record) {
+  const schedule = getServiceRecordSchedule(record)
+  const names = schedule ? getAssigneeNames(schedule) : ''
+  return names && names !== '-' ? names : (record.staff_name || '-')
+}
+
+function getServiceRecordPeriodRows(records, period) {
+  const today = todayString()
+  const monthKey = today.slice(0, 7)
+  const yearKey = today.slice(0, 4)
+
+  return records.filter(record => {
+    const dateText = String(record.schedule_date || '')
+    if (period === 'month') return dateText.startsWith(monthKey)
+    if (period === 'year') return dateText.startsWith(yearKey)
+    return true
+  })
+}
+
+function summarizeServiceRecordRows(records, getKey, getLabel) {
+  const map = new Map()
+
+  records.forEach(record => {
+    const key = getKey(record)
+    const label = getLabel(record)
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        label,
+        total: 0,
+        pending: 0,
+        overdue: 0,
+        submitted: 0
+      })
+    }
+
+    const item = map.get(key)
+    const status = getServiceRecordStatus(record)
+    item.total += 1
+    if (status === '已繳交') item.submitted += 1
+    if (status === '超過2週') item.overdue += 1
+    if (status === '未繳交') item.pending += 1
+  })
+
+  return [...map.values()].sort((a, b) => {
+    if (b.overdue !== a.overdue) return b.overdue - a.overdue
+    if (b.pending !== a.pending) return b.pending - a.pending
+    return b.total - a.total
+  })
+}
+
+function renderServiceRecordMiniStats(row) {
+  return `
+    <div class="sr-mini-stats">
+      <span><b>${row.total}</b>總數</span>
+      <span><b>${row.pending}</b>未繳</span>
+      <span class="${row.overdue ? 'is-alert' : ''}"><b>${row.overdue}</b>逾期</span>
+      <span><b>${row.submitted}</b>已交</span>
+    </div>
+  `
+}
+
+function renderServiceRecordPersonPeriodStatus(records, period, title) {
+  const rows = getServiceRecordPeriodRows(records, period)
+  const summaries = summarizeServiceRecordRows(
+    rows,
+    record => record.staff_id || record.staff_name || '未指定',
+    record => record.staff_name || '-'
+  )
+
+  return `
+    <section class="sr-status-section">
+      <div class="section-title-row">
+        <h4>${title}</h4>
+        <span>${rows.length} 筆紀錄</span>
+      </div>
+      ${summaries.length ? `
+        <div class="sr-person-grid">
+          ${summaries.map(row => `
+            <div class="sr-person-card ${row.overdue ? 'has-overdue' : ''}">
+              <strong>${escapeHtml(row.label)}</strong>
+              ${renderServiceRecordMiniStats(row)}
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">目前沒有符合條件的繳交狀況。</div>'}
+    </section>
+  `
+}
+
+function getDepartmentGroupName(departmentName) {
+  const text = String(departmentName || '')
+  if (text.includes('一部')) return '一部'
+  if (text.includes('二部')) return '二部'
+  return '其他'
+}
+
+function renderServiceRecordDepartmentStatus(records) {
+  const monthRows = getServiceRecordPeriodRows(records, 'month')
+  const yearRows = getServiceRecordPeriodRows(records, 'year')
+
+  const buildGroupSummary = rows => {
+    const result = {
+      '一部': { key: '一部', label: '一部', total: 0, pending: 0, overdue: 0, submitted: 0 },
+      '二部': { key: '二部', label: '二部', total: 0, pending: 0, overdue: 0, submitted: 0 }
+    }
+
+    rows.forEach(record => {
+      const group = getDepartmentGroupName(getServiceRecordDepartment(record))
+      if (!result[group]) return
+
+      const item = result[group]
+      const status = getServiceRecordStatus(record)
+      item.total += 1
+      if (status === '已繳交') item.submitted += 1
+      if (status === '超過2週') item.overdue += 1
+      if (status === '未繳交') item.pending += 1
+    })
+
+    return result
+  }
+
+  const monthSummary = buildGroupSummary(monthRows)
+  const yearSummary = buildGroupSummary(yearRows)
+
+  return `
+    <section class="sr-status-section">
+      <div class="section-title-row">
+        <h4>一部、二部繳交狀況</h4>
+        <span>當月 / 當年</span>
+      </div>
+      <div class="sr-department-grid">
+        ${['一部', '二部'].map(name => `
+          <div class="sr-department-card">
+            <strong>${name}</strong>
+            <div class="sr-department-period">
+              <span>當月</span>
+              ${renderServiceRecordMiniStats(monthSummary[name])}
+            </div>
+            <div class="sr-department-period">
+              <span>當年</span>
+              ${renderServiceRecordMiniStats(yearSummary[name])}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderServiceRecordDetailTitle() {
+  return `
+    <div class="section-title-row">
+      <h4>繳交明細</h4>
+      <span>顯示執行者，不顯示行程內容</span>
+    </div>
+  `
+}
+
 function getServiceRecordDepartmentOptions() {
   return ['全部', ...new Set(serviceRecords.map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
 }
@@ -3724,9 +3883,11 @@ function renderServiceRecordList(records, emptyText) {
             <div class="service-record-main">
               <div class="service-record-title">${escapeHtml(scheduleType)}｜${escapeHtml(title)}</div>
               <div class="service-record-meta">
-                ${escapeHtml(record.staff_name || '-')}｜${escapeHtml(getServiceRecordDepartment(record))}｜${escapeHtml(location)}
+                執行者：${escapeHtml(getServiceRecordExecutor(record))}
               </div>
-              ${schedule?.description ? `<div class="service-record-preview">${escapeHtml(getFirstTwoLines(schedule.description)).replaceAll('\n', '<br>')}</div>` : ''}
+              <div class="service-record-meta">
+                繳交人：${escapeHtml(record.staff_name || '-')}｜${escapeHtml(getServiceRecordDepartment(record))}｜${escapeHtml(location)}
+              </div>
             </div>
 
             <div class="service-record-status-wrap">
@@ -3765,7 +3926,10 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
-    ${renderServiceRecordStaffSummary(records, false)}
+    ${renderServiceRecordPersonPeriodStatus(records, 'month', '當月個人員繳交狀況')}
+    ${renderServiceRecordPersonPeriodStatus(records, 'year', '當年個人員繳交狀況')}
+    ${renderServiceRecordDepartmentStatus(records)}
+    ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
   `
 }
@@ -3792,6 +3956,7 @@ function renderRecordSubmit() {
 
     ${renderServiceRecordFilterForm(true)}
     ${renderServiceRecordSummary(records)}
+    ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有需要繳交的服務紀錄單。')}
   `
 }
@@ -6680,3 +6845,13 @@ function getPersonalReminderTestSummary() {
   - 列表增加行程內容預覽
 */
 /* FOR-e V002-1M-1 END - service record dashboard upgrade */
+
+/* FOR-e V002-1M-2 START - service record month year department detail */
+/*
+  V002-1M-2｜服務紀錄單當月 / 當年 / 部門繳交狀況與繳交明細調整
+  - 當月個人員繳交狀況
+  - 當年個人員繳交狀況
+  - 一部 / 二部繳交狀況
+  - 繳交明細顯示執行者，不顯示內容
+*/
+/* FOR-e V002-1M-2 END - service record month year department detail */
