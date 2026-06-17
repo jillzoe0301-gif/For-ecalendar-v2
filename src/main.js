@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-69'
+const SYSTEM_VERSION = 'V002-1P-70'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1549,6 +1549,42 @@ async function resetLoginPasswordDirectly(event, modal, email) {
   }
 }
 
+
+async function updateProfilesBeforeStaffDelete(staffId = '') {
+  const normalizedStaffId = normalizeStaffId(staffId)
+  if (!normalizedStaffId) return
+
+  const primaryPayload = {
+    staff_id: null,
+    status: '停用'
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(primaryPayload)
+    .eq('staff_id', normalizedStaffId)
+
+  if (!error) return
+
+  console.warn('profiles 解除 staff_id / 停用失敗，改用僅解除 staff_id 重試。', error)
+
+  const { error: staffOnlyError } = await supabase
+    .from('profiles')
+    .update({ staff_id: null })
+    .eq('staff_id', normalizedStaffId)
+
+  if (staffOnlyError) {
+    console.error(staffOnlyError)
+    throw new Error('解除登入帳號與人員綁定失敗：' + staffOnlyError.message)
+  }
+}
+
+function isForeignKeyStaffDeleteError(error) {
+  const message = String(error?.message || error || '')
+  return message.includes('foreign key constraint') || message.includes('violates foreign key') || message.includes('profiles_staff_id_fkey')
+}
+
+
 async function deleteStaffUser(staffId = '', staffName = '') {
   if (!canManageUsers()) {
     alert('只有管理員可以刪除人員。')
@@ -1571,9 +1607,10 @@ async function deleteStaffUser(staffId = '', staffName = '') {
 
   const confirmed = confirm(
     `確定要永久刪除「${name}」嗎？\n\n` +
-    `按「刪除」後會直接從人員名單移除，不會再出現在人員 / 帳號頁。\n` +
-    `如果只是暫時不用，請改按「修改」並把狀態改成「停用」，停用人員會繼續留在人員名單上。` +
-    `${loginEmail ? '\n\n此人員若有登入帳號，系統會同步停用 profile 並解除人員綁定。' : ''}`
+    `刪除前系統會先解除此人員與登入帳號的綁定，避免 profiles_staff_id_fkey 擋住刪除。\n` +
+    `刪除後此人員不會再出現在人員 / 帳號頁。\n\n` +
+    `如果只是暫時不用，請按「修改」把狀態改為「停用」，停用人員會繼續留在人員名單上。` +
+    `${loginEmail ? '\n\n原綁定帳號會保留，但會解除人員綁定並停用。' : ''}`
   )
   if (!confirmed) return
 
@@ -1581,6 +1618,8 @@ async function deleteStaffUser(staffId = '', staffName = '') {
   saving = true
 
   try {
+    await updateProfilesBeforeStaffDelete(staffId)
+
     const settings = getFieldStaffSettings()
     if (Object.prototype.hasOwnProperty.call(settings, staffId)) {
       delete settings[staffId]
@@ -1594,40 +1633,29 @@ async function deleteStaffUser(staffId = '', staffName = '') {
 
     if (error) {
       console.error(error)
-      alert(
-        '永久刪除人員失敗：' + error.message +
-        '\n\n若此人員已有歷史資料導致資料庫不允許刪除，請改用「修改」把狀態設為「停用」。'
-      )
-      return
-    }
 
-    if (loginEmail) {
-      try {
-        const profile = getStaffProfile(staff)
-        const profilePayload = {}
-
-        if (profile && Object.prototype.hasOwnProperty.call(profile, 'status')) {
-          profilePayload.status = '停用'
-        }
-
-        if (profile && Object.prototype.hasOwnProperty.call(profile, 'staff_id')) {
-          profilePayload.staff_id = null
-        }
-
-        if (Object.keys(profilePayload).length) {
-          await supabase
-            .from('profiles')
-            .update(profilePayload)
-            .eq('email', loginEmail)
-        }
-      } catch (err) {
-        console.warn('人員已刪除，但 profile 停用 / 解除綁定失敗。', err)
+      if (isForeignKeyStaffDeleteError(error)) {
+        alert(
+          '永久刪除人員失敗：此人員仍被其他資料表引用。\n\n' +
+          '目前已先解除 profiles.staff_id 綁定，但還可能有行程、紀錄單或異動紀錄引用此人員。\n' +
+          '如果這位人員已有歷史資料，建議改用「停用」。\n\n' +
+          '原始錯誤：' + error.message
+        )
+      } else {
+        alert(
+          '永久刪除人員失敗：' + error.message +
+          '\n\n若此人員已有歷史資料導致資料庫不允許刪除，請改用「修改」把狀態設為「停用」。'
+        )
       }
+      return
     }
 
     await refreshData()
     renderApp()
-    alert('人員已永久刪除，不會再出現在人員名單。')
+    alert('人員已永久刪除，不會再出現在人員名單。原登入帳號已解除人員綁定。')
+  } catch (err) {
+    console.error(err)
+    alert(err.message || '永久刪除人員失敗。')
   } finally {
     saving = false
   }
@@ -15109,3 +15137,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留 V002-1P-67 部門與職務選項
 */
 /* FOR-e V002-1P-69 END - staff position required */
+
+/* FOR-e V002-1P-70 START - staff delete unbind profiles */
+/*
+  V002-1P-70｜刪除人員前解除 profiles 綁定
+  - 修正刪除人員時 profiles_staff_id_fkey foreign key 擋住 staff delete
+  - 刪除前先把 profiles.staff_id 設為 null 並將 profile 狀態改為停用
+  - 再執行 staff delete
+  - 若仍有其他歷史資料 FK 擋住，會提示改用停用
+*/
+/* FOR-e V002-1P-70 END - staff delete unbind profiles */
