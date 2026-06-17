@@ -4095,3 +4095,128 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1K-1-4 END - meeting and field adjustments */
+
+/* FOR-e V002-1K-1-5 START - field ampm time */
+/*
+  V002-1K-1-5
+  外務行程時間增加：不指定 / 上午 / 下午 + 小時 + 分鐘。
+*/
+#fieldScheduleForm .field-single-time-row,
+#editFieldScheduleForm .field-single-time-row,
+.field-mode-time-grid .field-single-time-row {
+  grid-template-columns: minmax(88px, 0.9fr) minmax(72px, 1fr) minmax(72px, 1fr) !important;
+}
+
+.field-period-select {
+  font-weight: 800;
+}
+
+@media (max-width: 768px) {
+  #fieldScheduleForm .field-single-time-row,
+  #editFieldScheduleForm .field-single-time-row,
+  .field-mode-time-grid .field-single-time-row {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+}
+/* FOR-e V002-1K-1-5 END - field ampm time */
+
+/* FOR-e V002-1K-1-6 START - field special dropdown */
+/*
+  V002-1K-1-6
+  - 外務特殊提醒改為下拉勾選複選
+  - 減少特殊提醒欄位佔用版面
+*/
+
+#fieldScheduleForm .field-special-compact-box,
+#editFieldScheduleForm .field-special-box {
+  padding: 8px 10px !important;
+}
+
+.field-special-dropdown {
+  width: 100%;
+  position: relative;
+}
+
+.field-special-dropdown summary {
+  min-height: 38px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.field-special-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.field-special-dropdown summary::after {
+  content: '▾';
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 900;
+  transition: transform 0.15s ease;
+}
+
+.field-special-dropdown[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.field-special-dropdown-main {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.field-special-dropdown-value {
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-special-dropdown-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.field-special-dropdown-panel .field-special-check {
+  min-height: 32px;
+  padding: 6px 8px !important;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fffaf3;
+}
+
+.field-special-dropdown-panel .field-special-check span {
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 768px) {
+  .field-special-dropdown-panel {
+    position: static;
+    margin-top: 6px;
+    box-shadow: none;
+  }
+}
+/* FOR-e V002-1K-1-6 END - field special dropdown */

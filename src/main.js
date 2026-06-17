@@ -2913,9 +2913,16 @@ function fieldHourOptionsHtml(selectedValue = '') {
   }).join('')
 }
 
-function fieldTimeSelectHtml(prefix, defaultHour = '', defaultMinute = '00') {
+function fieldPeriodOptionsHtml(defaultValue = '不指定') {
+  return ['不指定', '上午', '下午'].map(item => `
+    <option value="${item}" ${item === defaultValue ? 'selected' : ''}>${item}</option>
+  `).join('')
+}
+
+function fieldTimeSelectHtml(prefix, defaultHour = '', defaultMinute = '00', defaultPeriod = '不指定') {
   return `
-    <div class="compact-time-row field-single-time-row">
+    <div class="compact-time-row field-single-time-row field-ampm-time-row">
+      <select name="${prefix}_period" class="field-period-select">${fieldPeriodOptionsHtml(defaultPeriod)}</select>
       <select name="${prefix}_hour">${fieldHourOptionsHtml(defaultHour)}</select>
       <select name="${prefix}_minute">${minuteOptionsHtml(defaultMinute)}</select>
     </div>
@@ -2934,18 +2941,55 @@ function getFieldTimeTypeFromValue(timeValue) {
   return Number(String(timeValue).slice(0, 2)) < 12 ? '上午' : '下午'
 }
 
+function getFieldTimeTypeFromForm(form, prefix) {
+  const period = form.get(`${prefix}_period`) || '不指定'
+  const timeValue = getFieldSingleTimeValue(form, prefix)
+  if (period !== '不指定') return period
+  return getFieldTimeTypeFromValue(timeValue)
+}
+
 function getFieldDbTimeValue(timeValue) {
   return timeValue ? `${timeValue}:00` : null
 }
 
 function fieldSpecialReminderChecksHtml(selectedItems = [], inputName = 'field_special_reminder') {
   const selected = new Set((selectedItems || []).map(normalizeFieldSpecialReminder))
-  return fieldSpecialReminderOptions.map(item => `
-    <label class="inline-check field-special-check">
-      <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
-      <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
-    </label>
-  `).join('')
+  const selectedText = [...selected].length ? [...selected].map(getFieldSpecialReminderDisplay).join('、') : '未選擇'
+
+  return `
+    <details class="field-special-dropdown" data-field-special-dropdown>
+      <summary>
+        <span class="field-special-dropdown-main">選擇特殊提醒</span>
+        <span class="field-special-dropdown-value">${escapeHtml(selectedText)}</span>
+      </summary>
+      <div class="field-special-dropdown-panel">
+        ${fieldSpecialReminderOptions.map(item => `
+          <label class="inline-check field-special-check">
+            <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
+            <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
+          </label>
+        `).join('')}
+      </div>
+    </details>
+  `
+}
+
+function refreshFieldSpecialDropdownLabel(dropdown) {
+  if (!dropdown) return
+  const valueEl = dropdown.querySelector('.field-special-dropdown-value')
+  if (!valueEl) return
+
+  const checkedItems = [...dropdown.querySelectorAll('input[type="checkbox"]:checked')]
+    .map(input => getFieldSpecialReminderDisplay(input.value))
+
+  valueEl.textContent = checkedItems.length ? checkedItems.join('、') : '未選擇'
+}
+
+function initFieldSpecialDropdowns(root = document) {
+  root.querySelectorAll('[data-field-special-dropdown]').forEach(dropdown => {
+    refreshFieldSpecialDropdownLabel(dropdown)
+    dropdown.addEventListener('change', () => refreshFieldSpecialDropdownLabel(dropdown))
+  })
 }
 
 function getFieldStaffName(staffId) {
@@ -3183,7 +3227,7 @@ function openEditFieldScheduleModal(scheduleId) {
 
         <label>
           時間
-          ${fieldTimeSelectHtml('edit_field', row.start_time ? start.hour : '', row.start_time ? start.minute : '00')}
+          ${fieldTimeSelectHtml('edit_field', row.start_time ? start.hour : '', row.start_time ? start.minute : '00', row.time_type || '不指定')}
         </label>
 
         <div class="span-2 field-location-box">
@@ -3255,6 +3299,7 @@ function openEditFieldScheduleModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initFieldSpecialDropdowns(modal)
 
   const locationSelect = document.querySelector('#editFieldLocationSelect')
   if (locationSelect) {
@@ -3315,7 +3360,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: getScheduleModeEndDate(form),
-      time_type: getFieldTimeTypeFromValue(fieldTime),
+      time_type: getFieldTimeTypeFromForm(form, 'field'),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
       location_name: locationName || null,
@@ -3605,6 +3650,7 @@ function openFieldScheduleModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+  initFieldSpecialDropdowns(modal)
 
   const fieldRepeatModeSelect = document.querySelector('#fieldRepeatModeSelect')
   if (fieldRepeatModeSelect) {
@@ -3683,7 +3729,7 @@ async function saveFieldSchedule(event, modal) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: getScheduleModeEndDate(form),
-      time_type: getFieldTimeTypeFromValue(fieldTime),
+      time_type: getFieldTimeTypeFromForm(form, 'edit_field'),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
       customer_name: null,
@@ -3755,7 +3801,7 @@ async function saveFieldSchedule(event, modal) {
         description: `由 ${payload.start_date} ${purpose} 自動建立的下次外務行程。${payload.description ? '\n' + payload.description : ''}`,
         start_date: nextDate,
         end_date: nextDate,
-        time_type: getFieldTimeTypeFromValue(nextFieldTime),
+        time_type: getFieldTimeTypeFromForm(form, 'next'),
         start_time: getFieldDbTimeValue(nextFieldTime),
         end_time: null,
         status: '未完成'
@@ -5302,3 +5348,18 @@ function getPersonalReminderTestSummary() {
   - 已送件 / 取消改回進入查看頁後操作，避免列表過於複雜
 */
 /* FOR-e V002-1J-1 END - field detail content and simplified actions */
+
+/* FOR-e V002-1K-1-5 START - field ampm time */
+/*
+  外務行程時間增加上午 / 下午選項。
+  若只選上午或下午，不填小時，卡片顯示上午 / 下午。
+  若同時選上午 / 下午與小時分鐘，卡片顯示上午 09:00。
+*/
+/* FOR-e V002-1K-1-5 END - field ampm time */
+
+/* FOR-e V002-1K-1-6 START - field special dropdown */
+/*
+  外務特殊提醒改為下拉勾選式複選。
+  外務時間保留 V002-1K-1-5 的不指定 / 上午 / 下午 + 小時分鐘。
+*/
+/* FOR-e V002-1K-1-6 END - field special dropdown */
