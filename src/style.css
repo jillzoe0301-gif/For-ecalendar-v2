@@ -3980,23 +3980,118 @@ label.record-modal-check {
 .meeting-week-table thead th.is-today,
 .meeting-week-day-cell.is-today {
   position: relative;
-  box-shadow: inset 0 0 0 2px #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
 }
 
 .meeting-week-table thead th.is-today:not(.is-holiday),
 .meeting-week-day-cell.is-today:not(.is-holiday) {
   background: #ffffff !important;
-  box-shadow: inset 0 0 0 2px #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
 }
 
 .meeting-week-table thead th.is-today.is-holiday,
 .meeting-week-day-cell.is-today.is-holiday {
   background: #EFE9E3 !important;
-  box-shadow: inset 0 0 0 2px #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
 }
 
 .meeting-week-table thead th.is-today strong {
-  background: #C9B59C !important;
+  background: #C08552 !important;
   color: #ffffff !important;
 }
 /* FOR-e V002-1K-1-2 END - meeting room mode and color update */
+
+/* FOR-e V002-1K-1-4 START - meeting and field adjustments */
+/*
+  V002-1K-1-4
+  - 會議室 / 外務行程模式可在週曆上跨日期顯示
+  - 會議室今日外框 #C08552
+  - 外務行程模式與時間同框
+  - 外務特殊提醒改成精簡膠囊排列
+*/
+
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  position: relative;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today:not(.is-holiday),
+.meeting-week-day-cell.is-today:not(.is-holiday) {
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday {
+  background: #EFE9E3 !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today strong {
+  background: #C08552 !important;
+  color: #ffffff !important;
+}
+
+.field-mode-time-box {
+  background: #fff8ed !important;
+  border-color: #fed7aa !important;
+}
+
+.field-mode-time-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-mode-time-grid .field-single-time-row {
+  grid-template-columns: minmax(72px, 1fr) minmax(72px, 1fr) !important;
+}
+
+.field-repeat-weekdays {
+  gap: 6px;
+}
+
+#fieldScheduleForm .field-special-compact-box {
+  padding: 8px 10px !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #fed7aa !important;
+}
+
+#fieldScheduleForm .field-special-compact-box .field-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.field-special-compact-list {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px !important;
+}
+
+.field-special-compact-list .field-special-check {
+  width: auto;
+  min-height: 30px;
+  padding: 5px 8px !important;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fffaf3;
+}
+
+.field-special-compact-list .field-special-check span {
+  font-size: 12px !important;
+  line-height: 1 !important;
+  gap: 4px !important;
+}
+
+.field-special-compact-list .field-special-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+@media (max-width: 768px) {
+  .field-mode-time-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1K-1-4 END - meeting and field adjustments */

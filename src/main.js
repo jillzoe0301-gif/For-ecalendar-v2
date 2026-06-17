@@ -1244,6 +1244,86 @@ function renderAuditList(rows) {
   只做畫面骨架與既有資料顯示，不改 Supabase、不改 SQL、不改新增 / 修改 / 儲存主流程。
 */
 
+
+/* FOR-e V002-1K-1-4 START - schedule mode display helpers */
+function getDateFromKey(dateKey) {
+  const [year, month, day] = String(dateKey || '').split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function getWeekdayValueFromDateKey(dateKey) {
+  const date = getDateFromKey(dateKey)
+  if (!date) return ''
+  return ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][date.getDay()]
+}
+
+function getWeekdayLabelFromDateKey(dateKey) {
+  const value = getWeekdayValueFromDateKey(dateKey)
+  return weekdays.find(([weekdayValue]) => weekdayValue === value)?.[1] || ''
+}
+
+function getScheduleModeFromNote(row) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/行程模式：([^｜；]+)/)
+  return match ? match[1].trim() : '單日'
+}
+
+function scheduleMatchesDateByMode(row, dateKey) {
+  if (!row?.start_date) return false
+  const startDate = row.start_date
+  const endDate = row.end_date || row.start_date
+  if (dateKey < startDate || dateKey > endDate) return false
+
+  const note = String(row.sub_type_note || '')
+  const mode = getScheduleModeFromNote(row)
+  if (mode === '連續日期') return true
+
+  if (mode === '每週重複') {
+    const label = getWeekdayLabelFromDateKey(dateKey)
+    return label ? note.includes(label) : dateKey === startDate
+  }
+
+  if (mode === '每月重複') {
+    const match = note.match(/每月\s*(\d{1,2})\s*號/)
+    const monthlyDay = match ? Number(match[1]) : Number(startDate.slice(8, 10))
+    return Number(dateKey.slice(8, 10)) === monthlyDay
+  }
+
+  return dateKey === startDate
+}
+
+function getScheduleDatesFromForm(form) {
+  const startDate = form.get('start_date') || todayString()
+  const endDate = getScheduleModeEndDate(form)
+  const mode = form.get('repeat_mode') || '單日'
+  const dates = []
+  let current = getDateFromKey(startDate)
+  const end = getDateFromKey(endDate)
+  if (!current || !end || current > end) return [startDate]
+
+  const weekdayValues = new Set(form.getAll('repeat_weekdays'))
+  const monthlyDay = Number(form.get('monthly_day') || startDate.slice(8, 10))
+
+  while (current <= end) {
+    const key = toDateKey(current)
+    if (mode === '單日') {
+      if (key === startDate) dates.push(key)
+    } else if (mode === '連續日期') {
+      dates.push(key)
+    } else if (mode === '每週重複') {
+      const weekdayValue = getWeekdayValueFromDateKey(key)
+      if (!weekdayValues.size ? key === startDate : weekdayValues.has(weekdayValue)) dates.push(key)
+    } else if (mode === '每月重複') {
+      if (Number(key.slice(8, 10)) === monthlyDay) dates.push(key)
+    }
+    current = addDays(current, 1)
+  }
+
+  return dates.length ? dates : [startDate]
+}
+/* FOR-e V002-1K-1-4 END - schedule mode display helpers */
+
 function getFieldStaffRows() {
   const fieldRows = staffList.filter(staff => {
     const text = [staff.role, staff.position, staff.position_name, staff.department_name].filter(Boolean).join('｜')
@@ -1272,7 +1352,7 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!isFieldScheduleRow(row)) return false
-    if (row.start_date !== dateKey) return false
+    if (!scheduleMatchesDateByMode(row, dateKey)) return false
 
     return (row.schedule_assignees || []).some(item => {
       return item.staff_id === staffId && !item.deleted_at
@@ -1561,7 +1641,7 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
   return schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMeetingRoomSchedule(row))
-    .filter(row => row.start_date === dateKey)
+    .filter(row => scheduleMatchesDateByMode(row, dateKey))
     .filter(row => row.location_name === room || row.sub_type === room)
     .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
@@ -1655,7 +1735,7 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
   return schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMeetingRoomSchedule(row))
-    .filter(row => row.start_date === date)
+    .filter(row => scheduleMatchesDateByMode(row, date))
     .filter(row => row.location_name === room)
     .some(row => {
       const rowStart = getMeetingTimeMinutes(row.start_time || '00:00:00')
@@ -1768,8 +1848,8 @@ async function saveMeetingRoomSchedule(event, modal) {
     const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || {
       staff_id: currentProfile.staff_id,
       name: currentProfile.name || currentProfile.email,
-      department_id: reserverStaff.department_id || currentProfile.department_id,
-      department_name: form.get('department') || reserverStaff.department_name || currentProfile.department_name,
+      department_id: currentProfile.department_id,
+      department_name: form.get('department') || currentProfile.department_name,
       position: currentProfile.position_name || currentProfile.position
     }
     const startTime = getMeetingTimeValue(form, 'start')
@@ -1781,8 +1861,10 @@ async function saveMeetingRoomSchedule(event, modal) {
       return
     }
 
-    if (hasMeetingRoomConflict(room, date, startTime, endTime)) {
-      alert('此會議室該時段已有預約，請更換時間或會議室。')
+    const meetingDates = getScheduleDatesFromForm(form)
+    const conflictDate = meetingDates.find(dateKey => hasMeetingRoomConflict(room, dateKey, startTime, endTime))
+    if (conflictDate) {
+      alert(`此會議室在 ${conflictDate} 該時段已有預約，請更換時間或會議室。`)
       saving = false
       return
     }
@@ -1791,8 +1873,8 @@ async function saveMeetingRoomSchedule(event, modal) {
       creator_profile_id: currentProfile.profile_id,
       creator_staff_id: currentProfile.staff_id,
       creator_name: currentProfile.name || currentProfile.email,
-      department_id: currentProfile.department_id,
-      department_name: currentProfile.department_name,
+      department_id: reserverStaff.department_id || currentProfile.department_id,
+      department_name: form.get('department') || reserverStaff.department_name || currentProfile.department_name,
       category: '會議室預約',
       schedule_type: '會議室預約',
       sub_type: room,
@@ -3284,6 +3366,55 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
 }
 
 
+
+function fieldModeTimeFieldsHtml(defaultDate = '') {
+  return `
+    <div class="span-2 block-group schedule-mode-box field-mode-time-box">
+      <div class="group-title">行程模式與時間</div>
+      <div class="form-grid inner-grid field-mode-time-grid">
+        <label>
+          行程模式
+          <select name="repeat_mode" id="fieldRepeatModeSelect">
+            <option value="單日">單日</option>
+            <option value="連續日期">連續日期</option>
+            <option value="每週重複">每週重複</option>
+            <option value="每月重複">每月重複</option>
+          </select>
+        </label>
+
+        <label>
+          開始日期
+          <input name="start_date" type="date" required value="${defaultDate}">
+        </label>
+
+        <label>
+          時間
+          ${fieldTimeSelectHtml('field')}
+        </label>
+
+        <label class="hidden" id="fieldEndDateBlock">
+          結束日期
+          <input name="end_date" type="date" value="${defaultDate}">
+        </label>
+
+        <label class="hidden" id="fieldMonthlyDayBlock">
+          每月幾號
+          <select name="monthly_day">
+            ${Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">${i + 1} 號</option>`).join('')}
+          </select>
+        </label>
+
+        <div class="span-2 hidden" id="fieldWeekdayBlock">
+          <div class="field-title">重複星期</div>
+          <div class="inline-check-list field-repeat-weekdays">
+            ${weekdays.map(([value, label]) => `<label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
 function scheduleModeFieldsHtml(prefix, defaultDate = '') {
   return `
     <div class="span-2 block-group schedule-mode-box">
@@ -3378,12 +3509,7 @@ function openFieldScheduleModal(defaults = {}) {
           <div class="checkbox-list">${fieldStaffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選外務人員。</div>'}</div>
         </div>
 
-        ${scheduleModeFieldsHtml('field', defaultDate)}
-
-        <label>
-          時間
-          ${fieldTimeSelectHtml('field')}
-        </label>
+        ${fieldModeTimeFieldsHtml(defaultDate)}
 
         <div class="span-2 field-location-box">
           <label>
@@ -3411,9 +3537,9 @@ function openFieldScheduleModal(defaults = {}) {
           </select>
         </label>
 
-        <div class="field-special-box">
-          <div class="field-title">特殊提醒（可複選）</div>
-          <div class="inline-check-list">${fieldSpecialReminderChecksHtml()}</div>
+        <div class="field-special-box field-special-compact-box">
+          <div class="field-title">特殊提醒</div>
+          <div class="inline-check-list field-special-compact-list">${fieldSpecialReminderChecksHtml()}</div>
         </div>
 
         <label class="span-2">
@@ -3533,6 +3659,7 @@ async function saveFieldSchedule(event, modal) {
     const nextStaffName = getFieldStaffName(nextStaffId)
 
     const noteParts = [
+      buildRepeatNote(form),
       `外務目的：${purpose}`,
       form.get('cash_note') ? `現金：${form.get('cash_note')}` : '',
       form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
@@ -3555,7 +3682,7 @@ async function saveFieldSchedule(event, modal) {
       title,
       description: form.get('description') || null,
       start_date: form.get('start_date'),
-      end_date: form.get('start_date'),
+      end_date: getScheduleModeEndDate(form),
       time_type: getFieldTimeTypeFromValue(fieldTime),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
