@@ -7317,3 +7317,28 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-9 END - line notification page */
+
+/* FOR-e V002-1P-10 START - line target and color column center */
+/* 顏色設定：顏色欄位置中對齊表頭 */
+.color-settings-header span:nth-child(2) {
+  justify-self: center !important;
+  text-align: center !important;
+  width: 100%;
+}
+
+.color-setting-row-clean .color-picker-cell,
+.color-picker-cell {
+  justify-self: center !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.color-picker-cell input[type="color"],
+.color-setting-row-clean input[type="color"],
+.color-setting-row input[type="color"] {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+}
+/* FOR-e V002-1P-10 END - line target and color column center */

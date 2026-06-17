@@ -4445,18 +4445,67 @@ function getLineNotifyTypeOptions() {
 }
 
 function getLineNotifyTargetOptions() {
-  const targets = isPowerRole() ? ['自己', '全部'] : ['自己']
-  return targets.map(target => `<option value="${escapeHtml(target)}" ${lineNotifyState.target === target ? 'selected' : ''}>${escapeHtml(target)}</option>`).join('')
+  const options = [
+    { value: '自己', label: `自己｜${currentProfile?.name || currentProfile?.email || ''}` }
+  ]
+
+  if (isPowerRole()) {
+    options.push({ value: '全部', label: '全部人員' })
+
+    staffList
+      .filter(staff => staff.status !== '停用')
+      .forEach(staff => {
+        options.push({
+          value: `staff:${staff.staff_id}`,
+          label: `${staff.name}｜${staff.department_name || ''}`
+        })
+      })
+  }
+
+  return options.map(item => `
+    <option value="${escapeHtml(item.value)}" ${lineNotifyState.target === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+  `).join('')
+}
+
+function isLineNotifyTargetStaff(row, staffId) {
+  if (!row || !staffId) return false
+  const assigneeIds = getAssigneeIds(row)
+  return assigneeIds.includes(staffId) || row.creator_staff_id === staffId
+}
+
+function getLineNotifyTargetStaffId() {
+  const target = lineNotifyState.target || '自己'
+  if (target === '自己') return currentProfile?.staff_id || ''
+  if (target.startsWith('staff:')) return target.replace('staff:', '')
+  return ''
+}
+
+function getLineNotifyTargetText() {
+  const target = lineNotifyState.target || '自己'
+  if (target === '全部') return '全部人員'
+  if (target === '自己') return currentProfile?.name || currentProfile?.email || '自己'
+
+  if (target.startsWith('staff:')) {
+    const staffId = target.replace('staff:', '')
+    const staff = staffList.find(item => item.staff_id === staffId) || (typeof allStaffList !== 'undefined' ? allStaffList.find(item => item.staff_id === staffId) : null)
+    return staff ? `${staff.name}｜${staff.department_name || ''}` : '指定人員'
+  }
+
+  return '自己'
 }
 
 function getLineNotifyBaseRows() {
-  let rows = schedules.filter(isVisibleSchedule)
+  let rows = schedules.filter(isVisibleSchedule).filter(row => row.status !== '取消')
+  const target = lineNotifyState.target || '自己'
 
-  if (!isPowerRole() || lineNotifyState.target !== '全部') {
-    rows = rows.filter(isMine)
+  if (!isPowerRole()) {
+    return rows.filter(isMine)
   }
 
-  return rows.filter(row => row.status !== '取消')
+  if (target === '全部') return rows
+
+  const targetStaffId = getLineNotifyTargetStaffId()
+  return targetStaffId ? rows.filter(row => isLineNotifyTargetStaff(row, targetStaffId)) : rows.filter(isMine)
 }
 
 function getLineNotifyRows() {
@@ -4514,7 +4563,7 @@ function formatLineScheduleItem(row, index) {
 
 function buildLineNotifyMessage(rows) {
   const today = todayString()
-  const targetText = lineNotifyState.target === '全部' ? '全部人員' : (currentProfile?.name || '自己')
+  const targetText = getLineNotifyTargetText()
   const title = `FOR-e｜${lineNotifyState.type}通知`
   const subtitle = `${today}｜對象：${targetText}`
 
@@ -9514,3 +9563,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 可複製文字與 LINE 分享
 */
 /* FOR-e V002-1P-9 END - line notification page */
+
+/* FOR-e V002-1P-10 START - line target and color column center */
+/*
+  V002-1P-10
+  - LINE 通知對象可選指定人員
+  - 管理員 / 主管可選：自己、全部、單一人員
+  - 一般角色維持只能選自己
+  - 顏色設定頁「顏色」欄位置中對齊表頭
+*/
+/* FOR-e V002-1P-10 END - line target and color column center */
