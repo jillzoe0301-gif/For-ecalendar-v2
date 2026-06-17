@@ -420,7 +420,7 @@ let userAccountFilters = {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['schedule_colors', 'field_staff_settings']
+const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options']
 
 function readLocalJsonSetting(key) {
   try {
@@ -471,6 +471,12 @@ async function loadAppSettings() {
   if (!appSettings.field_staff_settings && Object.keys(localFieldStaff).length) {
     appSettings.field_staff_settings = localFieldStaff
     saveAppSetting('field_staff_settings', localFieldStaff)
+  }
+
+  const localManagedOptions = readLocalJsonSetting(managedOptionsStorageKey)
+  if (!appSettings.managed_options && Object.keys(localManagedOptions).length) {
+    appSettings.managed_options = localManagedOptions
+    saveAppSetting('managed_options', localManagedOptions)
   }
 }
 
@@ -1243,7 +1249,7 @@ function renderApp() {
   const optionManagementForm = document.querySelector('#optionManagementForm')
   if (optionManagementForm) {
     initOptionLineEditors(optionManagementForm)
-    optionManagementForm.addEventListener('submit', event => {
+    optionManagementForm.addEventListener('submit', async event => {
       event.preventDefault()
       syncOptionLineEditors(event.target)
       const form = new FormData(event.target)
@@ -1260,7 +1266,7 @@ function renderApp() {
         fieldLocationOptions: parseLocationLines(form.get('fieldLocationOptions'))
       }
 
-      saveManagedOptions(nextOptions)
+      await saveManagedOptions(nextOptions)
       alert('選項已儲存。')
       renderApp()
     })
@@ -1268,9 +1274,9 @@ function renderApp() {
 
   const resetOptionManagementBtn = document.querySelector('#resetOptionManagementBtn')
   if (resetOptionManagementBtn) {
-    resetOptionManagementBtn.addEventListener('click', () => {
+    resetOptionManagementBtn.addEventListener('click', async () => {
       if (!confirm('確定要還原選項管理為系統預設值嗎？')) return
-      resetManagedOptions()
+      await resetManagedOptions()
       renderApp()
     })
   }
@@ -4359,21 +4365,27 @@ function renderStatsDashboard() {
 const managedOptionsStorageKey = 'for-e-managed-options-v002'
 
 function getManagedOptions() {
-  try {
-    const raw = localStorage.getItem(managedOptionsStorageKey)
-    return raw ? JSON.parse(raw) : {}
-  } catch (err) {
-    console.warn('選項管理讀取失敗', err)
-    return {}
-  }
+  const remoteOptions = hasSharedSetting('managed_options')
+    ? normalizeSettingValue(appSettings.managed_options)
+    : null
+
+  if (remoteOptions) return remoteOptions
+
+  return readLocalJsonSetting(managedOptionsStorageKey)
 }
 
 function saveManagedOptions(value) {
-  localStorage.setItem(managedOptionsStorageKey, JSON.stringify(value || {}))
+  const nextOptions = normalizeSettingValue(value)
+  appSettings.managed_options = nextOptions
+  localStorage.setItem(managedOptionsStorageKey, JSON.stringify(nextOptions))
+  return saveAppSetting('managed_options', nextOptions)
 }
 
 function resetManagedOptions() {
+  const nextOptions = {}
+  appSettings.managed_options = nextOptions
   localStorage.removeItem(managedOptionsStorageKey)
+  return saveAppSetting('managed_options', nextOptions)
 }
 
 function getManagedListOption(key, fallback = []) {
@@ -4584,7 +4596,8 @@ function renderOptionsPage() {
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
-    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接在原本清單裡修改文字、補新的一行，或刪掉不要的項目後按「儲存變更」。</div>
+    ${renderAppSettingSyncNotice()}
+    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接在原本清單裡修改文字、補新的一行，或刪掉不要的項目後按「儲存變更」。儲存後會優先同步到 Supabase 共用設定。</div>
 
     <form id="optionManagementForm" class="option-management-form">
       <section class="option-group-card">
@@ -10442,3 +10455,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留人員總數、啟用、停用、外務人員統計
 */
 /* FOR-e V002-1P-15 END - users department summary */
+
+/* FOR-e V002-1P-16 START - shared options management */
+/*
+  V002-1P-16｜選項管理共用化
+  - 選項管理改用 app_settings.managed_options 儲存
+  - 外務目的 / 地點、會議室、異況類型、待辦項目等可跨帳號同步
+  - 未執行 SQL 時仍 fallback localStorage
+*/
+/* FOR-e V002-1P-16 END - shared options management */
