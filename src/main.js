@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-74'
+const SYSTEM_VERSION = 'V002-1P-75'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2642,9 +2642,11 @@ function renderApp() {
   const optionManagementForm = document.querySelector('#optionManagementForm')
   if (optionManagementForm) {
     initOptionLineEditors(optionManagementForm)
+    initScheduleTemplateEditors(optionManagementForm)
     optionManagementForm.addEventListener('submit', async event => {
       event.preventDefault()
       syncOptionLineEditors(event.target)
+      syncScheduleTemplateEditors(event.target)
       const form = new FormData(event.target)
       const nextOptions = {
         userManageDepartments: parseOptionLines(form.get('userManageDepartments')),
@@ -6168,6 +6170,135 @@ function optionTextarea(label, name, value, hint = '', placeholder = '') {
   `
 }
 
+
+function scheduleTemplateEditor() {
+  return `
+    <section class="option-edit-box schedule-template-editor-box" data-template-editor>
+      <div class="option-edit-head schedule-template-head">
+        <h4>行程類型對應內容</h4>
+        <p>選擇行程類型後，自動帶入下方內容。每一組都是「行程類型＋預設內容」，可新增、刪除與調整順序。</p>
+      </div>
+
+      <div class="schedule-template-help">
+        <strong>怎麼填？</strong>
+        <span>左邊填行程類型，例如「醫療」；右邊填新增行程時要自動帶入的內容，每一行一個欄位。</span>
+      </div>
+
+      <textarea class="option-hidden-textarea" name="scheduleContentTemplates" data-template-editor-value>${escapeHtml(templateLinesValue())}</textarea>
+      <div class="schedule-template-list" data-template-row-list></div>
+
+      <div class="schedule-template-actions">
+        <button type="button" class="secondary-btn schedule-template-add-btn" data-template-add-row>＋ 新增一組行程內容</button>
+        <span>範例：醫療｜就醫原因：／醫院或診所：／下次回診：</span>
+      </div>
+    </section>
+  `
+}
+
+function createScheduleTemplateRow(item = {}) {
+  const row = document.createElement('div')
+  row.className = 'schedule-template-row'
+  row.innerHTML = `
+    <label class="schedule-template-type-field">
+      <span>行程類型</span>
+      <input data-template-type value="${escapeHtml(item.type || '')}" placeholder="例如：醫療">
+    </label>
+
+    <label class="schedule-template-content-field">
+      <span>預設帶入內容</span>
+      <textarea data-template-content rows="6" placeholder="例如：&#10;就醫原因：&#10;醫院 / 診所：&#10;診療結果：&#10;下次回診：">${escapeHtml(item.content || '')}</textarea>
+    </label>
+
+    <div class="schedule-template-row-actions">
+      <button type="button" class="small-secondary-btn" data-template-move-up title="上移" aria-label="上移">↑</button>
+      <button type="button" class="small-secondary-btn" data-template-move-down title="下移" aria-label="下移">↓</button>
+      <button type="button" class="danger-btn" data-template-remove-row title="刪除" aria-label="刪除">×</button>
+    </div>
+  `
+  return row
+}
+
+function syncScheduleTemplateEditor(editor) {
+  if (!editor) return
+  const textarea = editor.querySelector('[data-template-editor-value]')
+  const rows = [...editor.querySelectorAll('.schedule-template-row')]
+    .map(row => {
+      const type = row.querySelector('[data-template-type]')?.value.trim() || ''
+      const content = row.querySelector('[data-template-content]')?.value.trim() || ''
+      return { type, content }
+    })
+    .filter(item => item.type)
+
+  if (textarea) {
+    textarea.value = rows
+      .map(item => `${item.type}｜${String(item.content || '').replaceAll('\n', '\\n')}`)
+      .join('\n')
+  }
+}
+
+function syncScheduleTemplateEditors(root = document) {
+  root.querySelectorAll('[data-template-editor]').forEach(syncScheduleTemplateEditor)
+}
+
+function initScheduleTemplateEditors(root = document) {
+  root.querySelectorAll('[data-template-editor]').forEach(editor => {
+    if (editor.dataset.templateEditorReady === 'true') return
+    editor.dataset.templateEditorReady = 'true'
+
+    const textarea = editor.querySelector('[data-template-editor-value]')
+    const list = editor.querySelector('[data-template-row-list]')
+    const addBtn = editor.querySelector('[data-template-add-row]')
+    if (!textarea || !list || !addBtn) return
+
+    const rows = parseTemplateLines(textarea.value)
+    const initialRows = rows.length ? rows : [{ type: '', content: '' }]
+    initialRows.forEach(item => list.appendChild(createScheduleTemplateRow(item)))
+
+    addBtn.addEventListener('click', () => {
+      const row = createScheduleTemplateRow({ type: '', content: '' })
+      list.appendChild(row)
+      const input = row.querySelector('[data-template-type]')
+      if (input) input.focus()
+      syncScheduleTemplateEditor(editor)
+    })
+
+    list.addEventListener('click', event => {
+      const moveUpBtn = event.target.closest('[data-template-move-up]')
+      const moveDownBtn = event.target.closest('[data-template-move-down]')
+      const removeBtn = event.target.closest('[data-template-remove-row]')
+      const actionBtn = moveUpBtn || moveDownBtn || removeBtn
+      if (!actionBtn) return
+
+      const row = actionBtn.closest('.schedule-template-row')
+      if (!row) return
+
+      if (moveUpBtn && row.previousElementSibling) {
+        list.insertBefore(row, row.previousElementSibling)
+        syncScheduleTemplateEditor(editor)
+        return
+      }
+
+      if (moveDownBtn && row.nextElementSibling) {
+        list.insertBefore(row.nextElementSibling, row)
+        syncScheduleTemplateEditor(editor)
+        return
+      }
+
+      if (removeBtn) {
+        row.remove()
+        if (!list.querySelector('.schedule-template-row')) {
+          list.appendChild(createScheduleTemplateRow({ type: '', content: '' }))
+        }
+        syncScheduleTemplateEditor(editor)
+      }
+    })
+
+    list.addEventListener('input', () => syncScheduleTemplateEditor(editor))
+    syncScheduleTemplateEditor(editor)
+  })
+}
+
+
 function createOptionLineRow(value = '') {
   const row = document.createElement('div')
   row.className = 'option-line-row'
@@ -6290,7 +6421,7 @@ function renderOptionsPage() {
         </div>
         <div class="option-group-body">
           ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '可新增或修改服務行程類型', '例如：醫療')}
-          ${optionTextarea('行程類型對應內容', 'scheduleContentTemplates', templateLinesValue(), '依行程類型帶入內容；格式：行程類型｜內容', '例如：醫療｜就醫原因：\\n醫院 / 診所：')}
+          ${scheduleTemplateEditor()}
           ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
           ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
@@ -15244,3 +15375,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 清理系統內殘留確認版文案
 */
 /* FOR-e V002-1P-74 END - compact options page */
+
+/* FOR-e V002-1P-75 START - schedule template editor */
+/*
+  V002-1P-75｜行程類型對應內容編輯器
+  - 行程類型對應內容改為「行程類型＋預設內容」兩欄式編輯
+  - 新增 / 修改欄位更清楚，不再需要手動輸入「行程類型｜內容」格式
+  - 預設內容格子放大、加長，可直接多行編輯
+  - 支援新增一組、刪除、上移、下移
+*/
+/* FOR-e V002-1P-75 END - schedule template editor */
