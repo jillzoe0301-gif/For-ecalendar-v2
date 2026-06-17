@@ -9531,3 +9531,148 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-49 END - health tools */
+
+/* FOR-e V002-1P-50 START - role permission matrix */
+.role-permission-section,
+.current-role-permission-box {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.current-role-permission-box {
+  display: grid;
+  gap: 12px;
+  background: #f8fbff;
+  border-color: #dbe7ff;
+}
+
+.current-role-permission-box strong {
+  display: block;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.current-role-permission-box span {
+  display: block;
+  margin-top: 3px;
+  color: #3155d4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.current-role-permission-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.role-tag.is-enabled {
+  background: #eef5ff;
+  color: #3155d4;
+}
+
+.role-matrix-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.role-matrix-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.role-matrix-table th,
+.role-matrix-table td {
+  padding: 10px 9px;
+  border-right: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  text-align: center;
+  font-size: 12px;
+}
+
+.role-matrix-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 950;
+}
+
+.role-matrix-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+  font-weight: 950;
+  min-width: 150px;
+}
+
+.role-matrix-table tr:last-child th,
+.role-matrix-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.role-matrix-table th:last-child,
+.role-matrix-table td:last-child {
+  border-right: 0;
+}
+
+.permission-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.permission-mark.is-yes {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.permission-mark.is-no {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.page-access-matrix {
+  min-width: 920px;
+}
+
+@media (max-width: 760px) {
+  .role-permission-section,
+  .current-role-permission-box {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .role-matrix-table {
+    min-width: 860px;
+  }
+}
+/* FOR-e V002-1P-50 END - role permission matrix */

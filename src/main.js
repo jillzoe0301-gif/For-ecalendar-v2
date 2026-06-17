@@ -7193,6 +7193,125 @@ async function runHealthDryRunCheck() {
   }
 }
 
+
+function getRolePermissionTestItems() {
+  return [
+    ['manageAllSchedules', '管理全部行程'],
+    ['createServiceSchedule', '新增服務行程'],
+    ['createFieldSchedule', '新增外務行程'],
+    ['createMeetingRoom', '預約會議室'],
+    ['createIncident', '新增異況'],
+    ['assignAllStaff', '可指派全部人員'],
+    ['manageUsers', '人員 / 帳號管理'],
+    ['manageOptions', '選項管理'],
+    ['manageColor', '顏色設定'],
+    ['exportData', '匯出資料'],
+    ['viewStats', '統計報表'],
+    ['viewServiceRecords', '服務紀錄單'],
+    ['submitServiceRecord', '紀錄單繳交'],
+    ['viewAudit', '異動紀錄'],
+    ['lineNotifyAll', 'LINE 全部通知']
+  ]
+}
+
+function getRoleListForMatrix() {
+  return ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員']
+}
+
+function renderPermissionMark(enabled) {
+  return `<span class="permission-mark ${enabled ? 'is-yes' : 'is-no'}">${enabled ? '✓' : '—'}</span>`
+}
+
+function renderRolePermissionMatrix() {
+  const items = getRolePermissionTestItems()
+  const roles = getRoleListForMatrix()
+
+  return `
+    <section class="role-permission-section">
+      <div class="section-title-row">
+        <h4>角色權限矩陣</h4>
+        <span>依角色確認可操作功能</span>
+      </div>
+
+      <div class="role-matrix-scroll">
+        <table class="role-matrix-table">
+          <thead>
+            <tr>
+              <th>功能權限</th>
+              ${roles.map(role => `<th>${escapeHtml(role)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(([key, label]) => `
+              <tr>
+                <th>${escapeHtml(label)}</th>
+                ${roles.map(role => {
+                  const permissions = getRolePermissions(role)
+                  return `<td>${renderPermissionMark(Boolean(permissions[key]))}</td>`
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `
+}
+
+function renderCurrentRolePermissionSummary() {
+  const role = getRoleName()
+  const permissions = getRolePermissions(role)
+  const items = getRolePermissionTestItems()
+  const enabled = items.filter(([key]) => permissions[key]).map(([, label]) => label)
+  const disabled = items.filter(([key]) => !permissions[key]).map(([, label]) => label)
+
+  return `
+    <section class="current-role-permission-box">
+      <div>
+        <strong>目前角色：${escapeHtml(role)}</strong>
+        <span>${enabled.length} 項可用｜${disabled.length} 項不可用</span>
+      </div>
+      <div class="current-role-permission-tags">
+        ${enabled.map(label => `<span class="role-tag is-enabled">${escapeHtml(label)}</span>`).join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderPageAccessMatrix() {
+  const roles = getRoleListForMatrix()
+  const visiblePages = pages.filter(page => page.key !== 'health')
+
+  return `
+    <section class="role-permission-section">
+      <div class="section-title-row">
+        <h4>頁面檢視權限</h4>
+        <span>確認各角色可看到的頁面</span>
+      </div>
+
+      <div class="role-matrix-scroll">
+        <table class="role-matrix-table page-access-matrix">
+          <thead>
+            <tr>
+              <th>頁面</th>
+              ${roles.map(role => `<th>${escapeHtml(role)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${visiblePages.map(page => `
+              <tr>
+                <th>${escapeHtml(page.label)}</th>
+                ${roles.map(role => `<td>${renderPermissionMark(canSeePage(page, role))}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -7219,6 +7338,10 @@ function renderSystemHealthPage() {
     <div class="health-grid">
       ${rows.map(row => renderHealthCard(row.title, row.status, row.detail, row.note)).join('')}
     </div>
+
+    ${renderCurrentRolePermissionSummary()}
+    ${renderRolePermissionMatrix()}
+    ${renderPageAccessMatrix()}
 
     <section class="health-checklist">
       <h4>上線前建議測試順序</h4>
@@ -12994,3 +13117,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統檢查頁強化上線前測試清單
 */
 /* FOR-e V002-1P-49 END - health tools */
+
+/* FOR-e V002-1P-50 START - role permission matrix */
+/*
+  V002-1P-50｜角色權限矩陣
+  - 系統檢查頁新增角色權限矩陣
+  - 系統檢查頁新增頁面檢視權限矩陣
+  - 目前角色可用權限摘要
+  - 複製檢查報告時加入目前角色可用權限
+*/
+/* FOR-e V002-1P-50 END - role permission matrix */
