@@ -9806,3 +9806,242 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-52 END - launch test checklist */
+
+/* FOR-e V002-1P-55 START - mobile permission finish */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  body {
+    min-width: 0;
+    overscroll-behavior-y: contain;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+
+  .main {
+    width: 100%;
+    margin-left: 0 !important;
+    padding: 12px;
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+
+  .content-card {
+    max-width: 100%;
+    overflow: hidden;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .topbar {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .topbar h2 {
+    font-size: 20px;
+    line-height: 1.25;
+  }
+
+  .page-toolbar {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 0 !important;
+  }
+
+  .page-toolbar .toolbar-actions button,
+  .toolbar-actions button,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn {
+    min-height: 42px;
+  }
+
+  .page-toolbar .toolbar-actions button {
+    flex: 1 1 120px;
+  }
+
+  .modal-backdrop {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(88vh, calc(100dvh - 18px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 20px 20px 16px 16px;
+    padding: 14px;
+  }
+
+  .modal-header {
+    position: sticky;
+    top: -14px;
+    z-index: 8;
+    margin: -14px -14px 10px;
+    padding: 14px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 20px 20px 0 0;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+    line-height: 1.35;
+    padding-right: 8px;
+  }
+
+  .modal-header .icon-btn {
+    flex: 0 0 38px;
+  }
+
+  .form-grid,
+  .detail-grid,
+  .service-grid,
+  .vehicle-doc-row,
+  .field-mode-time-grid,
+  .field-single-time-row,
+  .compact-grid,
+  .export-filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .span-2 {
+    grid-column: auto !important;
+  }
+
+  .checkbox-list,
+  .compact-check-panel,
+  .field-special-dropdown-panel {
+    max-height: 240px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .inline-check-list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .inline-check,
+  .check-row,
+  .service-check {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .stats-table-wrap,
+  .users-table-wrap,
+  .role-matrix-scroll {
+    margin-left: -4px;
+    margin-right: -4px;
+    border-radius: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    min-width: 980px;
+  }
+
+  .week-overview-table .staff-col,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-staff-name-cell,
+  .meeting-week-table .meeting-room-col,
+  .meeting-room-name-cell {
+    width: 128px;
+    min-width: 128px;
+  }
+
+  .week-day-cell,
+  .field-week-day-cell,
+  .meeting-week-day-cell {
+    min-height: 120px;
+    height: 120px;
+    padding: 6px;
+  }
+
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card {
+    padding: 7px;
+    border-radius: 10px;
+  }
+
+  .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  .compact-filter-control,
+  .compact-sort-select,
+  .overview-filter-compact-row button {
+    width: 100%;
+  }
+
+  .mobile-nav {
+    min-height: calc(62px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .mobile-nav button {
+    min-width: 68px;
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 420px) {
+  .summary-grid,
+  .health-summary-grid,
+  .users-summary-grid,
+  .line-summary-grid,
+  .audit-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .schedule-card {
+    padding: 12px;
+  }
+
+  .schedule-title {
+    font-size: 16px;
+  }
+
+  .schedule-card-actions {
+    justify-content: stretch;
+  }
+
+  .schedule-card-actions button {
+    flex: 1 1 100%;
+  }
+}
+/* FOR-e V002-1P-55 END - mobile permission finish */

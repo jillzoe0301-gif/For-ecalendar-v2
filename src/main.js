@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-54'
+const SYSTEM_VERSION = 'V002-1P-55'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -678,7 +678,7 @@ const rolePermissionMatrix = {
     viewStats: false,
     viewServiceRecords: false,
     submitServiceRecord: false,
-    viewAudit: true,
+    viewAudit: false,
     lineNotifyAll: false
   }
 }
@@ -13401,3 +13401,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統版本更新為 V002-1P-54
 */
 /* FOR-e V002-1P-54 END - hard delete staff */
+
+/* FOR-e V002-1P-55 START - mobile permission finish */
+/*
+  V002-1P-55｜手機版與權限一致性收尾
+  - 保留 V002-1P-54 人員永久刪除規則
+  - 一般職員 rolePermissionMatrix.viewAudit 改為 false，和頁面權限一致
+  - 手機版彈窗改為底部抽屜式，標題固定在上方
+  - 手機版工具列、表單、週曆、表格、底部選單安全區整理
+  - 系統版本更新為 V002-1P-55
+*/
+/* FOR-e V002-1P-55 END - mobile permission finish */
