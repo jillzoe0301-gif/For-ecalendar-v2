@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-60'
+const SYSTEM_VERSION = 'V002-1P-61'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2713,6 +2713,19 @@ function renderApp() {
   document.querySelectorAll('[data-backup-export]').forEach(btn => {
     btn.addEventListener('click', () => exportLaunchBackup(btn.dataset.backupExport))
   })
+
+  document.querySelectorAll('[data-role-test-complete]').forEach(btn => {
+    btn.addEventListener('click', () => toggleRoleTestComplete(btn.dataset.roleTestComplete))
+  })
+
+  document.querySelectorAll('[data-copy-role-test]').forEach(btn => {
+    btn.addEventListener('click', () => copyRoleTestChecklist(btn.dataset.copyRoleTest))
+  })
+
+  const clearRoleTestBtn = document.querySelector('#clearRoleTestBtn')
+  if (clearRoleTestBtn) {
+    clearRoleTestBtn.addEventListener('click', () => clearRoleTestProgress())
+  }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
   if (checkLoginFunctionBtn) {
@@ -7309,6 +7322,13 @@ function getHealthRows() {
   })
 
   rows.push({
+    title: '角色實測進度',
+    status: getRoleTestStats().remaining ? 'warn' : 'ok',
+    detail: `已完成 ${getRoleTestStats().done}/${getRoleTestStats().total} 個角色`,
+    note: '請用各角色帳號實際登入確認可見頁面與操作權限。'
+  })
+
+  rows.push({
     title: '我的畫面記憶',
     status: 'ok',
     detail: getMyUiMemorySummary(),
@@ -7596,6 +7616,7 @@ function getLaunchTestGroups() {
         ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
         ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
         ['data-integrity-audit', '資料完整性檢查沒有紅色錯誤'],
+        ['role-test-panel', '六種角色已完成實際登入測試並標記完成'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
@@ -7970,6 +7991,10 @@ function getLaunchReadinessState() {
     warnings.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
   }
 
+  if (getRoleTestStats().remaining > 0) {
+    warnings.push(`角色實測尚有 ${getRoleTestStats().remaining} 個角色未完成`)
+  }
+
   let status = 'ok'
   let title = '可以進入正式上線前最終確認'
   let message = '目前沒有紅色阻擋項目，可以依照測試清單完成最後確認。'
@@ -8034,6 +8059,10 @@ function renderLaunchReadinessSummary() {
         <div>
           <strong>${state.dataAudit.issues.length}</strong>
           <span>資料完整性注意</span>
+        </div>
+        <div>
+          <strong>${getRoleTestStats().percent}%</strong>
+          <span>角色實測</span>
         </div>
       </div>
 
@@ -8494,6 +8523,217 @@ function getDataIntegrityReportLines() {
 }
 
 
+
+function getRoleTestStorageKey() {
+  return `for-e-role-test-progress-${SYSTEM_VERSION}`
+}
+
+function getRoleTestDefinitions() {
+  return [
+    {
+      role: '管理員',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
+      cannotSee: [],
+      actions: ['新增 / 修改 / 完成 / 取消行程', '新增外務行程', '新增會議室預約', '新增異況', '人員新增 / 修改 / 綁定 / 重綁 / 重設 / 刪除', '選項管理可修改', '備份匯出可下載']
+    },
+    {
+      role: '主管',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
+      cannotSee: ['外務明細'],
+      actions: ['可查看全部人員', '只可調整是否外務人員', '可使用選項管理', '不可建立 / 重設 / 刪除帳號']
+    },
+    {
+      role: '行政 / 海外',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', 'LINE 通知', '顏色設定', '異動紀錄', '人員 / 帳號'],
+      cannotSee: ['統計報表', '服務紀錄單', '選項管理', '系統檢查'],
+      actions: ['可新增 / 修改服務行程', '可新增外務行程', '可新增異況', '不可管理帳號', '不可管理選項']
+    },
+    {
+      role: '翻譯',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '紀錄單繳交', 'LINE 通知', '顏色設定', '人員 / 帳號'],
+      cannotSee: ['異況追蹤', '外務行程', '外務明細', '會議室預約', '行程搜尋', '統計報表', '服務紀錄單', '選項管理', '異動紀錄', '系統檢查'],
+      actions: ['可查看自己的行程', '可繳交紀錄單', '可修改自己的密碼', '不可看異況追蹤']
+    },
+    {
+      role: '外務 / 宿管人員 / 會計',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', 'LINE 通知', '異動紀錄', '人員 / 帳號'],
+      cannotSee: ['外務明細', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', '紀錄單繳交', '顏色設定', '選項管理', '系統檢查'],
+      actions: ['可看外務行程表', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
+    },
+    {
+      role: '一般職員',
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '會議室預約', '顏色設定', '人員 / 帳號'],
+      cannotSee: ['LINE 通知', '異動紀錄', '外務行程', '外務明細', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', '紀錄單繳交', '選項管理', '系統檢查'],
+      actions: ['可查看自己的行程', '可新增自己的個人待辦', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
+    }
+  ]
+}
+
+function readRoleTestProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(getRoleTestStorageKey()) || '{}') || {}
+  } catch (err) {
+    console.warn('角色實測紀錄讀取失敗', err)
+    return {}
+  }
+}
+
+function saveRoleTestProgress(progress) {
+  try {
+    localStorage.setItem(getRoleTestStorageKey(), JSON.stringify(progress || {}))
+  } catch (err) {
+    console.warn('角色實測紀錄儲存失敗', err)
+  }
+}
+
+function getRoleTestStats() {
+  const definitions = getRoleTestDefinitions()
+  const progress = readRoleTestProgress()
+  const total = definitions.length
+  const done = definitions.filter(item => progress[item.role]).length
+
+  return {
+    total,
+    done,
+    remaining: Math.max(total - done, 0),
+    percent: total ? Math.round((done / total) * 100) : 0
+  }
+}
+
+function toggleRoleTestComplete(role = '') {
+  const targetRole = String(role || '').trim()
+  if (!targetRole) return
+
+  const progress = readRoleTestProgress()
+  if (progress[targetRole]) {
+    delete progress[targetRole]
+  } else {
+    progress[targetRole] = {
+      done: true,
+      at: new Date().toISOString(),
+      by: currentProfile?.name || currentProfile?.email || ''
+    }
+  }
+
+  saveRoleTestProgress(progress)
+  renderApp()
+}
+
+function clearRoleTestProgress() {
+  if (!confirm('確定要清除本機的角色實測完成紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
+  localStorage.removeItem(getRoleTestStorageKey())
+  renderApp()
+}
+
+function getRoleTestChecklistText(role = '') {
+  const definition = getRoleTestDefinitions().find(item => item.role === role)
+  if (!definition) return ''
+
+  return [
+    `FOR-e 角色實測清單｜${definition.role}`,
+    `版本：${SYSTEM_VERSION}`,
+    `時間：${new Date().toLocaleString('zh-TW')}`,
+    '',
+    '應該看得到：',
+    ...definition.canSee.map(item => `□ ${item}`),
+    '',
+    '不應該看得到：',
+    ...definition.cannotSee.map(item => `□ ${item}`),
+    '',
+    '操作測試：',
+    ...definition.actions.map(item => `□ ${item}`)
+  ].join('\\n')
+}
+
+async function copyRoleTestChecklist(role = '') {
+  const text = getRoleTestChecklistText(role)
+  if (!text) {
+    alert('找不到角色測試清單。')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(text)
+    alert(`${role} 角色實測清單已複製。`)
+  } catch (err) {
+    console.warn(err)
+    alert(text)
+  }
+}
+
+function getRoleTestReportLines() {
+  const definitions = getRoleTestDefinitions()
+  const progress = readRoleTestProgress()
+  const stats = getRoleTestStats()
+
+  return [
+    `角色實測進度：${stats.done}/${stats.total}（${stats.percent}%）`,
+    ...definitions.map(item => {
+      const done = progress[item.role]
+      return `- ${done ? '已完成' : '未完成'}｜${item.role}${done?.by ? `｜${done.by}` : ''}`
+    })
+  ]
+}
+
+function renderRoleTestPanel() {
+  const definitions = getRoleTestDefinitions()
+  const progress = readRoleTestProgress()
+  const stats = getRoleTestStats()
+
+  return `
+    <section class="role-test-section">
+      <div class="section-title-row">
+        <h4>角色實測面板</h4>
+        <span>完成 ${stats.done}/${stats.total}｜${stats.percent}%</span>
+      </div>
+
+      <div class="launch-progress">
+        <div class="launch-progress-bar">
+          <span style="width:${stats.percent}%"></span>
+        </div>
+        <strong>剩餘 ${stats.remaining} 角色</strong>
+      </div>
+
+      <div class="role-test-actions">
+        <button type="button" class="secondary-btn" id="clearRoleTestBtn">清除角色實測紀錄</button>
+      </div>
+
+      <div class="role-test-grid">
+        ${definitions.map(definition => {
+          const done = progress[definition.role]
+          return `
+            <div class="role-test-card ${done ? 'is-done' : ''}">
+              <div class="role-test-card-head">
+                <strong>${escapeHtml(definition.role)}</strong>
+                <span>${done ? '已完成' : '未測試'}</span>
+              </div>
+
+              <div class="role-test-columns">
+                <div>
+                  <h5>應該看得到</h5>
+                  ${definition.canSee.slice(0, 9).map(item => `<p>✓ ${escapeHtml(item)}</p>`).join('')}
+                  ${definition.canSee.length > 9 ? `<p>＋${definition.canSee.length - 9} 項</p>` : ''}
+                </div>
+                <div>
+                  <h5>不應該看得到</h5>
+                  ${definition.cannotSee.slice(0, 7).map(item => `<p>— ${escapeHtml(item)}</p>`).join('') || '<p>— 無</p>'}
+                  ${definition.cannotSee.length > 7 ? `<p>＋${definition.cannotSee.length - 7} 項</p>` : ''}
+                </div>
+              </div>
+
+              <div class="role-test-card-actions">
+                <button type="button" class="secondary-btn" data-copy-role-test="${escapeHtml(definition.role)}">複製清單</button>
+                <button type="button" class="${done ? 'secondary-btn' : 'primary-btn'}" data-role-test-complete="${escapeHtml(definition.role)}">${done ? '取消完成' : '標記完成'}</button>
+              </div>
+            </div>
+          `
+        }).join('')}
+      </div>
+    </section>
+  `
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -8529,6 +8769,7 @@ function renderSystemHealthPage() {
     ${renderPageAccessMatrix()}
     ${renderAccountBindingAuditPanel()}
     ${renderDataIntegrityAuditPanel()}
+    ${renderRoleTestPanel()}
     ${renderLaunchTestChecklist()}
 
     <section class="health-checklist">
@@ -14420,3 +14661,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 上線測試清單新增資料完整性項目
 */
 /* FOR-e V002-1P-60 END - data integrity audit */
+
+/* FOR-e V002-1P-61 START - role test panel */
+/*
+  V002-1P-61｜角色實測面板
+  - 系統檢查頁新增角色實測面板
+  - 六種角色可個別複製測試清單、標記完成、清除紀錄
+  - 正式上線狀態總結納入角色實測進度
+  - 系統檢查報告加入角色實測報告
+  - 上線測試清單新增角色實測項目
+*/
+/* FOR-e V002-1P-61 END - role test panel */
