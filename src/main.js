@@ -3351,29 +3351,29 @@ function renderFieldScheduleCalendar() {
 
     <form id="fieldScheduleFilterForm" class="overview-filter-panel overview-filter-panel-compact field-filter-panel-compact">
       <div class="overview-filter-compact-row">
-        <details class="compact-multi-select">
-          <summary>部門｜${escapeHtml(getFieldFilterCountText())}</summary>
+        <details class="compact-multi-select compact-filter-control">
+          <summary>部門｜${escapeHtml(getFieldDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getFieldDepartmentCheckboxes()}
           </div>
         </details>
 
-        <details class="compact-multi-select">
-          <summary>外務人員｜${escapeHtml(getFieldFilterCountText())}</summary>
+        <details class="compact-multi-select compact-filter-control">
+          <summary>外務人員｜${escapeHtml(getFieldStaffSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getFieldStaffCheckboxes()}
           </div>
         </details>
 
-        <label class="compact-sort-select">
-          排序
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">排序</span>
           <select name="fieldSortBy">
             ${getStaffSortOptions(fieldScheduleFilters.sortBy)}
           </select>
         </label>
 
-        <label class="compact-sort-select">
-          順序
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">順序</span>
           <select name="fieldSortDir">
             ${getStaffSortDirOptions(fieldScheduleFilters.sortDir)}
           </select>
@@ -4043,10 +4043,6 @@ async function createIncidentTrackingSchedule(parentRow, trackingTitle, tracking
 
   if (assigneeError) {
     throw assigneeError
-  }
-
-  if (category === '服務行程' && scheduleType === '醫療') {
-    await createMedicalFollowupScheduleFromForm(form, schedule, schedulePayload)
   }
 
   await supabase.from('audit_logs').insert({
@@ -7317,6 +7313,19 @@ function getOverviewFilterCountText() {
   return parts.join('｜')
 }
 
+
+function getCompactSelectedCountText(list, emptyText = '全部') {
+  return list.length ? `${list.length} 項` : emptyText
+}
+
+function getOverviewDepartmentSelectedText() {
+  return getCompactSelectedCountText(normalizeOverviewFilterList(overviewFilters.departments))
+}
+
+function getOverviewStaffSelectedText() {
+  return getCompactSelectedCountText(normalizeOverviewFilterList(overviewFilters.staffIds))
+}
+
 function getOverviewFilterSummary() {
   const departments = normalizeOverviewFilterList(overviewFilters.departments)
   const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
@@ -7331,7 +7340,7 @@ function getOverviewFilterSummary() {
 
 function renderCompactCheckOption(name, value, checked, inputName) {
   return `
-    <label class="compact-check-option">
+    <label class="compact-check-option" title="${escapeHtml(name)}">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(value)}" ${checked ? 'checked' : ''}>
       <span>${escapeHtml(name)}</span>
     </label>
@@ -7491,29 +7500,29 @@ function renderScheduleOverview() {
 
     <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact">
       <div class="overview-filter-compact-row">
-        <details class="compact-multi-select">
-          <summary>部門｜${escapeHtml(getOverviewFilterCountText())}</summary>
+        <details class="compact-multi-select compact-filter-control">
+          <summary>部門｜${escapeHtml(getOverviewDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getOverviewDepartmentCheckboxes()}
           </div>
         </details>
 
-        <details class="compact-multi-select">
-          <summary>人員｜${escapeHtml(getOverviewFilterCountText())}</summary>
+        <details class="compact-multi-select compact-filter-control">
+          <summary>人員｜${escapeHtml(getOverviewStaffSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getOverviewStaffCheckboxes()}
           </div>
         </details>
 
-        <label class="compact-sort-select">
-          排序
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">排序</span>
           <select name="sortBy">
             ${getStaffSortOptions(overviewFilters.sortBy)}
           </select>
         </label>
 
-        <label class="compact-sort-select">
-          順序
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">順序</span>
           <select name="sortDir">
             ${getStaffSortDirOptions(overviewFilters.sortDir)}
           </select>

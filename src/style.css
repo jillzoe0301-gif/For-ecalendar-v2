@@ -9143,3 +9143,204 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-44 END - multiselect sort bind button */
+
+
+/* FOR-e V002-1P-45 START - filter polish and incident fix */
+/* V002-1P-45｜行程總覽 / 外務行程篩選列質感優化、下拉選項同列靠左 */
+.overview-filter-panel-compact {
+  gap: 10px !important;
+  padding: 14px !important;
+  margin: 12px 0 14px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%) !important;
+  border: 1px solid #dbe7ff !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06) !important;
+}
+
+.field-filter-panel-compact {
+  background: linear-gradient(180deg, #fffdf9 0%, #fff8ef 100%) !important;
+  border-color: #f6d6ae !important;
+}
+
+.overview-filter-compact-row,
+.field-filter-panel-compact .overview-filter-compact-row {
+  display: grid !important;
+  grid-template-columns: minmax(190px, 1.15fr) minmax(220px, 1.35fr) 136px 136px auto auto !important;
+  gap: 12px !important;
+  align-items: end !important;
+}
+
+.compact-filter-control {
+  min-width: 0;
+  align-self: end;
+}
+
+.compact-multi-select summary,
+.compact-sort-select select,
+.overview-filter-compact-row > .primary-btn,
+.overview-filter-compact-row > .secondary-btn {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+}
+
+.compact-multi-select summary {
+  padding: 10px 13px !important;
+  border: 1px solid #cfd8e7 !important;
+  color: #1f3b71 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+}
+
+.field-filter-panel-compact .compact-multi-select summary {
+  color: #8a4b0f !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fff9f1 100%) !important;
+}
+
+.compact-sort-select {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  min-width: 136px !important;
+  margin: 0 !important;
+}
+
+.compact-field-label {
+  display: block;
+  margin: 0 0 1px;
+  color: #3a4a67;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.compact-sort-select select {
+  padding: 9px 12px !important;
+  border: 1px solid #cfd8e7 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%) !important;
+  color: #24324a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+}
+
+.overview-filter-compact-row > .primary-btn,
+.overview-filter-compact-row > .secondary-btn {
+  align-self: end !important;
+  padding: 0 16px !important;
+  box-shadow: 0 8px 20px rgba(81, 112, 255, 0.10) !important;
+}
+
+.compact-check-panel {
+  left: 0 !important;
+  right: auto !important;
+  min-width: 100% !important;
+  width: max-content;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 10px !important;
+  border-radius: 16px !important;
+  border: 1px solid #d6dfed !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
+  text-align: left !important;
+}
+
+.compact-check-option {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  justify-content: start !important;
+  column-gap: 10px !important;
+  row-gap: 0 !important;
+  min-height: 36px !important;
+  padding: 7px 8px !important;
+  border-radius: 11px !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.compact-check-option input {
+  grid-column: 1 !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  align-self: center !important;
+  justify-self: start !important;
+  accent-color: var(--blue) !important;
+}
+
+.compact-check-option span {
+  grid-column: 2 !important;
+  display: block !important;
+  min-width: 0 !important;
+  line-height: 1.25 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.compact-check-option:hover {
+  background: #f8fbff !important;
+}
+
+.compact-check-option:has(input:checked) {
+  background: #eef4ff !important;
+  color: #2f4fc6 !important;
+}
+
+.compact-summary {
+  padding: 10px 12px !important;
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+  border-radius: 14px !important;
+  border: 1px solid #dbe7ff;
+  background: #f3f7ff !important;
+  color: #3554bf !important;
+}
+
+.field-filter-panel-compact .compact-summary {
+  border-color: #f8dec3 !important;
+  background: #fff6eb !important;
+  color: #c66d1e !important;
+}
+
+@media (max-width: 1180px) {
+  .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .compact-check-panel {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 6px;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .compact-multi-select summary,
+  .compact-sort-select select,
+  .overview-filter-compact-row > .primary-btn,
+  .overview-filter-compact-row > .secondary-btn {
+    min-height: 42px !important;
+  }
+}
+/* FOR-e V002-1P-45 END - filter polish and incident fix */
