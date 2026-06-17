@@ -7900,3 +7900,27 @@ label.record-modal-check {
   cursor: not-allowed;
 }
 /* FOR-e V002-1P-29 END - password recovery page */
+
+/* FOR-e V002-1P-30 START - password 4 chars hint */
+.password-hint-box {
+  display: grid;
+  gap: 3px;
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #eef5ff;
+  border: 1px solid #c7d2fe;
+}
+
+.password-hint-box strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.password-hint-box span {
+  color: #3155d4;
+  font-size: 12px;
+  font-weight: 850;
+}
+/* FOR-e V002-1P-30 END - password 4 chars hint */

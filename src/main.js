@@ -876,22 +876,7 @@ async function sendPasswordResetEmail(email) {
 
 
 function generateTemporaryPassword() {
-  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-  const numbers = '23456789'
-  const symbols = '!@#$%'
-
-  const pick = text => text[Math.floor(Math.random() * text.length)]
-  let value = [
-    pick(letters.toUpperCase()),
-    pick(letters.toLowerCase()),
-    pick(numbers),
-    pick(symbols)
-  ]
-
-  const pool = letters + numbers + symbols
-  while (value.length < 12) value.push(pick(pool))
-
-  return value.sort(() => Math.random() - 0.5).join('')
+  return String(Math.floor(1000 + Math.random() * 9000))
 }
 
 function openLoginAccountModal(staffId = '') {
@@ -935,12 +920,12 @@ function openLoginAccountModal(staffId = '') {
 
         <label>
           臨時密碼
-          <input name="password" type="text" required minlength="8" value="${escapeHtml(generateTemporaryPassword())}">
+          <input name="password" type="text" required minlength="4" value="${escapeHtml(generateTemporaryPassword())}">
         </label>
 
         <label class="login-password-tip">
           說明
-          <div>建立後請讓使用者登入並自行更改密碼；也可以之後使用「重設」寄送重設密碼信。</div>
+          <div>臨時密碼 4 碼即可；建立後請讓使用者登入並自行更改密碼，也可以之後使用「重設」寄送重設密碼信。</div>
         </label>
 
         <div class="notice span-2">
@@ -986,7 +971,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
     }
 
     if (password.length < 8) {
-      alert('臨時密碼至少需要 8 碼。')
+      alert('臨時密碼 4 碼即可，請至少輸入 4 碼。')
       return
     }
 
@@ -10395,13 +10380,18 @@ function renderPasswordRecoveryPage() {
       <div class="login-card password-recovery-card">
         <div class="login-brand">${renderBrandLogo('square')}</div>
         <h1>設定新密碼</h1>
-        <p>請輸入新密碼，完成後即可用新密碼登入 FOR-e。</p>
+        <p>請輸入新密碼，4 碼即可；新密碼不能與舊密碼相同。</p>
 
         <label for="newPassword">新密碼</label>
-        <input id="newPassword" type="password" placeholder="請輸入新密碼，至少 8 碼" autocomplete="new-password" />
+        <input id="newPassword" type="password" placeholder="請輸入新密碼，4 碼即可" autocomplete="new-password" />
 
         <label for="confirmPassword">再次確認新密碼</label>
         <input id="confirmPassword" type="password" placeholder="請再次輸入新密碼" autocomplete="new-password" />
+
+        <div class="password-hint-box">
+          <strong>密碼提示</strong>
+          <span>4 碼即可；不可與舊密碼相同。</span>
+        </div>
 
         <button id="updatePasswordBtn">更新密碼</button>
         <button id="backToLoginBtn" class="secondary-login-btn" type="button">回登入頁</button>
@@ -10432,8 +10422,8 @@ async function updateRecoveryPassword() {
   const updateBtn = document.querySelector('#updatePasswordBtn')
   errorText.textContent = ''
 
-  if (!newPassword || newPassword.length < 8) {
-    errorText.textContent = '新密碼至少需要 8 碼。'
+  if (!newPassword || newPassword.length < 4) {
+    errorText.textContent = '新密碼 4 碼即可，請至少輸入 4 碼。'
     return
   }
 
@@ -10450,7 +10440,14 @@ async function updateRecoveryPassword() {
   })
 
   if (error) {
-    errorText.textContent = `更新失敗：${error.message}`
+    const message = String(error.message || '')
+    if (message.includes('different from the old password')) {
+      errorText.textContent = '更新失敗：新密碼不能與舊密碼相同，請換一組 4 碼以上密碼。'
+    } else if (message.toLowerCase().includes('password')) {
+      errorText.textContent = `更新失敗：${message}。請確認新密碼至少 4 碼，且不要與舊密碼相同。`
+    } else {
+      errorText.textContent = `更新失敗：${message}`
+    }
     updateBtn.disabled = false
     updateBtn.textContent = '更新密碼'
     return
@@ -11109,3 +11106,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - resetPasswordForEmail 在 localhost 觸發時也會導向正式 Vercel 網址
 */
 /* FOR-e V002-1P-29 END - password recovery page */
+
+/* FOR-e V002-1P-30 START - password 4 chars hint */
+/*
+  V002-1P-30｜密碼提示與 4 碼設定
+  - 重設密碼頁提示 4 碼即可
+  - 新密碼不能與舊密碼相同時，改顯示中文提示
+  - 建立登入帳號的臨時密碼改為 4 碼
+*/
+/* FOR-e V002-1P-30 END - password 4 chars hint */
