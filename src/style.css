@@ -10045,3 +10045,23 @@ body {
   }
 }
 /* FOR-e V002-1P-55 END - mobile permission finish */
+
+/* FOR-e V002-1P-56 START - rebind account hide deleted */
+.user-action-btn.is-rebind {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.users-table-permission-view .users-table-head,
+.users-table-permission-view .users-table-row {
+  grid-template-columns: minmax(130px, 1.08fr) minmax(110px, 0.74fr) minmax(118px, 0.82fr) minmax(92px, 0.64fr) minmax(180px, 1.35fr) 52px minmax(76px, 0.52fr) 270px !important;
+}
+
+@media (max-width: 1100px) {
+  .users-table-permission-view .users-table-head,
+  .users-table-permission-view .users-table-row {
+    min-width: 1170px;
+  }
+}
+/* FOR-e V002-1P-56 END - rebind account hide deleted */

@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-55'
+const SYSTEM_VERSION = 'V002-1P-56'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -777,7 +777,7 @@ function canViewUserAccountRow(staff) {
 }
 
 function getUserAccountVisibleRows(rows) {
-  return (rows || []).filter(canViewUserAccountRow)
+  return (rows || []).filter(staff => !isStaffDeleted(staff)).filter(canViewUserAccountRow)
 }
 
 function canEditUserProfile(staff) {
@@ -790,6 +790,10 @@ function canResetUserPassword(staff) {
 
 function canCreateUserLogin(staff) {
   return canManageUsers() && staff?.staff_id && !getStaffLoginEmail(staff) && !isStaffDeleted(staff)
+}
+
+function canRebindUserLogin(staff) {
+  return canManageUsers() && staff?.staff_id && Boolean(getStaffLoginEmail(staff)) && !isStaffDeleted(staff)
 }
 
 function canDeleteUserProfile(staff) {
@@ -1287,12 +1291,27 @@ function getProfileStaffId(profile) {
   return profile?.staff_id || profile?.staffId || profile?.staff_uuid || ''
 }
 
+function isActiveLoginProfile(profile) {
+  return !profile?.status || profile.status === '啟用'
+}
+
 function getStaffProfile(staff) {
   if (!staff) return null
 
-  return userProfileList.find(profile => getProfileStaffId(profile) === staff.staff_id)
-    || userProfileList.find(profile => profile.name && profile.name === staff.name)
-    || null
+  const staffId = normalizeStaffId(staff.staff_id)
+  if (!staffId) return null
+
+  const linkedProfiles = userProfileList.filter(profile => normalizeStaffId(getProfileStaffId(profile)) === staffId)
+  const activeLinkedProfile = linkedProfiles.find(isActiveLoginProfile)
+  if (activeLinkedProfile) return activeLinkedProfile
+  if (linkedProfiles.length) return linkedProfiles[0]
+
+  return userProfileList.find(profile => {
+    return !normalizeStaffId(getProfileStaffId(profile))
+      && isActiveLoginProfile(profile)
+      && profile.name
+      && profile.name === staff.name
+  }) || null
 }
 
 function getStaffLoginEmail(staff) {
@@ -1797,6 +1816,188 @@ async function createLoginAccountForStaff(event, modal, staffId) {
     saving = false
   }
 }
+
+
+function findProfileByEmail(email = '') {
+  const target = String(email || '').trim().toLowerCase()
+  if (!target) return null
+  return userProfileList.find(profile => String(profile.email || '').trim().toLowerCase() === target) || null
+}
+
+function getStaffById(staffId = '') {
+  const normalizedStaffId = normalizeStaffId(staffId)
+  if (!normalizedStaffId) return null
+  return getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId) || null
+}
+
+function openRebindLoginAccountModal(staffId = '') {
+  if (!canManageUsers()) {
+    alert('只有管理員可以重新綁定登入帳號。')
+    return
+  }
+
+  const staff = getStaffById(staffId)
+  if (!staff) {
+    alert('找不到人員資料。')
+    return
+  }
+
+  const currentEmail = getStaffLoginEmail(staff)
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel login-account-modal">
+      <div class="modal-header">
+        <h3>重新綁定登入帳號</h3>
+        <button class="icon-btn" id="closeRebindLoginAccountModalBtn" type="button">×</button>
+      </div>
+
+      <form id="rebindLoginAccountForm" class="form-grid">
+        <div class="span-2 login-create-user-card">
+          <strong>${escapeHtml(staff.name || '-')}</strong>
+          <span>${escapeHtml(staff.department_name || '-')}｜${escapeHtml(staff.position || '-')}｜${escapeHtml(staff.role || '-')}</span>
+        </div>
+
+        <label class="span-2">
+          要綁定的登入 Email
+          <input name="email" type="email" required value="${escapeHtml(currentEmail)}" placeholder="例如：user@company.com">
+        </label>
+
+        <div class="notice span-2">
+          重新綁定只會調整 profiles 與人員的對應關係，不會建立新的 Supabase Auth 帳號。若輸入的 Email 尚未有登入帳號，請先使用「綁定」建立帳號。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelRebindLoginAccountModalBtn">取消</button>
+          <button type="submit" class="primary-btn">確認重新綁定</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeRebindLoginAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelRebindLoginAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#rebindLoginAccountForm').addEventListener('submit', event => rebindLoginAccountForStaff(event, modal, normalizeStaffId(staff.staff_id), currentEmail))
+}
+
+async function unbindOldProfilesFromStaff(staffId = '', keepEmail = '') {
+  const normalizedStaffId = normalizeStaffId(staffId)
+  const keep = String(keepEmail || '').trim().toLowerCase()
+  if (!normalizedStaffId) return
+
+  const oldProfiles = userProfileList.filter(profile => {
+    const email = String(profile.email || '').trim().toLowerCase()
+    return normalizeStaffId(getProfileStaffId(profile)) === normalizedStaffId && email && email !== keep
+  })
+
+  for (const profile of oldProfiles) {
+    const payload = {}
+    if (Object.prototype.hasOwnProperty.call(profile, 'staff_id')) payload.staff_id = null
+    if (Object.prototype.hasOwnProperty.call(profile, 'status')) payload.status = '停用'
+
+    if (!Object.keys(payload).length) continue
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('email', profile.email)
+
+    if (error && Object.prototype.hasOwnProperty.call(profile, 'status')) {
+      await supabase
+        .from('profiles')
+        .update({ status: '停用' })
+        .eq('email', profile.email)
+    }
+  }
+}
+
+async function rebindLoginAccountForStaff(event, modal, staffId = '', oldEmail = '') {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const staff = getStaffById(staffId)
+    if (!staff) {
+      alert('找不到人員資料，請重新整理後再試。')
+      return
+    }
+
+    const form = new FormData(event.target)
+    const email = String(form.get('email') || '').trim()
+    if (!email) {
+      alert('請輸入要綁定的登入 Email。')
+      return
+    }
+
+    const targetProfile = findProfileByEmail(email)
+    if (!targetProfile?.email) {
+      alert('找不到這個登入帳號。請先確認 Email 是否正確，或先用「綁定」建立登入帳號。')
+      return
+    }
+
+    const targetBoundStaffId = normalizeStaffId(getProfileStaffId(targetProfile))
+    const normalizedStaffId = normalizeStaffId(staffId)
+    const currentEmail = String(oldEmail || getStaffLoginEmail(staff) || '').trim().toLowerCase()
+    const targetEmail = String(targetProfile.email || email).trim().toLowerCase()
+
+    if (targetBoundStaffId === normalizedStaffId && currentEmail === targetEmail) {
+      alert('這個帳號目前已經綁定在此人員，不需要重新綁定。')
+      return
+    }
+
+    if (targetBoundStaffId && targetBoundStaffId !== normalizedStaffId) {
+      const oldStaff = getStaffById(targetBoundStaffId)
+      const oldStaffName = oldStaff?.name || targetBoundStaffId
+      if (!confirm(`此 Email 目前綁定在「${oldStaffName}」。\n\n確定要改綁到「${staff.name || '-'}」嗎？\n原本的人員會變成未綁定登入帳號。`)) {
+        return
+      }
+    } else if (!confirm(`確定要把登入 Email「${targetProfile.email || email}」重新綁定到「${staff.name || '-'}」嗎？`)) {
+      return
+    }
+
+    await unbindOldProfilesFromStaff(normalizedStaffId, targetProfile.email || email)
+
+    const payload = getProfileUpdatePayloadForStaff(targetProfile, {
+      ...getStaffSnapshotForFunction(staff),
+      staff_id: normalizedStaffId,
+      status: staff.status || '啟用'
+    })
+
+    if (Object.prototype.hasOwnProperty.call(targetProfile, 'staff_id')) {
+      payload.staff_id = normalizedStaffId
+    }
+    if (Object.prototype.hasOwnProperty.call(targetProfile, 'status')) {
+      payload.status = staff.status || '啟用'
+    }
+
+    if (!Object.keys(payload).length) {
+      alert('這個 profiles 資料缺少可更新欄位，無法重新綁定。')
+      return
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('email', targetProfile.email || email)
+
+    if (error) {
+      console.error(error)
+      alert('重新綁定失敗：' + error.message)
+      return
+    }
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+    alert('登入帳號已重新綁定。')
+  } finally {
+    saving = false
+  }
+}
+
 
 
 async function checkLoginFunctionStatus() {
@@ -2457,6 +2658,10 @@ function renderApp() {
 
   document.querySelectorAll('[data-create-login-staff]').forEach(btn => {
     btn.addEventListener('click', () => openLoginAccountModal(btn.dataset.createLoginStaff))
+  })
+
+  document.querySelectorAll('[data-rebind-login-staff]').forEach(btn => {
+    btn.addEventListener('click', () => openRebindLoginAccountModal(btn.dataset.rebindLoginStaff))
   })
 
   document.querySelectorAll('[data-reset-password-email]').forEach(btn => {
@@ -9023,7 +9228,7 @@ function getUserAccountDepartmentOptions() {
 }
 
 function getUserAccountRoleOptions() {
-  const sourceRows = allStaffList.length ? allStaffList : staffList
+  const sourceRows = (allStaffList.length ? allStaffList : staffList).filter(staff => !isStaffDeleted(staff))
   const roles = ['全部', ...new Set(sourceRows.map(staff => staff.role).filter(Boolean))]
   return roles.map(role => `<option value="${escapeHtml(role)}" ${userAccountFilters.role === role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
 }
@@ -9146,6 +9351,10 @@ function renderUsersList(rows) {
                   ? `<button type="button" class="user-action-btn is-reset" data-reset-password-email="${escapeHtml(loginEmail)}" data-reset-password-name="${escapeHtml(staff.name || '')}">重設</button>`
                   : ''
                 }
+                ${canRebindUserLogin(staff)
+                  ? `<button type="button" class="user-action-btn is-rebind" data-rebind-login-staff="${staff.staff_id}">重綁</button>`
+                  : ''
+                }
                 ${canCreateUserLogin(staff)
                   ? `<button type="button" class="user-action-btn is-create" data-create-login-staff="${staff.staff_id}">綁定</button>`
                   : ''
@@ -9208,7 +9417,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員若按「刪除」會永久移除人員；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
+      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「刪除」會永久移除人員且不再顯示在人員名單；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -9419,7 +9628,7 @@ function openUserAccountModal(staffId = '') {
         <div class="login-account-info span-2">
           <strong>登入帳號狀態</strong>
           <span>${loginEmail ? `已綁定：${escapeHtml(loginEmail)}` : '尚未綁定登入帳號'}</span>
-          <small>這裡管理人員資料；若尚未綁定登入帳號，可在人員列表點「建立」建立 Supabase Auth 帳號。</small>
+          <small>這裡管理人員資料；未綁定請在人員列表點「綁定」，已綁定但要更換 Email 請點「重綁」。</small>
         </div>
 
         <div class="modal-actions span-2">
@@ -13412,3 +13621,15 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統版本更新為 V002-1P-55
 */
 /* FOR-e V002-1P-55 END - mobile permission finish */
+
+/* FOR-e V002-1P-56 START - rebind account hide deleted */
+/*
+  V002-1P-56｜重新綁定帳號與刪除名單隱藏
+  - 已綁定帳號的人員新增「重綁」按鈕，可重新指定登入 Email
+  - 重新綁定會更新 profiles.staff_id 與角色 / 部門 / 職務 / 狀態資料
+  - 目標 Email 若已綁定其他人員，會確認後改綁
+  - 舊的登入 profile 會解除 staff_id 或停用，避免仍被姓名 fallback 誤判已綁定
+  - 人員 / 帳號頁與 CSV 匯出統一排除 deleted_at 人員
+  - 刪除的人員不會出現在人員名單；停用人員仍會留在名單上
+*/
+/* FOR-e V002-1P-56 END - rebind account hide deleted */
