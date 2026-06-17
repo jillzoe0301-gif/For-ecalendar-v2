@@ -52,10 +52,10 @@ const pageIconMap = {
 const pageImageIconMap = {
   personalSchedule: '/icons/nav/calendar-check.png',
   personalTodo: '/icons/nav/checklist.png',
-  assignedTracking: '/icons/nav/document.png',
+  assignedTracking: '/icons/nav/assigned-document.png',
   scheduleOverview: '/icons/nav/grid.png',
   fieldSchedule: '/icons/nav/car.png',
-  fieldDetail: '/icons/nav/document.png',
+  fieldDetail: '/icons/nav/field-detail-document.png',
   meetingRoom: '/icons/nav/calendar-clock.png',
   incident: '/icons/nav/alert-circle.png',
   search: '/icons/nav/search.png',
@@ -8332,3 +8332,17 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-2-2｜左側選單全面改用使用者提供 ICON
 */
 /* FOR-e V002-1P-2-2 END - full provided icon set */
+
+/* FOR-e V002-1P-2-4 START - uploaded named nav icons */
+/*
+  V002-1P-2-4｜使用使用者重新上傳並命名的 ICON
+  - 個人行程表：calendar-check.png
+  - 我指派的事項追蹤：assigned-document.png
+  - 外務明細：field-detail-document.png
+  - 行程總覽：grid.png
+  - 服務紀錄單：hand-heart.png
+  - 紀錄單繳交頁：hand-leaf.png
+  - 異動紀錄：note.png
+  - 保留 V002-1P-2-3 左側靠左對齊設定
+*/
+/* FOR-e V002-1P-2-4 END - uploaded named nav icons */
