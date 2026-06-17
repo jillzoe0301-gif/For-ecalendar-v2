@@ -3257,6 +3257,17 @@ function getFieldFilterCountText() {
   return parts.join('｜')
 }
 
+
+function getFieldDepartmentSelectedText() {
+  const departments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
+  return departments.length ? `${departments.length} 項` : '全部'
+}
+
+function getFieldStaffSelectedText() {
+  const staffIds = normalizeOverviewFilterList(fieldScheduleFilters.staffIds)
+  return staffIds.length ? `${staffIds.length} 項` : '全部'
+}
+
 function getFieldFilterSummary() {
   const departments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
   const staffIds = normalizeOverviewFilterList(fieldScheduleFilters.staffIds)
@@ -12634,3 +12645,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-46-1 END - build repair */
 
+/* FOR-e V002-1P-46-2 START - field filter helper fix */
+/*
+  V002-1P-46-2｜外務行程表篩選 helper 修正
+  - 修正外務行程表打不開：getFieldDepartmentSelectedText is not defined
+  - 補上 getFieldDepartmentSelectedText / getFieldStaffSelectedText
+  - 保留 V002-1P-46 公務車資訊與外務行程表開啟修正
+*/
+/* FOR-e V002-1P-46-2 END - field filter helper fix */
