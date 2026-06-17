@@ -7107,3 +7107,79 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-6-7 END - color picker bigger overdue red */
+
+/* FOR-e V002-1P-7 START - users add edit staff */
+.users-table-account-manage .users-table-head,
+.users-table-account-manage .users-table-row {
+  grid-template-columns: minmax(150px, 1.25fr) minmax(125px, 0.9fr) minmax(145px, 1fr) minmax(105px, 0.75fr) 54px minmax(76px, 0.55fr) 78px !important;
+}
+
+.users-table-account-manage .users-table-head span:nth-child(5),
+.users-table-account-manage .users-table-row label:nth-child(5) {
+  justify-self: center;
+}
+
+.users-table-row.is-disabled-user {
+  background: #f8fafc;
+  opacity: 0.82;
+}
+
+.user-status-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.user-status-pill.is-disabled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.users-edit-btn {
+  min-width: 58px;
+  justify-self: start;
+}
+
+.user-account-modal {
+  width: min(820px, 100%);
+}
+
+.user-field-check-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.large-field-toggle {
+  justify-self: start;
+}
+
+.large-field-toggle .field-staff-switch {
+  width: 40px;
+  height: 22px;
+}
+
+.large-field-toggle .field-staff-switch::after {
+  width: 18px;
+  height: 18px;
+}
+
+.large-field-toggle input:checked + .field-staff-switch::after {
+  transform: translateX(18px);
+}
+
+@media (max-width: 960px) {
+  .users-table-account-manage .users-table-head,
+  .users-table-account-manage .users-table-row {
+    min-width: 860px;
+  }
+}
+/* FOR-e V002-1P-7 END - users add edit staff */

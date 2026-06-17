@@ -332,6 +332,7 @@ let currentProfile = null
 let currentPage = 'personalSchedule'
 let schedules = []
 let staffList = []
+let allStaffList = []
 let loadingSchedules = false
 let schedulesError = ''
 let saving = false
@@ -649,18 +650,19 @@ async function refreshData() {
 async function loadStaff() {
   const { data, error } = await supabase
     .from('staff')
-    .select('staff_id, name, department_id, department_name, position, role, status, deleted_at')
-    .eq('status', '啟用')
+    .select('staff_id, name, department_id, department_name, position, role, status, deleted_at, display_order')
     .is('deleted_at', null)
     .order('display_order', { ascending: true })
 
   if (error) {
     console.error(error)
     staffList = []
+    allStaffList = []
     return
   }
 
-  staffList = data || []
+  allStaffList = data || []
+  staffList = allStaffList.filter(staff => (staff.status || '啟用') === '啟用')
 }
 
 async function loadSchedules() {
@@ -1139,6 +1141,15 @@ function renderApp() {
       setStaffFieldWorker(input.dataset.fieldStaffToggle, input.checked)
       renderApp()
     })
+  })
+
+  const addUserAccountBtn = document.querySelector('#addUserAccountBtn')
+  if (addUserAccountBtn) {
+    addUserAccountBtn.addEventListener('click', () => openUserAccountModal())
+  }
+
+  document.querySelectorAll('[data-edit-user]').forEach(btn => {
+    btn.addEventListener('click', () => openUserAccountModal(btn.dataset.editUser))
   })
 
   const colorSettingsForm = document.querySelector('#colorSettingsForm')
@@ -5555,12 +5566,14 @@ function renderRecordSubmit() {
 }
 
 function getUserAccountDepartmentOptions() {
-  const names = ['全部', ...new Set(staffList.map(staff => staff.department_name).filter(Boolean))]
+  const sourceRows = allStaffList.length ? allStaffList : staffList
+  const names = ['全部', ...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
   return names.map(name => `<option value="${escapeHtml(name)}" ${userAccountFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 function getUserAccountRoleOptions() {
-  const roles = ['全部', ...new Set(staffList.map(staff => staff.role).filter(Boolean))]
+  const sourceRows = allStaffList.length ? allStaffList : staffList
+  const roles = ['全部', ...new Set(sourceRows.map(staff => staff.role).filter(Boolean))]
   return roles.map(role => `<option value="${escapeHtml(role)}" ${userAccountFilters.role === role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
 }
 
@@ -5624,11 +5637,11 @@ function renderUsersList(rows) {
     return `<div class="empty-state">目前沒有符合條件的人員。</div>`
   }
 
-  const canEditFieldStaff = currentProfile?.role === '管理員'
+  const canEditUserAccount = currentProfile?.role === '管理員'
 
   return `
     <div class="users-table-wrap">
-      <div class="users-table users-table-field-staff">
+      <div class="users-table users-table-field-staff users-table-account-manage">
         <div class="users-table-head">
           <span>人員名稱</span>
           <span>部門</span>
@@ -5636,19 +5649,21 @@ function renderUsersList(rows) {
           <span>角色</span>
           <span>外務</span>
           <span>狀態</span>
+          <span>操作</span>
         </div>
 
         ${rows.map(staff => `
-          <div class="users-table-row">
+          <div class="users-table-row ${staff.status === '停用' ? 'is-disabled-user' : ''}">
             <strong>${escapeHtml(staff.name || '-')}</strong>
             <span>${escapeHtml(staff.department_name || '-')}</span>
             <span>${escapeHtml(staff.position || '-')}</span>
             <span>${escapeHtml(staff.role || '-')}</span>
             <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
-              <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditFieldStaff ? '' : 'disabled'}>
+              <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditUserAccount ? '' : 'disabled'}>
               <span class="field-staff-switch" aria-hidden="true"></span>
             </label>
-            <span>${escapeHtml(staff.status || '啟用')}</span>
+            <span class="user-status-pill ${staff.status === '停用' ? 'is-disabled' : ''}">${escapeHtml(staff.status || '啟用')}</span>
+            <button type="button" class="small-secondary-btn users-edit-btn" data-edit-user="${staff.staff_id}" ${canEditUserAccount ? '' : 'disabled'}>修改</button>
           </div>
         `).join('')}
       </div>
@@ -5657,22 +5672,25 @@ function renderUsersList(rows) {
 }
 
 function renderUsersPage() {
-  const rows = staffList.filter(matchesUserAccountFilters)
+  const sourceRows = allStaffList.length ? allStaffList : staffList
+  const rows = sourceRows.filter(matchesUserAccountFilters)
+  const canEditUserAccount = currentProfile?.role === '管理員'
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>人員 / 帳號</h3>
-        <p class="muted">查看目前啟用人員、部門、職務與角色。可勾選是否為外務人員，會影響外務行程的人員清單。</p>
+        <p class="muted">管理人員基本資料、角色、狀態與是否為外務人員。登入帳號 / 密碼會在下一階段串 Supabase Auth。</p>
       </div>
       <div class="toolbar-actions">
+        ${canEditUserAccount ? '<button class="primary-btn" id="addUserAccountBtn">新增人員</button>' : ''}
         <button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
 
     <div class="notice">
-      權限規則：管理員可管理全部帳號；主管、行政、翻譯、外務 / 宿管人員 / 會計、一般職員只能查看與修改自己的帳號基本資料，不能刪除、停用或啟用帳號。
+      權限規則：管理員可新增 / 修改人員資料；其他角色只能查看。這一版先管理 staff 人員資料，不處理登入密碼。
     </div>
 
     <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
@@ -5715,6 +5733,201 @@ function renderUsersPage() {
     ${renderUsersList(rows)}
   `
 }
+
+
+function getUserManageRows() {
+  return allStaffList.length ? allStaffList : staffList
+}
+
+function getUserManageRoleOptions(selectedRole = '') {
+  const roles = ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員']
+  return roles.map(role => `<option value="${escapeHtml(role)}" ${role === selectedRole ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
+}
+
+function getUserManageDepartmentOptions(selectedDepartment = '') {
+  const names = [...new Set(getUserManageRows().map(staff => staff.department_name).filter(Boolean))]
+  if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
+  return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+}
+
+function getDepartmentIdByName(name) {
+  const row = getUserManageRows().find(staff => staff.department_name === name && staff.department_id)
+  return row?.department_id || null
+}
+
+function getNextStaffDisplayOrder() {
+  const numbers = getUserManageRows()
+    .map(staff => Number(staff.display_order || 0))
+    .filter(number => Number.isFinite(number))
+  return numbers.length ? Math.max(...numbers) + 10 : 10
+}
+
+function openUserAccountModal(staffId = '') {
+  if (currentProfile?.role !== '管理員') {
+    alert('只有管理員可以新增或修改人員資料。')
+    return
+  }
+
+  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const isEdit = Boolean(staff)
+  const selectedDepartment = staff?.department_name || currentProfile?.department_name || ''
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel user-account-modal">
+      <div class="modal-header">
+        <h3>${isEdit ? '修改人員資料' : '新增人員'}</h3>
+        <button class="icon-btn" id="closeUserAccountModalBtn" type="button">×</button>
+      </div>
+
+      <form id="userAccountForm" class="form-grid">
+        <label>
+          人員姓名
+          <input name="name" required value="${escapeHtml(staff?.name || '')}" placeholder="例如：蘇若儀">
+        </label>
+
+        <label>
+          狀態
+          <select name="status">
+            <option value="啟用" ${(staff?.status || '啟用') === '啟用' ? 'selected' : ''}>啟用</option>
+            <option value="停用" ${staff?.status === '停用' ? 'selected' : ''}>停用</option>
+          </select>
+        </label>
+
+        <label>
+          部門
+          <select name="department_name" id="userDepartmentSelect">
+            ${getUserManageDepartmentOptions(selectedDepartment)}
+          </select>
+        </label>
+
+        <label>
+          手動輸入部門
+          <input name="department_custom" placeholder="若選單沒有，再輸入新部門">
+        </label>
+
+        <label>
+          職務
+          <input name="position" value="${escapeHtml(staff?.position || '')}" placeholder="例如：翻譯、行政、外務">
+        </label>
+
+        <label>
+          角色權限
+          <select name="role" required>
+            ${getUserManageRoleOptions(staff?.role || '一般職員')}
+          </select>
+        </label>
+
+        <label>
+          顯示順序
+          <input name="display_order" type="number" value="${escapeHtml(String(staff?.display_order || getNextStaffDisplayOrder()))}" placeholder="數字越小越前面">
+        </label>
+
+        <label class="user-field-check-row">
+          是否為外務人員
+          <span class="field-staff-toggle compact-field-toggle large-field-toggle">
+            <input type="checkbox" name="is_field_staff" ${staff ? (isStaffFieldWorker(staff) ? 'checked' : '') : ''}>
+            <span class="field-staff-switch" aria-hidden="true"></span>
+          </span>
+        </label>
+
+        <div class="notice span-2">
+          這裡管理的是 staff 人員資料；登入 Email、密碼、重設密碼需另外串 Supabase Auth，下一階段處理。
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelUserAccountModalBtn">取消</button>
+          <button type="submit" class="primary-btn">${isEdit ? '儲存修改' : '新增人員'}</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeUserAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelUserAccountModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#userAccountForm').addEventListener('submit', event => saveUserAccount(event, modal, staff?.staff_id || ''))
+}
+
+async function saveUserAccount(event, modal, staffId = '') {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const departmentName = String(form.get('department_custom') || '').trim() || form.get('department_name') || ''
+    const displayOrderValue = form.get('display_order')
+    const payload = {
+      name: String(form.get('name') || '').trim(),
+      department_id: getDepartmentIdByName(departmentName),
+      department_name: departmentName || null,
+      position: String(form.get('position') || '').trim() || null,
+      role: form.get('role') || '一般職員',
+      status: form.get('status') || '啟用'
+    }
+
+    if (displayOrderValue !== '' && displayOrderValue !== null) {
+      payload.display_order = Number(displayOrderValue)
+    }
+
+    if (!payload.name) {
+      alert('請輸入人員姓名。')
+      saving = false
+      return
+    }
+
+    if (!payload.department_name) {
+      alert('請選擇或輸入部門。')
+      saving = false
+      return
+    }
+
+    let savedStaffId = staffId
+
+    if (staffId) {
+      const { error } = await supabase
+        .from('staff')
+        .update(payload)
+        .eq('staff_id', staffId)
+
+      if (error) {
+        console.error(error)
+        alert('修改人員失敗：' + error.message)
+        saving = false
+        return
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('staff')
+        .insert(payload)
+        .select('staff_id')
+        .single()
+
+      if (error) {
+        console.error(error)
+        alert('新增人員失敗：' + error.message)
+        saving = false
+        return
+      }
+
+      savedStaffId = data?.staff_id
+    }
+
+    if (savedStaffId) {
+      setStaffFieldWorker(savedStaffId, form.get('is_field_staff') === 'on')
+    }
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+  } finally {
+    saving = false
+  }
+}
+
 
 function openScheduleDetail(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
@@ -8962,3 +9175,15 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顏色設定版面整理成固定欄位
 */
 /* FOR-e V002-1P-6-6 END - overdue meeting repeat color layout */
+
+/* FOR-e V002-1P-7 START - users add edit staff */
+/*
+  V002-1P-7｜人員 / 帳號新增與修改人員資料
+  - 新增人員
+  - 修改姓名 / 部門 / 職務 / 角色 / 狀態 / 顯示順序
+  - 管理是否為外務人員
+  - staffList 維持只給啟用人員供行程下拉使用
+  - allStaffList 供人員 / 帳號頁查看啟用與停用資料
+  - 不處理 Supabase Auth 登入密碼
+*/
+/* FOR-e V002-1P-7 END - users add edit staff */
