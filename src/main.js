@@ -1,12 +1,4 @@
-unzip -o for-e-v002-1p-46-company-cars-field-open-fix.zip
-
-npm run build
-
-git status
-git add -A
-git status
-git commit -m "V002-1P-46 company cars and field schedule open fix"
-git push origin mainimport { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -12633,3 +12625,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 外務行程表若載入失敗會顯示錯誤訊息，不會整頁打不開
 */
 /* FOR-e V002-1P-46 END - company cars and field open fix */
+
+/* FOR-e V002-1P-46-1 START - build repair */
+/*
+  V002-1P-46-1｜Build Repair
+  - 修復 Vercel build：src/main.js 第一行被錯誤內容覆蓋造成 Expected ";" but found "for"
+  - 重新覆蓋為有效 main.js
+*/
+/* FOR-e V002-1P-46-1 END - build repair */
+
