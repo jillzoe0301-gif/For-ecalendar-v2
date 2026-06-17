@@ -1,12 +1,4 @@
-unzip -o for-e-v002-1p-66-staff-department-id-fix.zip
-
-npm run build
-
-git status
-git add -A
-git status
-git commit -m "V002-1P-66 fix staff department id"
-git push origin mainimport { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -15042,3 +15034,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 手動輸入部門提示改為：若要新增新部門才填寫；留空則使用左側選單
 */
 /* FOR-e V002-1P-66 END - staff department id fix */
+
+
+/* FOR-e V002-1P-66-1 START - build syntax repair */
+/*
+  V002-1P-66-1｜Build Syntax Repair
+  - 重新提供完整有效的 src/main.js / src/style.css
+  - 修復 Vercel build：src/main.js 第一行被錯誤文字覆蓋造成 Expected ";" but found "for"
+  - 保留 V002-1P-66 新增人員 department_id 修正
+*/
+/* FOR-e V002-1P-66-1 END - build syntax repair */
+
