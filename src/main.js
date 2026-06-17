@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-72'
+const SYSTEM_VERSION = 'V002-1P-73'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -448,7 +448,7 @@ let userAccountFilters = {
 }
 
 
-const userManageDefaultDepartments = ['總經理室', '財務稽核', '營管處', '業務處', '人才發展', '管顧事業']
+const userManageDefaultDepartments = ['總經理室', '財務稽核', '營管處', '營運二部', '業務處', '人才發展', '管顧事業']
 const userManageDefaultPositions = ['協理', '執行長', '總經理', '副總經理', '副理', '組長', '海外行政', 'PT']
 const userManageRemovedPositions = ['管理員', '主管', '行政/海外', '行政 / 海外', '外務/宿管人員/會計', '外務 / 宿管人員 / 會計']
 
@@ -460,6 +460,17 @@ function isRemovedUserManagePosition(position = '') {
   const normalized = normalizePositionLabel(position)
   return userManageRemovedPositions.some(item => normalizePositionLabel(item) === normalized)
 }
+
+
+function getManagedUserDepartmentOptions() {
+  return getManagedListOption('userManageDepartments', userManageDefaultDepartments)
+}
+
+function getManagedUserPositionOptions() {
+  return getManagedListOption('userManagePositions', userManageDefaultPositions)
+    .filter(position => !isRemovedUserManagePosition(position))
+}
+
 
 
 /* FOR-e V002-1P-14 START - shared app settings */
@@ -2636,6 +2647,8 @@ function renderApp() {
       syncOptionLineEditors(event.target)
       const form = new FormData(event.target)
       const nextOptions = {
+        userManageDepartments: parseOptionLines(form.get('userManageDepartments')),
+        userManagePositions: parseOptionLines(form.get('userManagePositions')).filter(position => !isRemovedUserManagePosition(position)),
         serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
@@ -6158,6 +6171,8 @@ function createOptionLineRow(value = '') {
   row.className = 'option-line-row'
   row.innerHTML = `
     <input data-option-line-input value="${escapeHtml(value)}" placeholder="請輸入選項內容">
+    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-up>上移</button>
+    <button type="button" class="small-secondary-btn option-line-move-btn" data-option-move-down>下移</button>
     <button type="button" class="danger-btn option-line-remove-btn" data-option-remove-line>刪除</button>
   `
   return row
@@ -6199,14 +6214,34 @@ function initOptionLineEditors(root = document) {
     })
 
     list.addEventListener('click', event => {
-      const btn = event.target.closest('[data-option-remove-line]')
-      if (!btn) return
-      const row = btn.closest('.option-line-row')
-      if (row) row.remove()
-      if (!list.querySelector('.option-line-row')) {
-        list.appendChild(createOptionLineRow(''))
+      const moveUpBtn = event.target.closest('[data-option-move-up]')
+      const moveDownBtn = event.target.closest('[data-option-move-down]')
+      const removeBtn = event.target.closest('[data-option-remove-line]')
+      const actionBtn = moveUpBtn || moveDownBtn || removeBtn
+      if (!actionBtn) return
+
+      const row = actionBtn.closest('.option-line-row')
+      if (!row) return
+
+      if (moveUpBtn && row.previousElementSibling) {
+        list.insertBefore(row, row.previousElementSibling)
+        syncOptionLineEditor(editor)
+        return
       }
-      syncOptionLineEditor(editor)
+
+      if (moveDownBtn && row.nextElementSibling) {
+        list.insertBefore(row.nextElementSibling, row)
+        syncOptionLineEditor(editor)
+        return
+      }
+
+      if (removeBtn) {
+        row.remove()
+        if (!list.querySelector('.option-line-row')) {
+          list.appendChild(createOptionLineRow(''))
+        }
+        syncOptionLineEditor(editor)
+      }
     })
 
     list.addEventListener('input', () => syncOptionLineEditor(editor))
@@ -6232,9 +6267,20 @@ function renderOptionsPage() {
 
     ${!canEdit ? '<div class="notice">目前只有管理員可以調整選項。</div>' : ''}
     ${renderAppSettingSyncNotice()}
-    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接在原本清單裡修改文字、補新的一行，或刪掉不要的項目後按「儲存變更」。儲存後會優先同步到 Supabase 共用設定。</div>
+    <div class="notice option-page-notice">這一頁只做選項維護，不用另外點新增。你可以直接修改文字、補新的一行、刪掉不要的項目，也可以用上移 / 下移調整順序後按「儲存變更」。儲存後會優先同步到 Supabase 共用設定。</div>
 
     <form id="optionManagementForm" class="option-management-form">
+      <section class="option-group-card">
+        <div class="option-group-head">
+          <h4>人員 / 帳號相關</h4>
+          <p>管理新增 / 修改人員時使用的部門與職務選項；可新增、刪除，並用上移 / 下移調整順序。</p>
+        </div>
+        <div class="option-group-body">
+          ${optionTextarea('部門選項', 'userManageDepartments', optionLinesValue('userManageDepartments', userManageDefaultDepartments), '每行一個部門，順序會套用在人員新增 / 修改下拉選單', '例如：營運二部')}
+          ${optionTextarea('職務選項', 'userManagePositions', optionLinesValue('userManagePositions', userManageDefaultPositions), '每行一個職務，請勿填角色權限；管理員 / 主管等請放在角色欄位', '例如：副理')}
+        </div>
+      </section>
+
       <section class="option-group-card">
         <div class="option-group-head">
           <h4>行程表單相關</h4>
@@ -10763,11 +10809,7 @@ function getUserManageRoleOptions(selectedRole = '') {
 }
 
 function getUserManageDepartmentOptions(selectedDepartment = '') {
-  const existingDepartments = getUserManageRows()
-    .map(staff => staff.department_name)
-    .filter(Boolean)
-
-  const names = [...new Set([...userManageDefaultDepartments, ...existingDepartments])]
+  const names = [...getManagedUserDepartmentOptions()]
   if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
 
   return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
@@ -10775,32 +10817,7 @@ function getUserManageDepartmentOptions(selectedDepartment = '') {
 
 
 function getUserManagePositionOptions(selectedPosition = '') {
-  const defaultPositions = [
-    ...userManageDefaultPositions,
-    '營運經理',
-    '部門主管',
-    '行政主管',
-    '服務主管',
-    '主任',
-    '副主任',
-    '營運秘書',
-    '行政',
-    '翻譯',
-    '外務',
-    '宿管',
-    '會計',
-    '一般職員'
-  ]
-
-  const existingPositions = getUserManageRows()
-    .map(staff => staff.position)
-    .filter(Boolean)
-    .filter(position => !isRemovedUserManagePosition(position))
-
-  const positions = [...new Set([...defaultPositions, ...existingPositions])]
-    .filter(Boolean)
-    .filter(position => !isRemovedUserManagePosition(position))
-
+  const positions = [...getManagedUserPositionOptions()]
   if (selectedPosition && !positions.includes(selectedPosition) && !isRemovedUserManagePosition(selectedPosition)) {
     positions.unshift(selectedPosition)
   }
@@ -15204,3 +15221,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 新增 isDeletedSchedule / isCancelledSchedule / isActiveServiceRecord 共用判斷，避免各頁規則不一致
 */
 /* FOR-e V002-1P-72 END - hide deleted schedules everywhere */
+
+/* FOR-e V002-1P-73 START - department position management */
+/*
+  V002-1P-73｜部門與職務選項管理
+  - 新增部門選項「營運二部」
+  - 選項管理新增「部門選項」與「職務選項」
+  - 部門 / 職務可新增、刪除，並用上移 / 下移調整順序
+  - 人員新增 / 修改的部門與職務下拉改讀選項管理
+  - 職務選項自動排除管理員、主管、行政/海外、外務/宿管人員/會計等角色類文字
+*/
+/* FOR-e V002-1P-73 END - department position management */
