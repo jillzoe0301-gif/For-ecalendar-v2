@@ -5841,3 +5841,114 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1M-2-3 END - service record statistics style */
+
+/* FOR-e V002-1P-1 START - options sr todo incident urgency */
+.option-group-body {
+  align-items: start !important;
+}
+
+.option-edit-box {
+  align-self: start !important;
+  min-height: auto !important;
+}
+
+.option-line-list {
+  align-content: start !important;
+}
+
+.option-edit-body textarea,
+.option-edit-box textarea {
+  min-height: 110px !important;
+}
+
+.option-placeholder-tip {
+  margin-top: 6px !important;
+}
+
+.personal-todo-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+
+.personal-todo-alert.has-today {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.personal-todo-alert strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.personal-todo-alert span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.today-todo-list {
+  margin-bottom: 18px;
+}
+
+.incident-urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  vertical-align: middle;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.incident-urgency-badge.is-important {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.incident-urgency-badge.is-urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.service-record-period-section {
+  margin: 18px 0;
+}
+
+.service-record-period-wrap {
+  overflow-x: auto;
+}
+
+.service-record-period-table .simple-stat-head,
+.service-record-period-table .simple-stat-row {
+  grid-template-columns: minmax(160px, 1.8fr) repeat(4, minmax(76px, 1fr));
+}
+
+.service-record-period-table .simple-stat-row span {
+  font-size: 16px !important;
+}
+
+@media (max-width: 768px) {
+  .personal-todo-alert {
+    display: grid;
+  }
+
+  .service-record-period-table .simple-stat-head,
+  .service-record-period-table .simple-stat-row {
+    min-width: 620px;
+  }
+}
+/* FOR-e V002-1P-1 END - options sr todo incident urgency */

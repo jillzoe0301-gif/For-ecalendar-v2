@@ -62,6 +62,7 @@ const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '�
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
 const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
 const incidentTypeOptions = ['逃跑', '轉出', '車禍', '醫療異況', '雇主反映', '工人反映', '宿舍異況', '文件異常', '其他']
+const incidentUrgencyOptions = ['一般', '重要', '緊急', '立即處理']
 const fieldLocationOptions = [{"name": "內湖_印辦", "address": "台北市內湖區瑞光路550號2樓"}, {"name": "內湖_菲辦", "address": "台北市內湖區洲子街55-57號2樓"}, {"name": "台北_越辦(領件只能下午)", "address": "臺北市中山區松江路101號2樓"}, {"name": "台北_越南換護照", "address": "臺北市中山區松江路65號2，3樓"}, {"name": "台北_泰辦", "address": "台北市大安區信義路三段151號 10 樓"}, {"name": "台北_勞動部", "address": "臺北市中正區中華路1段39號10樓"}, {"name": "桃園移民署", "address": "桃園市桃園區縣府路106號1樓"}, {"name": "中壢就業中心", "address": "桃園市中壢區新興路182號"}, {"name": "桃園就業中心", "address": "桃園市桃園區縣府路59號"}, {"name": "中和就業中心", "address": "新北市中和區景安路118號"}, {"name": "板橋就業中心", "address": "新北市板橋區漢生東路163號"}, {"name": "三重就業中心(不同仲介要不同天)", "address": "新北市三重區重新路四段12號"}, {"name": "新竹就業中心", "address": "新竹市光華東街56號"}, {"name": "竹北就業中心", "address": "新竹縣竹北市光明九路7-3號"}, {"name": "宜蘭羅東就業中心", "address": "宜蘭縣羅東鎮東榮路二段91號"}, {"name": "苗栗就業中心", "address": "苗栗市中山路558號"}, {"name": "新北移民署", "address": "新北市中和區民安街135號"}, {"name": "竹北移民署", "address": "新竹縣竹北市三民路133號1樓"}, {"name": "基隆移民署", "address": "基隆市中正區義一路18號11樓A棟"}, {"name": "新竹移民署", "address": "新竹市北區中華路三段12號1樓"}]
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
@@ -983,6 +984,7 @@ function renderApp() {
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
         fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
         incidentTypeOptions: parseOptionLines(form.get('incidentTypeOptions')),
+        incidentUrgencyOptions: parseOptionLines(form.get('incidentUrgencyOptions')),
         meetingRoomOptions: parseOptionLines(form.get('meetingRoomOptions')),
         fieldLocationOptions: parseLocationLines(form.get('fieldLocationOptions'))
       }
@@ -2248,6 +2250,29 @@ function incidentTypeOptionsHtml(selectedValue = '') {
   return getManagedListOption('incidentTypeOptions', incidentTypeOptions).map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
 
+function incidentUrgencyOptionsHtml(selectedValue = '') {
+  const selected = selectedValue || '一般'
+  return getManagedListOption('incidentUrgencyOptions', incidentUrgencyOptions)
+    .map(item => `<option value="${item}" ${item === selected ? 'selected' : ''}>${item}</option>`)
+    .join('')
+}
+
+function getIncidentUrgencyFromRow(row) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/緊急程度：([^｜]+)/)
+  return match ? match[1].trim() : '一般'
+}
+
+function renderIncidentUrgencyBadge(row) {
+  const urgency = getIncidentUrgencyFromRow(row)
+  if (!urgency || urgency === '一般') {
+    return `<span class="incident-urgency-badge is-normal">一般</span>`
+  }
+  const urgentClass = ['緊急', '立即處理'].includes(urgency) ? 'is-urgent' : 'is-important'
+  return `<span class="incident-urgency-badge ${urgentClass}">${escapeHtml(urgency)}</span>`
+}
+
+
 function chineseTrackingNumber(number) {
   const map = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十']
   return map[number] || String(number)
@@ -2319,6 +2344,7 @@ function renderIncidentTrackingHistory(row, editable = false) {
 function buildIncidentNoteParts(form, incidentType, customerName, responsibleStaff, assistantNames, nextTime) {
   return [
     `異況類型：${incidentType}`,
+    `緊急程度：${form.get('incident_urgency') || '一般'}`,
     `發生日期：${form.get('incident_date')}`,
     customerName ? `客戶 / 工人：${customerName}` : '',
     `下次追蹤：${form.get('next_follow_date')}${nextTime ? ' ' + nextTime : ''}`,
@@ -2475,7 +2501,7 @@ function renderIncidentList(rows) {
             </div>
 
             <div class="incident-main">
-              <div class="incident-title">${escapeHtml(row.sub_type || '異況')}｜${escapeHtml(row.title || '-')}</div>
+              <div class="incident-title">${escapeHtml(row.sub_type || '異況')}｜${escapeHtml(row.title || '-')} ${renderIncidentUrgencyBadge(row)}</div>
               <div class="incident-meta">
                 負責 / 協助：${escapeHtml(getAssigneeNames(row))}
                 ｜建立者：${escapeHtml(row.creator_name || '-')}
@@ -2778,6 +2804,7 @@ function openEditIncidentModal(scheduleId) {
   const assistantIds = selectedIds.filter(id => id !== responsibleId)
   const nextStart = parseTimeForEdit(row.start_time, '', '00')
   const incidentType = row.sub_type || getFieldNoteValue(row, '異況類型') || '其他'
+  const incidentUrgency = getIncidentUrgencyFromRow(row)
   const incidentDate = getFieldNoteValue(row, '發生日期') || row.start_date || todayString()
 
   const modal = document.createElement('div')
@@ -2793,6 +2820,11 @@ function openEditIncidentModal(scheduleId) {
         <label>
           異況類型
           <select name="incident_type">${incidentTypeOptionsHtml(incidentType)}</select>
+        </label>
+
+        <label>
+          緊急程度
+          <select name="incident_urgency">${incidentUrgencyOptionsHtml(incidentUrgency)}</select>
         </label>
 
         <label>
@@ -2961,6 +2993,11 @@ function openIncidentModal() {
         </label>
 
         <label>
+          緊急程度
+          <select name="incident_urgency">${incidentUrgencyOptionsHtml('一般')}</select>
+        </label>
+
+        <label>
           發生日期
           <input name="incident_date" type="date" value="${todayString()}" required>
         </label>
@@ -3062,9 +3099,9 @@ async function saveIncident(event, modal) {
       address: null,
       car_no: null,
       status: '未完成',
-      need_service_record: false,
-      service_record_submitted: false,
-      service_record_submitted_date: null
+      need_service_record: form.get('need_service_record') === 'on',
+      service_record_submitted: form.get('service_record_submitted') === 'on',
+      service_record_submitted_date: form.get('service_record_submitted') === 'on' ? (form.get('service_record_submitted_date') || todayString()) : null
     }
 
     const { data: schedule, error: scheduleError } = await supabase
@@ -3967,6 +4004,7 @@ function renderOptionsPage() {
           ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '每行一個特殊提醒', '例如：急件')}
           ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址', '例如：內湖_印辦｜台北市內湖區瑞光路550號2樓')}
           ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '每行一個異況類型', '例如：醫療異況')}
+          ${optionTextarea('異況緊急程度', 'incidentUrgencyOptions', optionLinesValue('incidentUrgencyOptions', incidentUrgencyOptions), '每行一個緊急程度，可新增或修改', '例如：緊急')}
           ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '每行一個會議室名稱', '例如：第一會議室')}
         </div>
       </section>
@@ -4208,10 +4246,30 @@ function renderPersonalSchedule() {
 }
 
 function renderPersonalTodo() {
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(row.category))
+  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && todoCategories.includes(row.category))
+  const today = todayString()
+  const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
+  const overdueRows = myRows.filter(row => row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
+
   return `
     ${renderToolbar('個人一般待辦')}
     ${renderReadStatus()}
+    <section class="personal-todo-alert ${todayRows.length ? 'has-today' : ''}">
+      <div>
+        <strong>今日待辦：${todayRows.length} 筆</strong>
+        <span>${overdueRows.length ? `另有 ${overdueRows.length} 筆逾期待辦需要追蹤` : '目前沒有逾期待辦'}</span>
+      </div>
+    </section>
+    ${todayRows.length ? `
+      <section class="today-todo-list">
+        <div class="section-title-row">
+          <h4>當日待辦提示</h4>
+          <span>${today}</span>
+        </div>
+        ${renderScheduleList(todayRows, '今天沒有待辦事項。', true)}
+      </section>
+    ` : ''}
     ${renderScheduleList(myRows, '目前沒有一般記事或待辦事項。', true)}
   `
 }
@@ -4928,6 +4986,89 @@ function renderServiceRecordList(records, emptyText) {
   `
 }
 
+
+function renderServiceRecordSimplePeriodTable(title, subtitle, rows, firstColumnTitle = '人員') {
+  return `
+    <section class="clean-stats-section service-record-period-section">
+      <div class="section-title-row">
+        <h4>${title}</h4>
+        <span>${subtitle}</span>
+      </div>
+      ${rows.length ? `
+        <div class="simple-stat-table-wrap service-record-period-wrap">
+          <div class="simple-stat-table service-record-period-table">
+            <div class="simple-stat-head">
+              <span>${firstColumnTitle}</span>
+              <span>總數</span>
+              <span>未繳</span>
+              <span>逾期</span>
+              <span>已交</span>
+            </div>
+            ${rows.map(row => `
+              <div class="simple-stat-row ${row.overdue ? 'has-overdue' : ''}">
+                <strong>${escapeHtml(row.label)}</strong>
+                <span>${row.total}</span>
+                <span>${row.pending}</span>
+                <span class="${row.overdue ? 'is-alert' : ''}">${row.overdue}</span>
+                <span>${row.submitted}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : '<div class="empty-state">目前沒有符合條件的服務紀錄單。</div>'}
+    </section>
+  `
+}
+
+function renderServiceRecordPersonSplitStatusV3(records) {
+  const monthRows = summarizeServiceRecordRows(
+    getServiceRecordPeriodRows(records, 'month'),
+    record => record.staff_id || record.staff_name || '未指定',
+    record => record.staff_name || '-'
+  )
+  const yearRows = summarizeServiceRecordRows(
+    getServiceRecordPeriodRows(records, 'year'),
+    record => record.staff_id || record.staff_name || '未指定',
+    record => record.staff_name || '-'
+  )
+
+  return `
+    ${renderServiceRecordSimplePeriodTable('當月個人員繳交狀況', '只看當月資料', monthRows, '人員')}
+    ${renderServiceRecordSimplePeriodTable('當年個人員繳交狀況', '只看當年資料', yearRows, '人員')}
+  `
+}
+
+function summarizeServiceRecordDepartmentGroupRows(records) {
+  const base = {
+    '一部': { key: '一部', label: '一部', total: 0, pending: 0, overdue: 0, submitted: 0 },
+    '二部': { key: '二部', label: '二部', total: 0, pending: 0, overdue: 0, submitted: 0 }
+  }
+
+  records.forEach(record => {
+    const group = getDepartmentGroupName(getServiceRecordDepartment(record))
+    if (!base[group]) return
+    const item = base[group]
+    const status = getServiceRecordStatus(record)
+    item.total += 1
+    if (status === '已繳交') item.submitted += 1
+    if (status === '超過2週') item.overdue += 1
+    if (status === '未繳交') item.pending += 1
+  })
+
+  return [base['一部'], base['二部']]
+}
+
+function renderServiceRecordDepartmentSplitStatusV3(records) {
+  const monthRows = summarizeServiceRecordDepartmentGroupRows(getServiceRecordPeriodRows(records, 'month'))
+  const yearRows = summarizeServiceRecordDepartmentGroupRows(getServiceRecordPeriodRows(records, 'year'))
+
+  return `
+    ${renderServiceRecordSimplePeriodTable('當月一部、二部繳交狀況', '部門當月資料', monthRows, '部門')}
+    ${renderServiceRecordSimplePeriodTable('當年一部、二部繳交狀況', '部門當年資料', yearRows, '部門')}
+  `
+}
+
+
 function renderServiceRecordDashboard() {
   const records = serviceRecords.filter(record => matchesServiceRecordFilters(record, false))
 
@@ -4948,8 +5089,8 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
-    ${renderServiceRecordPersonCombinedStatusV2(records)}
-    ${renderServiceRecordDepartmentStatusV2(records)}
+    ${renderServiceRecordPersonSplitStatusV3(records)}
+    ${renderServiceRecordDepartmentSplitStatusV3(records)}
     ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
   `
@@ -8109,3 +8250,9 @@ function renderServiceRecordDepartmentStatusV2(records) {
   保留 V002-1M-2-3 新樣式，改由 dashboard 呼叫 V2 函式。
 */
 /* FOR-e V002-1M-2-3-1 END - build fix duplicated service record functions */
+
+/* FOR-e V002-1P-1 START - options sr todo incident urgency */
+/*
+  V002-1P-1｜選項管理版面、服務紀錄單月年分開、當日待辦、異況緊急程度
+*/
+/* FOR-e V002-1P-1 END - options sr todo incident urgency */
