@@ -1056,7 +1056,7 @@ function renderSearchResultList(rows, emptyText) {
 function renderSearchPage() {
   const results = getSearchResults()
   const statusOptions = buildOptionList(['全部', '未完成', '已完成', '取消'], searchFilters.status)
-  const categoryOptions = buildOptionList(['全部', ...formCategories], searchFilters.category)
+  const categoryOptions = buildOptionList(['全部', ...new Set([...formCategories, '外務行程', '異況追蹤', '會議室預約'])], searchFilters.category)
 
   return `
     <div class="page-toolbar">
@@ -2990,6 +2990,31 @@ async function saveIncident(event, modal) {
 
     if (assigneeError) {
       alert('異況已建立，但負責 / 協助人員寫入失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    try {
+      await createIncidentTrackingSchedule(
+        {
+          ...schedule,
+          sub_type: incidentType,
+          customer_name: customerName || null,
+          title: payload.title,
+          need_service_record: payload.need_service_record,
+          department_id: payload.department_id,
+          department_name: payload.department_name
+        },
+        '第一次追蹤',
+        form.get('description') || '',
+        form.get('incident_date'),
+        '',
+        selectedIds,
+        '建立異況當天行程'
+      )
+    } catch (trackingError) {
+      console.error(trackingError)
+      alert('異況已建立，但建立當天行程寫入失敗：' + (trackingError?.message || trackingError))
       saving = false
       return
     }
@@ -6482,3 +6507,11 @@ function getPersonalReminderTestSummary() {
   - 追蹤行程同步到所選人員的個人行程與行程總覽
 */
 /* FOR-e V002-1L-5 END - incident tracking schedule target */
+
+/* FOR-e V002-1L-6 START - search categories and incident created day schedule */
+/*
+  V002-1L-6｜行程搜尋類別補外務 / 異況，異況建立當天自動上行程
+  - 行程搜尋類別加入：外務行程、異況追蹤、會議室預約
+  - 新增異況後，第一次追蹤會自動建立一筆當天行程，並同步到負責 / 協助人員
+*/
+/* FOR-e V002-1L-6 END - search categories and incident created day schedule */
