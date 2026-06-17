@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-66'
+const SYSTEM_VERSION = 'V002-1P-67'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -445,6 +445,20 @@ let userAccountFilters = {
   department: '全部',
   role: '全部',
   fieldStaff: '全部'
+}
+
+
+const userManageDefaultDepartments = ['總經理室', '財務稽核', '營管處', '業務處', '人才發展', '管顧事業']
+const userManageDefaultPositions = ['協理', '執行長', '總經理', '副總經理', '副理', '組長', '海外行政', 'PT']
+const userManageRemovedPositions = ['管理員', '主管', '行政/海外', '行政 / 海外', '外務/宿管人員/會計', '外務 / 宿管人員 / 會計']
+
+function normalizePositionLabel(value = '') {
+  return String(value || '').replaceAll(' ', '').trim()
+}
+
+function isRemovedUserManagePosition(position = '') {
+  const normalized = normalizePositionLabel(position)
+  return userManageRemovedPositions.some(item => normalizePositionLabel(item) === normalized)
 }
 
 
@@ -10675,14 +10689,20 @@ function getUserManageRoleOptions(selectedRole = '') {
 }
 
 function getUserManageDepartmentOptions(selectedDepartment = '') {
-  const names = [...new Set(getUserManageRows().map(staff => staff.department_name).filter(Boolean))]
+  const existingDepartments = getUserManageRows()
+    .map(staff => staff.department_name)
+    .filter(Boolean)
+
+  const names = [...new Set([...userManageDefaultDepartments, ...existingDepartments])]
   if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
+
   return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 
 function getUserManagePositionOptions(selectedPosition = '') {
   const defaultPositions = [
+    ...userManageDefaultPositions,
     '營運經理',
     '部門主管',
     '行政主管',
@@ -10701,9 +10721,15 @@ function getUserManagePositionOptions(selectedPosition = '') {
   const existingPositions = getUserManageRows()
     .map(staff => staff.position)
     .filter(Boolean)
+    .filter(position => !isRemovedUserManagePosition(position))
 
   const positions = [...new Set([...defaultPositions, ...existingPositions])]
-  if (selectedPosition && !positions.includes(selectedPosition)) positions.unshift(selectedPosition)
+    .filter(Boolean)
+    .filter(position => !isRemovedUserManagePosition(position))
+
+  if (selectedPosition && !positions.includes(selectedPosition) && !isRemovedUserManagePosition(selectedPosition)) {
+    positions.unshift(selectedPosition)
+  }
 
   return `<option value="">請選擇職務</option>` + positions.map(position => `
     <option value="${escapeHtml(position)}" ${position === selectedPosition ? 'selected' : ''}>${escapeHtml(position)}</option>
@@ -10777,12 +10803,12 @@ async function createDepartmentRow(departmentName = '') {
 
   const generatedId = makeUuidForClient()
   const payloads = [
-    { department_name: name },
-    { name },
     { department_id: generatedId, department_name: name },
     { department_id: generatedId, name },
     { id: generatedId, department_name: name },
-    { id: generatedId, name }
+    { id: generatedId, name },
+    { department_name: name },
+    { name }
   ]
 
   let lastError = null
@@ -10872,7 +10898,7 @@ function openUserAccountModal(staffId = '') {
 
         <label>
           手動輸入部門
-          <input name="department_custom" placeholder="若要新增新部門才填寫；留空則使用左側選單">
+          <input name="department_custom" placeholder="若選單沒有才填寫新部門；留空使用左側選單">
         </label>
 
         <label>
@@ -15045,3 +15071,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-66-1 END - build syntax repair */
 
+/* FOR-e V002-1P-67 START - department position options */
+/*
+  V002-1P-67｜新增部門與職務選項
+  - 人員 / 帳號新增預設部門：總經理室、財務稽核、營管處、業務處、人才發展、管顧事業
+  - 人員 / 帳號新增預設職務：協理、執行長、總經理、副總經理、副理、組長、海外行政、PT
+  - 職務下拉移除角色類選項：管理員、主管、行政/海外、外務/宿管人員/會計
+  - 手動新增部門時優先建立 department_id，降低 departments / staff not-null 錯誤
+*/
+/* FOR-e V002-1P-67 END - department position options */
