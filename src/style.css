@@ -7506,3 +7506,30 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-13 END - audit detail and filters */
+
+/* FOR-e V002-1P-15 START - users department summary */
+/* 人員 / 帳號：部門統計自動列出每個部門 */
+.users-department-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
+  align-items: stretch;
+}
+
+.users-department-summary-grid .summary-card {
+  min-height: 88px;
+}
+
+.users-summary-total {
+  border-color: #bfdbfe !important;
+  background: #eef5ff !important;
+}
+
+.users-dept-card {
+  background: #ffffff !important;
+}
+
+.users-dept-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* FOR-e V002-1P-15 END - users department summary */

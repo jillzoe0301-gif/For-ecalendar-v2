@@ -6720,34 +6720,54 @@ function matchesUserAccountFilters(staff) {
   return text.includes(keyword)
 }
 
+function getUsersDepartmentSummary(rows) {
+  const map = new Map()
+
+  rows.forEach(staff => {
+    const department = staff.department_name || '未設定部門'
+    map.set(department, (map.get(department) || 0) + 1)
+  })
+
+  return [...map.entries()]
+    .map(([department, count]) => ({ department, count }))
+    .sort((a, b) => {
+      if (a.department === '未設定部門') return 1
+      if (b.department === '未設定部門') return -1
+      return a.department.localeCompare(b.department, 'zh-Hant')
+    })
+}
+
 function renderUsersSummary(rows) {
-  const deptOne = rows.filter(staff => String(staff.department_name || '').includes('一部')).length
-  const deptTwo = rows.filter(staff => String(staff.department_name || '').includes('二部')).length
-  const translators = rows.filter(staff => String(staff.position || '').includes('翻譯') || staff.role === '翻譯').length
+  const activeCount = rows.filter(staff => (staff.status || '啟用') === '啟用').length
+  const disabledCount = rows.filter(staff => staff.status === '停用').length
   const fieldStaffCount = rows.filter(isStaffFieldWorker).length
+  const departmentStats = getUsersDepartmentSummary(rows)
 
   return `
-    <div class="summary-grid users-summary-grid">
-      <div class="summary-card">
+    <div class="summary-grid users-summary-grid users-department-summary-grid">
+      <div class="summary-card users-summary-total">
         <strong>${rows.length}</strong>
         <span>人員總數</span>
       </div>
       <div class="summary-card">
-        <strong>${deptOne}</strong>
-        <span>一部人員</span>
+        <strong>${activeCount}</strong>
+        <span>啟用人員</span>
       </div>
       <div class="summary-card">
-        <strong>${deptTwo}</strong>
-        <span>二部人員</span>
-      </div>
-      <div class="summary-card">
-        <strong>${translators}</strong>
-        <span>翻譯 / 紀錄單人員</span>
+        <strong>${disabledCount}</strong>
+        <span>停用人員</span>
       </div>
       <div class="summary-card">
         <strong>${fieldStaffCount}</strong>
         <span>外務人員</span>
       </div>
+
+      ${departmentStats.map(item => `
+        <div class="summary-card users-dept-card">
+          <strong>${item.count}</strong>
+          <span>${escapeHtml(item.department)}</span>
+        </div>
+      `).join('')}
     </div>
   `
 }
@@ -10413,3 +10433,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 未執行 SQL 時仍 fallback localStorage，不阻斷系統
 */
 /* FOR-e V002-1P-14 END - shared app settings */
+
+/* FOR-e V002-1P-15 START - users department summary */
+/*
+  V002-1P-15｜人員 / 帳號統計改為每個部門都顯示
+  - 不再只固定顯示一部、二部
+  - 依目前人員清單 / 篩選結果，自動列出每個部門的人數
+  - 保留人員總數、啟用、停用、外務人員統計
+*/
+/* FOR-e V002-1P-15 END - users department summary */
