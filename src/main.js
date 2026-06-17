@@ -896,7 +896,8 @@ function openLoginAccountModal(staffId = '') {
     return
   }
 
-  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const normalizedStaffId = normalizeStaffId(staffId)
+  const staff = getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId)
   if (!staff) {
     alert('找不到人員資料。')
     return
@@ -954,7 +955,7 @@ function openLoginAccountModal(staffId = '') {
 
   document.querySelector('#closeLoginAccountModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelLoginAccountModalBtn').addEventListener('click', () => modal.remove())
-  document.querySelector('#loginAccountForm').addEventListener('submit', event => createLoginAccountForStaff(event, modal, staff.staff_id))
+  document.querySelector('#loginAccountForm').addEventListener('submit', event => createLoginAccountForStaff(event, modal, normalizeStaffId(staff.staff_id)))
 }
 
 async function createLoginAccountForStaff(event, modal, staffId) {
@@ -963,6 +964,14 @@ async function createLoginAccountForStaff(event, modal, staffId) {
   saving = true
 
   try {
+    const normalizedStaffId = normalizeStaffId(staffId)
+    const staff = getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId)
+
+    if (!normalizedStaffId || !staff) {
+      alert('找不到人員資料，請先重新整理人員 / 帳號頁，再重新點「建立」。')
+      return
+    }
+
     const form = new FormData(event.target)
     const email = String(form.get('email') || '').trim()
     const password = String(form.get('password') || '').trim()
@@ -992,7 +1001,9 @@ async function createLoginAccountForStaff(event, modal, staffId) {
         Authorization: `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        staff_id: staffId,
+        staff_id: normalizedStaffId,
+        staff_snapshot: getStaffSnapshotForFunction(staff),
+        frontend_version: 'V002-1P-23',
         email,
         password
       })
@@ -1001,7 +1012,13 @@ async function createLoginAccountForStaff(event, modal, staffId) {
     const result = await response.json().catch(() => ({}))
 
     if (!response.ok) {
-      throw new Error(result.error || '建立登入帳號失敗')
+      const detail = [
+        result.error || '建立登入帳號失敗',
+        result.staff_id ? `staff_id：${result.staff_id}` : '',
+        result.hint ? `提示：${result.hint}` : '',
+        result.code ? `錯誤代碼：${result.code}` : ''
+      ].filter(Boolean).join('\n')
+      throw new Error(detail)
     }
 
     modal.remove()
@@ -7319,6 +7336,28 @@ function getUserManageRows() {
   return allStaffList.length ? allStaffList : staffList
 }
 
+
+function normalizeStaffId(value) {
+  const text = String(value || '').trim()
+  if (!text || text === 'undefined' || text === 'null') return ''
+  return text
+}
+
+function getStaffSnapshotForFunction(staff) {
+  if (!staff) return null
+  return {
+    staff_id: normalizeStaffId(staff.staff_id),
+    name: staff.name || '',
+    department_id: staff.department_id || null,
+    department_name: staff.department_name || '',
+    position: staff.position || staff.position_name || '',
+    role: staff.role || '一般職員',
+    status: staff.status || '啟用'
+  }
+}
+
+
+
 function getUserManageRoleOptions(selectedRole = '') {
   const roles = ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員']
   return roles.map(role => `<option value="${escapeHtml(role)}" ${role === selectedRole ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
@@ -10932,3 +10971,20 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 補回 Edge Function 檔案，避免版本小包覆蓋後遺失
 */
 /* FOR-e V002-1P-20 END - login function check */
+
+/* FOR-e V002-1P-22 START - staff not found fix */
+/*
+  V002-1P-22｜修正建立登入帳號 Staff not found
+  - 前端建立帳號時會檢查 staff_id 是否有效
+  - 傳送 staff_snapshot 給 Edge Function 作為備援
+  - 避免 staff_id 空值 / undefined 導致 Function 找不到 staff
+*/
+/* FOR-e V002-1P-22 END - staff not found fix */
+
+/* FOR-e V002-1P-23 START - robust login staff lookup */
+/*
+  V002-1P-23｜建立登入帳號 staff 查找強化
+  - 前端送出 frontend_version，方便確認是否已更新
+  - 建立失敗時顯示 staff_id / hint / code
+*/
+/* FOR-e V002-1P-23 END - robust login staff lookup */

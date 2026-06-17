@@ -7853,3 +7853,13 @@ label.record-modal-check {
   background: #dbeafe !important;
 }
 /* FOR-e V002-1P-20 END - login function check */
+
+/* FOR-e V002-1P-22 START - staff not found fix */
+.login-account-modal .notice {
+  border-color: #facc15 !important;
+}
+/* FOR-e V002-1P-22 END - staff not found fix */
+
+/* FOR-e V002-1P-23 START - robust login staff lookup */
+/* V002-1P-23：建立登入帳號錯誤提示強化 */
+/* FOR-e V002-1P-23 END - robust login staff lookup */
