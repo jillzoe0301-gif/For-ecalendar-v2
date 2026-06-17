@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-49'
+const SYSTEM_VERSION = 'V002-1P-51'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18,15 +18,15 @@ const pages = [
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '行政 / 海外'], mobile: false },
   { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
-  { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
+  { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外', '翻譯'], mobile: true },
   { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
   { key: 'stats', label: '統計報表', mobileLabel: '統計', roles: ['管理員', '主管'], mobile: false },
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
-  { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: 'ALL', mobile: true },
-  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
-  { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員'], mobile: false },
-  { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
+  { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
+  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
+  { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
+  { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
   { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
   { key: 'health', label: '系統檢查', mobileLabel: '檢查', roles: ['管理員', '主管'], mobile: false }
 ]
@@ -596,7 +596,7 @@ const rolePermissionMatrix = {
     createIncident: true,
     assignAllStaff: true,
     manageUsers: false,
-    manageOptions: false,
+    manageOptions: true,
     manageColor: true,
     exportData: true,
     viewStats: true,
@@ -631,11 +631,11 @@ const rolePermissionMatrix = {
     createPersonalSchedule: true,
     createFieldSchedule: false,
     createMeetingRoom: false,
-    createIncident: false,
+    createIncident: true,
     assignAllStaff: false,
     manageUsers: false,
     manageOptions: false,
-    manageColor: false,
+    manageColor: true,
     exportData: false,
     viewStats: false,
     viewServiceRecords: false,
@@ -13127,3 +13127,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 複製檢查報告時加入目前角色可用權限
 */
 /* FOR-e V002-1P-50 END - role permission matrix */
+
+/* FOR-e V002-1P-51 START - role access update */
+/*
+  V002-1P-51｜角色頁面權限調整
+  - 翻譯可看顏色設定與異況追蹤
+  - 主管可看選項管理
+  - 一般職員不顯示 LINE 通知與異動紀錄
+  - 角色權限矩陣同步更新
+*/
+/* FOR-e V002-1P-51 END - role access update */
