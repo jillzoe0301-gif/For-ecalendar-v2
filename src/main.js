@@ -3375,13 +3375,13 @@ function renderStatsFilterForm() {
   `
 }
 
-function renderStatsMetricCards(rows, records) {
-  const sr = getServiceRecordSimpleSummary(records)
+function renderStatsMetricCards(rows) {
   const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = rows.filter(row => row.status === '已完成')
   const overdueRows = rows.filter(isOverdueSchedule)
 
   return `
-    <div class="clean-stats-metrics">
+    <div class="clean-stats-metrics stats-schedule-only-metrics">
       <div class="clean-stat-card">
         <span>行程總數</span>
         <strong>${rows.length}</strong>
@@ -3390,17 +3390,13 @@ function renderStatsMetricCards(rows, records) {
         <span>未完成</span>
         <strong>${activeRows.length}</strong>
       </div>
+      <div class="clean-stat-card">
+        <span>已完成</span>
+        <strong>${completedRows.length}</strong>
+      </div>
       <div class="clean-stat-card ${overdueRows.length ? 'is-alert' : ''}">
         <span>逾期行程</span>
         <strong>${overdueRows.length}</strong>
-      </div>
-      <div class="clean-stat-card">
-        <span>服務紀錄單</span>
-        <strong>${sr.total}</strong>
-      </div>
-      <div class="clean-stat-card ${sr.pending || sr.overdue ? 'is-alert' : ''}">
-        <span>紀錄單未交 / 逾期</span>
-        <strong>${sr.pending + sr.overdue}</strong>
       </div>
     </div>
   `
@@ -3629,7 +3625,6 @@ function renderPersonTypeStats(rows) {
 
 function renderStatsDashboard() {
   const rows = getStatsFilteredSchedules()
-  const records = getStatsFilteredServiceRecords()
   const range = getStatsDateRange()
   const typeRows = getStatsCountBy(rows, getStatsScheduleType)
 
@@ -3637,7 +3632,7 @@ function renderStatsDashboard() {
     <div class="page-toolbar">
       <div>
         <h3>統計報表</h3>
-        <p class="muted">期間：${escapeHtml(range.label)}｜依行程類型、一部 / 二部與服務紀錄單統計。</p>
+        <p class="muted">期間：${escapeHtml(range.label)}｜依行程類型、一部 / 二部與人員統計。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetStatsFilterBtn">清除條件</button>
@@ -3647,11 +3642,10 @@ function renderStatsDashboard() {
 
     ${renderReadStatus()}
     ${renderStatsFilterForm()}
-    ${renderStatsMetricCards(rows, records)}
+    ${renderStatsMetricCards(rows)}
     ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
     ${renderDepartmentTypeStats(rows)}
     ${renderPersonTypeStats(rows)}
-    ${renderServiceRecordStatsSection(records)}
   `
 }
 /* FOR-e V002-1N-2 END - statistics dashboard clean type stats */
@@ -7603,3 +7597,11 @@ function getPersonalReminderTestSummary() {
   - 不再用標籤塞在同一欄
 */
 /* FOR-e V002-1N-6 END - person type columns */
+
+/* FOR-e V002-1N-7 START - remove service record from stats */
+/*
+  V002-1N-7｜統計報表移除服務紀錄單統計
+  - 統計報表只保留行程類型、一部/二部、人員統計
+  - 服務紀錄單統計回到服務紀錄單頁面查看
+*/
+/* FOR-e V002-1N-7 END - remove service record from stats */

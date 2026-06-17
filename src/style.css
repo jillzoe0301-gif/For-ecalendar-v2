@@ -5561,3 +5561,28 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1N-6 END - person type columns */
+
+/* FOR-e V002-1N-7 START - remove service record from stats */
+.stats-schedule-only-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.service-record-clean-section,
+.service-record-clean-grid,
+.service-record-number-list,
+.simple-service-record-table {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .stats-schedule-only-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-schedule-only-metrics {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1N-7 END - remove service record from stats */
