@@ -11531,3 +11531,186 @@ body {
   }
 }
 /* FOR-e V002-1P-75 END - schedule template editor */
+
+/* FOR-e V002-1P-76 START - option spacing template width */
+/* 選項管理：清楚舒展版 */
+.option-management-form {
+  gap: 14px !important;
+}
+
+.option-group-card {
+  border-radius: 18px !important;
+}
+
+.option-group-head {
+  padding: 14px 16px 10px !important;
+}
+
+.option-group-head h4 {
+  font-size: 16.5px !important;
+  line-height: 1.3 !important;
+}
+
+.option-group-head p {
+  font-size: 12.5px !important;
+  line-height: 1.55 !important;
+}
+
+.option-group-body {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+  gap: 12px !important;
+  padding: 14px !important;
+}
+
+.option-edit-box {
+  gap: 9px !important;
+  padding: 12px !important;
+  border-radius: 15px !important;
+}
+
+.option-edit-head h4 {
+  font-size: 14.5px !important;
+  line-height: 1.3 !important;
+}
+
+.option-edit-head p {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.option-line-list {
+  gap: 6px !important;
+  max-height: 260px;
+}
+
+.option-line-row {
+  grid-template-columns: minmax(0, 1fr) 34px 34px 34px !important;
+  gap: 6px !important;
+}
+
+.option-line-row input {
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 7px 10px !important;
+  border-radius: 11px !important;
+  font-size: 13.5px !important;
+}
+
+.option-line-move-btn,
+.option-line-remove-btn {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 11px !important;
+}
+
+.option-add-line-btn {
+  min-height: 36px !important;
+  padding: 7px 12px !important;
+  font-size: 13.5px !important;
+}
+
+.option-mini-actions {
+  margin-top: 7px;
+}
+
+.option-mini-actions span {
+  font-size: 11.5px;
+}
+
+/* 行程類型對應內容：內容欄位加寬、加長，不大幅增加高度 */
+.schedule-template-editor-box {
+  padding: 12px !important;
+}
+
+.schedule-template-help {
+  padding: 9px 11px !important;
+  margin-bottom: 2px;
+}
+
+.schedule-template-list {
+  gap: 12px !important;
+  max-height: 600px;
+}
+
+.schedule-template-row {
+  grid-template-columns: minmax(160px, .26fr) minmax(620px, 1.5fr) 38px !important;
+  gap: 12px !important;
+  padding: 12px !important;
+  border-radius: 16px !important;
+}
+
+.schedule-template-type-field input {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+.schedule-template-content-field textarea {
+  width: 100% !important;
+  min-height: 158px !important;
+  height: 158px;
+  padding: 11px 13px !important;
+  font-size: 14.5px !important;
+  line-height: 1.62 !important;
+}
+
+.schedule-template-row-actions {
+  grid-template-rows: repeat(3, 38px) !important;
+  gap: 7px !important;
+}
+
+.schedule-template-row-actions button {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+}
+
+.schedule-template-actions {
+  margin-top: 6px;
+}
+
+.schedule-template-add-btn {
+  min-height: 38px !important;
+  padding: 8px 13px !important;
+}
+
+/* 中等寬度時維持內容欄位優先，不要太早變成上下排列 */
+@media (max-width: 980px) {
+  .schedule-template-row {
+    grid-template-columns: minmax(140px, .32fr) minmax(420px, 1fr) 38px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .option-group-body {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .option-line-row {
+    grid-template-columns: minmax(0, 1fr) 36px 36px 36px !important;
+  }
+
+  .schedule-template-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .schedule-template-content-field textarea {
+    min-height: 168px !important;
+    height: 168px;
+  }
+
+  .schedule-template-row-actions {
+    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-rows: none !important;
+  }
+
+  .schedule-template-row-actions button {
+    width: 100% !important;
+  }
+}
+/* FOR-e V002-1P-76 END - option spacing template width */

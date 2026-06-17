@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-75'
+const SYSTEM_VERSION = 'V002-1P-76'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -15385,3 +15385,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 支援新增一組、刪除、上移、下移
 */
 /* FOR-e V002-1P-75 END - schedule template editor */
+
+/* FOR-e V002-1P-76 START - option spacing template width */
+/*
+  V002-1P-76｜選項管理間距與行程內容欄位調整
+  - 行程類型對應內容的「預設帶入內容」欄位加寬、加長，但高度只微調
+  - 行程類型欄位略縮，讓內容欄位有更多橫向空間
+  - 選項管理其他項目加大一點間距與輸入框高度，避免太擠
+*/
+/* FOR-e V002-1P-76 END - option spacing template width */
