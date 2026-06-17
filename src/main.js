@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-61'
+const SYSTEM_VERSION = 'V002-1P-63'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -27,7 +27,7 @@ const pages = [
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
-  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
+  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'health', label: '系統檢查', mobileLabel: '檢查', roles: ['管理員', '主管'], mobile: false }
 ]
 
@@ -2126,8 +2126,10 @@ async function loadServiceRecords() {
 
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
+  const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
   if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
-  const mobilePages = visiblePages.filter(page => page.mobile)
+  if (isMobileViewport && visiblePages.some(page => page.key === currentPage && page.mobile === false)) currentPage = 'personalSchedule'
+  const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
 
   document.querySelector('#app').innerHTML = `
     <section class="layout">
@@ -2725,6 +2727,11 @@ function renderApp() {
   const clearRoleTestBtn = document.querySelector('#clearRoleTestBtn')
   if (clearRoleTestBtn) {
     clearRoleTestBtn.addEventListener('click', () => clearRoleTestProgress())
+  }
+
+  const copyFinalAcceptanceBtn = document.querySelector('#copyFinalAcceptanceBtn')
+  if (copyFinalAcceptanceBtn) {
+    copyFinalAcceptanceBtn.addEventListener('click', () => copyFinalAcceptanceReport())
   }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -7421,6 +7428,7 @@ function getSystemHealthReportText() {
     `角色：${currentProfile?.role || '-'}`,
     `上線測試進度：${getLaunchTestStats().done}/${getLaunchTestStats().total}（${getLaunchTestStats().percent}%）`,
     `上線狀態：${getLaunchReadinessState().title}`,
+    `驗收狀態：${getFinalAcceptanceState().title}`,
     '',
     ...rows.map(row => {
       const meta = getHealthStatusMeta(row.status)
@@ -7617,6 +7625,7 @@ function getLaunchTestGroups() {
         ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
         ['data-integrity-audit', '資料完整性檢查沒有紅色錯誤'],
         ['role-test-panel', '六種角色已完成實際登入測試並標記完成'],
+        ['final-acceptance-report', '正式上線驗收報告已複製留存'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
@@ -7650,6 +7659,7 @@ function getLaunchTestGroups() {
       items: [
         ['mobile-login', '手機登入畫面可輸入帳號密碼並正常登入'],
         ['mobile-personal', '個人行程表卡片不跑版、不被底部選單遮住'],
+        ['mobile-account-hidden', '手機底部選單不顯示人員 / 帳號頁'],
         ['mobile-overview', '行程總覽週曆可左右滑動，日期欄寬度正常'],
         ['mobile-field', '外務行程表可開啟，篩選列與卡片顯示正常'],
         ['mobile-modal', '新增 / 修改行程彈窗可上下滑動，底部按鈕可點']
@@ -8734,6 +8744,184 @@ function renderRoleTestPanel() {
 }
 
 
+
+function getCompletedModuleGroups() {
+  return [
+    {
+      title: '核心行程',
+      items: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '行程搜尋']
+    },
+    {
+      title: '外務與會議',
+      items: ['外務行程', '外務明細', '公務車選項', '會議室預約', '重複 / 連續行程']
+    },
+    {
+      title: '異況與紀錄',
+      items: ['異況追蹤', '服務紀錄單', '紀錄單繳交', '資料完整性檢查']
+    },
+    {
+      title: '管理與上線',
+      items: ['人員 / 帳號', '重新綁定帳號', '選項管理', '顏色設定', '異動紀錄', 'LINE 通知', '系統檢查', '資料備份匯出']
+    }
+  ]
+}
+
+function getFinalAcceptanceState() {
+  const readiness = getLaunchReadinessState()
+  const launchStats = getLaunchTestStats()
+  const roleStats = getRoleTestStats()
+  const accountAudit = getAccountBindingAudit()
+  const dataAudit = getDataIntegrityAudit()
+  const blockers = [...readiness.blockers]
+  const reminders = []
+
+  if (launchStats.remaining > 0) reminders.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
+  if (roleStats.remaining > 0) reminders.push(`角色實測尚有 ${roleStats.remaining} 個角色未完成`)
+  if (accountAudit.issues.length) reminders.push(`帳號綁定檢查仍有 ${accountAudit.issues.length} 項需確認`)
+  if (dataAudit.issues.length) reminders.push(`資料完整性檢查仍有 ${dataAudit.issues.length} 項需確認`)
+
+  let status = 'ok'
+  let title = '可送主管驗收'
+  let conclusion = '系統主要功能已具備正式上線條件，完成實際測試與備份後即可交付。'
+
+  if (blockers.length) {
+    status = 'bad'
+    title = '尚不可送驗收'
+    conclusion = '仍有紅色阻擋項目，請先修正後再提交正式驗收。'
+  } else if (reminders.length) {
+    status = 'warn'
+    title = '可進行驗收前確認'
+    conclusion = '目前沒有紅色阻擋項目，但仍有測試、備份或資料確認項目需完成。'
+  }
+
+  return {
+    status,
+    title,
+    conclusion,
+    blockers,
+    reminders,
+    readiness,
+    launchStats,
+    roleStats,
+    accountAudit,
+    dataAudit
+  }
+}
+
+function getAcceptanceReportText() {
+  const state = getFinalAcceptanceState()
+  const moduleGroups = getCompletedModuleGroups()
+
+  return [
+    'FOR-e 共享排程系統｜正式上線驗收報告',
+    `版本：${SYSTEM_VERSION}`,
+    `正式網址：${window.location.origin}`,
+    `產出時間：${new Date().toLocaleString('zh-TW')}`,
+    `產出人員：${currentProfile?.name || currentProfile?.email || '-'}`,
+    '',
+    `驗收狀態：${getHealthStatusMeta(state.status).label}｜${state.title}`,
+    `驗收結論：${state.conclusion}`,
+    '',
+    '一、上線前檢查結果',
+    `- 測試清單完成：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
+    `- 角色實測完成：${state.roleStats.done}/${state.roleStats.total}（${state.roleStats.percent}%）`,
+    `- 帳號綁定問題：${state.accountAudit.issues.length} 項`,
+    `- 資料完整性問題：${state.dataAudit.issues.length} 項`,
+    `- 阻擋項目：${state.blockers.length} 項`,
+    '',
+    '二、已完成功能模組',
+    ...moduleGroups.flatMap(group => [
+      `【${group.title}】`,
+      ...group.items.map(item => `- ${item}`)
+    ]),
+    '',
+    '三、需處理 / 注意項目',
+    ...(state.blockers.length ? state.blockers.map(item => `【阻擋】${item}`) : ['【阻擋】無']),
+    ...(state.reminders.length ? state.reminders.map(item => `【提醒】${item}`) : ['【提醒】無']),
+    '',
+    '四、建議上線前必做',
+    '- 下載正式上線前資料備份',
+    '- 完成六種角色實際登入測試',
+    '- 確認刪除人員不出現在人員名單，停用人員仍保留',
+    '- 確認重新綁定帳號功能正常',
+    '- 確認手機版新增 / 修改彈窗不遮擋',
+    '',
+    ...getAccountBindingReportLines(),
+    '',
+    ...getDataIntegrityReportLines(),
+    '',
+    ...getRoleTestReportLines()
+  ].join('\n')
+}
+
+async function copyFinalAcceptanceReport() {
+  const text = getAcceptanceReportText()
+
+  try {
+    await navigator.clipboard.writeText(text)
+    alert('正式上線驗收報告已複製。')
+  } catch (err) {
+    console.warn(err)
+    alert(text)
+  }
+}
+
+function renderFinalAcceptancePanel() {
+  const state = getFinalAcceptanceState()
+  const meta = getHealthStatusMeta(state.status)
+  const moduleGroups = getCompletedModuleGroups()
+
+  return `
+    <section class="final-acceptance-section ${meta.className}">
+      <div class="final-acceptance-head">
+        <div>
+          <h4>正式上線驗收報告</h4>
+          <strong>${escapeHtml(state.title)}</strong>
+          <p>${escapeHtml(state.conclusion)}</p>
+        </div>
+        <span>${meta.label}</span>
+      </div>
+
+      <div class="final-acceptance-metrics">
+        <div>
+          <strong>${state.launchStats.percent}%</strong>
+          <span>測試清單</span>
+        </div>
+        <div>
+          <strong>${state.roleStats.percent}%</strong>
+          <span>角色實測</span>
+        </div>
+        <div>
+          <strong>${state.accountAudit.issues.length}</strong>
+          <span>帳號注意</span>
+        </div>
+        <div>
+          <strong>${state.dataAudit.issues.length}</strong>
+          <span>資料注意</span>
+        </div>
+        <div>
+          <strong>${state.blockers.length}</strong>
+          <span>阻擋項目</span>
+        </div>
+      </div>
+
+      <div class="final-module-grid">
+        ${moduleGroups.map(group => `
+          <div class="final-module-card">
+            <strong>${escapeHtml(group.title)}</strong>
+            ${group.items.map(item => `<span>${escapeHtml(item)}</span>`).join('')}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="final-acceptance-actions">
+        <button type="button" class="primary-btn" id="copyFinalAcceptanceBtn">複製正式驗收報告</button>
+      </div>
+    </section>
+  `
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -8756,6 +8944,7 @@ function renderSystemHealthPage() {
     </div>
 
     ${renderLaunchReadinessSummary()}
+    ${renderFinalAcceptancePanel()}
     ${renderLaunchBackupExportsPanel()}
 
     ${renderSystemHealthSummary(rows)}
@@ -14672,3 +14861,25 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 上線測試清單新增角色實測項目
 */
 /* FOR-e V002-1P-61 END - role test panel */
+
+/* FOR-e V002-1P-62 START - final acceptance report */
+/*
+  V002-1P-62｜正式上線驗收報告
+  - 系統檢查頁新增正式上線驗收報告區塊
+  - 自動彙整測試清單、角色實測、帳號綁定、資料完整性、阻擋項目
+  - 新增已完成功能模組摘要
+  - 可一鍵複製正式上線驗收報告
+  - 上線測試清單新增正式驗收報告留存項目
+*/
+/* FOR-e V002-1P-62 END - final acceptance report */
+
+/* FOR-e V002-1P-63 START - mobile font hide account */
+/*
+  V002-1P-63｜手機字體放大與手機隱藏帳號頁
+  - 手機版整體字體放大
+  - 手機版表單、提醒文字、卡片、按鈕、底部選單字級加大
+  - 手機底部選單不再顯示「人員 / 帳號」
+  - 若手機停在 desktop-only 頁面，自動回到個人行程表
+  - 系統版本更新為 V002-1P-63
+*/
+/* FOR-e V002-1P-63 END - mobile font hide account */
