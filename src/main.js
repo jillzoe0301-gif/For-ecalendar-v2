@@ -1,13 +1,9 @@
-unzip -o for-e-v002-1k-1-2-meeting-field-mode-options-colors.zip
-
-npm run build
-
-git status
-git add -A
-git status
-git commit -m "V002-1K-1-2 meeting field schedule modes and meeting colors"
-git push origin mainimport { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import './style.css'
+
+/* FOR-e V002-1K-1-3 START - build repair */
+/* Repair: restore valid src/main.js top-level syntax after failed Vercel build. */
+/* FOR-e V002-1K-1-3 END - build repair */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
