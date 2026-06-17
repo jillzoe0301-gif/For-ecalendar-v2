@@ -1005,6 +1005,126 @@ async function login() {
   await loadProfile()
 }
 
+
+function normalizeProfileStaffId(profile) {
+  return profile?.staff_id || profile?.staffId || profile?.staff_uuid || ''
+}
+
+async function findStaffForProfile(profile) {
+  const staffId = normalizeProfileStaffId(profile)
+
+  if (staffId) {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('staff_id, name, department_id, department_name, position, role, status, deleted_at, display_order')
+      .eq('staff_id', staffId)
+      .maybeSingle()
+
+    if (!error && data) return data
+  }
+
+  if (profile?.name) {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('staff_id, name, department_id, department_name, position, role, status, deleted_at, display_order')
+      .eq('name', profile.name)
+      .is('deleted_at', null)
+      .order('display_order', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (!error && data) return data
+  }
+
+  return null
+}
+
+function mergeProfileWithStaffRole(profile, staff) {
+  if (!profile || !staff) return profile
+
+  return {
+    ...profile,
+    staff_id: staff.staff_id || profile.staff_id,
+    name: staff.name || profile.name,
+    department_id: staff.department_id || profile.department_id,
+    department_name: staff.department_name || profile.department_name,
+    position: staff.position || profile.position,
+    position_name: staff.position || profile.position_name || profile.position,
+    role: staff.role || profile.role,
+    status: staff.status || profile.status
+  }
+}
+
+function getProfileUpdatePayloadForStaff(profile, staffPayload) {
+  const profileKeys = new Set(Object.keys(profile || currentProfile || {}))
+  const pairs = {
+    name: staffPayload.name,
+    department_id: staffPayload.department_id,
+    department_name: staffPayload.department_name,
+    position: staffPayload.position,
+    position_name: staffPayload.position,
+    role: staffPayload.role,
+    status: staffPayload.status,
+    staff_id: staffPayload.staff_id
+  }
+
+  return Object.fromEntries(
+    Object.entries(pairs)
+      .filter(([key, value]) => profileKeys.has(key) && value !== undefined)
+  )
+}
+
+async function syncProfileRoleFromStaff(staffId, staffPayload) {
+  if (!staffId || !staffPayload) return
+
+  try {
+    const profile = userProfileList.find(item => normalizeProfileStaffId(item) === staffId)
+      || userProfileList.find(item => item.name && item.name === staffPayload.name)
+      || null
+
+    const payload = getProfileUpdatePayloadForStaff(profile, { ...staffPayload, staff_id: staffId })
+    if (!Object.keys(payload).length) return
+
+    if (profile?.email) {
+      const { error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('email', profile.email)
+
+      if (!error) return
+    }
+
+    if (profile && normalizeProfileStaffId(profile)) {
+      const { error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('staff_id', staffId)
+
+      if (!error) return
+    }
+  } catch (err) {
+    console.warn('profiles 角色同步失敗，登入時仍會依 staff 修正角色。', err)
+  }
+}
+
+function applyCurrentProfileStaffRole(staffPayload) {
+  if (!currentProfile || !staffPayload) return
+  if (currentProfile.staff_id && currentProfile.staff_id !== staffPayload.staff_id) return
+
+  currentProfile = {
+    ...currentProfile,
+    staff_id: staffPayload.staff_id || currentProfile.staff_id,
+    name: staffPayload.name || currentProfile.name,
+    department_id: staffPayload.department_id || currentProfile.department_id,
+    department_name: staffPayload.department_name || currentProfile.department_name,
+    position: staffPayload.position || currentProfile.position,
+    position_name: staffPayload.position || currentProfile.position_name || currentProfile.position,
+    role: staffPayload.role || currentProfile.role,
+    status: staffPayload.status || currentProfile.status
+  }
+}
+
+
 async function loadProfile() {
   const { data: userData } = await supabase.auth.getUser()
 
@@ -1022,14 +1142,17 @@ async function loadProfile() {
     return
   }
 
-  if (profile.status !== '啟用') {
+  const staffForProfile = await findStaffForProfile(profile)
+  const mergedProfile = mergeProfileWithStaffRole(profile, staffForProfile)
+
+  if (mergedProfile.status !== '啟用') {
     await supabase.auth.signOut()
     renderLogin()
     alert('此帳號已停用，請聯繫管理員。')
     return
   }
 
-  currentProfile = profile
+  currentProfile = mergedProfile
   currentPage = 'personalSchedule'
   await refreshData()
   renderApp()
@@ -1204,7 +1327,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
       return
     }
 
-    if (password.length < 8) {
+    if (password.length < 4) {
       alert('臨時密碼 4 碼即可，請至少輸入 4 碼。')
       return
     }
@@ -1226,7 +1349,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
       body: JSON.stringify({
         staff_id: normalizedStaffId,
         staff_snapshot: getStaffSnapshotForFunction(staff),
-        frontend_version: 'V002-1P-24',
+        frontend_version: 'V002-1P-32',
         email,
         password
       })
@@ -3030,8 +3153,9 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
     })
 }
 
-function openMeetingRoomModal(defaults = {}) {
+function openMeetingRoomModal(defaults = {
   if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
+}) {
   const defaultDate = defaults.date || todayString()
   const roomOptions = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
   const defaultRoom = defaults.room || roomOptions[0] || ''
@@ -7815,7 +7939,10 @@ async function saveUserAccount(event, modal, staffId = '') {
     }
 
     if (savedStaffId) {
+      const savedStaffPayload = { ...payload, staff_id: savedStaffId }
       await setStaffFieldWorker(savedStaffId, form.get('is_field_staff') === 'on')
+      await syncProfileRoleFromStaff(savedStaffId, savedStaffPayload)
+      applyCurrentProfileStaffRole(savedStaffPayload)
     }
 
     modal.remove()
@@ -8820,8 +8947,9 @@ function staffOptionsSelectHtml(selectedStaffId = '') {
 }
 
 
-function openFieldScheduleModal(defaults = {}) {
+function openFieldScheduleModal(defaults = {
   if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
+}) {
   const defaultDate = defaults.date || todayString()
   const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
 
@@ -11393,11 +11521,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-31 END - role based permissions */
 
-/* FOR-e V002-1P-31-1 START - build fix */
+/* FOR-e V002-1P-32 START - password 4 and role sync */
 /*
-  V002-1P-31-1｜修正 P31 build failed
-  - 修正 openMeetingRoomModal(defaults = { if (...) }) 語法錯誤
-  - 修正 openFieldScheduleModal(defaults = { if (...) }) 語法錯誤
-  - 保留 P31 角色權限控管
+  V002-1P-32｜修正 4 碼臨時密碼與角色同步
+  - 建立登入帳號臨時密碼驗證由 8 碼改為 4 碼
+  - 登入後會以 staff 表角色覆蓋 profile 角色，避免人員已改管理員但登入仍是一般職員
+  - 修改人員角色後會嘗試同步 profiles，並立即套用目前登入者權限
 */
-/* FOR-e V002-1P-31-1 END - build fix */
+/* FOR-e V002-1P-32 END - password 4 and role sync */
