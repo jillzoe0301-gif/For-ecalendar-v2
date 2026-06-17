@@ -3955,3 +3955,50 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1K-1 END - meeting room weekly calendar */
+
+/* FOR-e V002-1K-1-1 START - meeting room calendar colors */
+/*
+  V002-1K-1-1｜會議室週曆顏色調整
+  - 表頭：#EAD8C0
+  - 週六 / 週日 / 台灣節日背景：#FFF2E1
+  - 當天外框：#8C5A3C
+*/
+
+/* 會議室週曆表頭 */
+.meeting-week-table thead th {
+  background: #EAD8C0 !important;
+}
+
+/* 會議室週曆：週六 / 週日 / 台灣節日背景 */
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday {
+  background: #FFF2E1 !important;
+}
+
+/* 會議室週曆：今天外框 */
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  position: relative;
+  box-shadow: inset 0 0 0 2px #8C5A3C !important;
+}
+
+/* 今天不是假日：只顯示外框，不反底色 */
+.meeting-week-table thead th.is-today:not(.is-holiday),
+.meeting-week-day-cell.is-today:not(.is-holiday) {
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 2px #8C5A3C !important;
+}
+
+/* 今天剛好是週六 / 週日 / 台灣節日：淡橘底 + 咖啡外框 */
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday {
+  background: #FFF2E1 !important;
+  box-shadow: inset 0 0 0 2px #8C5A3C !important;
+}
+
+/* 今天日期標籤 */
+.meeting-week-table thead th.is-today strong {
+  background: #8C5A3C !important;
+  color: #ffffff !important;
+}
+/* FOR-e V002-1K-1-1 END - meeting room calendar colors */
