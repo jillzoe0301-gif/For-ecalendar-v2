@@ -7924,3 +7924,26 @@ label.record-modal-check {
   font-weight: 850;
 }
 /* FOR-e V002-1P-30 END - password 4 chars hint */
+
+/* FOR-e V002-1P-31 START - role based permissions */
+/* V002-1P-31：權限狀態提示 */
+.permission-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #3155d4;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+button:disabled,
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.small-secondary-btn:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+}
+/* FOR-e V002-1P-31 END - role based permissions */

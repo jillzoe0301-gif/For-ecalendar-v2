@@ -528,13 +528,259 @@ function renderAppSettingSyncNotice() {
 
 
 
+function getRoleName() {
+  return currentProfile?.role || '未登入'
+}
+
+const rolePermissionMatrix = {
+  '管理員': {
+    label: '管理員',
+    manageAllSchedules: true,
+    createServiceSchedule: true,
+    createPersonalSchedule: true,
+    createFieldSchedule: true,
+    createMeetingRoom: true,
+    createIncident: true,
+    assignAllStaff: true,
+    manageUsers: true,
+    manageOptions: true,
+    manageColor: true,
+    exportData: true,
+    viewStats: true,
+    viewServiceRecords: true,
+    submitServiceRecord: true,
+    viewAudit: true,
+    lineNotifyAll: true
+  },
+  '主管': {
+    label: '主管',
+    manageAllSchedules: true,
+    createServiceSchedule: true,
+    createPersonalSchedule: true,
+    createFieldSchedule: true,
+    createMeetingRoom: true,
+    createIncident: true,
+    assignAllStaff: true,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: true,
+    exportData: true,
+    viewStats: true,
+    viewServiceRecords: true,
+    submitServiceRecord: false,
+    viewAudit: true,
+    lineNotifyAll: true
+  },
+  '行政 / 海外': {
+    label: '行政 / 海外',
+    manageAllSchedules: true,
+    createServiceSchedule: true,
+    createPersonalSchedule: true,
+    createFieldSchedule: true,
+    createMeetingRoom: true,
+    createIncident: true,
+    assignAllStaff: true,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: true,
+    exportData: true,
+    viewStats: false,
+    viewServiceRecords: false,
+    submitServiceRecord: false,
+    viewAudit: true,
+    lineNotifyAll: false
+  },
+  '翻譯': {
+    label: '翻譯',
+    manageAllSchedules: false,
+    createServiceSchedule: false,
+    createPersonalSchedule: true,
+    createFieldSchedule: false,
+    createMeetingRoom: false,
+    createIncident: false,
+    assignAllStaff: false,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: false,
+    exportData: false,
+    viewStats: false,
+    viewServiceRecords: false,
+    submitServiceRecord: true,
+    viewAudit: false,
+    lineNotifyAll: false
+  },
+  '外務 / 宿管人員 / 會計': {
+    label: '外務 / 宿管人員 / 會計',
+    manageAllSchedules: false,
+    createServiceSchedule: false,
+    createPersonalSchedule: true,
+    createFieldSchedule: false,
+    createMeetingRoom: true,
+    createIncident: false,
+    assignAllStaff: false,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: false,
+    exportData: false,
+    viewStats: false,
+    viewServiceRecords: false,
+    submitServiceRecord: false,
+    viewAudit: true,
+    lineNotifyAll: false
+  },
+  '一般職員': {
+    label: '一般職員',
+    manageAllSchedules: false,
+    createServiceSchedule: false,
+    createPersonalSchedule: true,
+    createFieldSchedule: false,
+    createMeetingRoom: true,
+    createIncident: false,
+    assignAllStaff: false,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: false,
+    exportData: false,
+    viewStats: false,
+    viewServiceRecords: false,
+    submitServiceRecord: false,
+    viewAudit: true,
+    lineNotifyAll: false
+  }
+}
+
+function getRolePermissions(role = getRoleName()) {
+  return rolePermissionMatrix[role] || rolePermissionMatrix['一般職員']
+}
+
+function hasRolePermission(permissionName) {
+  return Boolean(getRolePermissions()[permissionName])
+}
+
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
 }
 
 function isPowerRole() {
-  return ['管理員', '主管', '行政 / 海外'].includes(currentProfile?.role)
+  return hasRolePermission('manageAllSchedules')
 }
+
+function isAdminRole() {
+  return getRoleName() === '管理員'
+}
+
+function canManageAllSchedules() {
+  return hasRolePermission('manageAllSchedules')
+}
+
+function canCreatePersonalSchedule() {
+  return hasRolePermission('createPersonalSchedule')
+}
+
+function canCreateServiceSchedule() {
+  return hasRolePermission('createServiceSchedule')
+}
+
+function canCreateFieldSchedule() {
+  return hasRolePermission('createFieldSchedule')
+}
+
+function canCreateMeetingRoomSchedule() {
+  return hasRolePermission('createMeetingRoom')
+}
+
+function canCreateIncidentSchedule() {
+  return hasRolePermission('createIncident')
+}
+
+function canAssignAllStaff() {
+  return hasRolePermission('assignAllStaff')
+}
+
+function canManageUsers() {
+  return hasRolePermission('manageUsers')
+}
+
+function canManageOptions() {
+  return hasRolePermission('manageOptions')
+}
+
+function canManageColorSettings() {
+  return hasRolePermission('manageColor')
+}
+
+function canExportData() {
+  return hasRolePermission('exportData')
+}
+
+function canLineNotifyAll() {
+  return hasRolePermission('lineNotifyAll')
+}
+
+function getAssignableStaffRows() {
+  if (canAssignAllStaff()) return staffList
+  const myStaffId = currentProfile?.staff_id
+  return staffList.filter(staff => staff.staff_id === myStaffId)
+}
+
+function canCreateForCurrentPage() {
+  if (currentPage === 'personalSchedule' || currentPage === 'personalTodo') return canCreatePersonalSchedule()
+  if (currentPage === 'scheduleOverview') return canCreateServiceSchedule()
+  if (currentPage === 'fieldSchedule') return canCreateFieldSchedule()
+  if (currentPage === 'meetingRoom') return canCreateMeetingRoomSchedule()
+  return false
+}
+
+function canCreateScheduleCategory(category) {
+  if (category === '服務行程') return canCreateServiceSchedule()
+  return canCreatePersonalSchedule()
+}
+
+function canManageFieldResult(row) {
+  if (!row || row.status === '取消') return false
+  return canCreateFieldSchedule() || isAssignedToMe(row)
+}
+
+function canManageIncidentAction(row = null) {
+  if (canCreateIncidentSchedule()) return true
+  if (!row) return false
+  return row.creator_staff_id === currentProfile?.staff_id
+}
+
+function denyPermission(message = '你的角色沒有此操作權限。') {
+  alert(message)
+  return false
+}
+
+function getRolePermissionNotice() {
+  const role = getRoleName()
+  if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
+  return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
+}
+
+function canModifySchedule(row) {
+  if (!currentProfile || !row) return false
+  if (canManageAllSchedules()) return true
+  return row.creator_staff_id === currentProfile.staff_id
+}
+
+function canCompleteSchedule(row) {
+  if (!currentProfile || !row) return false
+  if (isNoCompletionControlSchedule(row)) return false
+  if (row.status === '已完成' || row.status === '取消') return false
+  if (canManageAllSchedules()) return true
+  return row.creator_staff_id === currentProfile.staff_id || isAssignedToMe(row)
+}
+
+function canCancelSchedule(row) {
+  if (!currentProfile || !row) return false
+  if (row.status === '取消') return false
+  if (canManageAllSchedules()) return true
+  return row.creator_staff_id === currentProfile.staff_id
+}
+
+
+
 
 function todayString() {
   return new Date().toISOString().slice(0, 10)
@@ -590,26 +836,14 @@ function isAssignedToMe(row) {
   return (row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)
 }
 
-function canCompleteSchedule(row) {
-  if (!currentProfile) return false
-  if (isNoCompletionControlSchedule(row)) return false
-  if (row.status === '已完成' || row.status === '取消') return false
-  if (isPowerRole()) return true
-  return row.creator_staff_id === currentProfile.staff_id || isAssignedToMe(row)
-}
 
-function canCancelSchedule(row) {
-  if (!currentProfile) return false
-  if (row.status === '取消') return false
-  if (isPowerRole()) return true
-  return row.creator_staff_id === currentProfile.staff_id
-}
 
-function canModifySchedule(row) {
-  if (!currentProfile) return false
-  if (isPowerRole()) return true
-  return row.creator_staff_id === currentProfile.staff_id
-}
+
+
+
+
+
+
 
 function formatDate(value) {
   return value || '-'
@@ -880,7 +1114,7 @@ function generateTemporaryPassword() {
 }
 
 function openLoginAccountModal(staffId = '') {
-  if (currentProfile?.role !== '管理員') {
+  if (!canManageUsers()) {
     alert('只有管理員可以建立登入帳號。')
     return
   }
@@ -1024,7 +1258,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
 
 
 async function checkLoginFunctionStatus() {
-  if (currentProfile?.role !== '管理員') {
+  if (!canManageUsers()) {
     alert('只有管理員可以檢查帳號建立功能。')
     return
   }
@@ -1150,6 +1384,7 @@ async function loadServiceRecords() {
 
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
+  if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
   const mobilePages = visiblePages.filter(page => page.mobile)
 
   document.querySelector('#app').innerHTML = `
@@ -1358,7 +1593,7 @@ function renderApp() {
   }
 
   document.querySelectorAll('.week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => openScheduleModal())
+    cell.addEventListener('dblclick', () => { if (canCreateServiceSchedule()) openScheduleModal(); else denyPermission('你的角色不能在行程總覽新增服務行程，請到個人行程表新增自己的事項。') })
   })
 
 
@@ -1388,6 +1623,7 @@ function renderApp() {
 
   document.querySelectorAll('.field-week-day-cell').forEach(cell => {
     cell.addEventListener('dblclick', () => {
+      if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
       openFieldScheduleModal({
         date: cell.dataset.fieldDate || '',
         staffId: cell.dataset.staffId || ''
@@ -1421,16 +1657,22 @@ function renderApp() {
   }
 
   document.querySelectorAll('.meeting-week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => openMeetingRoomModal({
-      date: cell.dataset.meetingDate || '',
-      room: cell.dataset.meetingRoom || ''
-    }))
+    cell.addEventListener('dblclick', () => {
+      if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
+      openMeetingRoomModal({
+        date: cell.dataset.meetingDate || '',
+        room: cell.dataset.meetingRoom || ''
+      })
+    })
   })
 
 
   const addIncidentBtn = document.querySelector('#addIncidentBtn')
   if (addIncidentBtn) {
-    addIncidentBtn.addEventListener('click', () => openIncidentModal())
+    addIncidentBtn.addEventListener('click', () => {
+      if (!canCreateIncidentSchedule()) return denyPermission('你的角色沒有新增異況權限。')
+      openIncidentModal()
+    })
   }
 
   const incidentFilterForm = document.querySelector('#incidentFilterForm')
@@ -1670,6 +1912,7 @@ function renderApp() {
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
     addBtn.addEventListener('click', () => {
+      if (!canCreateForCurrentPage()) return denyPermission()
       if (currentPage === 'fieldSchedule') openFieldScheduleModal()
       else if (currentPage === 'meetingRoom') openMeetingRoomModal()
       else openScheduleModal()
@@ -2433,7 +2676,7 @@ function renderFieldScheduleCalendar() {
         <button class="secondary-btn" id="fieldPrevWeekBtn">上一週</button>
         <button class="secondary-btn" id="fieldThisWeekBtn">本週</button>
         <button class="secondary-btn" id="fieldNextWeekBtn">下一週</button>
-        <button class="primary-btn" id="addScheduleBtn">新增外務</button>
+        ${canCreateFieldSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增外務</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -2714,7 +2957,7 @@ function renderMeetingRoomCalendar() {
         <button class="secondary-btn" id="meetingPrevWeekBtn">上一週</button>
         <button class="secondary-btn" id="meetingThisWeekBtn">本週</button>
         <button class="secondary-btn" id="meetingNextWeekBtn">下一週</button>
-        <button class="primary-btn" id="addScheduleBtn">新增預約</button>
+        ${canCreateMeetingRoomSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增預約</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -2787,7 +3030,9 @@ function hasMeetingRoomConflict(room, date, startTime, endTime) {
     })
 }
 
-function openMeetingRoomModal(defaults = {}) {
+function openMeetingRoomModal(defaults = {
+  if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
+}) {
   const defaultDate = defaults.date || todayString()
   const roomOptions = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
   const defaultRoom = defaults.room || roomOptions[0] || ''
@@ -2883,6 +3128,8 @@ async function saveMeetingRoomSchedule(event, modal) {
   event.preventDefault()
   if (saving) return
   saving = true
+
+  if (!canCreateMeetingRoomSchedule()) { alert('你的角色沒有新增會議室預約權限。'); saving = false; return }
 
   try {
     const form = new FormData(event.target)
@@ -3317,7 +3564,7 @@ function renderIncidentTrackingPage() {
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetIncidentFilterBtn">清除條件</button>
-        <button class="primary-btn" id="addIncidentBtn">新增異況</button>
+        ${canCreateIncidentSchedule() ? '<button class="primary-btn" id="addIncidentBtn">新增異況</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -3862,6 +4109,8 @@ async function saveEditedIncident(event, modal, originalRow) {
 
 
 function openIncidentModal() {
+  if (!canCreateIncidentSchedule()) return denyPermission('你的角色沒有新增異況權限。')
+
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
   modal.innerHTML = `
@@ -3939,6 +4188,8 @@ async function saveIncident(event, modal) {
   event.preventDefault()
   if (saving) return
   saving = true
+
+  if (!canCreateIncidentSchedule()) { alert('你的角色沒有新增異況權限。'); saving = false; return }
 
   try {
     const form = new FormData(event.target)
@@ -4854,7 +5105,7 @@ function initOptionLineEditors(root = document) {
 }
 
 function renderOptionsPage() {
-  const canEdit = currentProfile?.role === '管理員'
+  const canEdit = canManageOptions()
 
   return `
     <div class="page-toolbar">
@@ -5042,7 +5293,7 @@ function getLineNotifyTargetOptions() {
     { value: '自己', label: `自己｜${currentProfile?.name || currentProfile?.email || ''}` }
   ]
 
-  if (isPowerRole()) {
+  if (canLineNotifyAll()) {
     options.push({ value: '全部', label: '全部人員' })
 
     staffList
@@ -5091,7 +5342,7 @@ function getLineNotifyBaseRows() {
   let rows = schedules.filter(isVisibleSchedule).filter(row => row.status !== '取消')
   const target = lineNotifyState.target || '自己'
 
-  if (!isPowerRole()) {
+  if (!canLineNotifyAll()) {
     return rows.filter(isMine)
   }
 
@@ -5258,7 +5509,7 @@ function renderLineNotificationPage() {
 
 
 function renderColorSettingsPage() {
-  const canEdit = ['管理員', '主管', '行政 / 海外'].includes(currentProfile?.role)
+  const canEdit = canManageColorSettings()
   const settings = getScheduleColorSettings()
 
   return `
@@ -6009,7 +6260,7 @@ function renderAssignedTrackingPage() {
         <p class="muted">只追蹤我建立，並指派給他人的任務。</p>
       </div>
       <div class="toolbar-actions">
-        <button class="primary-btn" id="addScheduleBtn">新增行程</button>
+        ${canCreateServiceSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增行程</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -6079,14 +6330,15 @@ function renderAssignedTrackingList(rows) {
 /* FOR-e V002-1H-5 END - assigned task tracking */
 
 function renderToolbar(title) {
+  const canAdd = canCreateForCurrentPage()
   return `
     <div class="page-toolbar">
       <div>
         <h3>${title}</h3>
-        <p class="muted">V002-1E-4：卡片、證件欄位、提醒標籤與 LOGO。</p>
+        <p class="muted">${getRolePermissionNotice()}</p>
       </div>
       <div class="toolbar-actions">
-        <button class="primary-btn" id="addScheduleBtn">${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</button>
+        ${canAdd ? `<button class="primary-btn" id="addScheduleBtn">${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</button>` : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -7208,7 +7460,7 @@ function renderUsersList(rows) {
     return `<div class="empty-state">目前沒有符合條件的人員。</div>`
   }
 
-  const canEditUserAccount = currentProfile?.role === '管理員'
+  const canEditUserAccount = canManageUsers()
 
   return `
     <div class="users-table-wrap">
@@ -7259,7 +7511,7 @@ function renderUsersList(rows) {
 function renderUsersPage() {
   const sourceRows = allStaffList.length ? allStaffList : staffList
   const rows = sourceRows.filter(matchesUserAccountFilters)
-  const canEditUserAccount = currentProfile?.role === '管理員'
+  const canEditUserAccount = canManageUsers()
 
   return `
     <div class="page-toolbar">
@@ -7275,7 +7527,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      權限規則：管理員可新增 / 修改人員資料、建立登入帳號、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。建立帳號前可先點「檢查帳號功能」確認 Edge Function 是否部署完成。
+      權限規則已依角色執行：管理員可管理帳號與選項；主管 / 行政可管理行程；翻譯與一般角色只能操作自己建立或被指派的事項。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -7403,7 +7655,7 @@ function getNextStaffDisplayOrder() {
 }
 
 function openUserAccountModal(staffId = '') {
-  if (currentProfile?.role !== '管理員') {
+  if (!canManageUsers()) {
     alert('只有管理員可以新增或修改人員資料。')
     return
   }
@@ -7500,6 +7752,8 @@ async function saveUserAccount(event, modal, staffId = '') {
   event.preventDefault()
   if (saving) return
   saving = true
+
+  if (!canManageUsers()) { alert('只有管理員可以新增或修改人員資料。'); saving = false; return }
 
   try {
     const form = new FormData(event.target)
@@ -7622,10 +7876,10 @@ function openScheduleDetail(scheduleId) {
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
-        ${isIncidentSchedule(row) && row.status !== '取消' ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
+        ${isIncidentSchedule(row) && row.status !== '取消' && canManageIncidentAction(row) ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
         ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
-        ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
-        ${isFieldScheduleRow(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
+        ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
+        ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
         ${canCancelSchedule(row) ? `<button type="button" class="danger-btn" id="detailCancelBtn">取消行程</button>` : ''}
       </div>
     </div>
@@ -7697,7 +7951,8 @@ function openScheduleDetail(scheduleId) {
 
 function editStaffOptionsHtml(row) {
   const selectedIds = new Set(getAssigneeIds(row))
-  return staffList.map(staff => `
+  const rows = canAssignAllStaff() ? staffList : staffList.filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id)
+  return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="edit_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
       <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
@@ -7706,7 +7961,8 @@ function editStaffOptionsHtml(row) {
 }
 
 function staffOptionsHtml(defaultStaffId = '') {
-  return staffList.map(staff => `
+  const rows = getAssignableStaffRows()
+  return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
       <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
@@ -7715,7 +7971,7 @@ function staffOptionsHtml(defaultStaffId = '') {
 }
 
 function staffSelectOptionsHtml() {
-  return `<option value="">未指定</option>` + staffList.map(staff => `
+  return `<option value="">未指定</option>` + getAssignableStaffRows().map(staff => `
     <option value="${staff.staff_id}">${staff.name}｜${staff.department_name}</option>
   `).join('')
 }
@@ -7735,7 +7991,9 @@ function minuteOptionsHtml(defaultValue = '00') {
 }
 
 function getAvailableFormCategories() {
-  if (currentPage === 'personalTodo') return ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const personalCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  if (currentPage === 'personalTodo') return personalCategories
+  if (!canCreateServiceSchedule()) return personalCategories
   return formCategories
 }
 
@@ -8554,7 +8812,8 @@ function departmentOptionsHtml(selectedDepartment = '') {
 }
 
 function staffOptionsSelectHtml(selectedStaffId = '') {
-  return staffList.map(staff => `
+  const rows = canAssignAllStaff() ? staffList : getAssignableStaffRows()
+  return rows.map(staff => `
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''} data-department="${escapeHtml(staff.department_name || '')}">
       ${staff.name}｜${staff.department_name || ''}
     </option>
@@ -8562,7 +8821,9 @@ function staffOptionsSelectHtml(selectedStaffId = '') {
 }
 
 
-function openFieldScheduleModal(defaults = {}) {
+function openFieldScheduleModal(defaults = {
+  if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
+}) {
   const defaultDate = defaults.date || todayString()
   const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
 
@@ -8699,6 +8960,8 @@ async function saveFieldSchedule(event, modal) {
   event.preventDefault()
   if (saving) return
   saving = true
+
+  if (!canCreateFieldSchedule()) { alert('你的角色沒有新增外務行程權限。'); saving = false; return }
 
   try {
     const form = new FormData(event.target)
@@ -8885,6 +9148,7 @@ async function saveFieldSchedule(event, modal) {
 
 
 function openScheduleModal() {
+  if (!canCreateForCurrentPage()) return denyPermission('你的角色沒有新增此類行程的權限。')
   const defaultStaffId = currentProfile.staff_id || ''
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
@@ -9966,6 +10230,11 @@ async function saveSchedule(event, modal) {
   const form = new FormData(event.target)
 
   const category = form.get('category')
+  if (!canCreateScheduleCategory(category)) {
+    alert('你的角色沒有新增此類行程的權限。')
+    saving = false
+    return
+  }
   const availableFormCategories = getAvailableFormCategories()
   if (!availableFormCategories.includes(category)) {
     alert('此頁面只能新增一般記事、待辦事項、請假 / 會議 / 活動 / 外訓。')
@@ -11115,3 +11384,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 建立登入帳號的臨時密碼改為 4 碼
 */
 /* FOR-e V002-1P-30 END - password 4 chars hint */
+
+/* FOR-e V002-1P-31 START - role based permissions */
+/*
+  V002-1P-31｜權限依角色執行
+  - 建立統一角色權限矩陣
+  - 新增 / 修改 / 完成 / 取消 / 指派 / 匯出 / 選項 / 帳號管理依角色控管
+  - 非主管 / 行政 / 管理員不可建立服務行程、外務、異況
+  - 一般角色新增行程時只可新增自己的個人事項
+*/
+/* FOR-e V002-1P-31 END - role based permissions */
