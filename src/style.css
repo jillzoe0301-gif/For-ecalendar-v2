@@ -6028,3 +6028,30 @@ label.record-modal-check {
   margin: 0 auto 2px;
 }
 /* FOR-e V002-1P-2-1 END - real icon files */
+
+/* FOR-e V002-1P-2-3 START - left align sidebar buttons */
+/*
+  V002-1P-2-3｜左側按鈕靠左對齊
+  - ICON、文字統一靠左
+  - 避免 button 內容被置中
+*/
+
+.desktop-menu .menu-btn {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding-left: 12px !important;
+}
+
+.desktop-menu .menu-icon {
+  margin-left: 0 !important;
+}
+
+.desktop-menu .menu-label {
+  text-align: left !important;
+  flex: 1 1 auto;
+}
+
+.sidebar .desktop-menu {
+  text-align: left !important;
+}
+/* FOR-e V002-1P-2-3 END - left align sidebar buttons */
