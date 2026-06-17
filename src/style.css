@@ -6589,3 +6589,67 @@ label.record-modal-check {
   opacity: 1 !important;
 }
 /* FOR-e V002-1P-6-1 END - white schedule background with accent */
+
+/* FOR-e V002-1P-6-2 START - colored border restore text */
+/* 行程卡片：白底為主，顏色改為整張外框，文字恢復原本規則 */
+.schedule-card[style],
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
+  background: #ffffff !important;
+  border-color: var(--schedule-accent, var(--border)) !important;
+  border-left-width: 1px !important;
+  border-left-style: solid !important;
+  color: inherit !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* 恢復原本字體顏色層次 */
+.schedule-card[style] .schedule-date {
+  color: var(--muted) !important;
+}
+
+.schedule-card[style] .schedule-title,
+.week-schedule-card[style] strong,
+.field-week-schedule-card[style] strong,
+.meeting-room-card[style] strong {
+  color: #111827 !important;
+}
+
+.schedule-card[style] .schedule-meta,
+.week-schedule-card[style] .week-card-preview,
+.field-week-schedule-card[style] .field-week-card-preview,
+.meeting-room-card[style] .meeting-room-meta,
+.meeting-room-card[style] .meeting-room-preview {
+  color: var(--muted) !important;
+  opacity: 1 !important;
+}
+
+.schedule-card[style] .schedule-content-preview {
+  color: #374151 !important;
+}
+
+.schedule-card[style] .schedule-type-prefix {
+  color: var(--blue) !important;
+}
+
+/* 週曆 / 外務 / 會議室的時間維持原本重點色，不再跟行程顏色連動 */
+.week-schedule-card[style] .week-card-time,
+.field-week-schedule-card[style] .field-week-card-time,
+.meeting-room-card[style] .meeting-room-time {
+  color: var(--blue) !important;
+}
+
+/* 顏色設定預覽：白底＋外框顏色 */
+.color-preview-card {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid var(--schedule-accent, #e5e7eb) !important;
+  border-left-width: 1.5px !important;
+}
+
+.color-preview-card span {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+/* FOR-e V002-1P-6-2 END - colored border restore text */

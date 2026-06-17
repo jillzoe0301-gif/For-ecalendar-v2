@@ -4252,14 +4252,14 @@ function getReadableTextColor(backgroundColor) {
 
 function getScheduleColorInlineStyle(row) {
   const accentColor = getScheduleColor(row)
-  return `background:#ffffff;border-color:#e5e7eb;border-left:5px solid ${accentColor};color:#111827;--schedule-accent:${accentColor};`
+  return `background:#ffffff;border-color:${accentColor};--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
   return `
-    <div class="color-preview-card" style="background:#ffffff;color:#111827;border-color:#e5e7eb;border-left:5px solid ${color};--schedule-accent:${color};">
+    <div class="color-preview-card" style="background:#ffffff;border-color:${color};--schedule-accent:${color};">
       <strong>${escapeHtml(item.label)}</strong>
-      <span>白底卡片＋左側顏色標示</span>
+      <span>白底卡片＋外框顏色標示</span>
     </div>
   `
 }
@@ -4272,7 +4272,7 @@ function renderColorSettingsPage() {
     <div class="page-toolbar">
       <div>
         <h3>顏色設定</h3>
-        <p class="muted">行程卡片背景先以白色為主，顏色用左側色條標示。設定先存在目前瀏覽器，不改資料庫。</p>
+        <p class="muted">行程卡片背景先以白色為主，顏色用外框標示。設定先存在目前瀏覽器，不改資料庫。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
@@ -4282,7 +4282,7 @@ function renderColorSettingsPage() {
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
-    <div class="notice">目前行程卡片統一白底；這裡設定的是左側標示色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
+    <div class="notice">目前行程卡片統一白底；這裡設定的是外框標示色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
 
     <form id="colorSettingsForm" class="color-settings-grid">
       ${getScheduleColorDefinitions().map(item => {
@@ -8767,3 +8767,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 套用個人行程、行程總覽、外務行程、會議室預約
 */
 /* FOR-e V002-1P-6-1 END - white schedule background with accent */
+
+/* FOR-e V002-1P-6-2 START - colored border restore text */
+/*
+  V002-1P-6-2｜行程卡片改成白底＋外框顏色
+  - 不再使用左側色條
+  - 顏色改套用整張卡片外框
+  - 字體顏色恢復原本樣式
+*/
+/* FOR-e V002-1P-6-2 END - colored border restore text */
