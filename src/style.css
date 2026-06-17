@@ -6055,3 +6055,109 @@ label.record-modal-check {
   text-align: left !important;
 }
 /* FOR-e V002-1P-2-3 END - left align sidebar buttons */
+
+/* FOR-e V002-1P-3 START - nav icon visual polish */
+/*
+  V002-1P-3｜ICON 大小、間距、視覺一致化
+  - 左側按鈕全部靠左
+  - ICON 固定大小與位置
+  - active / hover 狀態更乾淨
+  - 手機底部選單 ICON 大小同步
+*/
+
+.desktop-menu .menu-btn {
+  min-height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  padding: 9px 12px !important;
+  margin: 3px 0 !important;
+  border-radius: 14px !important;
+  text-align: left !important;
+  line-height: 1.25 !important;
+}
+
+.desktop-menu .menu-icon {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+  background: #f8fafc !important;
+}
+
+.desktop-menu .nav-icon-img {
+  width: 17px !important;
+  height: 17px !important;
+  object-fit: contain !important;
+  display: block !important;
+  opacity: 0.82 !important;
+}
+
+.desktop-menu .menu-label {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.desktop-menu .menu-btn.active {
+  background: #eef5ff !important;
+  color: #3155d4 !important;
+}
+
+.desktop-menu .menu-btn:hover {
+  background: #f3f7ff !important;
+  color: #3155d4 !important;
+}
+
+.desktop-menu .menu-btn.active .menu-icon,
+.desktop-menu .menu-btn:hover .menu-icon {
+  background: #ffffff !important;
+}
+
+.desktop-menu .menu-btn.active .nav-icon-img,
+.desktop-menu .menu-btn:hover .nav-icon-img {
+  opacity: 1 !important;
+}
+
+.mobile-nav button {
+  display: grid !important;
+  place-items: center !important;
+  gap: 2px !important;
+  min-width: 62px !important;
+  padding: 7px 8px !important;
+}
+
+.mobile-menu-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 20px !important;
+  height: 18px !important;
+  margin: 0 auto 2px !important;
+}
+
+.mobile-menu-icon .nav-icon-img {
+  width: 15px !important;
+  height: 15px !important;
+  object-fit: contain !important;
+  opacity: 0.85 !important;
+}
+
+.mobile-nav button.active .nav-icon-img {
+  opacity: 1 !important;
+}
+
+.mobile-menu-label {
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  font-weight: 800 !important;
+}
+/* FOR-e V002-1P-3 END - nav icon visual polish */
