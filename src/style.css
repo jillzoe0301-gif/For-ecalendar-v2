@@ -8805,3 +8805,86 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-41 END - overview filters medical mobile width */
+
+/* FOR-e V002-1P-42 START - overview multi select persist */
+.overview-filter-panel-multi {
+  grid-template-columns: minmax(210px, 1fr) minmax(260px, 1.2fr) auto !important;
+  align-items: stretch !important;
+}
+
+.overview-filter-panel-multi label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.overview-filter-panel-multi select[multiple] {
+  min-height: 104px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: #111827;
+  font-weight: 800;
+}
+
+.overview-filter-panel-multi select[multiple] option {
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.overview-filter-actions {
+  display: grid;
+  gap: 8px;
+  align-content: end;
+}
+
+.overview-filter-actions button {
+  min-height: 39px;
+  white-space: nowrap;
+}
+
+.overview-filter-summary {
+  grid-column: 1 / -1;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: #eef5ff;
+  color: #3155d4;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.overview-filter-summary span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .overview-filter-panel-multi {
+    grid-template-columns: 1fr !important;
+  }
+
+  .overview-filter-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .overview-filter-panel-multi select[multiple] {
+    min-height: 128px;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-filter-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-filter-panel-multi select[multiple] {
+    min-height: 142px;
+  }
+}
+/* FOR-e V002-1P-42 END - overview multi select persist */

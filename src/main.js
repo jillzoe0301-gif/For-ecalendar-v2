@@ -343,8 +343,8 @@ let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
 let overviewFilters = {
-  department: '全部',
-  staffId: '全部'
+  departments: [],
+  staffIds: []
 }
 let fieldWeekOffset = 0
 let meetingWeekOffset = 0
@@ -1223,6 +1223,7 @@ async function loadProfile() {
   }
 
   currentProfile = mergedProfile
+  loadOverviewFiltersPreference()
   currentPage = 'personalSchedule'
   await refreshData()
   renderApp()
@@ -2060,21 +2061,11 @@ function renderApp() {
     overviewFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
-      overviewFilters = {
-        department: form.get('department') || '全部',
-        staffId: form.get('staffId') || '全部'
-      }
-      renderApp()
-    })
-  }
-
-  const overviewDepartmentFilter = document.querySelector('#overviewDepartmentFilter')
-  if (overviewDepartmentFilter) {
-    overviewDepartmentFilter.addEventListener('change', () => {
-      overviewFilters = {
-        department: overviewDepartmentFilter.value || '全部',
-        staffId: '全部'
-      }
+      overviewFilters = normalizeOverviewFilters({
+        departments: form.getAll('departments'),
+        staffIds: form.getAll('staffIds')
+      })
+      saveOverviewFiltersPreference()
       renderApp()
     })
   }
@@ -2082,10 +2073,8 @@ function renderApp() {
   const resetOverviewFilterBtn = document.querySelector('#resetOverviewFilterBtn')
   if (resetOverviewFilterBtn) {
     resetOverviewFilterBtn.addEventListener('click', () => {
-      overviewFilters = {
-        department: '全部',
-        staffId: '全部'
-      }
+      overviewFilters = normalizeOverviewFilters()
+      saveOverviewFiltersPreference()
       renderApp()
     })
   }
@@ -7090,22 +7079,100 @@ function getWeekLabel(weekDates) {
   return `${toDateKey(weekDates[0])} ～ ${toDateKey(weekDates[6])}`
 }
 
+const overviewFiltersStorageKey = 'for-e-overview-filters-v002'
+
+function normalizeOverviewFilterList(value) {
+  if (!value) return []
+  const list = Array.isArray(value) ? value : [value]
+  return [...new Set(list.map(item => String(item || '').trim()).filter(Boolean).filter(item => item !== '全部'))]
+}
+
+function normalizeOverviewFilters(value = {}) {
+  return {
+    departments: normalizeOverviewFilterList(value.departments || value.department),
+    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId)
+  }
+}
+
+function getOverviewFilterStorageKey() {
+  const owner = currentProfile?.staff_id || currentProfile?.email || 'guest'
+  return `${overviewFiltersStorageKey}-${owner}`
+}
+
+function loadOverviewFiltersPreference() {
+  try {
+    const raw = localStorage.getItem(getOverviewFilterStorageKey())
+    overviewFilters = normalizeOverviewFilters(raw ? JSON.parse(raw) : overviewFilters)
+  } catch (err) {
+    console.warn('行程總覽篩選讀取失敗', err)
+    overviewFilters = normalizeOverviewFilters()
+  }
+}
+
+function saveOverviewFiltersPreference() {
+  try {
+    localStorage.setItem(getOverviewFilterStorageKey(), JSON.stringify(normalizeOverviewFilters(overviewFilters)))
+  } catch (err) {
+    console.warn('行程總覽篩選儲存失敗', err)
+  }
+}
+
+function isOverviewDepartmentSelected(name) {
+  return normalizeOverviewFilterList(overviewFilters.departments).includes(name)
+}
+
+function isOverviewStaffSelected(staffId) {
+  return normalizeOverviewFilterList(overviewFilters.staffIds).includes(staffId)
+}
+
+function getOverviewFilterSummary() {
+  const departments = normalizeOverviewFilterList(overviewFilters.departments)
+  const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+  const staffNames = staffIds
+    .map(staffId => staffList.find(staff => staff.staff_id === staffId)?.name)
+    .filter(Boolean)
+
+  const deptText = departments.length ? departments.join('、') : '全部部門'
+  const staffText = staffNames.length ? staffNames.join('、') : '全部人員'
+  return `${deptText}｜${staffText}`
+}
+
 function getOverviewDepartmentOptions() {
   const rows = getOverviewBaseStaffRows()
-  const names = ['全部', ...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
-  return names.map(name => `<option value="${escapeHtml(name)}" ${overviewFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  return names.map(name => `<option value="${escapeHtml(name)}" ${isOverviewDepartmentSelected(name) ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 function getOverviewStaffFilterOptions() {
   let rows = getOverviewBaseStaffRows()
-  if (overviewFilters.department !== '全部') {
-    rows = rows.filter(staff => staff.department_name === overviewFilters.department)
+  const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
+
+  if (selectedDepartments.length) {
+    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
   }
 
-  return `<option value="全部" ${overviewFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` + rows.map(staff => `
-    <option value="${escapeHtml(staff.staff_id)}" ${overviewFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
+  return rows.map(staff => `
+    <option value="${escapeHtml(staff.staff_id)}" ${isOverviewStaffSelected(staff.staff_id) ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
   `).join('')
 }
+
+function getOverviewStaffRows() {
+  let rows = getOverviewBaseStaffRows()
+  const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
+  const selectedStaffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+
+  if (selectedDepartments.length) {
+    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
+  }
+
+  if (selectedStaffIds.length) {
+    rows = rows.filter(staff => selectedStaffIds.includes(staff.staff_id))
+  }
+
+  return rows
+}
+
+
 
 function getOverviewBaseStaffRows() {
   const role = currentProfile?.role
@@ -7124,19 +7191,7 @@ function getOverviewBaseStaffRows() {
   return staffList.filter(staff => visibleStaffIds.has(staff.staff_id))
 }
 
-function getOverviewStaffRows() {
-  let rows = getOverviewBaseStaffRows()
 
-  if (overviewFilters.department !== '全部') {
-    rows = rows.filter(staff => staff.department_name === overviewFilters.department)
-  }
-
-  if (overviewFilters.staffId !== '全部') {
-    rows = rows.filter(staff => staff.staff_id === overviewFilters.staffId)
-  }
-
-  return rows
-}
 
 function getSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
@@ -7182,23 +7237,30 @@ function renderScheduleOverview() {
 
     ${renderReadStatus()}
 
-    <form id="overviewFilterForm" class="overview-filter-panel">
+    <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-multi">
       <label>
-        部門
-        <select name="department" id="overviewDepartmentFilter">
+        部門複選
+        <select name="departments" id="overviewDepartmentFilter" multiple size="4">
           ${getOverviewDepartmentOptions()}
         </select>
       </label>
 
       <label>
-        人員
-        <select name="staffId" id="overviewStaffFilter">
+        人員複選
+        <select name="staffIds" id="overviewStaffFilter" multiple size="4">
           ${getOverviewStaffFilterOptions()}
         </select>
       </label>
 
-      <button type="submit" class="primary-btn">套用篩選</button>
-      <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部人員</button>
+      <div class="overview-filter-actions">
+        <button type="submit" class="primary-btn">套用並記住</button>
+        <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部人員</button>
+      </div>
+
+      <div class="overview-filter-summary">
+        目前篩選：${escapeHtml(getOverviewFilterSummary())}
+        <span>不選代表全部；電腦可按 Ctrl / Command 複選。</span>
+      </div>
     </form>
 
     <div class="week-overview-scroll">
@@ -12211,3 +12273,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 醫療有下次回診日期與執行人時，自動建立下一筆回診行程
 */
 /* FOR-e V002-1P-41 END - overview filters medical mobile width */
+
+/* FOR-e V002-1P-42 START - overview multi select persist */
+/*
+  V002-1P-42｜行程總覽部門 / 人員複選與記憶
+  - 部門篩選改為可複選
+  - 人員篩選改為可複選
+  - 篩選條件會依登入者存到 localStorage
+  - 下次登入後行程總覽會直接套用前一次選擇的人員 / 部門
+*/
+/* FOR-e V002-1P-42 END - overview multi select persist */
