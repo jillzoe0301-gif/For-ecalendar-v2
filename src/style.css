@@ -4220,3 +4220,149 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1K-1-6 END - field special dropdown */
+
+/* FOR-e V002-1L-1 START - incident tracking */
+.incident-filter {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff7ed;
+  margin-bottom: 16px;
+}
+
+.incident-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.incident-list {
+  display: grid;
+  gap: 10px;
+}
+
+.incident-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.incident-row.is-overdue {
+  border-color: #facc15;
+  background: #fffbeb;
+}
+
+.incident-row.is-completed {
+  opacity: 0.65;
+  background: #f3f4f6;
+}
+
+.incident-date span,
+.incident-date small,
+.incident-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.incident-date strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  margin: 3px 0;
+}
+
+.incident-title {
+  font-weight: 950;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.incident-content {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #fb923c;
+  background: #fff7ed;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.incident-content span {
+  color: #9a3412;
+  font-weight: 950;
+}
+
+.incident-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.incident-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.incident-actions button,
+.incident-actions .status-pill {
+  width: 90px;
+}
+
+.incident-assistant-list {
+  max-height: 180px;
+}
+
+@media (max-width: 900px) {
+  .incident-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .incident-keyword-filter,
+  .incident-filter button {
+    grid-column: span 2;
+  }
+
+  .incident-summary-grid,
+  .incident-row {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-actions {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .incident-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-keyword-filter,
+  .incident-filter button {
+    grid-column: span 1;
+  }
+
+  .incident-actions {
+    flex-direction: column;
+  }
+
+  .incident-actions button,
+  .incident-actions .status-pill {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1L-1 END - incident tracking */

@@ -43,6 +43,7 @@ const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
 const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
+const incidentTypeOptions = ['逃跑', '轉出', '車禍', '醫療異況', '雇主反映', '工人反映', '宿舍異況', '文件異常', '其他']
 const fieldLocationOptions = [{"name": "內湖_印辦", "address": "台北市內湖區瑞光路550號2樓"}, {"name": "內湖_菲辦", "address": "台北市內湖區洲子街55-57號2樓"}, {"name": "台北_越辦(領件只能下午)", "address": "臺北市中山區松江路101號2樓"}, {"name": "台北_越南換護照", "address": "臺北市中山區松江路65號2，3樓"}, {"name": "台北_泰辦", "address": "台北市大安區信義路三段151號 10 樓"}, {"name": "台北_勞動部", "address": "臺北市中正區中華路1段39號10樓"}, {"name": "桃園移民署", "address": "桃園市桃園區縣府路106號1樓"}, {"name": "中壢就業中心", "address": "桃園市中壢區新興路182號"}, {"name": "桃園就業中心", "address": "桃園市桃園區縣府路59號"}, {"name": "中和就業中心", "address": "新北市中和區景安路118號"}, {"name": "板橋就業中心", "address": "新北市板橋區漢生東路163號"}, {"name": "三重就業中心(不同仲介要不同天)", "address": "新北市三重區重新路四段12號"}, {"name": "新竹就業中心", "address": "新竹市光華東街56號"}, {"name": "竹北就業中心", "address": "新竹縣竹北市光明九路7-3號"}, {"name": "宜蘭羅東就業中心", "address": "宜蘭縣羅東鎮東榮路二段91號"}, {"name": "苗栗就業中心", "address": "苗栗市中山路558號"}, {"name": "新北移民署", "address": "新北市中和區民安街135號"}, {"name": "竹北移民署", "address": "新竹縣竹北市三民路133號1樓"}, {"name": "基隆移民署", "address": "基隆市中正區義一路18號11樓A棟"}, {"name": "新竹移民署", "address": "新竹市北區中華路三段12號1樓"}]
 const weekdays = [
   ['MO', '週一'], ['TU', '週二'], ['WE', '週三'], ['TH', '週四'],
@@ -232,6 +233,11 @@ let fieldDetailFilters = {
   status: '全部',
   startDate: '',
   endDate: ''
+}
+let incidentFilters = {
+  staffId: '全部',
+  status: '全部',
+  keyword: ''
 }
 let searchFilters = {
   keyword: '',
@@ -844,6 +850,44 @@ function renderApp() {
       date: cell.dataset.meetingDate || '',
       room: cell.dataset.meetingRoom || ''
     }))
+  })
+
+
+  const addIncidentBtn = document.querySelector('#addIncidentBtn')
+  if (addIncidentBtn) {
+    addIncidentBtn.addEventListener('click', () => openIncidentModal())
+  }
+
+  const incidentFilterForm = document.querySelector('#incidentFilterForm')
+  if (incidentFilterForm) {
+    incidentFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      incidentFilters = {
+        staffId: form.get('staffId') || '全部',
+        status: form.get('status') || '全部',
+        keyword: form.get('keyword') || ''
+      }
+      renderApp()
+    })
+  }
+
+  const resetIncidentFilterBtn = document.querySelector('#resetIncidentFilterBtn')
+  if (resetIncidentFilterBtn) {
+    resetIncidentFilterBtn.addEventListener('click', () => {
+      incidentFilters = {
+        staffId: '全部',
+        status: '全部',
+        keyword: ''
+      }
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('[data-incident-complete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await completeSchedule(btn.dataset.incidentComplete)
+    })
   })
 
   const addBtn = document.querySelector('#addScheduleBtn')
@@ -1950,6 +1994,367 @@ async function saveMeetingRoomSchedule(event, modal) {
 /* FOR-e V002-1K-1 END - meeting room weekly calendar */
 
 
+
+/* FOR-e V002-1L-1 START - incident tracking */
+/*
+  V002-1L-1｜異況追蹤
+  使用既有 schedules / schedule_assignees，不改 SQL、不新增 Supabase 表。
+*/
+
+function isIncidentSchedule(row) {
+  if (!row) return false
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  return row.category === '異況追蹤' || row.schedule_type === '異況' || text.includes('異況類型：')
+}
+
+function incidentStaffOptionsHtml(selectedStaffId = '全部') {
+  return `<option value="全部" ${selectedStaffId === '全部' ? 'selected' : ''}>全部人員</option>` +
+    staffList.map(staff => `
+      <option value="${staff.staff_id}" ${selectedStaffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+    `).join('')
+}
+
+function incidentResponsibleOptionsHtml(selectedStaffId = '') {
+  const defaultId = selectedStaffId || currentProfile?.staff_id || ''
+  return staffList.map(staff => `
+    <option value="${staff.staff_id}" ${defaultId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+  `).join('')
+}
+
+function incidentAssistantChecksHtml() {
+  return staffList.map(staff => `
+    <label class="check-row">
+      <input type="checkbox" name="incident_assistant" value="${staff.staff_id}">
+      <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+    </label>
+  `).join('')
+}
+
+function incidentTypeOptionsHtml(selectedValue = '') {
+  return incidentTypeOptions.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+function getIncidentRows() {
+  return schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isIncidentSchedule(row))
+    .filter(row => {
+      if (incidentFilters.status !== '全部' && row.status !== incidentFilters.status) return false
+
+      if (incidentFilters.staffId !== '全部') {
+        const assigned = (row.schedule_assignees || []).some(item => item.staff_id === incidentFilters.staffId && !item.deleted_at)
+        if (!assigned) return false
+      }
+
+      const keyword = String(incidentFilters.keyword || '').trim().toLowerCase()
+      if (keyword) {
+        const haystack = [
+          row.title,
+          row.customer_name,
+          row.description,
+          row.sub_type,
+          row.sub_type_note,
+          getAssigneeNames(row),
+          row.creator_name
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(keyword)) return false
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      const activeA = a.status === '已完成' ? 1 : 0
+      const activeB = b.status === '已完成' ? 1 : 0
+      if (activeA !== activeB) return activeA - activeB
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+    })
+}
+
+function renderIncidentTrackingPage() {
+  const rows = getIncidentRows()
+  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = rows.filter(row => row.status === '已完成')
+  const overdueRows = activeRows.filter(row => row.start_date && row.start_date < todayString())
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>異況追蹤</h3>
+        <p class="muted">異況案件、負責人、協助人員與下次追蹤日期。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="resetIncidentFilterBtn">清除條件</button>
+        <button class="primary-btn" id="addIncidentBtn">新增異況</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderReadStatus()}
+
+    <form id="incidentFilterForm" class="incident-filter">
+      <label>
+        負責 / 協助人員
+        <select name="staffId">${incidentStaffOptionsHtml(incidentFilters.staffId)}</select>
+      </label>
+
+      <label>
+        狀態
+        <select name="status">
+          ${['全部', '未完成', '已完成'].map(item => `<option value="${item}" ${incidentFilters.status === item ? 'selected' : ''}>${item}</option>`).join('')}
+        </select>
+      </label>
+
+      <label class="incident-keyword-filter">
+        關鍵字
+        <input name="keyword" value="${escapeHtml(incidentFilters.keyword)}" placeholder="可搜尋類型、客戶、內容、人員">
+      </label>
+
+      <button type="submit" class="primary-btn">篩選</button>
+    </form>
+
+    <div class="summary-grid incident-summary-grid">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>異況筆數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${activeRows.length}</strong>
+        <span>未完成</span>
+      </div>
+      <div class="summary-card">
+        <strong>${overdueRows.length}</strong>
+        <span>逾期追蹤</span>
+      </div>
+      <div class="summary-card">
+        <strong>${completedRows.length}</strong>
+        <span>已完成</span>
+      </div>
+    </div>
+
+    ${renderIncidentList(rows)}
+  `
+}
+
+function renderIncidentList(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">目前沒有符合條件的異況追蹤。</div>`
+  }
+
+  return `
+    <div class="incident-list">
+      ${rows.map(row => {
+        const isOverdue = row.status !== '已完成' && row.start_date && row.start_date < todayString()
+        return `
+          <div class="incident-row ${row.status === '已完成' ? 'is-completed' : ''} ${isOverdue ? 'is-overdue' : ''}">
+            <div class="incident-date">
+              <span>下次追蹤</span>
+              <strong>${escapeHtml(row.start_date || '-')}</strong>
+              <small>${escapeHtml(formatTime(row))}</small>
+            </div>
+
+            <div class="incident-main">
+              <div class="incident-title">${escapeHtml(row.sub_type || '異況')}｜${escapeHtml(row.title || '-')}</div>
+              <div class="incident-meta">
+                負責 / 協助：${escapeHtml(getAssigneeNames(row))}
+                ｜建立者：${escapeHtml(row.creator_name || '-')}
+              </div>
+              <div class="incident-meta">
+                客戶 / 工人：${escapeHtml(row.customer_name || '-')}
+              </div>
+              ${row.description ? `<div class="incident-content"><span>本次追蹤：</span>${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', '<br>')}</div>` : ''}
+              ${row.sub_type_note ? `<div class="incident-note">${escapeHtml(row.sub_type_note)}</div>` : ''}
+            </div>
+
+            <div class="incident-actions">
+              <span class="status-pill">${isOverdue ? '逾期' : escapeHtml(row.status || '未完成')}</span>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              ${canCompleteSchedule(row) ? `<button class="small-btn" data-incident-complete="${row.schedule_id}">已完成</button>` : ''}
+            </div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+
+function openIncidentModal() {
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>新增異況</h3>
+        <button class="icon-btn" id="closeIncidentModalBtn" type="button">×</button>
+      </div>
+
+      <form id="incidentForm" class="form-grid">
+        <label>
+          異況類型
+          <select name="incident_type">${incidentTypeOptionsHtml()}</select>
+        </label>
+
+        <label>
+          發生日期
+          <input name="incident_date" type="date" value="${todayString()}" required>
+        </label>
+
+        <label class="span-2">
+          客戶 / 工人
+          <input name="customer_name" placeholder="例如：雇主名稱、工人姓名、案件名稱">
+        </label>
+
+        <label>
+          負責人
+          <select name="responsible_staff_id">${incidentResponsibleOptionsHtml()}</select>
+        </label>
+
+        <label>
+          下次追蹤日期
+          <input name="next_follow_date" type="date" required value="${todayString()}">
+        </label>
+
+        <label class="span-2">
+          下次追蹤時間
+          ${fieldTimeSelectHtml('incident_next')}
+        </label>
+
+        <div class="span-2">
+          <div class="field-title">協助人員（可複選）</div>
+          <div class="checkbox-list incident-assistant-list">
+            ${incidentAssistantChecksHtml()}
+          </div>
+        </div>
+
+        <label class="span-2">
+          本次追蹤 / 處理內容
+          <textarea name="description" rows="4" required placeholder="請輸入本次追蹤、處理內容或目前狀況"></textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelIncidentModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存異況</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.querySelector('#closeIncidentModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelIncidentModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#incidentForm').addEventListener('submit', event => saveIncident(event, modal))
+}
+
+async function saveIncident(event, modal) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const responsibleId = form.get('responsible_staff_id')
+    const assistantIds = [...document.querySelectorAll('input[name="incident_assistant"]:checked')].map(input => input.value)
+    const selectedIds = [...new Set([responsibleId, ...assistantIds].filter(Boolean))]
+    const selectedStaff = staffList.filter(staff => selectedIds.includes(staff.staff_id))
+    const responsibleStaff = staffList.find(staff => staff.staff_id === responsibleId) || selectedStaff[0] || currentProfile
+
+    if (!selectedStaff.length) {
+      alert('請至少選擇一位負責人。')
+      saving = false
+      return
+    }
+
+    const incidentType = form.get('incident_type') || '其他'
+    const customerName = form.get('customer_name') || ''
+    const nextTime = getFieldSingleTimeValue(form, 'incident_next')
+
+    const payload = {
+      creator_profile_id: currentProfile.profile_id,
+      creator_staff_id: currentProfile.staff_id,
+      creator_name: currentProfile.name || currentProfile.email,
+      department_id: responsibleStaff.department_id || currentProfile.department_id,
+      department_name: responsibleStaff.department_name || currentProfile.department_name,
+      category: '異況追蹤',
+      schedule_type: '異況',
+      sub_type: incidentType,
+      sub_type_note: [
+        `異況類型：${incidentType}`,
+        `發生日期：${form.get('incident_date')}`,
+        customerName ? `客戶 / 工人：${customerName}` : '',
+        `下次追蹤：${form.get('next_follow_date')}${nextTime ? ' ' + nextTime : ''}`,
+        `負責人：${responsibleStaff.name || ''}`,
+        assistantIds.length ? `協助人員：${selectedStaff.filter(staff => assistantIds.includes(staff.staff_id)).map(staff => staff.name).join('、')}` : ''
+      ].filter(Boolean).join('｜'),
+      title: `${incidentType}${customerName ? '｜' + customerName : '｜異況追蹤'}`,
+      description: form.get('description') || null,
+      start_date: form.get('next_follow_date'),
+      end_date: form.get('next_follow_date'),
+      time_type: getFieldTimeTypeFromForm(form, 'incident_next'),
+      start_time: getFieldDbTimeValue(nextTime),
+      end_time: null,
+      customer_name: customerName || null,
+      location_name: null,
+      address: null,
+      car_no: null,
+      status: '未完成',
+      need_service_record: false,
+      service_record_submitted: false,
+      service_record_submitted_date: null
+    }
+
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('schedules')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (scheduleError) {
+      alert('新增異況失敗：' + scheduleError.message)
+      saving = false
+      return
+    }
+
+    const assigneeRows = selectedStaff.map(staff => ({
+      schedule_id: schedule.schedule_id,
+      staff_id: staff.staff_id,
+      staff_name: staff.name,
+      department_id: staff.department_id,
+      department_name: staff.department_name,
+      position: staff.position,
+      assignee_type: staff.staff_id === responsibleId ? 'responsible' : 'assistant'
+    }))
+
+    const { error: assigneeError } = await supabase.from('schedule_assignees').insert(assigneeRows)
+
+    if (assigneeError) {
+      alert('異況已建立，但負責 / 協助人員寫入失敗：' + assigneeError.message)
+      saving = false
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '新增',
+      source_type: 'schedule',
+      source_id: schedule.schedule_id,
+      note: 'V002-1L-1 新增異況追蹤'
+    })
+
+    modal.remove()
+    await refreshData()
+    saving = false
+    renderApp()
+  } catch (err) {
+    alert('新增異況失敗：' + (err?.message || err))
+    saving = false
+  }
+}
+/* FOR-e V002-1L-1 END - incident tracking */
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -1958,6 +2363,7 @@ function renderPageContent() {
   if (currentPage === 'fieldSchedule') return renderFieldScheduleCalendar()
   if (currentPage === 'fieldDetail') return renderFieldDetailPage()
   if (currentPage === 'meetingRoom') return renderMeetingRoomCalendar()
+  if (currentPage === 'incident') return renderIncidentTrackingPage()
   if (currentPage === 'search') return renderSearchPage()
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
