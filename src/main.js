@@ -26,7 +26,8 @@ const pages = [
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
-  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true }
+  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
+  { key: 'health', label: '系統檢查', mobileLabel: '檢查', roles: ['管理員', '主管'], mobile: false }
 ]
 
 const pageIconMap = {
@@ -46,7 +47,8 @@ const pageIconMap = {
   color: '🎨',
   options: '⚙️',
   audit: '🧾',
-  users: '👤'
+  users: '👤',
+  health: '🩺'
 }
 
 const pageImageIconMap = {
@@ -66,7 +68,8 @@ const pageImageIconMap = {
   color: '/icons/nav/palette.png',
   options: '/icons/nav/settings.png',
   audit: '/icons/nav/note.png',
-  users: '/icons/nav/user-frame.png'
+  users: '/icons/nav/user-frame.png',
+  health: '/icons/nav/checklist.png'
 }
 
 function renderPageIcon(key) {
@@ -2444,6 +2447,11 @@ function renderApp() {
   document.querySelectorAll('[data-activate-user]').forEach(btn => {
     btn.addEventListener('click', () => activateStaffUser(btn.dataset.activateUser, btn.dataset.activateUserName || ''))
   })
+
+  const runHealthDryRunBtn = document.querySelector('#runHealthDryRunBtn')
+  if (runHealthDryRunBtn) {
+    runHealthDryRunBtn.addEventListener('click', () => runHealthDryRunCheck())
+  }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
   if (checkLoginFunctionBtn) {
@@ -6925,6 +6933,201 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
 }
 
 
+
+function getHealthStatusMeta(status) {
+  if (status === 'ok') return { label: '正常', className: 'is-ok' }
+  if (status === 'warn') return { label: '注意', className: 'is-warn' }
+  return { label: '需處理', className: 'is-bad' }
+}
+
+function renderHealthCard(title, status, detail, note = '') {
+  const meta = getHealthStatusMeta(status)
+  return `
+    <div class="health-card ${meta.className}">
+      <div class="health-card-head">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${meta.label}</span>
+      </div>
+      <p>${escapeHtml(detail)}</p>
+      ${note ? `<small>${escapeHtml(note)}</small>` : ''}
+    </div>
+  `
+}
+
+function getHealthRows() {
+  const rows = []
+
+  rows.push({
+    title: 'Supabase 環境變數',
+    status: SUPABASE_URL && SUPABASE_ANON_KEY ? 'ok' : 'bad',
+    detail: SUPABASE_URL && SUPABASE_ANON_KEY ? '已設定 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY' : '缺少 Supabase URL 或 Anon Key'
+  })
+
+  rows.push({
+    title: '目前登入者',
+    status: currentProfile?.staff_id ? 'ok' : 'warn',
+    detail: `${currentProfile?.name || currentProfile?.email || '-'}｜${currentProfile?.role || '-'}｜${currentProfile?.department_name || '-'}`,
+    note: currentProfile?.role === '管理員' ? '目前可操作全部管理功能。' : '若需帳號管理，請確認 staff / profiles 角色是否同步。'
+  })
+
+  rows.push({
+    title: '人員資料 staff',
+    status: staffList.length ? 'ok' : 'bad',
+    detail: `啟用人員 ${staffList.length} 位｜全部人員 ${allStaffList.length || staffList.length} 位`,
+    note: staffList.length ? '人員下拉、行程指派、外務人員可使用。' : '請確認 staff 表 RLS 與資料。'
+  })
+
+  rows.push({
+    title: '行程資料 schedules',
+    status: schedulesError ? 'bad' : 'ok',
+    detail: schedulesError ? schedulesError : `已載入 ${schedules.length} 筆行程`,
+    note: schedulesError ? '請確認 schedules / schedule_assignees 權限。' : '行程總覽、個人行程、外務、會議室會共用此資料。'
+  })
+
+  rows.push({
+    title: '服務紀錄單',
+    status: serviceRecordsError ? 'bad' : 'ok',
+    detail: serviceRecordsError ? serviceRecordsError : `已載入 ${serviceRecords.length} 筆服務紀錄單資料`,
+    note: serviceRecordsError ? '請確認 service_records 權限。' : '服務紀錄單頁面與繳交狀態可使用。'
+  })
+
+  rows.push({
+    title: '異動紀錄',
+    status: auditError ? 'bad' : 'ok',
+    detail: auditError ? auditError : `已載入 ${auditLogs.length} 筆異動紀錄`,
+    note: auditError ? '請確認 audit_logs 權限。' : '新增、修改、取消等紀錄可追蹤。'
+  })
+
+  rows.push({
+    title: '共用設定 app_settings',
+    status: appSettingsError ? 'warn' : 'ok',
+    detail: appSettingsError ? `尚未完整啟用共用設定：${appSettingsError}` : '共用設定已可讀取',
+    note: appSettingsError ? '可先使用本機暫存；正式上線建議執行 RLS baseline SQL。' : '顏色設定、選項管理、外務人員設定可共用。'
+  })
+
+  rows.push({
+    title: '公務車資訊',
+    status: getManagedListOption('carOptions', carOptions).length > 1 ? 'ok' : 'warn',
+    detail: `目前可選 ${getManagedListOption('carOptions', carOptions).length} 筆公務車選項`,
+    note: '可到選項管理修改公務車資訊。'
+  })
+
+  rows.push({
+    title: '角色權限矩陣',
+    status: typeof rolePermissionMatrix === 'object' ? 'ok' : 'bad',
+    detail: typeof rolePermissionMatrix === 'object' ? '角色權限矩陣已載入' : '角色權限矩陣未載入',
+    note: '管理員、主管、行政/海外、翻譯、外務/宿管/會計、一般職員會依角色控管。'
+  })
+
+  return rows
+}
+
+function renderSystemHealthSummary(rows) {
+  const okCount = rows.filter(row => row.status === 'ok').length
+  const warnCount = rows.filter(row => row.status === 'warn').length
+  const badCount = rows.filter(row => row.status === 'bad').length
+
+  return `
+    <div class="summary-grid health-summary-grid">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>檢查項目</span>
+      </div>
+      <div class="summary-card">
+        <strong>${okCount}</strong>
+        <span>正常</span>
+      </div>
+      <div class="summary-card ${warnCount ? 'is-alert' : ''}">
+        <strong>${warnCount}</strong>
+        <span>注意</span>
+      </div>
+      <div class="summary-card ${badCount ? 'is-alert' : ''}">
+        <strong>${badCount}</strong>
+        <span>需處理</span>
+      </div>
+    </div>
+  `
+}
+
+async function runHealthDryRunCheck() {
+  if (!currentProfile) {
+    alert('請先登入。')
+    return
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+
+    if (!accessToken) {
+      alert('登入狀態已失效，請重新登入。')
+      return
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ dry_run: true })
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || `HTTP ${response.status}`)
+    }
+
+    alert(`帳號 Edge Function 正常。\n版本：${result.version || '-'}\n狀態：${result.message || 'ok'}`)
+  } catch (err) {
+    console.error(err)
+    alert(`帳號 Edge Function 檢查失敗：${err.message || err}`)
+  }
+}
+
+function renderSystemHealthPage() {
+  const rows = getHealthRows()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>系統檢查</h3>
+        <p class="muted">正式上線前快速檢查 Supabase、資料表、角色、共用設定與帳號功能。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="primary-btn" id="runHealthDryRunBtn">檢查帳號 Edge Function</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    <div class="notice">
+      這一頁只做系統狀態檢查，不會修改資料。若出現「需處理」，請優先執行 Supabase RLS baseline 或檢查對應資料表。
+    </div>
+
+    ${renderSystemHealthSummary(rows)}
+
+    <div class="health-grid">
+      ${rows.map(row => renderHealthCard(row.title, row.status, row.detail, row.note)).join('')}
+    </div>
+
+    <section class="health-checklist">
+      <h4>上線前建議測試順序</h4>
+      <ol>
+        <li>管理員登入，確認人員 / 帳號可新增、修改、綁定、重設、刪除。</li>
+        <li>主管登入，確認可看全部人員但只能改外務人員。</li>
+        <li>行政 / 海外登入，確認可管理行程但不可管理帳號與選項。</li>
+        <li>翻譯登入，確認只看自己的行程與紀錄單繳交。</li>
+        <li>外務 / 宿管 / 會計與一般職員登入，確認只看自己的帳號資訊並可修改自己密碼。</li>
+        <li>新增醫療行程，測試下次回診日期、時間、掛號號碼、下次執行人。</li>
+        <li>新增外務行程，確認外務行程表、外務明細、個人行程都有同步。</li>
+      </ol>
+    </section>
+  `
+}
+
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -6961,6 +7164,7 @@ function renderPageContent() {
   if (currentPage === 'color') return renderColorSettingsPage()
   if (currentPage === 'options') return renderOptionsPage()
   if (currentPage === 'users') return renderUsersPage()
+  if (currentPage === 'health') return renderSystemHealthPage()
 
   return `
     <h3>${getPageTitle()}</h3>
@@ -12653,3 +12857,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留 V002-1P-46 公務車資訊與外務行程表開啟修正
 */
 /* FOR-e V002-1P-46-2 END - field filter helper fix */
+
+/* FOR-e V002-1P-47 START - system health check */
+/*
+  V002-1P-47｜系統檢查頁
+  - 新增系統檢查頁，管理員 / 主管可見
+  - 快速檢查 Supabase 環境、人員、行程、服務紀錄單、異動紀錄、共用設定、公務車與角色權限
+  - 可測試 admin-create-user Edge Function dry_run
+*/
+/* FOR-e V002-1P-47 END - system health check */
