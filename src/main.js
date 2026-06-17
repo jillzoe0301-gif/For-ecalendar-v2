@@ -4251,17 +4251,15 @@ function getReadableTextColor(backgroundColor) {
 }
 
 function getScheduleColorInlineStyle(row) {
-  const color = getScheduleColor(row)
-  const textColor = getReadableTextColor(color)
-  return `background:${color};border-color:${color};color:${textColor};`
+  const accentColor = getScheduleColor(row)
+  return `background:#ffffff;border-color:#e5e7eb;border-left:5px solid ${accentColor};color:#111827;--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
-  const textColor = getReadableTextColor(color)
   return `
-    <div class="color-preview-card" style="background:${color};color:${textColor};border-color:${color}">
+    <div class="color-preview-card" style="background:#ffffff;color:#111827;border-color:#e5e7eb;border-left:5px solid ${color};--schedule-accent:${color};">
       <strong>${escapeHtml(item.label)}</strong>
-      <span>行程卡片預覽</span>
+      <span>白底卡片＋左側顏色標示</span>
     </div>
   `
 }
@@ -4274,7 +4272,7 @@ function renderColorSettingsPage() {
     <div class="page-toolbar">
       <div>
         <h3>顏色設定</h3>
-        <p class="muted">設定各類行程卡片底色。第一版先存在目前瀏覽器，不改資料庫。</p>
+        <p class="muted">行程卡片背景先以白色為主，顏色用左側色條標示。設定先存在目前瀏覽器，不改資料庫。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
@@ -4284,7 +4282,7 @@ function renderColorSettingsPage() {
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
-    <div class="notice">顏色會套用在個人行程表、行程總覽、外務行程與會議室預約的行程卡片。</div>
+    <div class="notice">目前行程卡片統一白底；這裡設定的是左側標示色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
 
     <form id="colorSettingsForm" class="color-settings-grid">
       ${getScheduleColorDefinitions().map(item => {
@@ -8760,3 +8758,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 外務行程人員清單仍依此設定顯示
 */
 /* FOR-e V002-1P-5-1 END - compact field staff toggle */
+
+/* FOR-e V002-1P-6-1 START - white schedule background with accent */
+/*
+  V002-1P-6-1｜行程顏色改為白底＋左側色條
+  - 行程卡片背景統一以白色為主
+  - 顏色設定改為左側標示色
+  - 套用個人行程、行程總覽、外務行程、會議室預約
+*/
+/* FOR-e V002-1P-6-1 END - white schedule background with accent */

@@ -6531,3 +6531,61 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-6 END - color settings page */
+
+/* FOR-e V002-1P-6-1 START - white schedule background with accent */
+/* 行程卡片白底為主，顏色只做左側標示 */
+.schedule-card[style],
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  border-left-width: 5px !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
+}
+
+.schedule-card[style] .schedule-date,
+.schedule-card[style] .schedule-title,
+.schedule-card[style] .schedule-meta,
+.schedule-card[style] .schedule-content-preview,
+.week-schedule-card[style] .week-card-time,
+.week-schedule-card[style] .week-card-preview,
+.week-schedule-card[style] strong,
+.field-week-schedule-card[style] .field-week-card-time,
+.field-week-schedule-card[style] .field-week-card-preview,
+.field-week-schedule-card[style] strong,
+.meeting-room-card[style] .meeting-room-time,
+.meeting-room-card[style] .meeting-room-meta,
+.meeting-room-card[style] .meeting-room-preview,
+.meeting-room-card[style] strong {
+  color: #111827 !important;
+}
+
+.schedule-card[style] .schedule-meta,
+.week-schedule-card[style] .week-card-preview,
+.field-week-schedule-card[style] .field-week-card-preview,
+.meeting-room-card[style] .meeting-room-meta,
+.meeting-room-card[style] .meeting-room-preview {
+  opacity: 0.72 !important;
+}
+
+.schedule-card[style] .schedule-type-prefix,
+.week-schedule-card[style] .week-card-time,
+.field-week-schedule-card[style] .field-week-card-time,
+.meeting-room-card[style] .meeting-room-time {
+  color: var(--schedule-accent, var(--blue)) !important;
+}
+
+.color-preview-card {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  border-left-width: 5px !important;
+}
+
+.color-preview-card span {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+/* FOR-e V002-1P-6-1 END - white schedule background with accent */
