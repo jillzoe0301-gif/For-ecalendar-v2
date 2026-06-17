@@ -836,7 +836,7 @@ function renderApp() {
 
   const exportCsvBtn = document.querySelector('#exportCsvBtn')
   if (exportCsvBtn) {
-    exportCsvBtn.addEventListener('click', () => exportCurrentPageCsv())
+    exportCsvBtn.addEventListener('click', () => openExportCsvModal())
   }
 
   const refreshBtn = document.querySelector('#refreshBtn')
@@ -4751,6 +4751,7 @@ function canExportCurrentPage() {
 
 function injectExportCsvButton() {
   if (!canExportCurrentPage()) return
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return
 
   const toolbar = document.querySelector('.content-card .page-toolbar .toolbar-actions')
   if (!toolbar || document.querySelector('#exportCsvBtn')) return
@@ -4926,7 +4927,261 @@ function getExportPageLabel() {
   return getPageTitle().replace(/[\\/:*?"<>|]/g, '')
 }
 
-function exportCurrentPageCsv() {
+
+function getExportYearOptions() {
+  const years = new Set()
+  schedules.forEach(row => {
+    const value = String(row.start_date || row.schedule_date || row.created_at || '')
+    if (/^\d{4}/.test(value)) years.add(value.slice(0, 4))
+  })
+  serviceRecords.forEach(row => {
+    const value = String(row.schedule_date || row.submitted_date || row.created_at || '')
+    if (/^\d{4}/.test(value)) years.add(value.slice(0, 4))
+  })
+  auditLogs.forEach(row => {
+    const value = String(row.created_at || '')
+    if (/^\d{4}/.test(value)) years.add(value.slice(0, 4))
+  })
+
+  const currentYear = todayString().slice(0, 4)
+  years.add(currentYear)
+
+  return `<option value="">全部年份</option>` + [...years].sort((a, b) => b.localeCompare(a)).map(year => `
+    <option value="${year}">${year}</option>
+  `).join('')
+}
+
+function getExportMonthOptions() {
+  return `<option value="">全部月份</option>` + Array.from({ length: 12 }, (_, index) => {
+    const value = String(index + 1).padStart(2, '0')
+    return `<option value="${value}">${value} 月</option>`
+  }).join('')
+}
+
+function getExportDayOptions() {
+  return `<option value="">全部日期</option>` + Array.from({ length: 31 }, (_, index) => {
+    const value = String(index + 1).padStart(2, '0')
+    return `<option value="${value}">${value} 日</option>`
+  }).join('')
+}
+
+function getExportDepartmentOptions() {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  const names = [...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
+  return `<option value="">全部部門</option>` + names.map(name => `
+    <option value="${escapeHtml(name)}">${escapeHtml(name)}</option>
+  `).join('')
+}
+
+function getExportStaffOptions() {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  return `<option value="">全部人員</option>` + sourceRows.map(staff => `
+    <option value="${escapeHtml(staff.staff_id)}">${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
+  `).join('')
+}
+
+function openExportCsvModal() {
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel export-csv-modal">
+      <div class="modal-header">
+        <h3>匯出 CSV</h3>
+        <button class="icon-btn" id="closeExportCsvModalBtn" type="button">×</button>
+      </div>
+
+      <form id="exportCsvForm" class="export-csv-form">
+        <div class="export-filter-section">
+          <strong>日期條件</strong>
+          <div class="export-filter-grid">
+            <label>
+              年份
+              <select name="year">${getExportYearOptions()}</select>
+            </label>
+
+            <label>
+              月份
+              <select name="month">${getExportMonthOptions()}</select>
+            </label>
+
+            <label>
+              日期
+              <select name="day">${getExportDayOptions()}</select>
+            </label>
+          </div>
+        </div>
+
+        <div class="export-filter-section">
+          <strong>部門 / 人員</strong>
+          <div class="export-filter-grid">
+            <label>
+              部門
+              <select name="department">${getExportDepartmentOptions()}</select>
+            </label>
+
+            <label>
+              人員
+              <select name="staff_id">${getExportStaffOptions()}</select>
+            </label>
+          </div>
+        </div>
+
+        <div class="notice">
+          空白代表不限制。可只選年份、年份＋月份，或完整選到年月日；部門與人員可單獨或一起篩選。
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelExportCsvModalBtn">取消</button>
+          <button type="submit" class="primary-btn">匯出CSV</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.querySelector('#closeExportCsvModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelExportCsvModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#exportCsvForm').addEventListener('submit', event => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const options = {
+      year: form.get('year') || '',
+      month: form.get('month') || '',
+      day: form.get('day') || '',
+      department: form.get('department') || '',
+      staffId: form.get('staff_id') || ''
+    }
+    modal.remove()
+    exportCurrentPageCsv(options)
+  })
+}
+
+function getExportRowDateValue(row) {
+  if (!row) return ''
+  if (row.start_date) return row.start_date
+  if (row.schedule_date) return row.schedule_date
+  if (row.submitted_date) return row.submitted_date
+  if (row.created_at) return String(row.created_at).slice(0, 10)
+  return ''
+}
+
+function getExportRowStaffIds(row) {
+  const ids = new Set()
+
+  if (row?.staff_id) ids.add(row.staff_id)
+  if (row?.creator_staff_id) ids.add(row.creator_staff_id)
+  if (row?.operated_by_staff_id) ids.add(row.operated_by_staff_id)
+  if (row?.schedule_assignees) {
+    getAssigneeIds(row).forEach(id => ids.add(id))
+  }
+
+  return [...ids].filter(Boolean)
+}
+
+function getExportStaffRowById(staffId) {
+  const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
+  return sourceRows.find(staff => staff.staff_id === staffId)
+}
+
+function getExportRowDepartmentNames(row) {
+  const names = new Set()
+
+  if (row?.department_name) names.add(row.department_name)
+  if (typeof getServiceRecordDepartment === 'function') {
+    const recordDept = getServiceRecordDepartment(row)
+    if (recordDept) names.add(recordDept)
+  }
+
+  getExportRowStaffIds(row).forEach(staffId => {
+    const staff = getExportStaffRowById(staffId)
+    if (staff?.department_name) names.add(staff.department_name)
+  })
+
+  return [...names].filter(Boolean)
+}
+
+function getExportRowStaffNames(row) {
+  const names = new Set()
+
+  if (row?.name && currentPage === 'users') names.add(row.name)
+  if (row?.staff_name) names.add(row.staff_name)
+  if (row?.operated_by_name) names.add(row.operated_by_name)
+  if (row?.creator_name) names.add(row.creator_name)
+  if (row?.schedule_assignees) {
+    row.schedule_assignees
+      .filter(item => !item.deleted_at)
+      .map(item => item.staff_name)
+      .filter(Boolean)
+      .forEach(name => names.add(name))
+  }
+
+  getExportRowStaffIds(row).forEach(staffId => {
+    const staff = getExportStaffRowById(staffId)
+    if (staff?.name) names.add(staff.name)
+  })
+
+  return [...names].filter(Boolean)
+}
+
+function matchesExportDateFilter(row, options) {
+  if (!options?.year && !options?.month && !options?.day) return true
+
+  const value = getExportRowDateValue(row)
+  if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return false
+
+  if (options.year && value.slice(0, 4) !== options.year) return false
+  if (options.month && value.slice(5, 7) !== options.month) return false
+  if (options.day && value.slice(8, 10) !== options.day) return false
+
+  return true
+}
+
+function matchesExportDepartmentFilter(row, options) {
+  if (!options?.department) return true
+  return getExportRowDepartmentNames(row).includes(options.department)
+}
+
+function matchesExportStaffFilter(row, options) {
+  if (!options?.staffId) return true
+  const staffIds = getExportRowStaffIds(row)
+  if (staffIds.includes(options.staffId)) return true
+
+  const staff = getExportStaffRowById(options.staffId)
+  if (!staff?.name) return false
+  return getExportRowStaffNames(row).includes(staff.name)
+}
+
+function applyExportCsvFilters(rows, options) {
+  if (!options) return rows
+
+  return rows
+    .filter(row => matchesExportDateFilter(row, options))
+    .filter(row => matchesExportDepartmentFilter(row, options))
+    .filter(row => matchesExportStaffFilter(row, options))
+}
+
+function getExportFilterFilenameSuffix(options) {
+  if (!options) return todayString()
+
+  const dateParts = [
+    options.year || '全部年份',
+    options.month ? `${options.month}月` : '',
+    options.day ? `${options.day}日` : ''
+  ].filter(Boolean)
+
+  const scopeParts = [
+    options.department || '',
+    options.staffId ? (getExportStaffRowById(options.staffId)?.name || '指定人員') : ''
+  ].filter(Boolean)
+
+  return [...dateParts, ...scopeParts].join('_') || todayString()
+}
+
+
+function exportCurrentPageCsv(filterOptions = null) {
   let rows = []
   let columns = []
   const date = todayString()
@@ -4946,12 +5201,15 @@ function exportCurrentPageCsv() {
     columns = getScheduleCsvColumns()
   }
 
+  rows = applyExportCsvFilters(rows, filterOptions)
+
   if (!rows.length) {
-    alert('目前沒有可匯出的資料。')
+    alert('目前沒有符合匯出條件的資料。')
     return
   }
 
-  downloadCsv(`FOR-e_${pageLabel}_${date}.csv`, columns, rows)
+  const suffix = getExportFilterFilenameSuffix(filterOptions)
+  downloadCsv(`FOR-e_${pageLabel}_${suffix || date}.csv`, columns, rows)
 }
 
 
@@ -9826,3 +10084,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 支援個人行程、待辦、指派追蹤、行程總覽、外務、會議室、異況、搜尋、統計、服務紀錄單、異動紀錄、人員與 LINE 通知資料
 */
 /* FOR-e V002-1P-11 END - common csv export */
+
+/* FOR-e V002-1P-12 START - export filters mobile color preview */
+/*
+  V002-1P-12
+  - 匯出 CSV 改為先選條件：年 / 月 / 日 / 部門 / 人員
+  - 手機版不顯示匯出 CSV
+  - 顏色設定預覽欄位寬度統一
+*/
+/* FOR-e V002-1P-12 END - export filters mobile color preview */
