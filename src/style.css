@@ -6351,3 +6351,83 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-5 END - field staff checkbox */
+
+/* FOR-e V002-1P-5-1 START - compact field staff toggle */
+.users-table-field-staff .users-table-head,
+.users-table-field-staff .users-table-row {
+  grid-template-columns: minmax(150px, 1.25fr) minmax(125px, 0.9fr) minmax(145px, 1fr) minmax(105px, 0.75fr) 54px minmax(76px, 0.55fr) !important;
+}
+
+.users-table-field-staff .users-table-head span:nth-child(5),
+.users-table-field-staff .users-table-row label:nth-child(5) {
+  justify-self: center;
+}
+
+.field-staff-toggle.compact-field-toggle {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  cursor: pointer;
+}
+
+.field-staff-toggle.compact-field-toggle:has(input:checked) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.field-staff-toggle.compact-field-toggle input {
+  position: absolute !important;
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none !important;
+}
+
+.field-staff-switch {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  transition: background 0.18s ease;
+}
+
+.field-staff-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.18s ease;
+}
+
+.field-staff-toggle.compact-field-toggle input:checked + .field-staff-switch {
+  background: var(--blue);
+}
+
+.field-staff-toggle.compact-field-toggle input:checked + .field-staff-switch::after {
+  transform: translateX(16px);
+}
+
+.field-staff-toggle.compact-field-toggle input:disabled + .field-staff-switch {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .users-table-field-staff .users-table-head,
+  .users-table-field-staff .users-table-row {
+    min-width: 720px;
+  }
+}
+/* FOR-e V002-1P-5-1 END - compact field staff toggle */

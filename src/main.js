@@ -5332,7 +5332,7 @@ function renderUsersList(rows) {
           <span>部門</span>
           <span>職務</span>
           <span>角色</span>
-          <span>外務人員</span>
+          <span>外務</span>
           <span>狀態</span>
         </div>
 
@@ -5342,9 +5342,9 @@ function renderUsersList(rows) {
             <span>${escapeHtml(staff.department_name || '-')}</span>
             <span>${escapeHtml(staff.position || '-')}</span>
             <span>${escapeHtml(staff.role || '-')}</span>
-            <label class="field-staff-toggle">
+            <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
               <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canEditFieldStaff ? '' : 'disabled'}>
-              <span>${isStaffFieldWorker(staff) ? '是' : '否'}</span>
+              <span class="field-staff-switch" aria-hidden="true"></span>
             </label>
             <span>${escapeHtml(staff.status || '啟用')}</span>
           </div>
@@ -8593,3 +8593,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 設定暫存 localStorage，不改 SQL
 */
 /* FOR-e V002-1P-5 END - field staff checkbox */
+
+/* FOR-e V002-1P-5-1 START - compact field staff toggle */
+/*
+  V002-1P-5-1｜外務人員勾選改成精簡切換鈕
+  - 人員 / 帳號頁的「是否外務人員」不再佔大欄位
+  - 改成小型 switch
+  - 外務行程人員清單仍依此設定顯示
+*/
+/* FOR-e V002-1P-5-1 END - compact field staff toggle */
