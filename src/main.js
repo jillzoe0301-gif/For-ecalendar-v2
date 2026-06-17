@@ -1239,7 +1239,7 @@ function openAdminPasswordResetModal(email = '', staffName = '') {
 
         <label class="span-2">
           新臨時密碼
-          <input name="password" type="text" required minlength="4" value="${escapeHtml(tempPassword)}">
+          <input name="password" type="text" required minlength="6" value="${escapeHtml(tempPassword)}">
         </label>
 
         <div class="notice span-2">
@@ -1269,8 +1269,8 @@ async function resetLoginPasswordDirectly(event, modal, email) {
     const form = new FormData(event.target)
     const password = String(form.get('password') || '').trim()
 
-    if (password.length < 4) {
-      alert('臨時密碼 4 碼即可，請至少輸入 4 碼。')
+    if (password.length < 6) {
+      alert('臨時密碼 至少 6 碼，請至少輸入 6 碼。')
       return
     }
 
@@ -1376,7 +1376,7 @@ async function deleteStaffUser(staffId = '', staffName = '') {
 
 
 function generateTemporaryPassword() {
-  return String(Math.floor(1000 + Math.random() * 9000))
+  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 function openLoginAccountModal(staffId = '') {
@@ -1420,12 +1420,12 @@ function openLoginAccountModal(staffId = '') {
 
         <label>
           臨時密碼
-          <input name="password" type="text" required minlength="4" value="${escapeHtml(generateTemporaryPassword())}">
+          <input name="password" type="text" required minlength="6" value="${escapeHtml(generateTemporaryPassword())}">
         </label>
 
         <label class="login-password-tip">
           說明
-          <div>臨時密碼 4 碼即可；建立後請讓使用者登入並自行更改密碼，也可以之後使用「重設」寄送重設密碼信。</div>
+          <div>臨時密碼 至少 6 碼；建立後請讓使用者登入並自行更改密碼，也可以之後使用「重設」寄送重設密碼信。</div>
         </label>
 
         <div class="notice span-2">
@@ -1470,8 +1470,8 @@ async function createLoginAccountForStaff(event, modal, staffId) {
       return
     }
 
-    if (password.length < 4) {
-      alert('臨時密碼 4 碼即可，請至少輸入 4 碼。')
+    if (password.length < 6) {
+      alert('臨時密碼 至少 6 碼，請至少輸入 6 碼。')
       return
     }
 
@@ -10926,17 +10926,17 @@ function renderPasswordRecoveryPage() {
       <div class="login-card password-recovery-card">
         <div class="login-brand">${renderBrandLogo('square')}</div>
         <h1>設定新密碼</h1>
-        <p>請輸入新密碼，4 碼即可；新密碼不能與舊密碼相同。</p>
+        <p>請輸入新密碼，至少 6 碼；新密碼不能與舊密碼相同。</p>
 
         <label for="newPassword">新密碼</label>
-        <input id="newPassword" type="password" placeholder="請輸入新密碼，4 碼即可" autocomplete="new-password" />
+        <input id="newPassword" type="password" placeholder="請輸入新密碼，至少 6 碼" autocomplete="new-password" />
 
         <label for="confirmPassword">再次確認新密碼</label>
         <input id="confirmPassword" type="password" placeholder="請再次輸入新密碼" autocomplete="new-password" />
 
         <div class="password-hint-box">
           <strong>密碼提示</strong>
-          <span>4 碼即可；不可與舊密碼相同。</span>
+          <span>至少 6 碼；不可與舊密碼相同。</span>
         </div>
 
         <button id="updatePasswordBtn">更新密碼</button>
@@ -10968,8 +10968,8 @@ async function updateRecoveryPassword() {
   const updateBtn = document.querySelector('#updatePasswordBtn')
   errorText.textContent = ''
 
-  if (!newPassword || newPassword.length < 4) {
-    errorText.textContent = '新密碼 4 碼即可，請至少輸入 4 碼。'
+  if (!newPassword || newPassword.length < 6) {
+    errorText.textContent = '新密碼 至少 6 碼，請至少輸入 6 碼。'
     return
   }
 
@@ -10988,7 +10988,7 @@ async function updateRecoveryPassword() {
   if (error) {
     const message = String(error.message || '')
     if (message.includes('different from the old password')) {
-      errorText.textContent = '更新失敗：新密碼不能與舊密碼相同，請換一組 4 碼以上密碼。'
+      errorText.textContent = '更新失敗：新密碼不能與舊密碼相同，請換一組 6 碼以上密碼。'
     } else if (message.toLowerCase().includes('password')) {
       errorText.textContent = `更新失敗：${message}。請確認新密碼至少 4 碼，且不要與舊密碼相同。`
     } else {
@@ -11656,7 +11656,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /* FOR-e V002-1P-30 START - password 4 chars hint */
 /*
   V002-1P-30｜密碼提示與 4 碼設定
-  - 重設密碼頁提示 4 碼即可
+  - 重設密碼頁提示 至少 6 碼
   - 新密碼不能與舊密碼相同時，改顯示中文提示
   - 建立登入帳號的臨時密碼改為 4 碼
 */
@@ -11699,3 +11699,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 重設密碼改為直接設定臨時密碼，不再寄送 Email，避免 email rate limit exceeded
 */
 /* FOR-e V002-1P-33 END - delete user reset password position custom */
+
+/* FOR-e V002-1P-36 START - password min 6 */
+/*
+  V002-1P-36｜密碼最低長度改為 6 碼
+  - 配合 Supabase Auth 預設最低密碼長度 6 碼
+  - 建立登入帳號臨時密碼改為 6 碼
+  - 重設登入密碼改為至少 6 碼
+  - 設定新密碼頁提示改為至少 6 碼
+*/
+/* FOR-e V002-1P-36 END - password min 6 */
