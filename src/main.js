@@ -1017,6 +1017,47 @@ async function createLoginAccountForStaff(event, modal, staffId) {
 }
 
 
+async function checkLoginFunctionStatus() {
+  if (currentProfile?.role !== '管理員') {
+    alert('只有管理員可以檢查帳號建立功能。')
+    return
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+
+    if (!accessToken) {
+      alert('登入狀態已失效，請重新登入。')
+      return
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        dry_run: true
+      })
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || `HTTP ${response.status}`)
+    }
+
+    alert('帳號建立功能檢查成功：Edge Function 已部署，權限也正常。')
+  } catch (err) {
+    console.error(err)
+    alert(`帳號建立功能尚未完成：${err.message || err}\n\n請確認：\n1. admin-create-user Edge Function 已部署\n2. SUPABASE_SERVICE_ROLE_KEY 已設定\n3. 目前登入者是管理員`)
+  }
+}
+
+
+
 async function loadStaff() {
   const { data, error } = await supabase
     .from('staff')
@@ -1581,6 +1622,11 @@ function renderApp() {
   document.querySelectorAll('[data-reset-password-email]').forEach(btn => {
     btn.addEventListener('click', () => sendPasswordResetEmail(btn.dataset.resetPasswordEmail))
   })
+
+  const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
+  if (checkLoginFunctionBtn) {
+    checkLoginFunctionBtn.addEventListener('click', () => checkLoginFunctionStatus())
+  }
 
   const addUserAccountBtn = document.querySelector('#addUserAccountBtn')
   if (addUserAccountBtn) {
@@ -7216,14 +7262,14 @@ function renderUsersPage() {
         <p class="muted">管理人員基本資料、角色、狀態與是否為外務人員。登入帳號 / 密碼會在下一階段串 Supabase Auth。</p>
       </div>
       <div class="toolbar-actions">
-        ${canEditUserAccount ? '<button class="primary-btn" id="addUserAccountBtn">新增人員</button>' : ''}
+        ${canEditUserAccount ? '<button class="secondary-btn" id="checkLoginFunctionBtn">檢查帳號功能</button><button class="primary-btn" id="addUserAccountBtn">新增人員</button>' : ''}
         <button class="secondary-btn" id="resetUsersFilterBtn">清除條件</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
 
     <div class="notice">
-      權限規則：管理員可新增 / 修改人員資料、建立登入帳號、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定。
+      權限規則：管理員可新增 / 修改人員資料、建立登入帳號、查看登入帳號狀態並寄送重設密碼信；其他角色只能查看。建立帳號前可先點「檢查帳號功能」確認 Edge Function 是否部署完成。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -10876,3 +10922,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 登入後顯示今日提醒總覽：今日行程、今日待辦、任務逾期、待確認 / 待通知
 */
 /* FOR-e V002-1P-19 END - merged shared options and login reminder */
+
+/* FOR-e V002-1P-20 START - login function check */
+/*
+  V002-1P-20｜帳號建立功能檢查
+  - 人員 / 帳號頁新增「檢查帳號功能」
+  - 可確認 admin-create-user Edge Function 是否已部署與權限是否正常
+  - 更新 admin-create-user function 支援 dry_run 檢查
+  - 補回 Edge Function 檔案，避免版本小包覆蓋後遺失
+*/
+/* FOR-e V002-1P-20 END - login function check */

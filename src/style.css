@@ -7840,3 +7840,16 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-19 END - merged shared options and login reminder */
+
+/* FOR-e V002-1P-20 START - login function check */
+#checkLoginFunctionBtn {
+  border-color: #c7d2fe !important;
+  background: #eef5ff !important;
+  color: #3155d4 !important;
+  font-weight: 950 !important;
+}
+
+#checkLoginFunctionBtn:hover {
+  background: #dbeafe !important;
+}
+/* FOR-e V002-1P-20 END - login function check */
