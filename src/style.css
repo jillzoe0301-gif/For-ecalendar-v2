@@ -9344,3 +9344,20 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-45 END - filter polish and incident fix */
+
+/* FOR-e V002-1P-46 START - company cars and field open fix */
+.option-management-form [data-option-editor="carOptions"] .option-line-row input {
+  font-family: ui-monospace, "Noto Sans TC", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.error-card {
+  padding: 14px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  border-radius: 16px;
+  font-weight: 900;
+  line-height: 1.6;
+}
+/* FOR-e V002-1P-46 END - company cars and field open fix */

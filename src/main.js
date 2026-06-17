@@ -1,4 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+unzip -o for-e-v002-1p-46-company-cars-field-open-fix.zip
+
+npm run build
+
+git status
+git add -A
+git status
+git commit -m "V002-1P-46 company cars and field schedule open fix"
+git push origin mainimport { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -14,7 +22,7 @@ const pages = [
   { key: 'personalTodo', label: '個人一般待辦', mobileLabel: '待辦', roles: 'ALL', mobile: true },
   { key: 'assignedTracking', label: '我指派的事項追蹤', mobileLabel: '指派', roles: 'ALL', mobile: true },
   { key: 'scheduleOverview', label: '行程總覽', mobileLabel: '行程', roles: 'ALL', mobile: true },
-  { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
+  { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '行政 / 海外'], mobile: false },
   { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
   { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
@@ -104,7 +112,25 @@ const scheduleContentTemplates = [
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
-const carOptions = ['不使用', 'A車', 'B車', 'C車', '其他']
+const carOptions = [
+  '不使用',
+  'RDG-7626｜賴黃娟 113/12/09開始用',
+  'RFB-6952｜吳氏何江 114/03/03開始使用',
+  'RFB-6953｜阮氏芳 114/08/29開始用',
+  'RFB-8733｜廖明珮 114/9/22開始使用',
+  'RFE-0681｜賴育賢 112/12/18開始用',
+  'RFE-0682｜黃氏玄莊 115/03/02開始用',
+  'RFF-3563｜王愛珠',
+  'RFL-0797｜黃思涵',
+  'RFL-1780｜范武薔薇',
+  'RFL-3935｜武俊平 114/02/11開始用',
+  'RFL-3950｜范紅筠 113/09/23開始用',
+  'RFL-5712｜暫時無人用 114/08/29開始用',
+  'RFL-6162｜卓晶晶 115/05/25開始用',
+  'RFS-7217｜陳恩文 114/09/12開始使用',
+  'RFT-3072｜施明金 115/05/25開始使用',
+  'RGE-6736｜鄧玉荀 115/05/26開始用'
+]
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
@@ -2308,6 +2334,7 @@ function renderApp() {
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
         leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
+        carOptions: parseOptionLines(form.get('carOptions')),
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
         fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
         incidentTypeOptions: parseOptionLines(form.get('incidentTypeOptions')),
@@ -3216,7 +3243,7 @@ function getFieldBaseStaffRows() {
   const fieldRows = staffList.filter(isStaffFieldWorker)
 
   if (fieldRows.length) return fieldRows
-  return Object.keys(settings).length ? [] : staffList
+  return staffList
 }
 
 function isFieldDepartmentSelected(name) {
@@ -5839,6 +5866,7 @@ function renderOptionsPage() {
           ${optionTextarea('行程類型對應內容', 'scheduleContentTemplates', templateLinesValue(), '依行程類型帶入內容；格式：行程類型｜內容', '例如：醫療｜就醫原因：\\n醫院 / 診所：')}
           ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
+          ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
         </div>
       </section>
 
@@ -6899,7 +6927,25 @@ function renderPageContent() {
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
-  if (currentPage === 'fieldSchedule') return renderFieldScheduleCalendar()
+  if (currentPage === 'fieldSchedule') {
+    try {
+      return renderFieldScheduleCalendar()
+    } catch (err) {
+      console.error('外務行程表開啟失敗', err)
+      return `
+        <div class="page-toolbar">
+          <div>
+            <h3>外務行程</h3>
+            <p class="muted">外務行程表載入時發生錯誤。</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="secondary-btn" id="refreshBtn">重新整理</button>
+          </div>
+        </div>
+        <div class="error-card">外務行程表開啟失敗：${escapeHtml(err?.message || err || '未知錯誤')}</div>
+      `
+    }
+  }
   if (currentPage === 'fieldDetail') return renderFieldDetailPage()
   if (currentPage === 'meetingRoom') return renderMeetingRoomCalendar()
   if (currentPage === 'incident') return renderIncidentTrackingPage()
@@ -10126,7 +10172,7 @@ function openScheduleModal() {
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
   const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${item}">${item}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
-  const carSelectOptions = carOptions.map(item => `<option value="${item}">${item}</option>`).join('')
+  const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
@@ -10939,7 +10985,7 @@ function openEditScheduleModal(scheduleId) {
   const categoryOptions = optionHtml(formCategories, row.category)
   const serviceTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.schedule_type || '其他')
   const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
-  const carSelectOptions = optionHtml(carOptions, row.car_no || '不使用')
+  const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
   const editTodoOptions = optionHtml(todoItems, row.category === '待辦事項' ? (row.sub_type || '') : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
@@ -12576,3 +12622,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 人員帳號未綁定時顯示「綁定」按鈕
 */
 /* FOR-e V002-1P-44 END - multiselect sort bind button */
+
+/* FOR-e V002-1P-46 START - company cars and field open fix */
+/*
+  V002-1P-46｜公務車資訊與外務行程表開啟修正
+  - 公務車預設清單改為實際車牌與使用者
+  - 選項管理新增「公務車資訊」，可自行新增 / 修改 / 刪除
+  - 新增 / 修改行程的公務車選單改讀選項管理
+  - 外務 / 宿管人員 / 會計可檢視外務行程表
+  - 外務行程表若載入失敗會顯示錯誤訊息，不會整頁打不開
+*/
+/* FOR-e V002-1P-46 END - company cars and field open fix */
