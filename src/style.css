@@ -9676,3 +9676,133 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-50 END - role permission matrix */
+
+/* FOR-e V002-1P-52 START - launch test checklist */
+.launch-test-section {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe7ff;
+  background: #f8fbff;
+}
+
+.launch-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.launch-progress-bar {
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.launch-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #5170ff;
+  transition: width .2s ease;
+}
+
+.launch-progress strong {
+  min-width: 76px;
+  color: #3155d4;
+  font-size: 13px;
+  font-weight: 950;
+  text-align: right;
+}
+
+.launch-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.launch-test-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.launch-test-group {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(81, 112, 255, .18);
+  background: #ffffff;
+}
+
+.launch-test-group h5 {
+  margin: 0 0 9px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.launch-test-items {
+  display: grid;
+  gap: 7px;
+}
+
+.launch-test-item {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.launch-test-item:hover {
+  background: #f8fafc;
+}
+
+.launch-test-item input {
+  margin-top: 2px;
+}
+
+.launch-test-item.is-done {
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.launch-test-item.is-done span {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: rgba(22, 101, 52, .35);
+}
+
+@media (max-width: 900px) {
+  .launch-test-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .launch-progress {
+    display: grid;
+  }
+
+  .launch-progress strong {
+    text-align: left;
+  }
+
+  .launch-test-actions {
+    display: grid;
+  }
+
+  .launch-test-actions button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1P-52 END - launch test checklist */

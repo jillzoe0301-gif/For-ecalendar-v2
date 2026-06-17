@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-51'
+const SYSTEM_VERSION = 'V002-1P-52'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2462,6 +2462,20 @@ function renderApp() {
   const clearUiMemoryBtn = document.querySelector('#clearUiMemoryBtn')
   if (clearUiMemoryBtn) {
     clearUiMemoryBtn.addEventListener('click', () => clearMyUiMemory())
+  }
+
+  document.querySelectorAll('[data-launch-test-item]').forEach(input => {
+    input.addEventListener('change', () => toggleLaunchTestItem(input.dataset.launchTestItem, input.checked))
+  })
+
+  const clearLaunchTestBtn = document.querySelector('#clearLaunchTestBtn')
+  if (clearLaunchTestBtn) {
+    clearLaunchTestBtn.addEventListener('click', () => clearLaunchTestProgress())
+  }
+
+  const copyLaunchTestBtn = document.querySelector('#copyLaunchTestBtn')
+  if (copyLaunchTestBtn) {
+    copyLaunchTestBtn.addEventListener('click', () => copyLaunchTestReport())
   }
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
@@ -7135,6 +7149,7 @@ function getSystemHealthReportText() {
     `時間：${new Date().toLocaleString('zh-TW')}`,
     `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
     `角色：${currentProfile?.role || '-'}`,
+    `上線測試進度：${getLaunchTestStats().done}/${getLaunchTestStats().total}（${getLaunchTestStats().percent}%）`,
     '',
     ...rows.map(row => {
       const meta = getHealthStatusMeta(row.status)
@@ -7312,6 +7327,205 @@ function renderPageAccessMatrix() {
 }
 
 
+
+function getLaunchTestStorageKey() {
+  return `for-e-launch-test-progress-${SYSTEM_VERSION}`
+}
+
+function getLaunchTestGroups() {
+  return [
+    {
+      key: 'version',
+      title: '一、版本與環境確認',
+      items: [
+        ['version-current', '系統檢查頁顯示目前版本為最新版本'],
+        ['vercel-prod', '正式 Vercel 網址可正常開啟'],
+        ['supabase-ok', 'Supabase 環境變數、staff、schedules、service_records、audit_logs 皆正常'],
+        ['edge-function', '帳號 Edge Function dry_run 測試正常'],
+        ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
+      ]
+    },
+    {
+      key: 'roles',
+      title: '二、角色權限測試',
+      items: [
+        ['admin-role', '管理員：可使用人員 / 帳號、選項管理、系統檢查、全部行程管理'],
+        ['manager-role', '主管：可看選項管理，可看全部人員但只能調整外務人員'],
+        ['admin-overseas-role', '行政 / 海外：可管理行程、外務、異況，但不可管理帳號與選項'],
+        ['translator-role', '翻譯：可看顏色設定、異況追蹤、紀錄單繳交與自己的行程'],
+        ['field-accounting-role', '外務 / 宿管人員 / 會計：可看外務行程、會議室、異動紀錄與自己的帳號'],
+        ['staff-role', '一般職員：不顯示 LINE 通知、不顯示異動紀錄，只看自己的帳號與行程']
+      ]
+    },
+    {
+      key: 'schedule',
+      title: '三、行程流程測試',
+      items: [
+        ['personal-schedule', '新增個人一般待辦後，個人行程表正常顯示'],
+        ['service-schedule', '新增服務行程後，個人行程表與行程總覽同步顯示'],
+        ['medical-followup', '醫療行程下次回診日期、時間、掛號號碼、下次執行人可正常建立下一筆'],
+        ['field-schedule', '新增外務行程後，外務行程表、外務明細、個人行程表同步顯示'],
+        ['meeting-room', '會議室預約可新增，重複 / 連續行程顯示正常且避免衝突'],
+        ['incident-tracking', '異況追蹤可新增，追蹤項目可修改並可建立下次追蹤行程']
+      ]
+    },
+    {
+      key: 'mobile',
+      title: '四、手機版測試',
+      items: [
+        ['mobile-login', '手機登入畫面可輸入帳號密碼並正常登入'],
+        ['mobile-personal', '個人行程表卡片不跑版、不被底部選單遮住'],
+        ['mobile-overview', '行程總覽週曆可左右滑動，日期欄寬度正常'],
+        ['mobile-field', '外務行程表可開啟，篩選列與卡片顯示正常'],
+        ['mobile-modal', '新增 / 修改行程彈窗可上下滑動，底部按鈕可點']
+      ]
+    },
+    {
+      key: 'data',
+      title: '五、資料與共用設定測試',
+      items: [
+        ['shared-options', '選項管理跨帳號同步正常'],
+        ['car-options', '公務車資訊可在選項管理修改，行程表單可正常選擇'],
+        ['color-settings', '顏色設定跨頁套用正常'],
+        ['csv-export', '管理角色匯出 CSV 正常，手機版不顯示匯出按鈕'],
+        ['audit-log', '新增 / 修改 / 完成 / 取消等異動紀錄有留下紀錄']
+      ]
+    }
+  ]
+}
+
+function readLaunchTestProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(getLaunchTestStorageKey()) || '{}') || {}
+  } catch (err) {
+    console.warn('上線測試紀錄讀取失敗', err)
+    return {}
+  }
+}
+
+function saveLaunchTestProgress(progress) {
+  try {
+    localStorage.setItem(getLaunchTestStorageKey(), JSON.stringify(progress || {}))
+  } catch (err) {
+    console.warn('上線測試紀錄儲存失敗', err)
+  }
+}
+
+function getLaunchTestStats() {
+  const groups = getLaunchTestGroups()
+  const progress = readLaunchTestProgress()
+  const total = groups.reduce((sum, group) => sum + group.items.length, 0)
+  const done = groups.reduce((sum, group) => {
+    return sum + group.items.filter(([key]) => progress[key]).length
+  }, 0)
+
+  return {
+    total,
+    done,
+    remaining: Math.max(total - done, 0),
+    percent: total ? Math.round((done / total) * 100) : 0
+  }
+}
+
+function toggleLaunchTestItem(key, checked) {
+  const progress = readLaunchTestProgress()
+  if (checked) {
+    progress[key] = {
+      done: true,
+      at: new Date().toISOString(),
+      by: currentProfile?.name || currentProfile?.email || ''
+    }
+  } else {
+    delete progress[key]
+  }
+
+  saveLaunchTestProgress(progress)
+  renderApp()
+}
+
+function clearLaunchTestProgress() {
+  if (!confirm('確定要清除本機的上線測試勾選紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
+  localStorage.removeItem(getLaunchTestStorageKey())
+  renderApp()
+}
+
+function getLaunchTestReportText() {
+  const groups = getLaunchTestGroups()
+  const progress = readLaunchTestProgress()
+  const stats = getLaunchTestStats()
+
+  return [
+    'FOR-e 正式上線前測試清單',
+    `版本：${SYSTEM_VERSION}`,
+    `時間：${new Date().toLocaleString('zh-TW')}`,
+    `測試者：${currentProfile?.name || currentProfile?.email || '-'}`,
+    `完成：${stats.done}/${stats.total}（${stats.percent}%）`,
+    `剩餘：${stats.remaining}`,
+    '',
+    ...groups.flatMap(group => [
+      group.title,
+      ...group.items.map(([key, label]) => `${progress[key] ? '☑' : '☐'} ${label}`),
+      ''
+    ])
+  ].join('\\n')
+}
+
+async function copyLaunchTestReport() {
+  const text = getLaunchTestReportText()
+
+  try {
+    await navigator.clipboard.writeText(text)
+    alert('正式上線前測試清單已複製。')
+  } catch (err) {
+    console.warn(err)
+    alert(text)
+  }
+}
+
+function renderLaunchTestChecklist() {
+  const groups = getLaunchTestGroups()
+  const progress = readLaunchTestProgress()
+  const stats = getLaunchTestStats()
+
+  return `
+    <section class="launch-test-section">
+      <div class="section-title-row">
+        <h4>正式上線前測試清單</h4>
+        <span>完成 ${stats.done}/${stats.total}｜${stats.percent}%</span>
+      </div>
+
+      <div class="launch-progress">
+        <div class="launch-progress-bar">
+          <span style="width:${stats.percent}%"></span>
+        </div>
+        <strong>剩餘 ${stats.remaining} 項</strong>
+      </div>
+
+      <div class="launch-test-actions">
+        <button type="button" class="secondary-btn" id="copyLaunchTestBtn">複製測試清單</button>
+        <button type="button" class="secondary-btn" id="clearLaunchTestBtn">清除勾選紀錄</button>
+      </div>
+
+      <div class="launch-test-groups">
+        ${groups.map(group => `
+          <div class="launch-test-group">
+            <h5>${escapeHtml(group.title)}</h5>
+            <div class="launch-test-items">
+              ${group.items.map(([key, label]) => `
+                <label class="launch-test-item ${progress[key] ? 'is-done' : ''}">
+                  <input type="checkbox" data-launch-test-item="${escapeHtml(key)}" ${progress[key] ? 'checked' : ''}>
+                  <span>${escapeHtml(label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `
+}
+
+
 function renderSystemHealthPage() {
   const rows = getHealthRows()
 
@@ -7342,6 +7556,7 @@ function renderSystemHealthPage() {
     ${renderCurrentRolePermissionSummary()}
     ${renderRolePermissionMatrix()}
     ${renderPageAccessMatrix()}
+    ${renderLaunchTestChecklist()}
 
     <section class="health-checklist">
       <h4>上線前建議測試順序</h4>
@@ -13137,3 +13352,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 角色權限矩陣同步更新
 */
 /* FOR-e V002-1P-51 END - role access update */
+
+/* FOR-e V002-1P-52 START - launch test checklist */
+/*
+  V002-1P-52｜正式上線前測試清單
+  - 系統檢查頁新增可勾選的正式上線前測試清單
+  - 勾選進度存在本機 localStorage，不修改資料庫
+  - 可複製測試清單與清除勾選紀錄
+  - 系統檢查報告加入上線測試進度
+*/
+/* FOR-e V002-1P-52 END - launch test checklist */
