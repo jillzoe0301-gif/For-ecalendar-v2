@@ -337,6 +337,8 @@ let allStaffList = []
 let loadingSchedules = false
 let schedulesError = ''
 let saving = false
+let appSettings = {}
+let appSettingsError = ''
 let overviewWeekOffset = 0
 let fieldWeekOffset = 0
 let meetingWeekOffset = 0
@@ -408,6 +410,115 @@ let userAccountFilters = {
   role: '全部',
   fieldStaff: '全部'
 }
+
+
+/* FOR-e V002-1P-14 START - shared app settings */
+/*
+  V002-1P-14｜系統設定共用化
+  - 顏色設定改支援 Supabase app_settings 共用
+  - 外務人員勾選改支援 Supabase app_settings 共用
+  - SQL 未執行時仍保留 localStorage 後備，不中斷系統
+*/
+
+const sharedSettingKeys = ['schedule_colors', 'field_staff_settings']
+
+function readLocalJsonSetting(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : {}
+  } catch (err) {
+    console.warn('本機設定讀取失敗', key, err)
+    return {}
+  }
+}
+
+function getDefaultScheduleColorMap() {
+  return Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor]))
+}
+
+function normalizeSettingValue(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value
+}
+
+async function loadAppSettings() {
+  appSettingsError = ''
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('setting_key, setting_value')
+    .in('setting_key', sharedSettingKeys)
+
+  if (error) {
+    console.warn('app_settings 尚未啟用，暫用本機設定。', error.message)
+    appSettings = {}
+    appSettingsError = error.message
+    return
+  }
+
+  appSettings = Object.fromEntries((data || []).map(row => [
+    row.setting_key,
+    normalizeSettingValue(row.setting_value)
+  ]))
+
+  const localColors = readLocalJsonSetting(scheduleColorStorageKey)
+  if (!appSettings.schedule_colors && Object.keys(localColors).length) {
+    appSettings.schedule_colors = localColors
+    saveAppSetting('schedule_colors', localColors)
+  }
+
+  const localFieldStaff = readLocalJsonSetting(fieldStaffSettingsStorageKey)
+  if (!appSettings.field_staff_settings && Object.keys(localFieldStaff).length) {
+    appSettings.field_staff_settings = localFieldStaff
+    saveAppSetting('field_staff_settings', localFieldStaff)
+  }
+}
+
+async function saveAppSetting(settingKey, settingValue) {
+  appSettings[settingKey] = normalizeSettingValue(settingValue)
+
+  try {
+    const { data: userData } = await supabase.auth.getUser()
+    const payload = {
+      setting_key: settingKey,
+      setting_value: appSettings[settingKey],
+      updated_at: new Date().toISOString()
+    }
+
+    if (userData?.user?.id) {
+      payload.updated_by = userData.user.id
+    }
+
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(payload, { onConflict: 'setting_key' })
+
+    if (error) {
+      console.warn('app_settings 儲存失敗，已保留本機設定。', error.message)
+      appSettingsError = error.message
+    } else {
+      appSettingsError = ''
+    }
+  } catch (err) {
+    console.warn('app_settings 儲存發生錯誤，已保留本機設定。', err)
+    appSettingsError = err.message || String(err)
+  }
+}
+
+function hasSharedSetting(key) {
+  return Boolean(appSettings && Object.prototype.hasOwnProperty.call(appSettings, key))
+}
+
+function renderAppSettingSyncNotice() {
+  if (!appSettingsError) {
+    return `<div class="notice">系統設定已支援共用；若有調整，其他人重新整理後會同步看到。</div>`
+  }
+
+  return `<div class="notice">目前尚未啟用共用設定資料表，系統會先使用本機暫存。要讓全公司同步，請先執行 V002-1P-14 的 Supabase SQL。</div>`
+}
+/* FOR-e V002-1P-14 END - shared app settings */
+
+
 
 function canSeePage(page, role) {
   return page.roles === 'ALL' || page.roles.includes(role)
@@ -683,7 +794,7 @@ async function loadProfile() {
 }
 
 async function refreshData() {
-  await Promise.all([loadStaff(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
+  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
 }
 
 async function loadStaff() {
@@ -1193,8 +1304,8 @@ function renderApp() {
   }
 
   document.querySelectorAll('[data-field-staff-toggle]').forEach(input => {
-    input.addEventListener('change', () => {
-      setStaffFieldWorker(input.dataset.fieldStaffToggle, input.checked)
+    input.addEventListener('change', async () => {
+      await setStaffFieldWorker(input.dataset.fieldStaffToggle, input.checked)
       renderApp()
     })
   })
@@ -1254,14 +1365,14 @@ function renderApp() {
 
   const colorSettingsForm = document.querySelector('#colorSettingsForm')
   if (colorSettingsForm) {
-    colorSettingsForm.addEventListener('submit', event => {
+    colorSettingsForm.addEventListener('submit', async event => {
       event.preventDefault()
       const form = new FormData(event.target)
       const nextColors = {}
       getScheduleColorDefinitions().forEach(item => {
         nextColors[item.key] = form.get(`color_${item.key}`) || item.defaultColor
       })
-      saveScheduleColorSettings(nextColors)
+      await saveScheduleColorSettings(nextColors)
       alert('顏色設定已儲存。')
       renderApp()
     })
@@ -1269,9 +1380,9 @@ function renderApp() {
 
   const resetColorSettingsBtn = document.querySelector('#resetColorSettingsBtn')
   if (resetColorSettingsBtn) {
-    resetColorSettingsBtn.addEventListener('click', () => {
+    resetColorSettingsBtn.addEventListener('click', async () => {
       if (!confirm('確定要還原行程顏色預設值嗎？')) return
-      resetScheduleColorSettings()
+      await resetScheduleColorSettings()
       renderApp()
     })
   }
@@ -1939,17 +2050,20 @@ function getScheduleDatesFromForm(form) {
 const fieldStaffSettingsStorageKey = 'for-e-field-staff-settings-v002'
 
 function getFieldStaffSettings() {
-  try {
-    const raw = localStorage.getItem(fieldStaffSettingsStorageKey)
-    return raw ? JSON.parse(raw) : {}
-  } catch (err) {
-    console.warn('外務人員設定讀取失敗', err)
-    return {}
-  }
+  const remoteSettings = hasSharedSetting('field_staff_settings')
+    ? normalizeSettingValue(appSettings.field_staff_settings)
+    : null
+
+  if (remoteSettings) return remoteSettings
+
+  return readLocalJsonSetting(fieldStaffSettingsStorageKey)
 }
 
 function saveFieldStaffSettings(settings) {
-  localStorage.setItem(fieldStaffSettingsStorageKey, JSON.stringify(settings || {}))
+  const nextSettings = normalizeSettingValue(settings)
+  appSettings.field_staff_settings = nextSettings
+  localStorage.setItem(fieldStaffSettingsStorageKey, JSON.stringify(nextSettings))
+  return saveAppSetting('field_staff_settings', nextSettings)
 }
 
 function isDefaultFieldStaff(staff) {
@@ -1971,7 +2085,7 @@ function isStaffFieldWorker(staff) {
 function setStaffFieldWorker(staffId, checked) {
   const settings = getFieldStaffSettings()
   settings[staffId] = checked === true
-  saveFieldStaffSettings(settings)
+  return saveFieldStaffSettings(settings)
 }
 
 function getFieldStaffRows() {
@@ -4540,30 +4654,41 @@ function getScheduleColorDefinitions() {
 
 function getScheduleColorSettings() {
   try {
-    const raw = localStorage.getItem(scheduleColorStorageKey)
-    const saved = raw ? JSON.parse(raw) : {}
+    const localSaved = readLocalJsonSetting(scheduleColorStorageKey)
+    const remoteSaved = hasSharedSetting('schedule_colors')
+      ? normalizeSettingValue(appSettings.schedule_colors)
+      : null
+
+    const saved = remoteSaved || localSaved
 
     if (saved['提醒事項'] === '#EED3D9') {
       saved['提醒事項'] = '#FF8383'
       localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
+      if (remoteSaved) saveAppSetting('schedule_colors', saved)
     }
 
     return {
-      ...Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor])),
+      ...getDefaultScheduleColorMap(),
       ...saved
     }
   } catch (err) {
     console.warn('顏色設定讀取失敗', err)
-    return Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor]))
+    return getDefaultScheduleColorMap()
   }
 }
 
 function saveScheduleColorSettings(value) {
-  localStorage.setItem(scheduleColorStorageKey, JSON.stringify(value || {}))
+  const nextSettings = normalizeSettingValue(value)
+  appSettings.schedule_colors = nextSettings
+  localStorage.setItem(scheduleColorStorageKey, JSON.stringify(nextSettings))
+  return saveAppSetting('schedule_colors', nextSettings)
 }
 
 function resetScheduleColorSettings() {
+  const defaults = getDefaultScheduleColorMap()
+  appSettings.schedule_colors = defaults
   localStorage.removeItem(scheduleColorStorageKey)
+  return saveAppSetting('schedule_colors', defaults)
 }
 
 function getScheduleColorKey(row) {
@@ -4853,7 +4978,7 @@ function renderColorSettingsPage() {
     <div class="page-toolbar">
       <div>
         <h3>顏色設定</h3>
-        <p class="muted">行程卡片背景維持白色，顏色用外框標示。設定先存在目前瀏覽器，不改資料庫。</p>
+        <p class="muted">行程卡片背景維持白色，顏色用外框標示。設定會優先同步到 Supabase 共用設定。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
@@ -4863,6 +4988,7 @@ function renderColorSettingsPage() {
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
+    ${renderAppSettingSyncNotice()}
     <div class="notice">目前設定的是卡片外框色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
 
     <form id="colorSettingsForm" class="color-settings-grid color-settings-grid-clean">
@@ -6684,8 +6810,9 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      權限規則：管理員可新增 / 修改人員資料；其他角色只能查看。這一版先管理 staff 人員資料，不處理登入密碼。
+      權限規則：管理員可新增 / 修改人員資料；其他角色只能查看。外務人員勾選會優先同步到 Supabase 共用設定；登入密碼下一階段處理。
     </div>
+    ${renderAppSettingSyncNotice()}
 
     <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
       <label>
@@ -6944,7 +7071,7 @@ async function saveUserAccount(event, modal, staffId = '') {
     }
 
     if (savedStaffId) {
-      setStaffFieldWorker(savedStaffId, form.get('is_field_staff') === 'on')
+      await setStaffFieldWorker(savedStaffId, form.get('is_field_staff') === 'on')
     }
 
     modal.remove()
@@ -10277,3 +10404,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 異動紀錄統計增加來源與動作摘要
 */
 /* FOR-e V002-1P-13 END - audit detail and filters */
+
+/* FOR-e V002-1P-14 START - shared app settings */
+/*
+  V002-1P-14｜系統設定共用化
+  - 顏色設定支援 app_settings 共用
+  - 外務人員勾選支援 app_settings 共用
+  - 未執行 SQL 時仍 fallback localStorage，不阻斷系統
+*/
+/* FOR-e V002-1P-14 END - shared app settings */
