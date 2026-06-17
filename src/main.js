@@ -344,12 +344,16 @@ let appSettingsError = ''
 let overviewWeekOffset = 0
 let overviewFilters = {
   departments: [],
-  staffIds: []
+  staffIds: [],
+  sortBy: 'display_order',
+  sortDir: 'asc'
 }
 let fieldWeekOffset = 0
 let fieldScheduleFilters = {
   departments: [],
-  staffIds: []
+  staffIds: [],
+  sortBy: 'display_order',
+  sortDir: 'asc'
 }
 let meetingWeekOffset = 0
 let fieldDetailFilters = {
@@ -763,7 +767,7 @@ function canResetUserPassword(staff) {
 }
 
 function canCreateUserLogin(staff) {
-  return canManageUsers() && !getStaffLoginEmail(staff) && !isStaffDeleted(staff) && getStaffDisplayStatus(staff) === '啟用'
+  return canManageUsers() && staff?.staff_id && !getStaffLoginEmail(staff) && !isStaffDeleted(staff)
 }
 
 function canDeleteUserProfile(staff) {
@@ -2068,7 +2072,9 @@ function renderApp() {
       const form = new FormData(event.target)
       overviewFilters = normalizeOverviewFilters({
         departments: form.getAll('departments'),
-        staffIds: form.getAll('staffIds')
+        staffIds: form.getAll('staffIds'),
+        sortBy: form.get('sortBy') || 'display_order',
+        sortDir: form.get('sortDir') || 'asc'
       })
       saveOverviewFiltersPreference()
       renderApp()
@@ -2120,7 +2126,9 @@ function renderApp() {
       const form = new FormData(event.target)
       fieldScheduleFilters = normalizeFieldScheduleFilters({
         departments: form.getAll('fieldDepartments'),
-        staffIds: form.getAll('fieldStaffIds')
+        staffIds: form.getAll('fieldStaffIds'),
+        sortBy: form.get('fieldSortBy') || 'display_order',
+        sortDir: form.get('fieldSortDir') || 'asc'
       })
       saveFieldScheduleFiltersPreference()
       renderApp()
@@ -3175,9 +3183,13 @@ function getFieldFilterStorageKey() {
 }
 
 function normalizeFieldScheduleFilters(value = {}) {
+  const sortBy = ['display_order', 'department', 'name'].includes(value.sortBy) ? value.sortBy : 'display_order'
+  const sortDir = value.sortDir === 'desc' ? 'desc' : 'asc'
   return {
     departments: normalizeOverviewFilterList(value.departments || value.department),
-    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId)
+    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId),
+    sortBy,
+    sortDir
   }
 }
 
@@ -3270,7 +3282,7 @@ function getFieldStaffRows() {
     rows = rows.filter(staff => selectedStaffIds.includes(staff.staff_id))
   }
 
-  return rows
+  return sortStaffRowsByFilter(rows, fieldScheduleFilters)
 }
 
 function isFieldScheduleRow(row) {
@@ -3352,6 +3364,20 @@ function renderFieldScheduleCalendar() {
             ${getFieldStaffCheckboxes()}
           </div>
         </details>
+
+        <label class="compact-sort-select">
+          排序
+          <select name="fieldSortBy">
+            ${getStaffSortOptions(fieldScheduleFilters.sortBy)}
+          </select>
+        </label>
+
+        <label class="compact-sort-select">
+          順序
+          <select name="fieldSortDir">
+            ${getStaffSortDirOptions(fieldScheduleFilters.sortDir)}
+          </select>
+        </label>
 
         <button type="submit" class="primary-btn">套用並記住</button>
         <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
@@ -7239,9 +7265,13 @@ function normalizeOverviewFilterList(value) {
 }
 
 function normalizeOverviewFilters(value = {}) {
+  const sortBy = ['display_order', 'department', 'name'].includes(value.sortBy) ? value.sortBy : 'display_order'
+  const sortDir = value.sortDir === 'desc' ? 'desc' : 'asc'
   return {
     departments: normalizeOverviewFilterList(value.departments || value.department),
-    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId)
+    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId),
+    sortBy,
+    sortDir
   }
 }
 
@@ -7308,6 +7338,53 @@ function renderCompactCheckOption(name, value, checked, inputName) {
   `
 }
 
+
+function getStaffSortOptions(selected = 'display_order') {
+  const options = [
+    ['display_order', '顯示順序'],
+    ['department', '部門'],
+    ['name', '姓名']
+  ]
+  return options.map(([value, label]) => `
+    <option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>
+  `).join('')
+}
+
+function getStaffSortDirOptions(selected = 'asc') {
+  const options = [
+    ['asc', '小到大 / A-Z'],
+    ['desc', '大到小 / Z-A']
+  ]
+  return options.map(([value, label]) => `
+    <option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>
+  `).join('')
+}
+
+function sortStaffRowsByFilter(rows, filters = {}) {
+  const sortBy = filters.sortBy || 'display_order'
+  const sortDir = filters.sortDir === 'desc' ? -1 : 1
+
+  return [...rows].sort((a, b) => {
+    if (sortBy === 'display_order') {
+      const aOrder = Number.isFinite(Number(a.display_order)) ? Number(a.display_order) : 999999
+      const bOrder = Number.isFinite(Number(b.display_order)) ? Number(b.display_order) : 999999
+      if (aOrder !== bOrder) return (aOrder - bOrder) * sortDir
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant') * sortDir
+    }
+
+    if (sortBy === 'department') {
+      const depCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+      if (depCompare !== 0) return depCompare * sortDir
+      const orderCompare = (Number(a.display_order || 999999) - Number(b.display_order || 999999))
+      if (orderCompare !== 0) return orderCompare
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+    }
+
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant') * sortDir
+  })
+}
+
+
 function getOverviewDepartmentCheckboxes() {
   const rows = getOverviewBaseStaffRows()
   const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
@@ -7344,7 +7421,7 @@ function getOverviewStaffRows() {
     rows = rows.filter(staff => selectedStaffIds.includes(staff.staff_id))
   }
 
-  return rows
+  return sortStaffRowsByFilter(rows, overviewFilters)
 }
 
 
@@ -7427,6 +7504,20 @@ function renderScheduleOverview() {
             ${getOverviewStaffCheckboxes()}
           </div>
         </details>
+
+        <label class="compact-sort-select">
+          排序
+          <select name="sortBy">
+            ${getStaffSortOptions(overviewFilters.sortBy)}
+          </select>
+        </label>
+
+        <label class="compact-sort-select">
+          順序
+          <select name="sortDir">
+            ${getStaffSortDirOptions(overviewFilters.sortDir)}
+          </select>
+        </label>
 
         <button type="submit" class="primary-btn">套用並記住</button>
         <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部</button>
@@ -8329,7 +8420,7 @@ function renderUsersList(rows) {
                   : ''
                 }
                 ${canCreateUserLogin(staff)
-                  ? `<button type="button" class="user-action-btn is-create" data-create-login-staff="${staff.staff_id}">建立</button>`
+                  ? `<button type="button" class="user-action-btn is-create" data-create-login-staff="${staff.staff_id}">綁定</button>`
                   : ''
                 }
                 ${canActivateUserProfile(staff)
@@ -12466,3 +12557,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 兩個頁面的篩選條件都會依登入者記住
 */
 /* FOR-e V002-1P-43 END - overview field compact multiselect */
+
+/* FOR-e V002-1P-44 START - multiselect sort bind button */
+/*
+  V002-1P-44｜下拉複選靠左、綁定帳號按鈕、行程排序
+  - 行程總覽 / 外務行程複選項目靠左，一個項目一行
+  - 行程總覽 / 外務行程新增排序：顯示順序、部門、姓名
+  - 排序條件會跟篩選條件一起記住
+  - 人員帳號未綁定時顯示「綁定」按鈕
+*/
+/* FOR-e V002-1P-44 END - multiselect sort bind button */
