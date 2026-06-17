@@ -4948,8 +4948,8 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
-    ${renderServiceRecordPersonCombinedStatus(records)}
-    ${renderServiceRecordDepartmentStatus(records)}
+    ${renderServiceRecordPersonCombinedStatusV2(records)}
+    ${renderServiceRecordDepartmentStatusV2(records)}
     ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
   `
@@ -8081,7 +8081,7 @@ function renderServiceRecordCombinedTable(title, subtitle, rows, firstColumnTitl
   `
 }
 
-function renderServiceRecordPersonCombinedStatus(records) {
+function renderServiceRecordPersonCombinedStatusV2(records) {
   const rows = buildServiceRecordCombinedRows(records, 'staff')
   return renderServiceRecordCombinedTable(
     '個人員繳交狀況',
@@ -8091,7 +8091,7 @@ function renderServiceRecordPersonCombinedStatus(records) {
   )
 }
 
-function renderServiceRecordDepartmentStatus(records) {
+function renderServiceRecordDepartmentStatusV2(records) {
   const rows = buildServiceRecordCombinedRows(records, 'department')
   return renderServiceRecordCombinedTable(
     '一部、二部繳交狀況',
@@ -8101,3 +8101,11 @@ function renderServiceRecordDepartmentStatus(records) {
   )
 }
 /* FOR-e V002-1M-2-3 END - service record statistics style */
+
+/* FOR-e V002-1M-2-3-1 START - build fix duplicated service record functions */
+/*
+  修正 Vercel build failed：
+  renderServiceRecordPersonCombinedStatus / renderServiceRecordDepartmentStatus 重複宣告。
+  保留 V002-1M-2-3 新樣式，改由 dashboard 呼叫 V2 函式。
+*/
+/* FOR-e V002-1M-2-3-1 END - build fix duplicated service record functions */
