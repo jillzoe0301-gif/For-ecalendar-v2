@@ -7229,3 +7229,91 @@ label.record-modal-check {
   width: 100%;
 }
 /* FOR-e V002-1P-8 END - no completion position select color header align */
+
+/* FOR-e V002-1P-9 START - line notification page */
+.line-notify-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.line-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.line-message-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin: 16px 0;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.line-message-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.line-message-head strong {
+  display: block;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.line-message-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.line-message-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+#lineMessageText {
+  width: 100%;
+  min-height: 280px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.line-preview-list {
+  margin-top: 16px;
+}
+
+@media (max-width: 820px) {
+  .line-notify-panel,
+  .line-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .line-message-head {
+    display: grid;
+  }
+
+  .line-message-actions {
+    justify-content: stretch;
+  }
+
+  .line-message-actions button {
+    flex: 1;
+  }
+}
+/* FOR-e V002-1P-9 END - line notification page */

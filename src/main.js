@@ -372,6 +372,11 @@ let auditFilters = {
   endDate: ''
 }
 
+let lineNotifyState = {
+  type: '今日行程',
+  target: '自己'
+}
+
 let serviceRecords = []
 let serviceRecordsLoading = false
 let serviceRecordsError = ''
@@ -1173,6 +1178,50 @@ function renderApp() {
       renderApp()
     })
   })
+
+  const lineNotifyForm = document.querySelector('#lineNotifyForm')
+  if (lineNotifyForm) {
+    lineNotifyForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      lineNotifyState = {
+        type: form.get('type') || '今日行程',
+        target: form.get('target') || '自己'
+      }
+      renderApp()
+    })
+  }
+
+  const copyLineMessageBtn = document.querySelector('#copyLineMessageBtn')
+  if (copyLineMessageBtn) {
+    copyLineMessageBtn.addEventListener('click', async () => {
+      const text = document.querySelector('#lineMessageText')?.value || ''
+      if (!text.trim()) {
+        alert('目前沒有可複製的 LINE 訊息。')
+        return
+      }
+
+      try {
+        await navigator.clipboard.writeText(text)
+        alert('LINE 訊息已複製。')
+      } catch (err) {
+        console.error(err)
+        alert('無法自動複製，請手動選取文字複製。')
+      }
+    })
+  }
+
+  const openLineShareBtn = document.querySelector('#openLineShareBtn')
+  if (openLineShareBtn) {
+    openLineShareBtn.addEventListener('click', () => {
+      const text = document.querySelector('#lineMessageText')?.value || ''
+      if (!text.trim()) {
+        alert('目前沒有可分享的 LINE 訊息。')
+        return
+      }
+      window.open(`https://line.me/R/share?text=${encodeURIComponent(text)}`, '_blank')
+    })
+  }
 
   const addUserAccountBtn = document.querySelector('#addUserAccountBtn')
   if (addUserAccountBtn) {
@@ -4381,6 +4430,191 @@ function renderColorPreviewCard(item, color) {
   `
 }
 
+
+/* FOR-e V002-1P-9 START - line notification page */
+/*
+  V002-1P-9｜LINE 通知頁
+  - 產生今日行程、逾期任務、待確認 / 待通知、外務、會議室 LINE 文字
+  - 支援複製與 LINE 分享
+  - 不改 SQL、不串 LINE Notify API
+*/
+
+function getLineNotifyTypeOptions() {
+  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室']
+  return types.map(type => `<option value="${escapeHtml(type)}" ${lineNotifyState.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+}
+
+function getLineNotifyTargetOptions() {
+  const targets = isPowerRole() ? ['自己', '全部'] : ['自己']
+  return targets.map(target => `<option value="${escapeHtml(target)}" ${lineNotifyState.target === target ? 'selected' : ''}>${escapeHtml(target)}</option>`).join('')
+}
+
+function getLineNotifyBaseRows() {
+  let rows = schedules.filter(isVisibleSchedule)
+
+  if (!isPowerRole() || lineNotifyState.target !== '全部') {
+    rows = rows.filter(isMine)
+  }
+
+  return rows.filter(row => row.status !== '取消')
+}
+
+function getLineNotifyRows() {
+  const today = todayString()
+  const rows = getLineNotifyBaseRows()
+
+  if (lineNotifyState.type === '今日行程') {
+    return rows
+      .filter(row => scheduleMatchesDateByMode(row, today))
+      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+  }
+
+  if (lineNotifyState.type === '任務逾期') {
+    return rows
+      .filter(row => isOverdueSchedule(row))
+      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+  }
+
+  if (lineNotifyState.type === '待確認 / 待通知') {
+    return rows
+      .filter(row => isReminderSchedule(row))
+      .filter(row => row.status !== '已完成')
+      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+  }
+
+  if (lineNotifyState.type === '今日外務') {
+    return rows
+      .filter(row => isFieldScheduleRow(row))
+      .filter(row => scheduleMatchesDateByMode(row, today))
+      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+  }
+
+  if (lineNotifyState.type === '今日會議室') {
+    return rows
+      .filter(row => isMeetingRoomSchedule(row))
+      .filter(row => scheduleMatchesDateByMode(row, today))
+      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+  }
+
+  return []
+}
+
+function formatLineScheduleItem(row, index) {
+  const parts = [
+    `${index + 1}. ${row.start_date || '-'} ${formatTime(row)}`,
+    `${row.schedule_type || row.category || '行程'}｜${row.title || '-'}`,
+    `執行者：${getAssigneeNames(row) || '-'}`,
+    row.customer_name ? `客戶 / 區域：${row.customer_name}` : '',
+    row.location_name ? `地點：${row.location_name}` : '',
+    `狀態：${getScheduleStatusLabel(row)}`
+  ].filter(Boolean)
+
+  return parts.join('\n')
+}
+
+function buildLineNotifyMessage(rows) {
+  const today = todayString()
+  const targetText = lineNotifyState.target === '全部' ? '全部人員' : (currentProfile?.name || '自己')
+  const title = `FOR-e｜${lineNotifyState.type}通知`
+  const subtitle = `${today}｜對象：${targetText}`
+
+  if (!rows.length) {
+    return `${title}\n${subtitle}\n\n目前沒有需要通知的資料。`
+  }
+
+  return [
+    title,
+    subtitle,
+    `共 ${rows.length} 筆`,
+    '',
+    rows.map(formatLineScheduleItem).join('\n\n')
+  ].join('\n')
+}
+
+function renderLineNotifySummary(rows) {
+  const overdueCount = rows.filter(isOverdueSchedule).length
+  const today = todayString()
+  const todayCount = rows.filter(row => scheduleMatchesDateByMode(row, today)).length
+
+  return `
+    <div class="summary-grid line-summary-grid">
+      <div class="summary-card">
+        <strong>${rows.length}</strong>
+        <span>通知筆數</span>
+      </div>
+      <div class="summary-card">
+        <strong>${todayCount}</strong>
+        <span>今日行程</span>
+      </div>
+      <div class="summary-card ${overdueCount ? 'is-alert' : ''}">
+        <strong>${overdueCount}</strong>
+        <span>逾期</span>
+      </div>
+    </div>
+  `
+}
+
+function renderLineNotificationPage() {
+  const rows = getLineNotifyRows()
+  const message = buildLineNotifyMessage(rows)
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>LINE 通知</h3>
+        <p class="muted">先產生可複製的 LINE 文字。正式自動推播可在下一階段串 Webhook / LINE Messaging API。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    <div class="notice">
+      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或用 LINE 分享開啟。
+    </div>
+
+    <form id="lineNotifyForm" class="line-notify-panel">
+      <label>
+        通知類型
+        <select name="type">${getLineNotifyTypeOptions()}</select>
+      </label>
+
+      <label>
+        通知對象
+        <select name="target">${getLineNotifyTargetOptions()}</select>
+      </label>
+
+      <button type="submit" class="primary-btn">產生訊息</button>
+    </form>
+
+    ${renderLineNotifySummary(rows)}
+
+    <section class="line-message-card">
+      <div class="line-message-head">
+        <div>
+          <strong>LINE 訊息內容</strong>
+          <span>可直接複製貼到 LINE 群組或個人聊天室</span>
+        </div>
+        <div class="line-message-actions">
+          <button type="button" class="secondary-btn" id="copyLineMessageBtn">複製文字</button>
+          <button type="button" class="primary-btn" id="openLineShareBtn">LINE 分享</button>
+        </div>
+      </div>
+
+      <textarea id="lineMessageText" readonly>${escapeHtml(message)}</textarea>
+    </section>
+
+    <section class="line-preview-list">
+      <div class="section-title-row">
+        <h4>通知資料預覽</h4>
+        <span>${rows.length} 筆</span>
+      </div>
+      ${renderScheduleList(rows, '目前沒有符合條件的通知資料。', true)}
+    </section>
+  `
+}
+
+
 function renderColorSettingsPage() {
   const canEdit = ['管理員', '主管', '行政 / 海外'].includes(currentProfile?.role)
   const settings = getScheduleColorSettings()
@@ -4441,6 +4675,7 @@ function renderPageContent() {
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
+  if (currentPage === 'line') return renderLineNotificationPage()
   if (currentPage === 'color') return renderColorSettingsPage()
   if (currentPage === 'options') return renderOptionsPage()
   if (currentPage === 'users') return renderUsersPage()
@@ -9267,3 +9502,15 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顏色設定表頭與內容對齊
 */
 /* FOR-e V002-1P-8 END - no completion position select color header align */
+
+/* FOR-e V002-1P-9 START - line notification page */
+/*
+  V002-1P-9｜LINE 通知頁正式初版
+  - 今日行程通知
+  - 任務逾期通知
+  - 待確認 / 待通知提醒
+  - 今日外務通知
+  - 今日會議室通知
+  - 可複製文字與 LINE 分享
+*/
+/* FOR-e V002-1P-9 END - line notification page */
