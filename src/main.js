@@ -1,4 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+unzip -o for-e-v002-1p-66-staff-department-id-fix.zip
+
+npm run build
+
+git status
+git add -A
+git status
+git commit -m "V002-1P-66 fix staff department id"
+git push origin mainimport { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -8,7 +16,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-64'
+const SYSTEM_VERSION = 'V002-1P-66'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1072,7 +1080,7 @@ function renderLogin() {
         <div id="errorText" class="error"></div>
 
         <div class="login-note">
-          測試項目：行程類型在標題前、卡片內容前兩行、證件欄位、提醒標籤與 LOGO。
+          請使用公司提供的帳號密碼登入 FOR-e 共享排程系統。
         </div>
       </div>
     </section>
@@ -7249,7 +7257,7 @@ function getHealthRows() {
     title: '目前網址',
     status: window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost' ? 'ok' : 'warn',
     detail: window.location.origin,
-    note: window.location.hostname === 'localhost' ? '本機測試網址；正式信件與重設密碼需使用 Vercel 正式網址。' : '目前瀏覽器所在網址。'
+    note: window.location.hostname === 'localhost' ? '本機網址；正式信件與重設密碼需使用 Vercel 正式網址。' : '目前瀏覽器所在網址。'
   })
 
   rows.push({
@@ -7329,7 +7337,7 @@ function getHealthRows() {
   })
 
   rows.push({
-    title: '角色實測進度',
+    title: '角色確認進度',
     status: getRoleTestStats().remaining ? 'warn' : 'ok',
     detail: `已完成 ${getRoleTestStats().done}/${getRoleTestStats().total} 個角色`,
     note: '請用各角色帳號實際登入確認可見頁面與操作權限。'
@@ -7426,7 +7434,7 @@ function getSystemHealthReportText() {
     `時間：${new Date().toLocaleString('zh-TW')}`,
     `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
     `角色：${currentProfile?.role || '-'}`,
-    `上線測試進度：${getLaunchTestStats().done}/${getLaunchTestStats().total}（${getLaunchTestStats().percent}%）`,
+    `上線確認進度：${getLaunchTestStats().done}/${getLaunchTestStats().total}（${getLaunchTestStats().percent}%）`,
     `上線狀態：${getLaunchReadinessState().title}`,
     `驗收狀態：${getFinalAcceptanceState().title}`,
     '',
@@ -7620,18 +7628,18 @@ function getLaunchTestGroups() {
         ['version-current', '系統檢查頁顯示目前版本為最新版本'],
         ['vercel-prod', '正式 Vercel 網址可正常開啟'],
         ['supabase-ok', 'Supabase 環境變數、staff、schedules、service_records、audit_logs 皆正常'],
-        ['edge-function', '帳號 Edge Function dry_run 測試正常'],
+        ['edge-function', '帳號 Edge Function dry_run 檢查正常'],
         ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
         ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
         ['data-integrity-audit', '資料完整性檢查沒有紅色錯誤'],
-        ['role-test-panel', '六種角色已完成實際登入測試並標記完成'],
+        ['role-test-panel', '六種角色已完成實際登入確認並標記完成'],
         ['final-acceptance-report', '正式上線驗收報告已複製留存'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
     {
       key: 'roles',
-      title: '二、角色權限測試',
+      title: '二、角色權限確認',
       items: [
         ['admin-role', '管理員：可使用人員 / 帳號、選項管理、系統檢查、全部行程管理'],
         ['manager-role', '主管：可看選項管理，可看全部人員但只能調整外務人員'],
@@ -7643,7 +7651,7 @@ function getLaunchTestGroups() {
     },
     {
       key: 'schedule',
-      title: '三、行程流程測試',
+      title: '三、行程流程確認',
       items: [
         ['personal-schedule', '新增個人一般待辦後，個人行程表正常顯示'],
         ['service-schedule', '新增服務行程後，個人行程表與行程總覽同步顯示'],
@@ -7655,7 +7663,7 @@ function getLaunchTestGroups() {
     },
     {
       key: 'mobile',
-      title: '四、手機版測試',
+      title: '四、手機版確認',
       items: [
         ['mobile-login', '手機登入畫面可輸入帳號密碼並正常登入'],
         ['mobile-personal', '個人行程表卡片不跑版、不被底部選單遮住'],
@@ -7667,7 +7675,7 @@ function getLaunchTestGroups() {
     },
     {
       key: 'data',
-      title: '五、資料與共用設定測試',
+      title: '五、資料與共用設定確認',
       items: [
         ['shared-options', '選項管理跨帳號同步正常'],
         ['car-options', '公務車資訊可在選項管理修改，行程表單可正常選擇'],
@@ -7683,7 +7691,7 @@ function readLaunchTestProgress() {
   try {
     return JSON.parse(localStorage.getItem(getLaunchTestStorageKey()) || '{}') || {}
   } catch (err) {
-    console.warn('上線測試紀錄讀取失敗', err)
+    console.warn('上線確認紀錄讀取失敗', err)
     return {}
   }
 }
@@ -7692,7 +7700,7 @@ function saveLaunchTestProgress(progress) {
   try {
     localStorage.setItem(getLaunchTestStorageKey(), JSON.stringify(progress || {}))
   } catch (err) {
-    console.warn('上線測試紀錄儲存失敗', err)
+    console.warn('上線確認紀錄儲存失敗', err)
   }
 }
 
@@ -7729,7 +7737,7 @@ function toggleLaunchTestItem(key, checked) {
 }
 
 function clearLaunchTestProgress() {
-  if (!confirm('確定要清除本機的上線測試勾選紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
+  if (!confirm('確定要清除本機的上線確認勾選紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
   localStorage.removeItem(getLaunchTestStorageKey())
   renderApp()
 }
@@ -7740,10 +7748,10 @@ function getLaunchTestReportText() {
   const stats = getLaunchTestStats()
 
   return [
-    'FOR-e 正式上線前測試清單',
+    'FOR-e 正式上線前確認清單',
     `版本：${SYSTEM_VERSION}`,
     `時間：${new Date().toLocaleString('zh-TW')}`,
-    `測試者：${currentProfile?.name || currentProfile?.email || '-'}`,
+    `確認人員：${currentProfile?.name || currentProfile?.email || '-'}`,
     `完成：${stats.done}/${stats.total}（${stats.percent}%）`,
     `剩餘：${stats.remaining}`,
     '',
@@ -7760,7 +7768,7 @@ async function copyLaunchTestReport() {
 
   try {
     await navigator.clipboard.writeText(text)
-    alert('正式上線前測試清單已複製。')
+    alert('正式上線前確認清單已複製。')
   } catch (err) {
     console.warn(err)
     alert(text)
@@ -7775,7 +7783,7 @@ function renderLaunchTestChecklist() {
   return `
     <section class="launch-test-section">
       <div class="section-title-row">
-        <h4>正式上線前測試清單</h4>
+        <h4>正式上線前確認清單</h4>
         <span>完成 ${stats.done}/${stats.total}｜${stats.percent}%</span>
       </div>
 
@@ -7787,7 +7795,7 @@ function renderLaunchTestChecklist() {
       </div>
 
       <div class="launch-test-actions">
-        <button type="button" class="secondary-btn" id="copyLaunchTestBtn">複製測試清單</button>
+        <button type="button" class="secondary-btn" id="copyLaunchTestBtn">複製確認清單</button>
         <button type="button" class="secondary-btn" id="clearLaunchTestBtn">清除勾選紀錄</button>
       </div>
 
@@ -7998,16 +8006,16 @@ function getLaunchReadinessState() {
   dataAudit.warnIssues.forEach(issue => warnings.push(`資料完整性：${issue.title}｜${issue.detail}`))
 
   if (launchStats.remaining > 0) {
-    warnings.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
+    warnings.push(`正式上線前確認清單尚有 ${launchStats.remaining} 項未完成`)
   }
 
   if (getRoleTestStats().remaining > 0) {
-    warnings.push(`角色實測尚有 ${getRoleTestStats().remaining} 個角色未完成`)
+    warnings.push(`角色確認尚有 ${getRoleTestStats().remaining} 個角色未完成`)
   }
 
   let status = 'ok'
   let title = '可以進入正式上線前最終確認'
-  let message = '目前沒有紅色阻擋項目，可以依照測試清單完成最後確認。'
+  let message = '目前沒有紅色阻擋項目，可以依照確認清單完成最後確認。'
 
   if (blockers.length) {
     status = 'bad'
@@ -8015,8 +8023,8 @@ function getLaunchReadinessState() {
     message = '目前仍有紅色阻擋項目，請先處理後再上線。'
   } else if (warnings.length || launchStats.remaining > 0) {
     status = 'warn'
-    title = '可以測試，但上線前仍需確認'
-    message = '目前沒有紅色阻擋項目，但仍有注意項目或測試項目未完成。'
+    title = '可以進行確認，但上線前仍需完成'
+    message = '目前沒有紅色阻擋項目，但仍有注意項目或確認項目未完成。'
   }
 
   return {
@@ -8060,7 +8068,7 @@ function renderLaunchReadinessSummary() {
         </div>
         <div>
           <strong>${state.launchStats.percent}%</strong>
-          <span>測試完成</span>
+          <span>確認完成</span>
         </div>
         <div>
           <strong>${state.accountAudit.issues.length}</strong>
@@ -8072,7 +8080,7 @@ function renderLaunchReadinessSummary() {
         </div>
         <div>
           <strong>${getRoleTestStats().percent}%</strong>
-          <span>角色實測</span>
+          <span>角色確認</span>
         </div>
       </div>
 
@@ -8092,7 +8100,7 @@ function renderLaunchReadinessSummary() {
 
       ${!visibleBlockers.length && !visibleWarnings.length ? `
         <div class="empty-state">
-          <p>目前沒有阻擋項目或注意項目。請完成實際操作測試後，即可進入正式上線確認。</p>
+          <p>目前沒有阻擋項目或注意項目。請完成實際操作確認後，即可進入正式上線確認。</p>
         </div>
       ` : ''}
 
@@ -8113,7 +8121,7 @@ function getLaunchReadinessReportText() {
     `登入者：${currentProfile?.name || currentProfile?.email || '-'}`,
     `角色：${currentProfile?.role || '-'}`,
     `狀態：${getHealthStatusMeta(state.status).label}｜${state.title}`,
-    `測試進度：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
+    `確認進度：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
     `阻擋項目：${state.blockers.length}`,
     `注意項目：${state.warnings.length}`,
     `建議備份：人員、登入帳號綁定、行程、服務紀錄單、異動紀錄、共用設定`,
@@ -8583,7 +8591,7 @@ function readRoleTestProgress() {
   try {
     return JSON.parse(localStorage.getItem(getRoleTestStorageKey()) || '{}') || {}
   } catch (err) {
-    console.warn('角色實測紀錄讀取失敗', err)
+    console.warn('角色確認紀錄讀取失敗', err)
     return {}
   }
 }
@@ -8592,7 +8600,7 @@ function saveRoleTestProgress(progress) {
   try {
     localStorage.setItem(getRoleTestStorageKey(), JSON.stringify(progress || {}))
   } catch (err) {
-    console.warn('角色實測紀錄儲存失敗', err)
+    console.warn('角色確認紀錄儲存失敗', err)
   }
 }
 
@@ -8630,7 +8638,7 @@ function toggleRoleTestComplete(role = '') {
 }
 
 function clearRoleTestProgress() {
-  if (!confirm('確定要清除本機的角色實測完成紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
+  if (!confirm('確定要清除本機的角色確認完成紀錄嗎？\\n\\n這不會刪除任何系統資料。')) return
   localStorage.removeItem(getRoleTestStorageKey())
   renderApp()
 }
@@ -8640,7 +8648,7 @@ function getRoleTestChecklistText(role = '') {
   if (!definition) return ''
 
   return [
-    `FOR-e 角色實測清單｜${definition.role}`,
+    `FOR-e 角色確認清單｜${definition.role}`,
     `版本：${SYSTEM_VERSION}`,
     `時間：${new Date().toLocaleString('zh-TW')}`,
     '',
@@ -8650,7 +8658,7 @@ function getRoleTestChecklistText(role = '') {
     '不應該看得到：',
     ...definition.cannotSee.map(item => `□ ${item}`),
     '',
-    '操作測試：',
+    '操作確認：',
     ...definition.actions.map(item => `□ ${item}`)
   ].join('\\n')
 }
@@ -8658,13 +8666,13 @@ function getRoleTestChecklistText(role = '') {
 async function copyRoleTestChecklist(role = '') {
   const text = getRoleTestChecklistText(role)
   if (!text) {
-    alert('找不到角色測試清單。')
+    alert('找不到角色確認清單。')
     return
   }
 
   try {
     await navigator.clipboard.writeText(text)
-    alert(`${role} 角色實測清單已複製。`)
+    alert(`${role} 角色確認清單已複製。`)
   } catch (err) {
     console.warn(err)
     alert(text)
@@ -8677,7 +8685,7 @@ function getRoleTestReportLines() {
   const stats = getRoleTestStats()
 
   return [
-    `角色實測進度：${stats.done}/${stats.total}（${stats.percent}%）`,
+    `角色確認進度：${stats.done}/${stats.total}（${stats.percent}%）`,
     ...definitions.map(item => {
       const done = progress[item.role]
       return `- ${done ? '已完成' : '未完成'}｜${item.role}${done?.by ? `｜${done.by}` : ''}`
@@ -8693,7 +8701,7 @@ function renderRoleTestPanel() {
   return `
     <section class="role-test-section">
       <div class="section-title-row">
-        <h4>角色實測面板</h4>
+        <h4>角色確認面板</h4>
         <span>完成 ${stats.done}/${stats.total}｜${stats.percent}%</span>
       </div>
 
@@ -8705,7 +8713,7 @@ function renderRoleTestPanel() {
       </div>
 
       <div class="role-test-actions">
-        <button type="button" class="secondary-btn" id="clearRoleTestBtn">清除角色實測紀錄</button>
+        <button type="button" class="secondary-btn" id="clearRoleTestBtn">清除角色確認紀錄</button>
       </div>
 
       <div class="role-test-grid">
@@ -8715,7 +8723,7 @@ function renderRoleTestPanel() {
             <div class="role-test-card ${done ? 'is-done' : ''}">
               <div class="role-test-card-head">
                 <strong>${escapeHtml(definition.role)}</strong>
-                <span>${done ? '已完成' : '未測試'}</span>
+                <span>${done ? '已完成' : '未確認'}</span>
               </div>
 
               <div class="role-test-columns">
@@ -8775,14 +8783,14 @@ function getFinalAcceptanceState() {
   const blockers = [...readiness.blockers]
   const reminders = []
 
-  if (launchStats.remaining > 0) reminders.push(`正式上線前測試清單尚有 ${launchStats.remaining} 項未完成`)
-  if (roleStats.remaining > 0) reminders.push(`角色實測尚有 ${roleStats.remaining} 個角色未完成`)
+  if (launchStats.remaining > 0) reminders.push(`正式上線前確認清單尚有 ${launchStats.remaining} 項未完成`)
+  if (roleStats.remaining > 0) reminders.push(`角色確認尚有 ${roleStats.remaining} 個角色未完成`)
   if (accountAudit.issues.length) reminders.push(`帳號綁定檢查仍有 ${accountAudit.issues.length} 項需確認`)
   if (dataAudit.issues.length) reminders.push(`資料完整性檢查仍有 ${dataAudit.issues.length} 項需確認`)
 
   let status = 'ok'
   let title = '可送主管驗收'
-  let conclusion = '系統主要功能已具備正式上線條件，完成實際測試與備份後即可交付。'
+  let conclusion = '系統主要功能已具備正式上線條件，完成實際確認與備份後即可交付。'
 
   if (blockers.length) {
     status = 'bad'
@@ -8791,7 +8799,7 @@ function getFinalAcceptanceState() {
   } else if (reminders.length) {
     status = 'warn'
     title = '可進行驗收前確認'
-    conclusion = '目前沒有紅色阻擋項目，但仍有測試、備份或資料確認項目需完成。'
+    conclusion = '目前沒有紅色阻擋項目，但仍有確認、備份或資料確認項目需完成。'
   }
 
   return {
@@ -8823,8 +8831,8 @@ function getAcceptanceReportText() {
     `驗收結論：${state.conclusion}`,
     '',
     '一、上線前檢查結果',
-    `- 測試清單完成：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
-    `- 角色實測完成：${state.roleStats.done}/${state.roleStats.total}（${state.roleStats.percent}%）`,
+    `- 確認清單完成：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
+    `- 角色確認完成：${state.roleStats.done}/${state.roleStats.total}（${state.roleStats.percent}%）`,
     `- 帳號綁定問題：${state.accountAudit.issues.length} 項`,
     `- 資料完整性問題：${state.dataAudit.issues.length} 項`,
     `- 阻擋項目：${state.blockers.length} 項`,
@@ -8841,7 +8849,7 @@ function getAcceptanceReportText() {
     '',
     '四、建議上線前必做',
     '- 下載正式上線前資料備份',
-    '- 完成六種角色實際登入測試',
+    '- 完成六種角色實際登入確認',
     '- 確認刪除人員不出現在人員名單，停用人員仍保留',
     '- 確認重新綁定帳號功能正常',
     '- 確認手機版新增 / 修改彈窗不遮擋',
@@ -8885,11 +8893,11 @@ function renderFinalAcceptancePanel() {
       <div class="final-acceptance-metrics">
         <div>
           <strong>${state.launchStats.percent}%</strong>
-          <span>測試清單</span>
+          <span>確認清單</span>
         </div>
         <div>
           <strong>${state.roleStats.percent}%</strong>
-          <span>角色實測</span>
+          <span>角色確認</span>
         </div>
         <div>
           <strong>${state.accountAudit.issues.length}</strong>
@@ -8962,15 +8970,15 @@ function renderSystemHealthPage() {
     ${renderLaunchTestChecklist()}
 
     <section class="health-checklist">
-      <h4>上線前建議測試順序</h4>
+      <h4>上線前建議確認順序</h4>
       <ol>
         <li>管理員登入，確認人員 / 帳號可新增、修改、綁定、重設、刪除。</li>
         <li>主管登入，確認可看全部人員但只能改外務人員。</li>
         <li>行政 / 海外登入，確認可管理行程但不可管理帳號與選項。</li>
         <li>翻譯登入，確認只看自己的行程與紀錄單繳交。</li>
         <li>外務 / 宿管 / 會計與一般職員登入，確認只看自己的帳號資訊並可修改自己密碼。</li>
-        <li>確認「目前版本」為最新版本，再開始測試各角色功能。</li>
-        <li>新增醫療行程，測試下次回診日期、時間、掛號號碼、下次執行人。</li>
+        <li>確認「目前版本」為最新版本，再開始確認各角色功能。</li>
+        <li>新增醫療行程，確認下次回診日期、時間、掛號號碼、下次執行人。</li>
         <li>新增外務行程，確認外務行程表、外務明細、個人行程都有同步。</li>
       </ol>
     </section>
@@ -9019,7 +9027,7 @@ function renderPageContent() {
 
   return `
     <h3>${getPageTitle()}</h3>
-    <p>此頁面目前為權限測試佔位頁，正式功能會在下一階段逐步加入。</p>
+    <p>此頁面目前尚未開放內容，請返回其他功能頁。</p>
   `
 }
 
@@ -10716,6 +10724,112 @@ function getDepartmentIdByName(name) {
   return row?.department_id || null
 }
 
+
+function makeUuidForClient() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+    const random = Math.random() * 16 | 0
+    const value = char === 'x' ? random : (random & 0x3 | 0x8)
+    return value.toString(16)
+  })
+}
+
+function getDepartmentNameFromRow(row) {
+  return row?.department_name || row?.name || row?.title || ''
+}
+
+function getDepartmentIdFromRow(row) {
+  return row?.department_id || row?.id || row?.uuid || ''
+}
+
+async function findDepartmentRowByName(departmentName = '') {
+  const target = String(departmentName || '').trim()
+  if (!target) return null
+
+  try {
+    const { data, error } = await supabase
+      .from('departments')
+      .select('*')
+      .limit(1000)
+
+    if (error) {
+      console.warn('departments 讀取失敗，改用人員資料推估部門 ID。', error.message)
+      return null
+    }
+
+    return (data || []).find(row => getDepartmentNameFromRow(row) === target) || null
+  } catch (err) {
+    console.warn('departments 讀取發生錯誤。', err)
+    return null
+  }
+}
+
+async function tryInsertDepartment(payload) {
+  try {
+    const { data, error } = await supabase
+      .from('departments')
+      .insert(payload)
+      .select('*')
+      .single()
+
+    if (error) return { data: null, error }
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err }
+  }
+}
+
+async function createDepartmentRow(departmentName = '') {
+  const name = String(departmentName || '').trim()
+  if (!name) return null
+
+  const generatedId = makeUuidForClient()
+  const payloads = [
+    { department_name: name },
+    { name },
+    { department_id: generatedId, department_name: name },
+    { department_id: generatedId, name },
+    { id: generatedId, department_name: name },
+    { id: generatedId, name }
+  ]
+
+  let lastError = null
+  for (const payload of payloads) {
+    const { data, error } = await tryInsertDepartment(payload)
+    if (!error && data) return data
+    lastError = error
+  }
+
+  if (lastError) {
+    console.warn('新增 departments 失敗。', lastError)
+  }
+
+  return null
+}
+
+async function getOrCreateDepartmentIdByName(departmentName = '') {
+  const name = String(departmentName || '').trim()
+  if (!name) return ''
+
+  const existingId = getDepartmentIdByName(name)
+  if (existingId) return existingId
+
+  if (currentProfile?.department_name === name && currentProfile?.department_id) {
+    return currentProfile.department_id
+  }
+
+  const existingDepartment = await findDepartmentRowByName(name)
+  const existingDepartmentId = getDepartmentIdFromRow(existingDepartment)
+  if (existingDepartmentId) return existingDepartmentId
+
+  const createdDepartment = await createDepartmentRow(name)
+  const createdDepartmentId = getDepartmentIdFromRow(createdDepartment)
+  if (createdDepartmentId) return createdDepartmentId
+
+  return ''
+}
+
+
 function getNextStaffDisplayOrder() {
   const numbers = getUserManageRows()
     .map(staff => Number(staff.display_order || 0))
@@ -10766,7 +10880,7 @@ function openUserAccountModal(staffId = '') {
 
         <label>
           手動輸入部門
-          <input name="department_custom" placeholder="若選單沒有，再輸入新部門">
+          <input name="department_custom" placeholder="若要新增新部門才填寫；留空則使用左側選單">
         </label>
 
         <label>
@@ -10831,31 +10945,44 @@ async function saveUserAccount(event, modal, staffId = '') {
 
   try {
     const form = new FormData(event.target)
-    const departmentName = String(form.get('department_custom') || '').trim() || form.get('department_name') || ''
+    const departmentName = String(form.get('department_custom') || '').trim() || String(form.get('department_name') || '').trim()
+    const position = (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim()) || null
     const displayOrderValue = form.get('display_order')
+    const name = String(form.get('name') || '').trim()
+
+    if (!name) {
+      alert('請輸入人員姓名。')
+      saving = false
+      return
+    }
+
+    if (!departmentName) {
+      alert('請選擇或輸入部門。')
+      saving = false
+      return
+    }
+
+    const departmentId = await getOrCreateDepartmentIdByName(departmentName)
+    if (!departmentId) {
+      alert(
+        `新增人員失敗：部門「${departmentName}」尚未建立部門 ID。\n\n` +
+        `請先在資料庫 departments 建立此部門，或改選既有部門後再新增。`
+      )
+      saving = false
+      return
+    }
+
     const payload = {
-      name: String(form.get('name') || '').trim(),
-      department_id: getDepartmentIdByName(departmentName),
-      department_name: departmentName || null,
-      position: (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim()) || null,
+      name,
+      department_id: departmentId,
+      department_name: departmentName,
+      position,
       role: form.get('role') || '一般職員',
       status: form.get('status') || '啟用'
     }
 
     if (displayOrderValue !== '' && displayOrderValue !== null) {
       payload.display_order = Number(displayOrderValue)
-    }
-
-    if (!payload.name) {
-      alert('請輸入人員姓名。')
-      saving = false
-      return
-    }
-
-    if (!payload.department_name) {
-      alert('請選擇或輸入部門。')
-      saving = false
-      return
     }
 
     let savedStaffId = staffId
@@ -13944,7 +14071,7 @@ window.addEventListener('load', initialLoad)
 
 /* FOR-e V002-1H-7 START - personal reminder stable rules */
 /*
-  V002-1H-7｜個人行程表提醒區測試修正
+  V002-1H-7｜個人行程表提醒區確認修正
   只穩定個人提醒區，不動 LOGO、表單欄位、權限、Supabase。
 */
 function getPersonalReminderTestSummary() {
@@ -14714,7 +14841,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-47｜系統檢查頁
   - 新增系統檢查頁，管理員 / 主管可見
   - 快速檢查 Supabase 環境、人員、行程、服務紀錄單、異動紀錄、共用設定、公務車與角色權限
-  - 可測試 admin-create-user Edge Function dry_run
+  - 可確認 admin-create-user Edge Function dry_run
 */
 /* FOR-e V002-1P-47 END - system health check */
 
@@ -14732,7 +14859,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顯示目前前端版本與目前網址
   - 新增複製系統檢查報告
   - 新增清除我的畫面記憶，清除行程總覽 / 外務篩選 localStorage
-  - 系統檢查頁強化上線前測試清單
+  - 系統檢查頁強化上線前確認清單
 */
 /* FOR-e V002-1P-49 END - health tools */
 
@@ -14758,11 +14885,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 /* FOR-e V002-1P-52 START - launch test checklist */
 /*
-  V002-1P-52｜正式上線前測試清單
-  - 系統檢查頁新增可勾選的正式上線前測試清單
+  V002-1P-52｜正式上線前確認清單
+  - 系統檢查頁新增可勾選的正式上線前確認清單
   - 勾選進度存在本機 localStorage，不修改資料庫
-  - 可複製測試清單與清除勾選紀錄
-  - 系統檢查報告加入上線測試進度
+  - 可複製確認清單與清除勾選紀錄
+  - 系統檢查報告加入上線確認進度
 */
 /* FOR-e V002-1P-52 END - launch test checklist */
 
@@ -14772,7 +14899,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 翻譯不顯示異況追蹤
   - 翻譯 createIncident 權限改為 false
   - 翻譯仍保留顏色設定與紀錄單繳交
-  - 系統檢查與上線測試清單同步更新
+  - 系統檢查與上線確認清單同步更新
 */
 /* FOR-e V002-1P-53 END - remove translator incident access */
 
@@ -14816,7 +14943,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統檢查頁新增帳號綁定狀態卡片
   - 新增帳號綁定檢查區塊，檢查重複綁定、綁到已刪除人員、綁到不存在人員、姓名 fallback 風險、啟用人員未綁定
   - 複製系統檢查報告會帶入帳號綁定檢查結果
-  - 正式上線前測試清單新增帳號綁定檢查項目
+  - 正式上線前確認清單新增帳號綁定檢查項目
 */
 /* FOR-e V002-1P-57 END - account binding audit */
 
@@ -14824,7 +14951,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /*
   V002-1P-58｜正式上線狀態總結
   - 系統檢查頁新增正式上線狀態總結
-  - 自動彙整紅色阻擋項目、注意項目、測試進度、帳號綁定狀態
+  - 自動彙整紅色阻擋項目、注意項目、確認進度、帳號綁定狀態
   - 新增複製上線狀態報告
   - 系統檢查報告加入上線狀態
 */
@@ -14836,7 +14963,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統檢查頁新增正式上線前資料備份區塊
   - 可匯出人員資料、登入帳號綁定、行程資料、服務紀錄單、異動紀錄、共用設定、帳號綁定檢查
   - 支援一鍵下載全部備份
-  - 上線測試清單新增備份項目
+  - 上線確認清單新增備份項目
 */
 /* FOR-e V002-1P-59 END - launch backup exports */
 
@@ -14847,18 +14974,18 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 檢查行程日期、結束日期、類別、標題內容、執行者、指派到已刪除 / 不存在人員、服務紀錄單連結
   - 正式上線狀態總結納入資料完整性錯誤
   - 備份匯出新增資料完整性檢查 CSV
-  - 上線測試清單新增資料完整性項目
+  - 上線確認清單新增資料完整性項目
 */
 /* FOR-e V002-1P-60 END - data integrity audit */
 
 /* FOR-e V002-1P-61 START - role test panel */
 /*
-  V002-1P-61｜角色實測面板
-  - 系統檢查頁新增角色實測面板
-  - 六種角色可個別複製測試清單、標記完成、清除紀錄
-  - 正式上線狀態總結納入角色實測進度
-  - 系統檢查報告加入角色實測報告
-  - 上線測試清單新增角色實測項目
+  V002-1P-61｜角色確認面板
+  - 系統檢查頁新增角色確認面板
+  - 六種角色可個別複製確認清單、標記完成、清除紀錄
+  - 正式上線狀態總結納入角色確認進度
+  - 系統檢查報告加入角色確認報告
+  - 上線確認清單新增角色確認項目
 */
 /* FOR-e V002-1P-61 END - role test panel */
 
@@ -14866,10 +14993,10 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /*
   V002-1P-62｜正式上線驗收報告
   - 系統檢查頁新增正式上線驗收報告區塊
-  - 自動彙整測試清單、角色實測、帳號綁定、資料完整性、阻擋項目
+  - 自動彙整確認清單、角色確認、帳號綁定、資料完整性、阻擋項目
   - 新增已完成功能模組摘要
   - 可一鍵複製正式上線驗收報告
-  - 上線測試清單新增正式驗收報告留存項目
+  - 上線確認清單新增正式驗收報告留存項目
 */
 /* FOR-e V002-1P-62 END - final acceptance report */
 
@@ -14893,3 +15020,25 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統版本更新為 V002-1P-64
 */
 /* FOR-e V002-1P-64 END - mobile nav icon size */
+
+/* FOR-e V002-1P-65 START - production wording cleanup */
+/*
+  V002-1P-65｜正式版文案清理
+  - 登入頁移除測試項目文字
+  - 系統檢查頁將測試字樣改為確認 / 驗收語氣
+  - 角色實測改為角色確認
+  - 上線前測試清單改為上線前確認清單
+  - 空白佔位頁移除測試文案
+  - 系統版本更新為 V002-1P-65
+*/
+/* FOR-e V002-1P-65 END - production wording cleanup */
+
+/* FOR-e V002-1P-66 START - staff department id fix */
+/*
+  V002-1P-66｜新增人員 department_id 修正
+  - 新增 / 修改人員時不再讓 staff.department_id 寫入 null
+  - 手動輸入新部門時，會先嘗試在 departments 建立或取得部門 ID
+  - 若 departments 權限或欄位不允許建立，會在寫入 staff 前提示，不會再出現 not-null constraint 錯誤
+  - 手動輸入部門提示改為：若要新增新部門才填寫；留空則使用左側選單
+*/
+/* FOR-e V002-1P-66 END - staff department id fix */
