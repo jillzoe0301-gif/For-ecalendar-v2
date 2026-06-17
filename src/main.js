@@ -1588,22 +1588,41 @@ function getScheduleModeFromNote(row) {
   return match ? match[1].trim() : '單日'
 }
 
+function getRepeatWeekdayValuesFromNote(row) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/重複星期：([^｜]+)/)
+  const labelText = match ? match[1] : ''
+  const values = weekdays
+    .filter(([, label]) => labelText.includes(label))
+    .map(([value]) => value)
+
+  if (values.length) return values
+
+  const startWeekday = getWeekdayValueFromDateKey(row?.start_date)
+  return startWeekday ? [startWeekday] : []
+}
+
 function scheduleMatchesDateByMode(row, dateKey) {
-  if (!row?.start_date) return false
+  if (!row?.start_date || !dateKey) return false
+
   const startDate = row.start_date
-  const endDate = row.end_date || row.start_date
+  const mode = getScheduleModeFromNote(row)
+  const endDate = mode === '單日'
+    ? startDate
+    : ((row.end_date && row.end_date >= startDate) ? row.end_date : startDate)
+
   if (dateKey < startDate || dateKey > endDate) return false
 
-  const note = String(row.sub_type_note || '')
-  const mode = getScheduleModeFromNote(row)
   if (mode === '連續日期') return true
 
   if (mode === '每週重複') {
-    const label = getWeekdayLabelFromDateKey(dateKey)
-    return label ? note.includes(label) : dateKey === startDate
+    const repeatWeekdays = getRepeatWeekdayValuesFromNote(row)
+    const weekdayValue = getWeekdayValueFromDateKey(dateKey)
+    return repeatWeekdays.includes(weekdayValue)
   }
 
   if (mode === '每月重複') {
+    const note = String(row.sub_type_note || '')
     const match = note.match(/每月\s*(\d{1,2})\s*號/)
     const monthlyDay = match ? Number(match[1]) : Number(startDate.slice(8, 10))
     return Number(dateKey.slice(8, 10)) === monthlyDay
@@ -1621,7 +1640,9 @@ function getScheduleDatesFromForm(form) {
   const end = getDateFromKey(endDate)
   if (!current || !end || current > end) return [startDate]
 
-  const weekdayValues = new Set(form.getAll('repeat_weekdays'))
+  const selectedWeekdays = form.getAll('repeat_weekdays').filter(Boolean)
+  const defaultWeekday = getWeekdayValueFromDateKey(startDate)
+  const weekdayValues = new Set(selectedWeekdays.length ? selectedWeekdays : [defaultWeekday])
   const monthlyDay = Number(form.get('monthly_day') || startDate.slice(8, 10))
 
   while (current <= end) {
@@ -1632,7 +1653,7 @@ function getScheduleDatesFromForm(form) {
       dates.push(key)
     } else if (mode === '每週重複') {
       const weekdayValue = getWeekdayValueFromDateKey(key)
-      if (!weekdayValues.size ? key === startDate : weekdayValues.has(weekdayValue)) dates.push(key)
+      if (weekdayValues.has(weekdayValue)) dates.push(key)
     } else if (mode === '每月重複') {
       if (Number(key.slice(8, 10)) === monthlyDay) dates.push(key)
     }
@@ -4312,7 +4333,7 @@ function renderColorPreviewCard(item, color) {
   return `
     <div class="color-preview-card" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
       <strong>${escapeHtml(item.label)}</strong>
-      <span>白底卡片＋外框顏色標示</span>
+      <span>白底＋外框色</span>
     </div>
   `
 }
@@ -4325,7 +4346,7 @@ function renderColorSettingsPage() {
     <div class="page-toolbar">
       <div>
         <h3>顏色設定</h3>
-        <p class="muted">行程卡片背景先以白色為主，顏色用外框標示。設定先存在目前瀏覽器，不改資料庫。</p>
+        <p class="muted">行程卡片背景維持白色，顏色用外框標示。設定先存在目前瀏覽器，不改資料庫。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
@@ -4335,15 +4356,22 @@ function renderColorSettingsPage() {
     </div>
 
     ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
-    <div class="notice">目前行程卡片統一白底；這裡設定的是外框標示色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
+    <div class="notice">目前設定的是卡片外框色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
 
-    <form id="colorSettingsForm" class="color-settings-grid">
+    <form id="colorSettingsForm" class="color-settings-grid color-settings-grid-clean">
+      <div class="color-settings-header">
+        <span>行程類型</span>
+        <span>顏色</span>
+        <span>色碼</span>
+        <span>預覽</span>
+      </div>
+
       ${getScheduleColorDefinitions().map(item => {
         const color = settings[item.key] || item.defaultColor
         return `
-          <section class="color-setting-row">
-            <label>
-              <span>${escapeHtml(item.label)}</span>
+          <section class="color-setting-row color-setting-row-clean">
+            <div class="color-item-name">${escapeHtml(item.label)}</div>
+            <label class="color-picker-cell" title="${escapeHtml(item.label)}">
               <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
             </label>
             <input class="color-code-input" value="${escapeHtml(color)}" readonly>
@@ -4559,20 +4587,65 @@ function renderServiceRecordReminderArea() {
 }
 /* FOR-e V002-1H-4 END - service record reminder area */
 
+function getPersonalOverdueTaskRows() {
+  return schedules
+    .filter(row => isActivePersonalSchedule(row))
+    .filter(row => isMine(row))
+    .filter(row => isOverdueSchedule(row))
+    .filter(row => !isReminderSchedule(row))
+    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+}
+
+function renderPersonalOverdueTaskArea() {
+  const rows = getPersonalOverdueTaskRows()
+  if (!rows.length) return ''
+
+  return `
+    <section class="personal-overdue-task-area">
+      <div class="overdue-task-title">
+        <div>
+          <strong>任務逾期通知</strong>
+          <span>已超過日期但尚未完成的個人任務</span>
+        </div>
+        <em>${rows.length} 筆</em>
+      </div>
+
+      <div class="overdue-task-list">
+        ${rows.map(row => `
+          <button type="button" class="overdue-task-card" data-view-schedule="${row.schedule_id}">
+            <div>
+              <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}</span>
+              ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
+            </div>
+            <b>超過時間了!!!</b>
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `
+}
+
 function renderPersonalSchedule() {
   const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
   const today = todayString()
-  const todayRows = myRows.filter(row => row.start_date === today && row.status !== '已完成' && row.status !== '取消')
+  const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
+  const overdueRows = getPersonalOverdueTaskRows()
 
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
     ${renderServiceRecordReminderArea()}
     ${renderPersonalReminderArea()}
+    ${renderPersonalOverdueTaskArea()}
     <div class="summary-grid">
       <div class="summary-card">
         <strong>${todayRows.length}</strong>
         <span>今日待處理</span>
+      </div>
+      <div class="summary-card">
+        <strong>${overdueRows.length}</strong>
+        <span>任務逾期</span>
       </div>
       <div class="summary-card">
         <strong>${myRows.length}</strong>
@@ -7448,13 +7521,16 @@ function buildRepeatNote(form) {
   if (mode === '連續日期') return '行程模式：連續日期'
 
   if (mode === '每週重複') {
-    const days = [...document.querySelectorAll('input[name="repeat_weekdays"]:checked')]
-      .map(input => weekdays.find(([value]) => value === input.value)?.[1] || input.value)
+    const selectedValues = form.getAll('repeat_weekdays').filter(Boolean)
+    const defaultWeekday = getWeekdayValueFromDateKey(form.get('start_date') || todayString())
+    const values = selectedValues.length ? selectedValues : [defaultWeekday]
+    const days = values
+      .map(value => weekdays.find(([weekdayValue]) => weekdayValue === value)?.[1] || value)
       .join('、')
     return `行程模式：每週重複；重複星期：${days || '未設定'}`
   }
 
-  if (mode === '每月重複') return `行程模式：每月重複；每月 ${form.get('monthly_day') || '1'} 號`
+  if (mode === '每月重複') return `行程模式：每月重複；每月 ${form.get('monthly_day') || Number(String(form.get('start_date') || todayString()).slice(8, 10)) || 1} 號`
   return `行程模式：${mode}`
 }
 
@@ -8876,3 +8952,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 顏色設定頁的顏色選擇靠左對齊
 */
 /* FOR-e V002-1P-6-5 END - reminder color and color picker align */
+
+/* FOR-e V002-1P-6-6 START - overdue meeting repeat color layout */
+/*
+  V002-1P-6-6
+  - 個人行程表新增任務逾期通知
+  - 會議室預約行程模式顯示修正：連續日期 / 每週重複 / 每月重複
+  - 每週重複未勾星期時，自動用開始日期的星期
+  - 顏色設定版面整理成固定欄位
+*/
+/* FOR-e V002-1P-6-6 END - overdue meeting repeat color layout */

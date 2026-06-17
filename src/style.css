@@ -6824,3 +6824,211 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-6-5 END - reminder color and color picker align */
+
+/* FOR-e V002-1P-6-6 START - overdue meeting repeat color layout */
+.personal-overdue-task-area {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.overdue-task-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fff7ed;
+  border: 2px solid #fed7aa;
+}
+
+.overdue-task-title strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.overdue-task-title span {
+  display: block;
+  margin-top: 3px;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.overdue-task-title em {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ff3131;
+  color: #ffffff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.overdue-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.overdue-task-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 2px solid #fed7aa;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.overdue-task-card strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.overdue-task-card span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.overdue-task-card b {
+  color: #ff3131;
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.overdue-task-card:hover {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+  transform: translateY(-1px);
+}
+
+.color-settings-grid-clean {
+  display: grid !important;
+  gap: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.color-settings-header,
+.color-setting-row-clean {
+  display: grid !important;
+  grid-template-columns: minmax(170px, 1fr) 70px 120px minmax(220px, 1.3fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  padding: 11px 14px !important;
+}
+
+.color-settings-header {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.color-setting-row-clean {
+  border: 0 !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+}
+
+.color-item-name {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  text-align: left;
+}
+
+.color-picker-cell {
+  display: inline-flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  width: auto !important;
+}
+
+.color-picker-cell input[type="color"],
+.color-setting-row-clean input[type="color"] {
+  width: 38px !important;
+  height: 30px !important;
+  padding: 2px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 9px !important;
+  background: #ffffff !important;
+}
+
+.color-setting-row-clean .color-code-input {
+  width: 100% !important;
+  min-height: 32px !important;
+  padding: 7px 9px !important;
+  text-align: left !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  background: #f8fafc !important;
+}
+
+.color-setting-row-clean .color-preview-card {
+  min-height: 40px !important;
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+  justify-items: start !important;
+  text-align: left !important;
+}
+
+.color-setting-row-clean .color-preview-card strong {
+  font-size: 13px !important;
+}
+
+.color-setting-row-clean .color-preview-card span {
+  font-size: 11px !important;
+  color: #64748b !important;
+}
+
+.meeting-room-card[style] {
+  border-width: 2px !important;
+  border-color: #DFD3C3 !important;
+}
+
+@media (max-width: 900px) {
+  .color-settings-header {
+    display: none !important;
+  }
+
+  .color-setting-row-clean {
+    grid-template-columns: 1fr 64px 110px !important;
+  }
+
+  .color-setting-row-clean .color-preview-card {
+    grid-column: 1 / -1;
+  }
+
+  .overdue-task-card {
+    grid-template-columns: 1fr;
+  }
+
+  .overdue-task-card b {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 560px) {
+  .color-setting-row-clean {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1P-6-6 END - overdue meeting repeat color layout */
