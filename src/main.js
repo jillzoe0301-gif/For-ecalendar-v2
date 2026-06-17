@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-58'
+const SYSTEM_VERSION = 'V002-1P-59'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2709,6 +2709,10 @@ function renderApp() {
   if (copyLaunchReadinessBtn) {
     copyLaunchReadinessBtn.addEventListener('click', () => copyLaunchReadinessReport())
   }
+
+  document.querySelectorAll('[data-backup-export]').forEach(btn => {
+    btn.addEventListener('click', () => exportLaunchBackup(btn.dataset.backupExport))
+  })
 
   const checkLoginFunctionBtn = document.querySelector('#checkLoginFunctionBtn')
   if (checkLoginFunctionBtn) {
@@ -7583,6 +7587,7 @@ function getLaunchTestGroups() {
         ['supabase-ok', 'Supabase 環境變數、staff、schedules、service_records、audit_logs 皆正常'],
         ['edge-function', '帳號 Edge Function dry_run 測試正常'],
         ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
+        ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
     },
@@ -8056,6 +8061,7 @@ function getLaunchReadinessReportText() {
     `測試進度：${state.launchStats.done}/${state.launchStats.total}（${state.launchStats.percent}%）`,
     `阻擋項目：${state.blockers.length}`,
     `注意項目：${state.warnings.length}`,
+    `建議備份：人員、登入帳號綁定、行程、服務紀錄單、異動紀錄、共用設定`,
     '',
     '阻擋項目：',
     ...(state.blockers.length ? state.blockers.map(item => `- ${item}`) : ['- 無']),
@@ -8077,6 +8083,205 @@ async function copyLaunchReadinessReport() {
     console.warn(err)
     alert(text)
   }
+}
+
+
+
+function getBackupDateLabel() {
+  return todayString().replaceAll('-', '')
+}
+
+function getBackupFilename(name, ext = 'csv') {
+  return `FOR-e_${SYSTEM_VERSION}_${name}_${getBackupDateLabel()}.${ext}`
+}
+
+function getBackupStaffRows() {
+  const rows = allStaffList.length ? allStaffList : staffList
+  return (rows || []).filter(staff => !isStaffDeleted(staff))
+}
+
+function getBackupScheduleRows() {
+  return uniqueScheduleRows(schedules || [])
+}
+
+function getProfileBackupColumns() {
+  return [
+    { header: 'Email', value: row => row.email || '' },
+    { header: '姓名', value: row => row.name || '' },
+    { header: '角色', value: row => row.role || '' },
+    { header: '狀態', value: row => row.status || '' },
+    { header: '綁定人員ID', value: row => normalizeStaffId(getProfileStaffId(row)) || '' },
+    { header: '部門', value: row => row.department_name || row.department || '' },
+    { header: '職務', value: row => row.position || '' },
+    { header: '建立時間', value: row => row.created_at || '' },
+    { header: '更新時間', value: row => row.updated_at || '' }
+  ]
+}
+
+function getAppSettingsBackupRows() {
+  return Object.entries(appSettings || {}).map(([key, value]) => ({
+    key,
+    value: typeof value === 'string' ? value : JSON.stringify(value ?? '')
+  }))
+}
+
+function getAppSettingsBackupColumns() {
+  return [
+    { header: '設定Key', value: row => row.key || '' },
+    { header: '設定內容', value: row => row.value || '' }
+  ]
+}
+
+function getAccountBindingIssueBackupRows() {
+  const audit = getAccountBindingAudit()
+  return audit.issues.map(issue => ({
+    level: issue.level,
+    title: issue.title,
+    detail: issue.detail
+  }))
+}
+
+function getAccountBindingIssueBackupColumns() {
+  return [
+    { header: '等級', value: row => row.level === 'bad' ? '需處理' : '注意' },
+    { header: '項目', value: row => row.title || '' },
+    { header: '內容', value: row => row.detail || '' }
+  ]
+}
+
+function getLaunchBackupItems() {
+  return [
+    {
+      key: 'all',
+      title: '一鍵下載全部備份',
+      description: '依序下載人員、帳號綁定、行程、服務紀錄單、異動紀錄、共用設定與帳號檢查。',
+      count: getBackupStaffRows().length + userProfileList.length + getBackupScheduleRows().length + serviceRecords.length + auditLogs.length,
+      primary: true
+    },
+    {
+      key: 'staff',
+      title: '人員資料',
+      description: '匯出目前人員名單，已刪除人員不會出現，停用人員會保留。',
+      count: getBackupStaffRows().length
+    },
+    {
+      key: 'profiles',
+      title: '登入帳號綁定',
+      description: '匯出 profiles 帳號、角色、狀態與 staff_id 綁定資料。',
+      count: userProfileList.length
+    },
+    {
+      key: 'schedules',
+      title: '行程資料',
+      description: '匯出所有已載入行程資料。',
+      count: getBackupScheduleRows().length
+    },
+    {
+      key: 'serviceRecords',
+      title: '服務紀錄單',
+      description: '匯出所有已載入服務紀錄單資料。',
+      count: serviceRecords.length
+    },
+    {
+      key: 'auditLogs',
+      title: '異動紀錄',
+      description: '匯出所有已載入異動紀錄。',
+      count: auditLogs.length
+    },
+    {
+      key: 'appSettings',
+      title: '共用設定',
+      description: '匯出顏色設定、選項管理、公務車等共用設定。',
+      count: Object.keys(appSettings || {}).length
+    },
+    {
+      key: 'accountIssues',
+      title: '帳號綁定檢查',
+      description: '匯出帳號綁定檢查中需要注意或處理的項目。',
+      count: getAccountBindingAudit().issues.length
+    }
+  ]
+}
+
+function exportLaunchBackup(type = '') {
+  const normalizedType = String(type || '').trim()
+
+  if (normalizedType === 'all') {
+    const types = ['staff', 'profiles', 'schedules', 'serviceRecords', 'auditLogs', 'appSettings', 'accountIssues']
+    types.forEach((backupType, index) => {
+      setTimeout(() => exportLaunchBackup(backupType), index * 180)
+    })
+    return
+  }
+
+  if (normalizedType === 'staff') {
+    downloadCsv(getBackupFilename('人員資料'), getUserCsvColumns(), getBackupStaffRows())
+    return
+  }
+
+  if (normalizedType === 'profiles') {
+    downloadCsv(getBackupFilename('登入帳號綁定'), getProfileBackupColumns(), userProfileList || [])
+    return
+  }
+
+  if (normalizedType === 'schedules') {
+    downloadCsv(getBackupFilename('行程資料'), getScheduleCsvColumns(), getBackupScheduleRows())
+    return
+  }
+
+  if (normalizedType === 'serviceRecords') {
+    downloadCsv(getBackupFilename('服務紀錄單'), getServiceRecordCsvColumns(), serviceRecords || [])
+    return
+  }
+
+  if (normalizedType === 'auditLogs') {
+    downloadCsv(getBackupFilename('異動紀錄'), getAuditCsvColumns(), auditLogs || [])
+    return
+  }
+
+  if (normalizedType === 'appSettings') {
+    downloadCsv(getBackupFilename('共用設定'), getAppSettingsBackupColumns(), getAppSettingsBackupRows())
+    return
+  }
+
+  if (normalizedType === 'accountIssues') {
+    downloadCsv(getBackupFilename('帳號綁定檢查'), getAccountBindingIssueBackupColumns(), getAccountBindingIssueBackupRows())
+    return
+  }
+
+  alert('找不到要匯出的備份類型。')
+}
+
+function renderLaunchBackupExportsPanel() {
+  const items = getLaunchBackupItems()
+
+  return `
+    <section class="launch-backup-section">
+      <div class="section-title-row">
+        <h4>正式上線前資料備份</h4>
+        <span>下載 CSV 留存，不會修改資料</span>
+      </div>
+
+      <div class="launch-backup-grid">
+        ${items.map(item => `
+          <div class="launch-backup-card ${item.primary ? 'is-primary' : ''}">
+            <div>
+              <strong>${escapeHtml(item.title)}</strong>
+              <p>${escapeHtml(item.description)}</p>
+              <span>${Number(item.count || 0).toLocaleString('zh-TW')} 筆</span>
+            </div>
+            <button type="button" class="${item.primary ? 'primary-btn' : 'secondary-btn'}" data-backup-export="${escapeHtml(item.key)}">
+              ${item.primary ? '下載全部' : '下載'}
+            </button>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="notice">
+        建議正式上線前先下載一份備份。若瀏覽器阻擋多檔下載，請改用單項「下載」逐一匯出。
+      </div>
+    </section>
+  `
 }
 
 
@@ -8102,6 +8307,7 @@ function renderSystemHealthPage() {
     </div>
 
     ${renderLaunchReadinessSummary()}
+    ${renderLaunchBackupExportsPanel()}
 
     ${renderSystemHealthSummary(rows)}
 
@@ -13983,3 +14189,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統檢查報告加入上線狀態
 */
 /* FOR-e V002-1P-58 END - launch readiness summary */
+
+/* FOR-e V002-1P-59 START - launch backup exports */
+/*
+  V002-1P-59｜正式上線前資料備份匯出
+  - 系統檢查頁新增正式上線前資料備份區塊
+  - 可匯出人員資料、登入帳號綁定、行程資料、服務紀錄單、異動紀錄、共用設定、帳號綁定檢查
+  - 支援一鍵下載全部備份
+  - 上線測試清單新增備份項目
+*/
+/* FOR-e V002-1P-59 END - launch backup exports */
