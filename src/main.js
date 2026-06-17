@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-63'
+const SYSTEM_VERSION = 'V002-1P-64'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -14883,3 +14883,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 系統版本更新為 V002-1P-63
 */
 /* FOR-e V002-1P-63 END - mobile font hide account */
+
+/* FOR-e V002-1P-64 START - mobile nav icon size */
+/*
+  V002-1P-64｜手機底部選單圖示放大
+  - 手機底部選單圖示放大
+  - 同時支援 emoji、img、svg 與 nav-icon-img
+  - 增加底部選單按鈕高度，避免圖示與文字太擠
+  - 系統版本更新為 V002-1P-64
+*/
+/* FOR-e V002-1P-64 END - mobile nav icon size */
