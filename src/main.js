@@ -1096,6 +1096,30 @@ function renderApp() {
     })
   })
 
+  const colorSettingsForm = document.querySelector('#colorSettingsForm')
+  if (colorSettingsForm) {
+    colorSettingsForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      const nextColors = {}
+      getScheduleColorDefinitions().forEach(item => {
+        nextColors[item.key] = form.get(`color_${item.key}`) || item.defaultColor
+      })
+      saveScheduleColorSettings(nextColors)
+      alert('顏色設定已儲存。')
+      renderApp()
+    })
+  }
+
+  const resetColorSettingsBtn = document.querySelector('#resetColorSettingsBtn')
+  if (resetColorSettingsBtn) {
+    resetColorSettingsBtn.addEventListener('click', () => {
+      if (!confirm('確定要還原行程顏色預設值嗎？')) return
+      resetScheduleColorSettings()
+      renderApp()
+    })
+  }
+
   const addBtn = document.querySelector('#addScheduleBtn')
   if (addBtn) {
     addBtn.addEventListener('click', () => {
@@ -1651,7 +1675,7 @@ function renderFieldScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
 
   return `
-    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.schedule_type || row.category || '外務')}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
@@ -1935,7 +1959,7 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
 
 function renderMeetingRoomCard(row) {
   return `
-    <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.title || '-')}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(getAssigneeNames(row) || row.creator_name || '-')}</span>
@@ -4148,6 +4172,139 @@ function renderOptionsPage() {
 /* FOR-e V002-1O-1 END - options management */
 
 
+
+/* FOR-e V002-1P-6 START - color settings page */
+/*
+  V002-1P-6｜顏色設定頁
+  - 顏色設定正式頁面
+  - 依類型設定行程卡片底色
+  - 套用於個人行程、行程總覽、外務週曆、會議室卡片
+  - 不改 SQL，先使用 localStorage
+*/
+
+const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
+
+function getScheduleColorDefinitions() {
+  return [
+    { key: '服務行程', label: '服務行程', defaultColor: '#ffffff' },
+    { key: '一般記事', label: '一般記事', defaultColor: '#AEE2FF' },
+    { key: '待辦事項', label: '待辦事項', defaultColor: '#CCD3CA' },
+    { key: '請假 / 會議 / 活動 / 外訓', label: '請假 / 會議 / 活動 / 外訓', defaultColor: '#B5BAFF' },
+    { key: '證件交付', label: '證件交付', defaultColor: '#EED3D9' },
+    { key: '外務行程', label: '外務行程', defaultColor: '#FFDBB6' },
+    { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FF6A1C' },
+    { key: '會議室預約', label: '會議室預約', defaultColor: '#FBF8F1' },
+    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#FFF57E' },
+    { key: '提醒事項', label: '提醒事項', defaultColor: '#EED3D9' }
+  ]
+}
+
+function getScheduleColorSettings() {
+  try {
+    const raw = localStorage.getItem(scheduleColorStorageKey)
+    const saved = raw ? JSON.parse(raw) : {}
+    return {
+      ...Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor])),
+      ...saved
+    }
+  } catch (err) {
+    console.warn('顏色設定讀取失敗', err)
+    return Object.fromEntries(getScheduleColorDefinitions().map(item => [item.key, item.defaultColor]))
+  }
+}
+
+function saveScheduleColorSettings(value) {
+  localStorage.setItem(scheduleColorStorageKey, JSON.stringify(value || {}))
+}
+
+function resetScheduleColorSettings() {
+  localStorage.removeItem(scheduleColorStorageKey)
+}
+
+function getScheduleColorKey(row) {
+  if (!row) return '服務行程'
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
+  if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
+  if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
+
+  const note = String(row.sub_type_note || '')
+  if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
+  if (String(row.schedule_type || '').includes('提醒')) return '提醒事項'
+
+  return row.category || row.schedule_type || '服務行程'
+}
+
+function getScheduleColor(row) {
+  const settings = getScheduleColorSettings()
+  const key = getScheduleColorKey(row)
+  return settings[key] || '#ffffff'
+}
+
+function getReadableTextColor(backgroundColor) {
+  const hex = String(backgroundColor || '').replace('#', '')
+  if (hex.length !== 6) return '#111827'
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  return yiq >= 145 ? '#111827' : '#ffffff'
+}
+
+function getScheduleColorInlineStyle(row) {
+  const color = getScheduleColor(row)
+  const textColor = getReadableTextColor(color)
+  return `background:${color};border-color:${color};color:${textColor};`
+}
+
+function renderColorPreviewCard(item, color) {
+  const textColor = getReadableTextColor(color)
+  return `
+    <div class="color-preview-card" style="background:${color};color:${textColor};border-color:${color}">
+      <strong>${escapeHtml(item.label)}</strong>
+      <span>行程卡片預覽</span>
+    </div>
+  `
+}
+
+function renderColorSettingsPage() {
+  const canEdit = ['管理員', '主管', '行政 / 海外'].includes(currentProfile?.role)
+  const settings = getScheduleColorSettings()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>顏色設定</h3>
+        <p class="muted">設定各類行程卡片底色。第一版先存在目前瀏覽器，不改資料庫。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
+        <button class="secondary-btn" id="resetColorSettingsBtn" ${canEdit ? '' : 'disabled'}>還原預設</button>
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
+    <div class="notice">顏色會套用在個人行程表、行程總覽、外務行程與會議室預約的行程卡片。</div>
+
+    <form id="colorSettingsForm" class="color-settings-grid">
+      ${getScheduleColorDefinitions().map(item => {
+        const color = settings[item.key] || item.defaultColor
+        return `
+          <section class="color-setting-row">
+            <label>
+              <span>${escapeHtml(item.label)}</span>
+              <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
+            </label>
+            <input class="color-code-input" value="${escapeHtml(color)}" readonly>
+            ${renderColorPreviewCard(item, color)}
+          </section>
+        `
+      }).join('')}
+    </form>
+  `
+}
+
+
 function renderPageContent() {
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
@@ -4162,6 +4319,7 @@ function renderPageContent() {
   if (currentPage === 'serviceRecord') return renderServiceRecordDashboard()
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
+  if (currentPage === 'color') return renderColorSettingsPage()
   if (currentPage === 'options') return renderOptionsPage()
   if (currentPage === 'users') return renderUsersPage()
 
@@ -4463,7 +4621,7 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 function renderWeekScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
   return `
-    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="week-card-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
@@ -4552,7 +4710,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const contentPreview = getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
         return `
-          <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
+          <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
               <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
               <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(row.schedule_type || row.category)}</span>｜${escapeHtml(row.title)}</div>
