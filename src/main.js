@@ -69,7 +69,7 @@ const pageImageIconMap = {
   options: '/icons/nav/settings.png',
   audit: '/icons/nav/note.png',
   users: '/icons/nav/user-frame.png',
-  health: '/icons/nav/checklist.png'
+  health: '/icons/nav/system-health.png'
 }
 
 function renderPageIcon(key) {
@@ -12866,3 +12866,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 可測試 admin-create-user Edge Function dry_run
 */
 /* FOR-e V002-1P-47 END - system health check */
+
+/* FOR-e V002-1P-48 START - system health icon mapping */
+/*
+  V002-1P-48｜系統檢查 ICON 路徑修正
+  - 系統檢查改用 /icons/nav/system-health.png
+  - 不再共用 checklist.png
+*/
+/* FOR-e V002-1P-48 END - system health icon mapping */
