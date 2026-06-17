@@ -347,6 +347,10 @@ let overviewFilters = {
   staffIds: []
 }
 let fieldWeekOffset = 0
+let fieldScheduleFilters = {
+  departments: [],
+  staffIds: []
+}
 let meetingWeekOffset = 0
 let fieldDetailFilters = {
   staffId: '全部',
@@ -1224,6 +1228,7 @@ async function loadProfile() {
 
   currentProfile = mergedProfile
   loadOverviewFiltersPreference()
+  loadFieldScheduleFiltersPreference()
   currentPage = 'personalSchedule'
   await refreshData()
   renderApp()
@@ -2107,6 +2112,29 @@ function renderApp() {
     cell.addEventListener('dblclick', () => { if (canCreateServiceSchedule()) openScheduleModal(); else denyPermission('你的角色不能在行程總覽新增服務行程，請到個人行程表新增自己的事項。') })
   })
 
+
+  const fieldScheduleFilterForm = document.querySelector('#fieldScheduleFilterForm')
+  if (fieldScheduleFilterForm) {
+    fieldScheduleFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      const form = new FormData(event.target)
+      fieldScheduleFilters = normalizeFieldScheduleFilters({
+        departments: form.getAll('fieldDepartments'),
+        staffIds: form.getAll('fieldStaffIds')
+      })
+      saveFieldScheduleFiltersPreference()
+      renderApp()
+    })
+  }
+
+  const resetFieldScheduleFilterBtn = document.querySelector('#resetFieldScheduleFilterBtn')
+  if (resetFieldScheduleFilterBtn) {
+    resetFieldScheduleFilterBtn.addEventListener('click', () => {
+      fieldScheduleFilters = normalizeFieldScheduleFilters()
+      saveFieldScheduleFiltersPreference()
+      renderApp()
+    })
+  }
 
   const fieldPrevWeekBtn = document.querySelector('#fieldPrevWeekBtn')
   if (fieldPrevWeekBtn) {
@@ -3139,12 +3167,110 @@ function setStaffFieldWorker(staffId, checked) {
   return saveFieldStaffSettings(settings)
 }
 
-function getFieldStaffRows() {
+const fieldScheduleFiltersStorageKey = 'for-e-field-schedule-filters-v002'
+
+function getFieldFilterStorageKey() {
+  const owner = currentProfile?.staff_id || currentProfile?.email || 'guest'
+  return `${fieldScheduleFiltersStorageKey}-${owner}`
+}
+
+function normalizeFieldScheduleFilters(value = {}) {
+  return {
+    departments: normalizeOverviewFilterList(value.departments || value.department),
+    staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId)
+  }
+}
+
+function loadFieldScheduleFiltersPreference() {
+  try {
+    const raw = localStorage.getItem(getFieldFilterStorageKey())
+    fieldScheduleFilters = normalizeFieldScheduleFilters(raw ? JSON.parse(raw) : fieldScheduleFilters)
+  } catch (err) {
+    console.warn('外務行程篩選讀取失敗', err)
+    fieldScheduleFilters = normalizeFieldScheduleFilters()
+  }
+}
+
+function saveFieldScheduleFiltersPreference() {
+  try {
+    localStorage.setItem(getFieldFilterStorageKey(), JSON.stringify(normalizeFieldScheduleFilters(fieldScheduleFilters)))
+  } catch (err) {
+    console.warn('外務行程篩選儲存失敗', err)
+  }
+}
+
+function getFieldBaseStaffRows() {
   const settings = getFieldStaffSettings()
   const fieldRows = staffList.filter(isStaffFieldWorker)
 
   if (fieldRows.length) return fieldRows
   return Object.keys(settings).length ? [] : staffList
+}
+
+function isFieldDepartmentSelected(name) {
+  return normalizeOverviewFilterList(fieldScheduleFilters.departments).includes(name)
+}
+
+function isFieldStaffSelected(staffId) {
+  return normalizeOverviewFilterList(fieldScheduleFilters.staffIds).includes(staffId)
+}
+
+function getFieldFilterCountText() {
+  const departments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
+  const staffIds = normalizeOverviewFilterList(fieldScheduleFilters.staffIds)
+
+  if (!departments.length && !staffIds.length) return '全部'
+  const parts = []
+  if (departments.length) parts.push(`部門 ${departments.length}`)
+  if (staffIds.length) parts.push(`人員 ${staffIds.length}`)
+  return parts.join('｜')
+}
+
+function getFieldFilterSummary() {
+  const departments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
+  const staffIds = normalizeOverviewFilterList(fieldScheduleFilters.staffIds)
+  const staffNames = staffIds
+    .map(staffId => staffList.find(staff => staff.staff_id === staffId)?.name)
+    .filter(Boolean)
+
+  const deptText = departments.length ? departments.join('、') : '全部部門'
+  const staffText = staffNames.length ? staffNames.join('、') : '全部外務人員'
+  return `${deptText}｜${staffText}`
+}
+
+function getFieldDepartmentCheckboxes() {
+  const rows = getFieldBaseStaffRows()
+  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  if (!names.length) return `<div class="compact-check-empty">沒有部門資料</div>`
+  return names.map(name => renderCompactCheckOption(name, name, isFieldDepartmentSelected(name), 'fieldDepartments')).join('')
+}
+
+function getFieldStaffCheckboxes() {
+  let rows = getFieldBaseStaffRows()
+  const selectedDepartments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
+
+  if (selectedDepartments.length) {
+    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
+  }
+
+  if (!rows.length) return `<div class="compact-check-empty">沒有可選外務人員</div>`
+  return rows.map(staff => renderCompactCheckOption(`${staff.name}｜${staff.department_name || ''}`, staff.staff_id, isFieldStaffSelected(staff.staff_id), 'fieldStaffIds')).join('')
+}
+
+function getFieldStaffRows() {
+  let rows = getFieldBaseStaffRows()
+  const selectedDepartments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
+  const selectedStaffIds = normalizeOverviewFilterList(fieldScheduleFilters.staffIds)
+
+  if (selectedDepartments.length) {
+    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
+  }
+
+  if (selectedStaffIds.length) {
+    rows = rows.filter(staff => selectedStaffIds.includes(staff.staff_id))
+  }
+
+  return rows
 }
 
 function isFieldScheduleRow(row) {
@@ -3210,6 +3336,31 @@ function renderFieldScheduleCalendar() {
     </div>
 
     ${renderReadStatus()}
+
+    <form id="fieldScheduleFilterForm" class="overview-filter-panel overview-filter-panel-compact field-filter-panel-compact">
+      <div class="overview-filter-compact-row">
+        <details class="compact-multi-select">
+          <summary>部門｜${escapeHtml(getFieldFilterCountText())}</summary>
+          <div class="compact-check-panel">
+            ${getFieldDepartmentCheckboxes()}
+          </div>
+        </details>
+
+        <details class="compact-multi-select">
+          <summary>外務人員｜${escapeHtml(getFieldFilterCountText())}</summary>
+          <div class="compact-check-panel">
+            ${getFieldStaffCheckboxes()}
+          </div>
+        </details>
+
+        <button type="submit" class="primary-btn">套用並記住</button>
+        <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
+      </div>
+
+      <div class="overview-filter-summary compact-summary">
+        目前：${escapeHtml(getFieldFilterSummary())}
+      </div>
+    </form>
 
     <div class="field-week-scroll">
       <table class="field-week-table">
@@ -7125,6 +7276,17 @@ function isOverviewStaffSelected(staffId) {
   return normalizeOverviewFilterList(overviewFilters.staffIds).includes(staffId)
 }
 
+function getOverviewFilterCountText() {
+  const departments = normalizeOverviewFilterList(overviewFilters.departments)
+  const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+
+  if (!departments.length && !staffIds.length) return '全部'
+  const parts = []
+  if (departments.length) parts.push(`部門 ${departments.length}`)
+  if (staffIds.length) parts.push(`人員 ${staffIds.length}`)
+  return parts.join('｜')
+}
+
 function getOverviewFilterSummary() {
   const departments = normalizeOverviewFilterList(overviewFilters.departments)
   const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
@@ -7137,13 +7299,23 @@ function getOverviewFilterSummary() {
   return `${deptText}｜${staffText}`
 }
 
-function getOverviewDepartmentOptions() {
-  const rows = getOverviewBaseStaffRows()
-  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
-  return names.map(name => `<option value="${escapeHtml(name)}" ${isOverviewDepartmentSelected(name) ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+function renderCompactCheckOption(name, value, checked, inputName) {
+  return `
+    <label class="compact-check-option">
+      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(value)}" ${checked ? 'checked' : ''}>
+      <span>${escapeHtml(name)}</span>
+    </label>
+  `
 }
 
-function getOverviewStaffFilterOptions() {
+function getOverviewDepartmentCheckboxes() {
+  const rows = getOverviewBaseStaffRows()
+  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  if (!names.length) return `<div class="compact-check-empty">沒有部門資料</div>`
+  return names.map(name => renderCompactCheckOption(name, name, isOverviewDepartmentSelected(name), 'departments')).join('')
+}
+
+function getOverviewStaffCheckboxes() {
   let rows = getOverviewBaseStaffRows()
   const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
 
@@ -7151,10 +7323,13 @@ function getOverviewStaffFilterOptions() {
     rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
   }
 
-  return rows.map(staff => `
-    <option value="${escapeHtml(staff.staff_id)}" ${isOverviewStaffSelected(staff.staff_id) ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
-  `).join('')
+  if (!rows.length) return `<div class="compact-check-empty">沒有可選人員</div>`
+  return rows.map(staff => renderCompactCheckOption(`${staff.name}｜${staff.department_name || ''}`, staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds')).join('')
 }
+
+
+
+
 
 function getOverviewStaffRows() {
   let rows = getOverviewBaseStaffRows()
@@ -7237,29 +7412,28 @@ function renderScheduleOverview() {
 
     ${renderReadStatus()}
 
-    <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-multi">
-      <label>
-        部門複選
-        <select name="departments" id="overviewDepartmentFilter" multiple size="4">
-          ${getOverviewDepartmentOptions()}
-        </select>
-      </label>
+    <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact">
+      <div class="overview-filter-compact-row">
+        <details class="compact-multi-select">
+          <summary>部門｜${escapeHtml(getOverviewFilterCountText())}</summary>
+          <div class="compact-check-panel">
+            ${getOverviewDepartmentCheckboxes()}
+          </div>
+        </details>
 
-      <label>
-        人員複選
-        <select name="staffIds" id="overviewStaffFilter" multiple size="4">
-          ${getOverviewStaffFilterOptions()}
-        </select>
-      </label>
+        <details class="compact-multi-select">
+          <summary>人員｜${escapeHtml(getOverviewFilterCountText())}</summary>
+          <div class="compact-check-panel">
+            ${getOverviewStaffCheckboxes()}
+          </div>
+        </details>
 
-      <div class="overview-filter-actions">
         <button type="submit" class="primary-btn">套用並記住</button>
-        <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部人員</button>
+        <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部</button>
       </div>
 
-      <div class="overview-filter-summary">
-        目前篩選：${escapeHtml(getOverviewFilterSummary())}
-        <span>不選代表全部；電腦可按 Ctrl / Command 複選。</span>
+      <div class="overview-filter-summary compact-summary">
+        目前：${escapeHtml(getOverviewFilterSummary())}
       </div>
     </form>
 
@@ -12283,3 +12457,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 下次登入後行程總覽會直接套用前一次選擇的人員 / 部門
 */
 /* FOR-e V002-1P-42 END - overview multi select persist */
+
+/* FOR-e V002-1P-43 START - overview field compact multiselect */
+/*
+  V002-1P-43｜行程總覽與外務行程精簡複選篩選
+  - 行程總覽部門 / 人員改成精簡下拉複選
+  - 外務行程部門 / 外務人員也改成精簡下拉複選
+  - 兩個頁面的篩選條件都會依登入者記住
+*/
+/* FOR-e V002-1P-43 END - overview field compact multiselect */

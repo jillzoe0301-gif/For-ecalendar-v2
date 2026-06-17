@@ -8888,3 +8888,165 @@ button:disabled,
   }
 }
 /* FOR-e V002-1P-42 END - overview multi select persist */
+
+/* FOR-e V002-1P-43 START - overview field compact multiselect */
+/* V002-1P-43：行程總覽 / 外務行程精簡複選 */
+.overview-filter-panel-compact {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  margin: 10px 0 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+
+.overview-filter-compact-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.1fr) auto auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.compact-multi-select {
+  position: relative;
+  min-width: 0;
+}
+
+.compact-multi-select summary {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 13px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.compact-multi-select summary::-webkit-details-marker {
+  display: none;
+}
+
+.compact-multi-select summary::after {
+  content: '▾';
+  color: #64748b;
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.compact-multi-select[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.compact-check-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  display: grid;
+  gap: 5px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+}
+
+.compact-check-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 6px 7px;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.compact-check-option:hover {
+  background: #f8fafc;
+}
+
+.compact-check-option input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--blue);
+}
+
+.compact-check-option:has(input:checked) {
+  background: #eef5ff;
+  color: #3155d4;
+}
+
+.compact-check-empty {
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.overview-filter-compact-row > button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.compact-summary {
+  padding: 7px 10px !important;
+  font-size: 12px !important;
+  line-height: 1.45;
+  border-radius: 12px;
+  background: #eef5ff;
+  color: #3155d4;
+  font-weight: 900;
+}
+
+.field-filter-panel-compact {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.field-filter-panel-compact .compact-summary {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+@media (max-width: 900px) {
+  .overview-filter-compact-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compact-check-panel {
+    position: static;
+    margin-top: 6px;
+    max-height: 176px;
+    box-shadow: none;
+  }
+
+  .overview-filter-compact-row > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-filter-compact-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-multi-select summary {
+    min-height: 40px;
+  }
+}
+/* FOR-e V002-1P-43 END - overview field compact multiselect */
