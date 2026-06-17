@@ -5952,3 +5952,79 @@ label.record-modal-check {
   }
 }
 /* FOR-e V002-1P-1 END - options sr todo incident urgency */
+
+/* FOR-e V002-1P-2 START - sidebar icons */
+.menu-btn {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  border-radius: 14px;
+}
+
+.menu-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 24px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.menu-btn.active .menu-icon,
+.menu-btn:hover .menu-icon {
+  background: #ffffff;
+}
+
+.menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-menu-icon {
+  display: block;
+  font-size: 15px;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.mobile-menu-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.mobile-nav button {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+}
+/* FOR-e V002-1P-2 END - sidebar icons */
+
+/* FOR-e V002-1P-2-1 START - real icon files */
+.nav-icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+  opacity: 0.88;
+}
+
+.menu-btn.active .nav-icon-img {
+  opacity: 1;
+}
+
+.menu-icon:has(.nav-icon-img) {
+  background: #ffffff;
+}
+
+.mobile-menu-icon .nav-icon-img {
+  width: 16px;
+  height: 16px;
+  margin: 0 auto 2px;
+}
+/* FOR-e V002-1P-2-1 END - real icon files */

@@ -29,6 +29,54 @@ const pages = [
   { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true }
 ]
 
+const pageIconMap = {
+  personalSchedule: '📅',
+  personalTodo: '✅',
+  assignedTracking: '📌',
+  scheduleOverview: '🗓️',
+  fieldSchedule: '🚗',
+  fieldDetail: '📋',
+  meetingRoom: '🏢',
+  incident: '⚠️',
+  search: '🔎',
+  stats: '📊',
+  serviceRecord: '📝',
+  recordSubmit: '📤',
+  line: '💬',
+  color: '🎨',
+  options: '⚙️',
+  audit: '🧾',
+  users: '👤'
+}
+
+const pageImageIconMap = {
+  personalSchedule: '/icons/nav/calendar-check.png',
+  personalTodo: '/icons/nav/checklist.png',
+  assignedTracking: '/icons/nav/document.png',
+  scheduleOverview: '/icons/nav/grid.png',
+  fieldSchedule: '/icons/nav/car.png',
+  fieldDetail: '/icons/nav/document.png',
+  meetingRoom: '/icons/nav/calendar-clock.png',
+  incident: '/icons/nav/alert-circle.png',
+  search: '/icons/nav/search.png',
+  stats: '/icons/nav/chart.png',
+  serviceRecord: '/icons/nav/hand-heart.png',
+  recordSubmit: '/icons/nav/hand-leaf.png',
+  line: '/icons/nav/line.png',
+  color: '/icons/nav/palette.png',
+  options: '/icons/nav/settings.png',
+  audit: '/icons/nav/note.png',
+  users: '/icons/nav/user-frame.png'
+}
+
+function renderPageIcon(key) {
+  const imagePath = pageImageIconMap[key]
+  if (imagePath) {
+    return `<img class="nav-icon-img" src="${imagePath}" alt="">`
+  }
+  return pageIconMap[key] || '•'
+}
+
 const formCategories = ['服務行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
@@ -644,7 +692,8 @@ function renderApp() {
         <nav class="desktop-menu">
           ${visiblePages.map(page => `
             <button class="menu-btn ${page.key === currentPage ? 'active' : ''}" data-page="${page.key}">
-              ${page.label}
+              <span class="menu-icon" aria-hidden="true">${renderPageIcon(page.key)}</span>
+              <span class="menu-label">${page.label}</span>
             </button>
           `).join('')}
         </nav>
@@ -676,7 +725,8 @@ function renderApp() {
       <nav class="mobile-nav">
         ${mobilePages.map(page => `
           <button class="${page.key === currentPage ? 'active' : ''}" data-page="${page.key}">
-            ${page.mobileLabel}
+            <span class="mobile-menu-icon" aria-hidden="true">${renderPageIcon(page.key)}</span>
+            <span class="mobile-menu-label">${page.mobileLabel}</span>
           </button>
         `).join('')}
       </nav>
@@ -8256,3 +8306,29 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-1｜選項管理版面、服務紀錄單月年分開、當日待辦、異況緊急程度
 */
 /* FOR-e V002-1P-1 END - options sr todo incident urgency */
+
+/* FOR-e V002-1P-2 START - sidebar icons */
+/*
+  V002-1P-2｜側邊欄與手機選單 ICON
+  - 左側功能按鈕新增 ICON
+  - 手機底部選單同步顯示 ICON
+  - 不新增圖片檔，使用內建文字圖示，避免多檔案與載入問題
+*/
+/* FOR-e V002-1P-2 END - sidebar icons */
+
+/* FOR-e V002-1P-2-1 START - real icon files */
+/*
+  V002-1P-2-1｜左側選單改用使用者提供的圖檔
+  - siren.png：異況追蹤
+  - push-pin.png：我指派的事項追蹤 / 外務明細
+  - padlock.png：選項管理 / 人員帳號
+  其他頁面尚未提供正式圖檔，暫時保留內建符號。
+*/
+/* FOR-e V002-1P-2-1 END - real icon files */
+
+
+/* FOR-e V002-1P-2-2 START - full provided icon set */
+/*
+  V002-1P-2-2｜左側選單全面改用使用者提供 ICON
+*/
+/* FOR-e V002-1P-2-2 END - full provided icon set */
