@@ -12991,3 +12991,80 @@ body {
   }
 }
 /* FOR-e V002-1P-104 END - schedule card text align */
+
+/* FOR-e V002-1P-105 START - calendar cards strict left align */
+/* 三個行事曆卡片：所有文字強制靠左 */
+.week-day-cell .week-schedule-card,
+.field-week-day-cell .field-week-schedule-card,
+.meeting-week-day-cell .meeting-room-card {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  justify-items: start !important;
+}
+
+.week-day-cell .week-schedule-card *,
+.field-week-day-cell .field-week-schedule-card *,
+.meeting-week-day-cell .meeting-room-card * {
+  text-align: left !important;
+}
+
+.week-schedule-card > *,
+.field-week-schedule-card > *,
+.meeting-room-card > * {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  justify-items: start !important;
+}
+
+.week-schedule-card strong,
+.field-week-schedule-card strong,
+.meeting-room-card strong,
+.week-card-time,
+.field-week-card-time,
+.meeting-room-time,
+.week-card-preview,
+.week-card-extra,
+.field-week-card-preview,
+.meeting-room-meta,
+.meeting-room-preview {
+  display: block !important;
+  text-align: left !important;
+  align-self: flex-start !important;
+}
+
+/* 避免表格 td / th 的置中影響卡片內容 */
+.week-day-cell,
+.field-week-day-cell,
+.meeting-week-day-cell {
+  text-align: left !important;
+  vertical-align: top !important;
+}
+
+/* 卡片內標籤、提醒、特殊結果也靠左 */
+.week-schedule-card .reminder-tags,
+.field-week-schedule-card .field-week-card-preview,
+.field-week-schedule-card .field-special-badges,
+.field-week-schedule-card .field-result-badge,
+.meeting-room-card .meeting-room-meta {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+}
+
+/* 手機橫向表格也維持靠左 */
+@media (max-width: 768px) {
+  .week-day-cell .week-schedule-card,
+  .field-week-day-cell .field-week-schedule-card,
+  .meeting-week-day-cell .meeting-room-card,
+  .week-day-cell .week-schedule-card *,
+  .field-week-day-cell .field-week-schedule-card *,
+  .meeting-week-day-cell .meeting-room-card * {
+    text-align: left !important;
+  }
+}
+/* FOR-e V002-1P-105 END - calendar cards strict left align */

@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-104'
+const SYSTEM_VERSION = 'V002-1P-105'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17321,3 +17321,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保持卡片自動換行與手機版可讀性
 */
 /* FOR-e V002-1P-104 END - schedule card text align */
+
+/* FOR-e V002-1P-105 START - calendar cards strict left align */
+/*
+  V002-1P-105｜三個行事曆卡片文字強制靠左
+  - 行程總覽卡片所有文字靠左
+  - 外務行程卡片所有文字靠左
+  - 會議室行事曆卡片所有文字靠左
+  - 覆蓋表格儲存格置中造成的卡片文字偏中問題
+*/
+/* FOR-e V002-1P-105 END - calendar cards strict left align */
