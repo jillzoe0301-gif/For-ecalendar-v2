@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-103'
+const SYSTEM_VERSION = 'V002-1P-104'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17312,3 +17312,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 已通過 esbuild parse 檢查
 */
 /* FOR-e V002-1P-103 END - stable rebuild fixes */
+
+/* FOR-e V002-1P-104 START - schedule card text align */
+/*
+  V002-1P-104｜行程卡片文字放大與靠左
+  - 個人行程表、行程總覽、外務行程、會議室、提醒卡片文字放大
+  - 卡片文字統一靠左對齊
+  - 保持卡片自動換行與手機版可讀性
+*/
+/* FOR-e V002-1P-104 END - schedule card text align */
