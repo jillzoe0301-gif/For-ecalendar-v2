@@ -13388,3 +13388,86 @@ body {
   }
 }
 /* FOR-e V002-1P-111 END - overview month calendar birthday login */
+
+/* FOR-e V002-1P-112 START - overview filter one row no scroll */
+/* 行程總覽上方選擇欄位：同一整列、不滑動 */
+#overviewFilterForm.no-wrap-filter-panel,
+#overviewFilterForm.overview-filter-panel-compact {
+  overflow: visible !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row {
+  display: grid !important;
+  grid-template-columns:
+    minmax(118px, 0.9fr)
+    minmax(126px, 1fr)
+    minmax(126px, 1fr)
+    minmax(120px, 0.9fr)
+    minmax(96px, 0.75fr)
+    auto
+    auto !important;
+  gap: 8px !important;
+  align-items: end !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  padding-bottom: 0 !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row > * {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: initial !important;
+  white-space: nowrap !important;
+}
+
+#overviewFilterForm .compact-filter-control,
+#overviewFilterForm .compact-sort-select {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+#overviewFilterForm select,
+#overviewFilterForm summary {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#overviewFilterForm button {
+  width: auto !important;
+  min-width: 74px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  white-space: nowrap !important;
+}
+
+#overviewFilterForm .compact-field-label {
+  font-size: 12px !important;
+}
+
+/* 保留外務篩選可依原規則，不套用行程總覽的一整列寬度 */
+#fieldScheduleFilterForm .overview-filter-compact-row {
+  overflow-x: auto !important;
+}
+
+/* 小螢幕才允許橫向滑動，避免手機硬擠壓壞版 */
+@media (max-width: 980px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > * {
+    flex: 0 0 auto !important;
+  }
+
+  #overviewFilterForm .compact-filter-control,
+  #overviewFilterForm .compact-sort-select {
+    min-width: 128px !important;
+  }
+}
+/* FOR-e V002-1P-112 END - overview filter one row no scroll */
