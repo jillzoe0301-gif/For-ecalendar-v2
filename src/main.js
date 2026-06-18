@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-85'
+const SYSTEM_VERSION = 'V002-1P-86'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4219,13 +4219,85 @@ function getMeetingTimeMinutes(value) {
   return hour * 60 + minute
 }
 
-function hasMeetingRoomConflict(room, date, startTime, endTime, excludeScheduleId = '') {
+
+function normalizeMeetingTime(value = '') {
+  return String(value || '').slice(0, 5)
+}
+
+function isSameMeetingEditTarget(row = {}, originalRow = {}) {
+  if (!row || !originalRow) return false
+  if (String(row.schedule_id || '') && String(row.schedule_id || '') === String(originalRow.schedule_id || '')) return true
+
+  const sameTitle = String(row.title || '').trim() === String(originalRow.title || '').trim()
+  const sameRoom = String(row.location_name || row.sub_type || '').trim() === String(originalRow.location_name || originalRow.sub_type || '').trim()
+  const sameStart = normalizeMeetingTime(row.start_time) === normalizeMeetingTime(originalRow.start_time)
+  const sameEnd = normalizeMeetingTime(row.end_time || row.start_time) === normalizeMeetingTime(originalRow.end_time || originalRow.start_time)
+
+  const rowReserver = String(getMeetingReserverName(row) || row.creator_staff_id || '').trim()
+  const originalReserver = String(getMeetingReserverName(originalRow) || originalRow.creator_staff_id || '').trim()
+  const sameReserver = rowReserver && originalReserver && rowReserver === originalReserver
+
+  return sameTitle && sameRoom && sameStart && sameEnd && sameReserver
+}
+
+function getMeetingEditRepeatNote(originalRow = {}, startDate = '', endDate = '') {
+  let mode = getScheduleModeFromNote(originalRow)
+  if (mode === '單日' && endDate && startDate && endDate > startDate && String(originalRow.sub_type_note || '').includes('行程模式：連續日期')) {
+    mode = '連續日期'
+  }
+
+  if (mode === '單日') return '行程模式：單日'
+  if (mode === '連續日期') return '行程模式：連續日期'
+
+  if (mode === '每週重複') {
+    const values = getRepeatWeekdayValuesFromNote(originalRow)
+    const days = values
+      .map(value => weekdays.find(([weekdayValue]) => weekdayValue === value)?.[1] || value)
+      .filter(Boolean)
+      .join('、')
+    return `行程模式：每週重複；重複星期：${days || '未設定'}`
+  }
+
+  if (mode === '每月重複') {
+    const note = String(originalRow.sub_type_note || '')
+    const match = note.match(/每月\s*(\d{1,2})\s*號/)
+    const monthlyDay = match ? Number(match[1]) : Number(String(startDate || originalRow.start_date || todayString()).slice(8, 10))
+    return `行程模式：每月重複；每月 ${monthlyDay || 1} 號`
+  }
+
+  return `行程模式：${mode || '單日'}`
+}
+
+function getMeetingEditConflictDateKeys(originalRow = {}, startDate = '', endDate = '') {
+  const mode = getScheduleModeFromNote(originalRow)
+  const target = {
+    ...originalRow,
+    start_date: startDate,
+    end_date: mode === '單日' ? startDate : (endDate || startDate)
+  }
+
+  return getDateKeysBetween(startDate, target.end_date)
+    .filter(dateKey => scheduleMatchesDateByMode(target, dateKey))
+}
+
+function findMeetingRoomConflictDate(room, dateKeys = [], startTime = '', endTime = '', originalRow = {}) {
+  return (dateKeys || []).find(dateKey => {
+    return hasMeetingRoomConflict(room, dateKey, startTime, endTime, originalRow.schedule_id, originalRow)
+  })
+}
+
+
+function hasMeetingRoomConflict(room, date, startTime, endTime, excludeScheduleId = '', originalRow = null) {
   const start = getMeetingTimeMinutes(startTime)
   const end = getMeetingTimeMinutes(endTime)
 
   return schedules
     .filter(row => isVisibleSchedule(row))
-    .filter(row => !excludeScheduleId || row.schedule_id !== excludeScheduleId)
+    .filter(row => {
+      if (excludeScheduleId && String(row.schedule_id || '') === String(excludeScheduleId || '')) return false
+      if (originalRow && isSameMeetingEditTarget(row, originalRow)) return false
+      return true
+    })
     .filter(row => isMeetingRoomSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, date))
     .filter(row => row.location_name === room)
@@ -4622,12 +4694,16 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       return
     }
 
-    const conflictDate = getDateKeysBetween(startDate, endDate).find(dateKey => {
-      return hasMeetingRoomConflict(room, dateKey, startTime, endTime, originalRow.schedule_id)
-    })
+    const conflictDate = findMeetingRoomConflictDate(
+      room,
+      getMeetingEditConflictDateKeys(originalRow, startDate, endDate),
+      startTime,
+      endTime,
+      originalRow
+    )
 
     if (conflictDate) {
-      alert(`此會議室在 ${conflictDate} 該時段已有預約，請更換時間或會議室。`)
+      alert(`此會議室在 ${conflictDate} 該時段已有其他預約，請更換時間或會議室。`)
       return
     }
 
@@ -4638,6 +4714,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       schedule_type: '會議室預約',
       sub_type: room,
       sub_type_note: [
+        getMeetingEditRepeatNote(originalRow, startDate, endDate),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
         participantDepartments.length ? `參與部門：${participantDepartments.join('、')}` : '',
@@ -16058,3 +16135,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 修正舊資料 schedule_type 仍是「面談」時，畫面標題顯示錯誤的問題
 */
 /* FOR-e V002-1P-85 END - meeting title prefix */
+
+/* FOR-e V002-1P-86 START - meeting edit self conflict fix */
+/*
+  V002-1P-86｜會議室修改自我衝突修正
+  - 修改會議室預約時，衝突檢查會排除目前正在修改的會議
+  - 週期性會議只檢查實際重複日期，不再把整段日期都當成每日預約
+  - 修改後會保留原本的行程模式資訊，避免每週 / 每月重複被改壞
+*/
+/* FOR-e V002-1P-86 END - meeting edit self conflict fix */
