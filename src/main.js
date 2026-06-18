@@ -1,14 +1,4 @@
-unzip -o for-e-v002-1p-112-overview-filter-one-row.zip
-
-node --check src/main.js
-
-npm run build
-
-git status
-git add -A
-git status
-git commit -m "V002-1P-112 overview filter one row"
-git push origin mainimport { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -18,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-112'
+const SYSTEM_VERSION = 'V002-1P-113'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17690,3 +17680,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 壓縮欄位寬度，讓檢視範圍、部門、人員、排序、順序與按鈕同列顯示
 */
 /* FOR-e V002-1P-112 END - overview filter one row no scroll */
+
+/* FOR-e V002-1P-113 START - main js line one repair */
+/*
+  V002-1P-113｜main.js 第一行修復
+  - 重新輸出完整 src/main.js
+  - 修正 Vercel src/main.js:1:9 Expected ';' but found 'for'
+  - 保留 V002-1P-112 行程總覽欄位一整列設定
+  - 已通過 node --check 與 esbuild parse
+*/
+/* FOR-e V002-1P-113 END - main js line one repair */
