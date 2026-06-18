@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-91'
+const SYSTEM_VERSION = 'V002-1P-92'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4146,7 +4146,7 @@ function renderMeetingRoomCard(row) {
       <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.title || '-')}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
-      ${participantSummary ? `<span class="meeting-room-meta">參與：${escapeHtml(participantSummary)}</span>` : ''}
+      ${participantSummary ? `<span class="meeting-room-meta">與會：${escapeHtml(participantSummary)}</span>` : ''}
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -4464,8 +4464,8 @@ async function saveMeetingRoomSchedule(event, modal) {
         buildRepeatNote(form),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
-        participantDepartments.length ? `參與部門：${participantDepartments.join('、')}` : '',
-        participantStaffNames.length ? `參與人員：${participantStaffNames.join('、')}` : ''
+        participantDepartments.length ? `與會部門：${participantDepartments.join('、')}` : '',
+        participantStaffNames.length ? `與會人員：${participantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -4721,8 +4721,8 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
         getMeetingEditRepeatNote(originalRow, startDate, endDate),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
-        participantDepartments.length ? `參與部門：${participantDepartments.join('、')}` : '',
-        participantStaffNames.length ? `參與人員：${participantStaffNames.join('、')}` : ''
+        participantDepartments.length ? `與會部門：${participantDepartments.join('、')}` : '',
+        participantStaffNames.length ? `與會人員：${participantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -13125,11 +13125,15 @@ function initMeetingParticipantDropdowns(root = document) {
 
 
 function getSelectedMeetingDepartments(form) {
-  return []
+  return [...new Set((form.getAll('participant_departments') || [])
+    .map(item => String(item || '').trim())
+    .filter(Boolean))]
 }
 
 function getSelectedMeetingParticipantStaffIds(form) {
-  return []
+  return [...new Set((form.getAll('participant_staff_ids') || [])
+    .map(item => String(item || '').trim())
+    .filter(Boolean))]
 }
 
 function getStaffIdsFromDepartments(departments = []) {
@@ -13155,7 +13159,7 @@ function buildMeetingAssigneeStaffIds(reserverStaffId = '', participantDepartmen
 }
 
 function getMeetingParticipantDepartments(row = {}) {
-  return String(getFieldNoteValue(row, '參與部門') || '')
+  return String(getFieldNoteValue(row, '與會部門') || getFieldNoteValue(row, '參與部門') || '')
     .split(/[、,，]/)
     .map(item => item.trim())
     .filter(Boolean)
@@ -13176,7 +13180,7 @@ function getMeetingParticipantStaffIds(row = {}) {
 }
 
 function getMeetingParticipantStaffNames(row = {}) {
-  const fromNote = String(getFieldNoteValue(row, '參與人員') || '')
+  const fromNote = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
     .split(/[、,，]/)
     .map(item => item.trim())
     .filter(Boolean)
@@ -13226,7 +13230,40 @@ function getMeetingParticipantStaffSummaryText(staffIds = []) {
 }
 
 function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffIds = []) {
-  return ''
+  return `
+    <section class="meeting-participant-box span-2">
+      <div class="meeting-participant-title">
+        <strong>與會部門 / 與會人員</strong>
+        <span>下拉複選，不佔版面；選擇部門時，該部門啟用人員也會同步看到此會議室預約。</span>
+      </div>
+
+      <div class="meeting-participant-dropdown-row">
+        <div class="meeting-dropdown-group">
+          <span class="meeting-dropdown-label">與會部門</span>
+          <details class="meeting-dropdown-select">
+            <summary>
+              <span>${escapeHtml(getMeetingParticipantSummaryText(selectedDepartments, '部門'))}</span>
+            </summary>
+            <div class="meeting-dropdown-panel">
+              ${meetingDepartmentCheckboxesHtml(selectedDepartments)}
+            </div>
+          </details>
+        </div>
+
+        <div class="meeting-dropdown-group">
+          <span class="meeting-dropdown-label">與會人員</span>
+          <details class="meeting-dropdown-select">
+            <summary>
+              <span>${escapeHtml(getMeetingParticipantStaffSummaryText(selectedStaffIds))}</span>
+            </summary>
+            <div class="meeting-dropdown-panel">
+              ${meetingParticipantCheckboxesHtml(selectedStaffIds)}
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+  `
 }
 
 
@@ -16841,3 +16878,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 勾選部門會同步勾選該部門人員並寫入行程指派
 */
 /* FOR-e V002-1P-91 END - todo custom meeting department */
+
+/* FOR-e V002-1P-92 START - restore meeting participants */
+/*
+  V002-1P-92｜會議室與會部門 / 與會人員恢復
+  - 會議室新增 / 修改表單恢復「與會部門」與「與會人員」
+  - 採下拉式複選，不佔版面
+  - 與會部門會同步帶入該部門啟用人員為會議室行程指派對象
+  - 會議室卡片恢復顯示與會摘要
+*/
+/* FOR-e V002-1P-92 END - restore meeting participants */

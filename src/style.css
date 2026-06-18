@@ -12693,3 +12693,50 @@ body {
   }
 }
 /* FOR-e V002-1P-91 END - todo custom meeting department */
+
+/* FOR-e V002-1P-92 START - restore meeting participants */
+/* 會議室與會部門 / 與會人員：恢復下拉複選並保持同排靠左 */
+.meeting-participant-box {
+  padding: 10px 12px !important;
+  gap: 8px !important;
+}
+
+.meeting-participant-dropdown-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.meeting-dropdown-option {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+
+.meeting-dropdown-option input {
+  flex: 0 0 auto !important;
+  width: 15px !important;
+  min-width: 15px !important;
+  height: 15px !important;
+  margin: 0 !important;
+}
+
+.meeting-dropdown-option span {
+  display: block !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 768px) {
+  .meeting-participant-dropdown-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1P-92 END - restore meeting participants */
