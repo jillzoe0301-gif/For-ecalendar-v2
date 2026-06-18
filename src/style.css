@@ -13471,3 +13471,82 @@ body {
   }
 }
 /* FOR-e V002-1P-112 END - overview filter one row no scroll */
+
+/* FOR-e V002-1P-114 START - overview filter button width */
+/* 行程總覽篩選列：修正按鈕寬度，不再被壓縮或重疊 */
+#overviewFilterForm .overview-filter-compact-row {
+  display: grid !important;
+  grid-template-columns:
+    minmax(118px, 1fr)
+    minmax(132px, 1fr)
+    minmax(132px, 1fr)
+    minmax(118px, 0.9fr)
+    minmax(106px, 0.82fr)
+    116px
+    76px !important;
+  column-gap: 8px !important;
+  row-gap: 0 !important;
+  align-items: end !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  padding: 0 10px !important;
+  border-radius: 14px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row > button.primary-btn {
+  min-width: 116px !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row > button.secondary-btn {
+  min-width: 76px !important;
+}
+
+#overviewFilterForm .compact-sort-select,
+#overviewFilterForm .compact-multi-select {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#overviewFilterForm select,
+#overviewFilterForm summary {
+  height: 44px !important;
+  min-height: 44px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 讓「小到大 / A→Z」這種長字不撐破欄位 */
+#overviewFilterForm select {
+  padding-left: 12px !important;
+  padding-right: 30px !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 桌機版不顯示選擇欄位水平捲軸 */
+@media (min-width: 981px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    overflow-x: visible !important;
+  }
+}
+/* FOR-e V002-1P-114 END - overview filter button width */

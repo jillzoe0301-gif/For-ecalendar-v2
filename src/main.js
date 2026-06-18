@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-113'
+const SYSTEM_VERSION = 'V002-1P-114'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17690,3 +17690,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 已通過 node --check 與 esbuild parse
 */
 /* FOR-e V002-1P-113 END - main js line one repair */
+
+/* FOR-e V002-1P-114 START - overview filter button width */
+/*
+  V002-1P-114｜行程總覽篩選按鈕寬度修正
+  - 修正「套用並記住」按鈕被擠成圓形 / 跟全部按鈕重疊
+  - 行程總覽篩選列維持同一整列
+  - 按鈕欄位給固定寬度，文字完整顯示
+*/
+/* FOR-e V002-1P-114 END - overview filter button width */
