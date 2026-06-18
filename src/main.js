@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-115'
+const SYSTEM_VERSION = 'V002-1P-116'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17712,3 +17712,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 昨日行程不會再因 UTC 日期誤差顯示在當日提醒上方
 */
 /* FOR-e V002-1P-115 END - local today date fix */
+
+/* FOR-e V002-1P-116 START - field filter one row button width */
+/*
+  V002-1P-116｜外務行程篩選欄位一整列與按鈕寬度修正
+  - 外務行程上方選擇欄位不滑動
+  - 部門、外務人員、排序、順序、套用並記住、全部維持同一列
+  - 按鈕寬度依文字內容固定，不再擠壓或重疊
+*/
+/* FOR-e V002-1P-116 END - field filter one row button width */
