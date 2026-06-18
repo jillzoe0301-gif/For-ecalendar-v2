@@ -13183,3 +13183,41 @@ body {
   font-weight: 800;
 }
 /* FOR-e V002-1P-109 END - birthday month day only */
+
+/* FOR-e V002-1P-110 START - overview personal periods auto close */
+/* 行程總覽個人檢視模式 */
+.compact-filter-control.is-disabled-filter {
+  opacity: 0.62;
+}
+
+.week-overview-table.is-personal-day {
+  min-width: 420px;
+}
+
+.week-overview-table.is-personal-week {
+  min-width: 980px;
+}
+
+.week-overview-table.is-personal-month {
+  min-width: 3600px;
+}
+
+.week-overview-table.is-personal-month .week-day-cell {
+  min-width: 112px;
+}
+
+.week-overview-table.is-personal-month thead th:not(.staff-col) {
+  min-width: 112px;
+}
+
+.status-pill.is-calendar-only {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.schedule-card.is-completed .status-pill,
+.week-schedule-card.is-completed,
+.field-week-schedule-card.is-completed {
+  opacity: 0.72;
+}
+/* FOR-e V002-1P-110 END - overview personal periods auto close */

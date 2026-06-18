@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-109'
+const SYSTEM_VERSION = 'V002-1P-110'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -399,6 +399,7 @@ let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
 let overviewFilters = {
+  viewMode: '全部行程',
   departments: [],
   staffIds: [],
   sortBy: 'display_order',
@@ -1054,6 +1055,7 @@ function shouldDisplayAutoCompleted(row) {
 }
 
 function getScheduleStatusLabel(row) {
+  if (isAutoClosedLeaveMeetingActivity(row)) return '已結案'
   if (shouldDisplayAutoCompleted(row)) return '已完成'
   if (isNoCompletionControlSchedule(row)) return '行事曆顯示'
   return row?.status || '未完成'
@@ -2658,6 +2660,7 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       overviewFilters = normalizeOverviewFilters({
+        viewMode: form.get('viewMode') || '全部行程',
         departments: form.getAll('departments'),
         staffIds: form.getAll('staffIds'),
         sortBy: form.get('sortBy') || 'display_order',
@@ -3981,7 +3984,7 @@ function renderFieldScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
 
   return `
-    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="field-week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderCardTime(row, 'field-week-card-time')}
       <strong>${escapeHtml(isMeetingRoomSchedule(row) ? '會議室預約' : (row.schedule_type || row.category || '外務'))}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
@@ -10429,6 +10432,82 @@ function getWeekLabel(weekDates) {
   return `${toDateKey(weekDates[0])} ～ ${toDateKey(weekDates[6])}`
 }
 
+
+const overviewViewModeOptions = ['全部行程', '個人當天', '個人當週', '個人當月']
+
+function getOverviewViewMode() {
+  return overviewViewModeOptions.includes(overviewFilters.viewMode) ? overviewFilters.viewMode : '全部行程'
+}
+
+function getOverviewViewModeOptionsHtml() {
+  const selected = getOverviewViewMode()
+  return overviewViewModeOptions.map(item => `
+    <option value="${item}" ${selected === item ? 'selected' : ''}>${item}</option>
+  `).join('')
+}
+
+function getDatesInCurrentMonth() {
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth(), 1)
+  const dates = []
+  const cursor = new Date(first)
+
+  while (cursor.getMonth() === first.getMonth()) {
+    dates.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return dates
+}
+
+function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
+  if (viewMode === '個人當天') return [getDateFromKey(todayString())].filter(Boolean)
+  if (viewMode === '個人當月') return getDatesInCurrentMonth()
+  if (viewMode === '個人當週') return getWeekDates(0)
+  return getWeekDates(overviewWeekOffset)
+}
+
+function getOverviewCalendarLabel(weekDates = [], viewMode = getOverviewViewMode()) {
+  if (!weekDates.length) return ''
+  if (viewMode === '個人當天') return `${toDateKey(weekDates[0])}`
+  if (viewMode === '個人當月') return `${toDateKey(weekDates[0]).slice(0, 7)}｜當月`
+  if (viewMode === '個人當週') return `個人當週｜${getWeekLabel(weekDates)}`
+  return getWeekLabel(weekDates)
+}
+
+function getCurrentProfileStaffRow() {
+  return staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || {
+    staff_id: currentProfile?.staff_id || '',
+    name: currentProfile?.name || currentProfile?.email || '目前登入者',
+    department_name: currentProfile?.department_name || '',
+    position: currentProfile?.position_name || currentProfile?.position || ''
+  }
+}
+
+function getOverviewCalendarStaffRows(viewMode = getOverviewViewMode()) {
+  if (viewMode !== '全部行程') {
+    return currentProfile?.staff_id ? [getCurrentProfileStaffRow()] : []
+  }
+
+  return getOverviewStaffRows()
+}
+
+function getOverviewViewModeTableClass(viewMode = getOverviewViewMode()) {
+  if (viewMode === '個人當天') return 'is-personal-day'
+  if (viewMode === '個人當週') return 'is-personal-week'
+  if (viewMode === '個人當月') return 'is-personal-month'
+  return 'is-all-week'
+}
+
+function isLeaveMeetingActivityTrainingSchedule(row = {}) {
+  return isPublicLeaveMeetingActivitySchedule(row)
+}
+
+function isAutoClosedLeaveMeetingActivity(row = {}) {
+  return isLeaveMeetingActivityTrainingSchedule(row) && isScheduleTimePassed(row)
+}
+
+
 const overviewFiltersStorageKey = 'for-e-overview-filters-v002'
 
 function normalizeOverviewFilterList(value) {
@@ -10440,7 +10519,10 @@ function normalizeOverviewFilterList(value) {
 function normalizeOverviewFilters(value = {}) {
   const sortBy = ['display_order', 'department', 'name'].includes(value.sortBy) ? value.sortBy : 'display_order'
   const sortDir = value.sortDir === 'desc' ? 'desc' : 'asc'
+  const viewMode = overviewViewModeOptions.includes(value.viewMode) ? value.viewMode : '全部行程'
+
   return {
+    viewMode,
     departments: normalizeOverviewFilterList(value.departments || value.department),
     staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId),
     sortBy,
@@ -10538,6 +10620,11 @@ function getOverviewStaffSelectedText() {
 }
 
 function getOverviewFilterSummary() {
+  const viewMode = getOverviewViewMode()
+  if (viewMode !== '全部行程') {
+    return `${viewMode}｜${currentProfile?.name || currentProfile?.email || '目前登入者'}`
+  }
+
   const departments = normalizeOverviewFilterList(overviewFilters.departments)
   const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
   const staffNames = staffIds
@@ -10546,7 +10633,7 @@ function getOverviewFilterSummary() {
 
   const deptText = departments.length ? departments.join('、') : '全部部門'
   const staffText = staffNames.length ? staffNames.join('、') : '全部人員'
-  return `${deptText}｜${staffText}`
+  return `${viewMode}｜${deptText}｜${staffText}`
 }
 
 function renderCompactCheckOption(name, value, checked, inputName) {
@@ -10694,7 +10781,7 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 function renderWeekScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
   return `
-    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderCardTime(row, 'week-card-time')}
       <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
@@ -10706,20 +10793,25 @@ function renderWeekScheduleCard(row) {
 
 
 function renderScheduleOverview() {
-  const weekDates = getWeekDates(overviewWeekOffset)
-  const staffRows = getOverviewStaffRows()
+  const viewMode = getOverviewViewMode()
+  const weekDates = getOverviewCalendarDates(viewMode)
+  const staffRows = getOverviewCalendarStaffRows(viewMode)
   const todayKey = todayString()
+  const showWeekNav = viewMode === '全部行程'
+  const tableClass = getOverviewViewModeTableClass(viewMode)
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>行程總覽</h3>
-        <p class="muted">人員 × 週一～週日｜${getWeekLabel(weekDates)}</p>
+        <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
       <div class="toolbar-actions">
-        <button class="secondary-btn" id="prevWeekBtn">上一週</button>
-        <button class="secondary-btn" id="thisWeekBtn">本週</button>
-        <button class="secondary-btn" id="nextWeekBtn">下一週</button>
+        ${showWeekNav ? `
+          <button class="secondary-btn" id="prevWeekBtn">上一週</button>
+          <button class="secondary-btn" id="thisWeekBtn">本週</button>
+          <button class="secondary-btn" id="nextWeekBtn">下一週</button>
+        ` : ''}
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
@@ -10729,14 +10821,21 @@ function renderScheduleOverview() {
 
     <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact">
       <div class="overview-filter-compact-row">
-        <details class="compact-multi-select compact-filter-control">
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">檢視範圍</span>
+          <select name="viewMode">
+            ${getOverviewViewModeOptionsHtml()}
+          </select>
+        </label>
+
+        <details class="compact-multi-select compact-filter-control ${viewMode !== '全部行程' ? 'is-disabled-filter' : ''}">
           <summary>部門｜${escapeHtml(getOverviewDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getOverviewDepartmentCheckboxes()}
           </div>
         </details>
 
-        <details class="compact-multi-select compact-filter-control">
+        <details class="compact-multi-select compact-filter-control ${viewMode !== '全部行程' ? 'is-disabled-filter' : ''}">
           <summary>人員｜${escapeHtml(getOverviewStaffSelectedText())}</summary>
           <div class="compact-check-panel">
             ${getOverviewStaffCheckboxes()}
@@ -10763,11 +10862,12 @@ function renderScheduleOverview() {
 
       <div class="overview-filter-summary compact-summary">
         目前：${escapeHtml(getOverviewFilterSummary())}
+        ${viewMode !== '全部行程' ? '｜個人模式固定顯示目前登入者。' : ''}
       </div>
     </form>
 
     <div class="week-overview-scroll">
-      <table class="week-overview-table">
+      <table class="week-overview-table ${tableClass}">
         <thead>
           <tr>
             <th class="staff-col">人員</th>
@@ -17461,3 +17561,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 需執行 supabase/sql/v002-1p-109-staff-birthday-text.sql，將 birthday 欄位改成 text
 */
 /* FOR-e V002-1P-109 END - birthday month day only */
+
+/* FOR-e V002-1P-110 START - overview personal periods auto close */
+/*
+  V002-1P-110｜行程總覽個人當天 / 當週 / 當月與請假會議自動結案
+  - 行程總覽新增檢視範圍：全部行程、個人當天、個人當週、個人當月
+  - 個人模式固定顯示目前登入者
+  - 請假、休假、會議、活動、外訓時間已過後顯示已結案
+  - 保留 V002-1P-108 / V002-1P-109 的生日卡 HappyBirthday ❤ 與月日生日格式
+*/
+/* FOR-e V002-1P-110 END - overview personal periods auto close */
