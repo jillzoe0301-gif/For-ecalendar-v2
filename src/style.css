@@ -13159,3 +13159,27 @@ body {
   text-align: left !important;
 }
 /* FOR-e V002-1P-107 END - cake holidays leave bg */
+
+/* FOR-e V002-1P-108 START - birthday text only */
+.birthday-card strong,
+.field-birthday-card strong {
+  margin-top: 0 !important;
+}
+
+.birthday-card > div,
+.field-birthday-card > div {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+/* FOR-e V002-1P-108 END - birthday text only */
+
+/* FOR-e V002-1P-109 START - birthday month day only */
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+/* FOR-e V002-1P-109 END - birthday month day only */

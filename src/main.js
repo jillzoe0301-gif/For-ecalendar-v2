@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-107'
+const SYSTEM_VERSION = 'V002-1P-109'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1104,7 +1104,7 @@ function formatDate(value) {
 
 
 function getStaffBirthdayValue(staff = {}) {
-  return staff.birthday || staff.birth_date || staff.date_of_birth || staff.birthdate || ''
+  return staff?.birthday || staff?.birth_date || staff?.date_of_birth || staff?.birthdate || ''
 }
 
 function getBirthdayMonthDay(value = '') {
@@ -1117,10 +1117,21 @@ function getBirthdayMonthDay(value = '') {
   const mdMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})$/)
   if (mdMatch) return `${String(mdMatch[1]).padStart(2, '0')}-${String(mdMatch[2]).padStart(2, '0')}`
 
+  const zhMatch = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/)
+  if (zhMatch) return `${String(zhMatch[1]).padStart(2, '0')}-${String(zhMatch[2]).padStart(2, '0')}`
+
   const anyMatch = text.match(/(\d{1,2})[\/-](\d{1,2})/)
   if (anyMatch) return `${String(anyMatch[1]).padStart(2, '0')}-${String(anyMatch[2]).padStart(2, '0')}`
 
   return ''
+}
+
+function normalizeBirthdayInput(value = '') {
+  return getBirthdayMonthDay(value)
+}
+
+function formatBirthdayForInput(value = '') {
+  return getBirthdayMonthDay(value)
 }
 
 function isStaffBirthdayOnDate(staff = {}, dateKey = '') {
@@ -1134,11 +1145,10 @@ function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview')
 
   const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
   return `
-    <div class="${className}" title="${escapeHtml(staff.name || '')} 生日">
+    <div class="${className}" title="HappyBirthday ❤">
       <img src="/icons/cake.png" alt="" class="birthday-card-icon">
       <div>
-        <strong>生日</strong>
-        <span>${escapeHtml(staff.name || '-')}</span>
+        <strong>HappyBirthday ❤</strong>
       </div>
     </div>
   `
@@ -12088,7 +12098,8 @@ function openUserAccountModal(staffId = '') {
 
         <label>
           生日
-          <input name="birthday" type="date" value="${escapeHtml(getStaffBirthdayValue(staff) || '')}">
+          <input name="birthday" inputmode="numeric" value="${escapeHtml(formatBirthdayForInput(getStaffBirthdayValue(staff)))}" placeholder="例：03-01 或 03/01">
+          <small class="field-hint">只填月 / 日，不需要年份。</small>
         </label>
 
         <label class="user-field-check-row">
@@ -12175,7 +12186,7 @@ async function saveUserAccount(event, modal, staffId = '') {
       position,
       role: form.get('role') || '一般職員',
       status: form.get('status') || '啟用',
-      birthday: form.get('birthday') || null
+      birthday: normalizeBirthdayInput(form.get('birthday')) || null
     }
 
     if (displayOrderValue !== '' && displayOrderValue !== null) {
@@ -17431,3 +17442,22 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行程總覽中個人請假 / 休假日格背景套用與假日相同的淡藍色
 */
 /* FOR-e V002-1P-107 END - cake holidays leave bg */
+
+/* FOR-e V002-1P-108 START - birthday text only */
+/*
+  V002-1P-108｜生日卡文字調整
+  - 生日提醒只顯示 HappyBirthday ❤
+  - 不再顯示人員姓名
+  - 保留 CAKE 圖示
+*/
+/* FOR-e V002-1P-108 END - birthday text only */
+
+/* FOR-e V002-1P-109 START - birthday month day only */
+/*
+  V002-1P-109｜生日欄位改為只填月日
+  - 保留 V002-1P-108：生日卡只顯示 HappyBirthday ❤，不顯示姓名
+  - 人員生日輸入改為 MM-DD / MM/DD，不需要年份
+  - 儲存時自動整理成 MM-DD
+  - 需執行 supabase/sql/v002-1p-109-staff-birthday-text.sql，將 birthday 欄位改成 text
+*/
+/* FOR-e V002-1P-109 END - birthday month day only */
