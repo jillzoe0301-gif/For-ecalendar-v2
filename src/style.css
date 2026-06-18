@@ -12810,3 +12810,14 @@ body {
   cursor: pointer;
 }
 /* FOR-e V002-1P-94 END - meeting assignee safe sync remember line */
+
+/* FOR-e V002-1P-95 START - edit repeat mode */
+.edit-schedule-mode-box {
+  border-color: #c7d2fe;
+  background: #f8fbff;
+}
+
+.edit-schedule-mode-box .inline-check-list {
+  gap: 8px;
+}
+/* FOR-e V002-1P-95 END - edit repeat mode */

@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-94'
+const SYSTEM_VERSION = 'V002-1P-95'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -13066,6 +13066,86 @@ function scheduleModeFieldsHtml(prefix, defaultDate = '') {
   `
 }
 
+
+function getMonthlyDayFromSchedule(row = {}) {
+  const note = String(row.sub_type_note || '')
+  const match = note.match(/每月\s*(\d{1,2})\s*號/)
+  const fallback = Number(String(row.start_date || todayString()).slice(8, 10)) || 1
+  return match ? Number(match[1]) : fallback
+}
+
+function editScheduleModeFieldsHtml(row = {}) {
+  const mode = getScheduleModeFromNote(row)
+  const startDate = row.start_date || todayString()
+  const endDate = row.end_date || startDate
+  const selectedWeekdays = new Set(getRepeatWeekdayValuesFromNote(row))
+  const monthlyDay = getMonthlyDayFromSchedule(row)
+
+  const repeatModeOptions = ['單日', '連續日期', '每週重複', '每月重複']
+    .map(item => `<option value="${item}" ${item === mode ? 'selected' : ''}>${item}</option>`)
+    .join('')
+
+  return `
+    <div class="span-2 block-group schedule-mode-box edit-schedule-mode-box">
+      <div class="group-title">行程模式 / 週期</div>
+      <div class="form-grid inner-grid">
+        <label>
+          行程模式
+          <select name="repeat_mode" id="editRepeatModeSelect">
+            ${repeatModeOptions}
+          </select>
+        </label>
+
+        <label>
+          開始日期
+          <input name="start_date" type="date" required value="${startDate}">
+        </label>
+
+        <label class="${mode === '單日' ? 'hidden' : ''}" id="editEndDateBlock">
+          結束日期
+          <input name="end_date" type="date" value="${endDate}">
+        </label>
+
+        <label class="${mode === '每月重複' ? '' : 'hidden'}" id="editMonthlyDayBlock">
+          每月幾號
+          <select name="monthly_day">
+            ${Array.from({ length: 31 }, (_, i) => {
+              const day = i + 1
+              return `<option value="${day}" ${day === monthlyDay ? 'selected' : ''}>${day} 號</option>`
+            }).join('')}
+          </select>
+        </label>
+
+        <div class="span-2 ${mode === '每週重複' ? '' : 'hidden'}" id="editWeekdayBlock">
+          <div class="field-title">重複星期</div>
+          <div class="inline-check-list">
+            ${weekdays.map(([value, label]) => `
+              <label class="inline-check">
+                <input type="checkbox" name="repeat_weekdays" value="${value}" ${selectedWeekdays.has(value) ? 'checked' : ''}>
+                ${label}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function cleanRepeatNote(noteText = '') {
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith('行程模式：'))
+    .join('｜')
+}
+
+function mergeRepeatNoteWithText(form, noteText = '') {
+  return [buildRepeatNote(form), cleanRepeatNote(noteText)].filter(Boolean).join('｜')
+}
+
+
 function refreshScheduleModeBlocks(prefix) {
   const modeSelect = document.querySelector(`#${prefix}RepeatModeSelect`)
   if (!modeSelect) return
@@ -14976,15 +15056,7 @@ function openEditScheduleModal(scheduleId) {
           <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
         </label>
 
-        <label>
-          開始日期
-          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
-        </label>
-
-        <label>
-          結束日期
-          <input name="end_date" type="date" value="${row.end_date || row.start_date || todayString()}">
-        </label>
+        ${editScheduleModeFieldsHtml(row)}
 
         <label>
           時間類型
@@ -15046,6 +15118,7 @@ function openEditScheduleModal(scheduleId) {
   const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
   const timeTypeSelect = document.querySelector('#editTimeTypeSelect')
   const timeBlock = document.querySelector('#editTimeRangeBlock')
+  const editRepeatModeSelect = document.querySelector('#editRepeatModeSelect')
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
   const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
   const editServiceTypeSelect = document.querySelector('#editServiceBlock select[name="schedule_type"]')
@@ -15097,12 +15170,14 @@ function openEditScheduleModal(scheduleId) {
   document.querySelectorAll('input[name="edit_executor_departments"]').forEach(input => {
     input.addEventListener('change', () => syncDepartmentAssigneeChecks(document.querySelector('#editScheduleForm'), 'edit_executor_departments', 'edit_executor'))
   })
+  if (editRepeatModeSelect) editRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('edit'))
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
   if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', refreshEditServiceBlock)
   if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
+  refreshScheduleModeBlocks('edit')
   refreshEditExtraScheduleBlock()
   refreshEditServiceBlock()
   refreshEditTimeBlock()
@@ -15143,30 +15218,33 @@ async function saveEditedSchedule(event, modal, originalRow) {
     if (isCompactSpecialScheduleType(editScheduleType)) {
       editSubTypeNote = null
     } else {
-      const cleanedNote = cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)
+      const cleanedNote = cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType))
       const extraNotes = buildServiceExtraNotes(form, editScheduleType)
-      editSubTypeNote = [cleanedNote, ...extraNotes].filter(Boolean).join('｜') || null
+      editSubTypeNote = [buildRepeatNote(form), cleanedNote, ...extraNotes].filter(Boolean).join('｜') || null
     }
   }
 
   if (category === '一般記事') {
     editScheduleType = '一般記事'
+    editSubTypeNote = buildRepeatNote(form)
   }
 
   if (category === '待辦事項') {
     editScheduleType = '待辦事項'
     editSubType = String(form.get('edit_todo_item_custom') || '').trim() || form.get('edit_todo_item') || null
+    editSubTypeNote = buildRepeatNote(form)
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
     editScheduleType = form.get('edit_leave_meeting_type') || '請假'
     editSubType = editScheduleType
+    editSubTypeNote = buildRepeatNote(form)
   }
 
   if (category === '證件交付') {
     editScheduleType = '證件交付'
     editSubType = editDeliveryText || null
-    editSubTypeNote = editDeliveryText ? `交付項目：${editDeliveryText}` : null
+    editSubTypeNote = [buildRepeatNote(form), editDeliveryText ? `交付項目：${editDeliveryText}` : ''].filter(Boolean).join('｜') || null
   }
 
   const payload = {
@@ -15177,7 +15255,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
     title: form.get('title'),
     description: form.get('description') || null,
     start_date: form.get('start_date'),
-    end_date: form.get('end_date') || form.get('start_date'),
+    end_date: getScheduleModeEndDate(form),
     time_type: form.get('time_type'),
     start_time: getTimeValue(form, 'start'),
     end_time: getTimeValue(form, 'end'),
@@ -17025,3 +17103,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 登入頁「記住帳號及密碼」改成 checkbox 與文字同一排
 */
 /* FOR-e V002-1P-94 END - meeting assignee safe sync remember line */
+
+/* FOR-e V002-1P-95 START - edit repeat mode */
+/*
+  V002-1P-95｜修改行程可調整週期
+  - 修改行程表單新增「行程模式 / 週期」
+  - 可把既有行程改成單日、連續日期、每週重複、每月重複
+  - 儲存修改時會同步更新 start_date / end_date / sub_type_note 的行程模式
+  - 行程總覽、個人行程表、外務行程依更新後週期顯示
+*/
+/* FOR-e V002-1P-95 END - edit repeat mode */
