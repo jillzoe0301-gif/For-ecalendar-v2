@@ -12478,3 +12478,16 @@ body {
   color: #3155d4 !important;
 }
 /* FOR-e V002-1P-83 END - personal active today meeting dropdown */
+
+/* FOR-e V002-1P-84 START - login daily popup restored style */
+.login-reminder-note {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 850;
+}
+/* FOR-e V002-1P-84 END - login daily popup restored style */

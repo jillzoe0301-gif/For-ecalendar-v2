@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-83'
+const SYSTEM_VERSION = 'V002-1P-84'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1241,7 +1241,7 @@ async function login() {
     return
   }
 
-  await loadProfile()
+  await loadProfile({ fromLogin: true, forceDailyReminder: true })
 }
 
 
@@ -1364,7 +1364,7 @@ function applyCurrentProfileStaffRole(staffPayload) {
 }
 
 
-async function loadProfile() {
+async function loadProfile(options = {}) {
   const { data: userData } = await supabase.auth.getUser()
 
   if (!userData.user) {
@@ -1397,7 +1397,7 @@ async function loadProfile() {
   currentPage = 'personalSchedule'
   await refreshData()
   renderApp()
-  maybeOpenLoginDailyReminder()
+  maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
 }
 
 async function refreshData() {
@@ -7676,31 +7676,34 @@ function exportCurrentPageCsv(filterOptions = null) {
 
 function getLoginDailyReminderRows() {
   const today = todayString()
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
+  const activeTodayRows = schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isMine(row))
+    .filter(row => !isCompletedSchedule(row))
+    .filter(row => !isScheduleTimePassed(row))
+    .filter(row => scheduleMatchesDateByMode(row, today))
 
   const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
+  const todayTodos = activeTodayRows
+    .filter(row => todoCategories.includes(row.category))
+    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+
+  const reminderRows = activeTodayRows
+    .filter(row => isReminderSchedule(row))
+    .filter(row => !todayTodos.some(todo => todo.schedule_id === row.schedule_id))
+    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+
+  const todaySchedules = activeTodayRows
+    .filter(row => !todoCategories.includes(row.category))
+    .filter(row => !reminderRows.some(reminder => reminder.schedule_id === row.schedule_id))
+    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+
   return {
-    todaySchedules: myRows
-      .filter(row => scheduleMatchesDateByMode(row, today))
-      .filter(row => row.status !== '已完成' && row.status !== '取消')
-      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b)))),
-
-    todayTodos: myRows
-      .filter(row => todoCategories.includes(row.category))
-      .filter(row => scheduleMatchesDateByMode(row, today))
-      .filter(row => row.status !== '已完成' && row.status !== '取消')
-      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b)))),
-
-    overdueTasks: myRows
-      .filter(row => isOverdueSchedule(row))
-      .filter(row => !isReminderSchedule(row))
-      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || ''))),
-
-    reminderRows: myRows
-      .filter(row => isReminderSchedule(row))
-      .filter(row => row.status !== '已完成' && row.status !== '取消')
-      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+    todaySchedules,
+    todayTodos,
+    overdueTasks: [],
+    reminderRows
   }
 }
 
@@ -7732,24 +7735,26 @@ function renderLoginReminderSection(title, rows, emptyText, className = '') {
   `
 }
 
-function maybeOpenLoginDailyReminder() {
+function maybeOpenLoginDailyReminder(options = {}) {
   if (!currentProfile?.staff_id) return
 
+  const force = options.force === true
   const key = `for-e-login-reminder-${currentProfile.staff_id}-${todayString()}`
-  if (sessionStorage.getItem(key) === 'shown') return
+
+  if (!force && sessionStorage.getItem(key) === 'shown') return
 
   const groups = getLoginDailyReminderRows()
   const total = groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
 
   if (!total) {
-    sessionStorage.setItem(key, 'shown')
+    if (!force) sessionStorage.setItem(key, 'shown')
     return
   }
 
   setTimeout(() => {
     sessionStorage.setItem(key, 'shown')
     openLoginDailyReminderModal(groups)
-  }, 250)
+  }, force ? 180 : 250)
 }
 
 function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
@@ -7758,28 +7763,29 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
   modal.innerHTML = `
     <div class="modal-panel login-reminder-modal">
       <div class="modal-header">
-        <h3>今日提醒總覽</h3>
+        <h3>今日待辦提醒</h3>
         <button class="icon-btn" id="closeLoginReminderBtn" type="button">×</button>
       </div>
 
       <div class="login-reminder-hello">
         <strong>${escapeHtml(currentProfile?.name || '您好')}</strong>
-        <span>${todayString()}｜今日行程、待辦、逾期與待確認事項</span>
+        <span>${todayString()}｜今天尚未完成、尚未過時間的待辦與行程</span>
       </div>
 
       <div class="login-reminder-summary">
-        <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
         <div><strong>${groups.todayTodos.length}</strong><span>今日待辦</span></div>
-        <div class="${groups.overdueTasks.length ? 'is-danger' : ''}"><strong>${groups.overdueTasks.length}</strong><span>任務逾期</span></div>
+        <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
         <div><strong>${groups.reminderRows.length}</strong><span>待確認 / 待通知</span></div>
+        <div><strong>${groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
       </div>
 
       <div class="login-reminder-body">
-        ${renderLoginReminderSection('任務逾期通知', groups.overdueTasks, '目前沒有逾期任務。', 'is-overdue')}
+        ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有待處理待辦。')}
         ${renderLoginReminderSection('待確認 / 待通知提醒', groups.reminderRows, '目前沒有待確認 / 待通知提醒。')}
-        ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有一般待辦。')}
         ${renderLoginReminderSection('今日行程', groups.todaySchedules, '今天沒有待處理行程。')}
       </div>
+
+      <div class="login-reminder-note">已完成、已取消、已刪除或時間已過的項目不會顯示在此提醒。</div>
 
       <div class="modal-actions">
         <button type="button" class="secondary-btn" id="closeLoginReminderBtn2">今天先關閉</button>
@@ -14881,7 +14887,7 @@ async function initialLoad() {
     return
   }
 
-  await loadProfile()
+  await loadProfile({ fromLogin: false })
 }
 
 
@@ -16026,3 +16032,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 個人行程表恢復「當日行程提醒通知」，登入後可看到今天尚未完成且時間未過的行程
 */
 /* FOR-e V002-1P-83 END - personal active today meeting dropdown */
+
+/* FOR-e V002-1P-84 START - login daily popup restored */
+/*
+  V002-1P-84｜登入後當日待辦彈窗恢復
+  - 使用帳密登入成功後，會強制開啟一次今日待辦提醒彈窗
+  - 頁面重新整理 / 既有登入狀態載入時，同一天同一分頁只提醒一次
+  - 彈窗只顯示今天、尚未完成、尚未取消、尚未刪除、時間尚未過的待辦 / 行程 / 待確認提醒
+  - 已完成、時間已過、會議室 / 請假 / 返鄉 / 外訓 / 活動等過期項目不會顯示
+*/
+/* FOR-e V002-1P-84 END - login daily popup restored */
