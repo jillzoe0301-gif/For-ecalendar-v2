@@ -13068,3 +13068,59 @@ body {
   }
 }
 /* FOR-e V002-1P-105 END - calendar cards strict left align */
+
+/* FOR-e V002-1P-106 START - birthday calendar public leave */
+.birthday-card,
+.field-birthday-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 6px 0;
+  padding: 8px 9px;
+  border: 2px solid #f9a8d4;
+  border-radius: 12px;
+  background: #fff1f8;
+  color: #be185d;
+  text-align: left !important;
+  box-sizing: border-box;
+}
+
+.field-birthday-card {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.birthday-card-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+}
+
+.birthday-card strong,
+.field-birthday-card strong {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 950;
+  text-align: left !important;
+}
+
+.birthday-card span,
+.field-birthday-card span {
+  display: block;
+  margin-top: 1px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  font-weight: 850;
+  text-align: left !important;
+}
+
+.week-day-cell .birthday-card *,
+.field-week-day-cell .field-birthday-card * {
+  text-align: left !important;
+}
+/* FOR-e V002-1P-106 END - birthday calendar public leave */

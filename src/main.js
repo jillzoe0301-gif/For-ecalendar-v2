@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-105'
+const SYSTEM_VERSION = 'V002-1P-106'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1097,6 +1097,55 @@ function isAssignedToMe(row) {
 function formatDate(value) {
   return value || '-'
 }
+
+
+function getStaffBirthdayValue(staff = {}) {
+  return staff.birthday || staff.birth_date || staff.date_of_birth || staff.birthdate || ''
+}
+
+function getBirthdayMonthDay(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return ''
+
+  const isoMatch = text.match(/^\d{4}-(\d{2})-(\d{2})/)
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}`
+
+  const mdMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})$/)
+  if (mdMatch) return `${String(mdMatch[1]).padStart(2, '0')}-${String(mdMatch[2]).padStart(2, '0')}`
+
+  const anyMatch = text.match(/(\d{1,2})[\/-](\d{1,2})/)
+  if (anyMatch) return `${String(anyMatch[1]).padStart(2, '0')}-${String(anyMatch[2]).padStart(2, '0')}`
+
+  return ''
+}
+
+function isStaffBirthdayOnDate(staff = {}, dateKey = '') {
+  const birthday = getBirthdayMonthDay(getStaffBirthdayValue(staff))
+  const dateMonthDay = String(dateKey || '').slice(5, 10)
+  return Boolean(birthday && dateMonthDay && birthday === dateMonthDay)
+}
+
+function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview') {
+  if (!isStaffBirthdayOnDate(staff, dateKey)) return ''
+
+  const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
+  return `
+    <div class="${className}" title="${escapeHtml(staff.name || '')} 生日">
+      <img src="/icons/happy-birthday.png" alt="" class="birthday-card-icon">
+      <div>
+        <strong>生日</strong>
+        <span>${escapeHtml(staff.name || '-')}</span>
+      </div>
+    </div>
+  `
+}
+
+function isPublicLeaveMeetingActivitySchedule(row = {}) {
+  if (row.category !== '請假 / 會議 / 活動 / 外訓') return false
+  const text = [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
+  return ['請假', '休假', '會議', '活動', '外訓', '公司活動', '部門活動'].some(keyword => text.includes(keyword))
+}
+
 
 function parseTimeForEdit(value, fallbackHour = '09', fallbackMinute = '00') {
   if (!value) return { hour: fallbackHour, minute: fallbackMinute }
@@ -2303,7 +2352,7 @@ async function checkLoginFunctionStatus() {
 async function loadStaff() {
   const { data, error } = await supabase
     .from('staff')
-    .select('staff_id, name, department_id, department_name, position, role, status, deleted_at, display_order')
+    .select('*')
     .order('display_order', { ascending: true })
 
   if (error) {
@@ -3998,8 +4047,9 @@ function renderFieldScheduleCalendar() {
               ${weekDates.map(date => {
                 const key = toDateKey(date)
                 const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
                 return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-                  ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : '<span class="field-week-empty">—</span>'}
+                  ${birthdayCard}${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
                 </td>`
               }).join('')}
             </tr>
@@ -10710,8 +10760,9 @@ function renderScheduleOverview() {
               ${weekDates.map(date => {
                 const key = toDateKey(date)
                 const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                 return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-                  ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : '<span class="week-empty">—</span>'}
+                  ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
                 </td>`
               }).join('')}
             </tr>
@@ -12012,6 +12063,11 @@ function openUserAccountModal(staffId = '') {
           <input name="display_order" type="number" value="${escapeHtml(String(staff?.display_order || getNextStaffDisplayOrder()))}" placeholder="數字越小越前面">
         </label>
 
+        <label>
+          生日
+          <input name="birthday" type="date" value="${escapeHtml(getStaffBirthdayValue(staff) || '')}">
+        </label>
+
         <label class="user-field-check-row">
           是否為外務人員
           <span class="field-staff-toggle compact-field-toggle large-field-toggle">
@@ -12095,7 +12151,8 @@ async function saveUserAccount(event, modal, staffId = '') {
       department_name: departmentName,
       position,
       role: form.get('role') || '一般職員',
-      status: form.get('status') || '啟用'
+      status: form.get('status') || '啟用',
+      birthday: form.get('birthday') || null
     }
 
     if (displayOrderValue !== '' && displayOrderValue !== null) {
@@ -17331,3 +17388,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 覆蓋表格儲存格置中造成的卡片文字偏中問題
 */
 /* FOR-e V002-1P-105 END - calendar cards strict left align */
+
+/* FOR-e V002-1P-106 START - birthday calendar public leave */
+/*
+  V002-1P-106｜人員生日顯示行事曆與休假會議公開顯示
+  - staff 讀取改為 select('*')，支援 birthday 欄位
+  - 人員 / 帳號新增「生日」欄位
+  - 行程總覽與外務行程表在生日當天顯示生日卡與生日 ICON
+  - 休假、請假、會議、活動、外訓不歸類為私人記事，可依指派人員顯示給別人看
+  - 需先執行 supabase/sql/v002-1p-106-add-staff-birthday.sql 建立 birthday 欄位
+*/
+/* FOR-e V002-1P-106 END - birthday calendar public leave */
