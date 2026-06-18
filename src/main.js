@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-114'
+const SYSTEM_VERSION = 'V002-1P-115'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -947,7 +947,11 @@ function canCancelSchedule(row) {
 
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function isDeletedSchedule(row) {
@@ -17699,3 +17703,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 按鈕欄位給固定寬度，文字完整顯示
 */
 /* FOR-e V002-1P-114 END - overview filter button width */
+
+/* FOR-e V002-1P-115 START - local today date fix */
+/*
+  V002-1P-115｜今日日期改用本機 / 台灣日期
+  - 修正原本使用 toISOString() 造成凌晨至早上可能仍判定為昨日
+  - 當日行程提醒通知改依瀏覽器本機日期更新
+  - 昨日行程不會再因 UTC 日期誤差顯示在當日提醒上方
+*/
+/* FOR-e V002-1P-115 END - local today date fix */
