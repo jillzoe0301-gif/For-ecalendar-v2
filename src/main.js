@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-98'
+const SYSTEM_VERSION = 'V002-1P-99'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -11087,8 +11087,14 @@ function isPendingStatusText(value = '') {
   return ['未完成', '未繳交', '未交', '待繳交', 'pending'].includes(text)
 }
 
-function isScheduleServiceRecordSubmitted(row = {}
-
+function isScheduleServiceRecordSubmitted(row = {}) {
+  return Boolean(
+    row?.service_record_submitted === true ||
+    row?.service_record_submitted_date ||
+    isSubmittedStatusText(row?.service_record_status) ||
+    isSubmittedStatusText(row?.service_record_submit_status)
+  )
+}
 
 function isScheduleNeedServiceRecord(row = {}) {
   if (!row) return false
@@ -11105,14 +11111,6 @@ function isValidPendingServiceRecord(record = {}) {
   const schedule = getServiceRecordSchedule(record)
   if (!schedule) return false
   return isScheduleNeedServiceRecord(schedule)
-}
-) {
-  return Boolean(
-    row?.service_record_submitted === true ||
-    row?.service_record_submitted_date ||
-    isSubmittedStatusText(row?.service_record_status) ||
-    isSubmittedStatusText(row?.service_record_submit_status)
-  )
 }
 
 function getScheduleServiceRecordSubmittedDate(row = {}) {
@@ -17281,3 +17279,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 統計報表排除一般記事、待辦事項、請假 / 會議 / 活動 / 外訓、證件交付等個人性事項
 */
 /* FOR-e V002-1P-98 END - reminder defaults edit stats */
+
+/* FOR-e V002-1P-99 START - build syntax repair */
+/*
+  V002-1P-99｜Build Syntax Repair
+  - 修正 Vercel build 失敗：Expected ")" but found "function"
+  - 原因是 isScheduleServiceRecordSubmitted() 被插入服務紀錄單提醒 helper 時函式括號斷開
+  - 已重新整理 isScheduleServiceRecordSubmitted / isScheduleNeedServiceRecord / isValidPendingServiceRecord 順序
+*/
+/* FOR-e V002-1P-99 END - build syntax repair */
