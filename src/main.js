@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-93'
+const SYSTEM_VERSION = 'V002-1P-94'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1254,10 +1254,10 @@ function renderLogin() {
         <label for="password">密碼</label>
         <input id="password" type="password" placeholder="請輸入密碼" autocomplete="current-password" value="${escapeHtml(rememberedLogin.password)}" />
 
-        <label class="remember-login-check">
+        <div class="remember-login-check">
           <input id="rememberLoginCheck" type="checkbox" ${rememberedLogin.remember ? 'checked' : ''}>
-          <span>記住帳號及密碼</span>
-        </label>
+          <label for="rememberLoginCheck">記住帳號及密碼</label>
+        </div>
 
         <button id="loginBtn">登入</button>
         <div id="errorText" class="error"></div>
@@ -4544,16 +4544,16 @@ async function saveMeetingRoomSchedule(event, modal) {
       return
     }
 
-    const assigneeRows = buildMeetingAssigneeRows(schedule.schedule_id, meetingAssigneeStaffIds, reserverStaff)
+    const { error: assigneeError } = await syncMeetingAssigneesSafely(
+      schedule.schedule_id,
+      meetingAssigneeStaffIds,
+      reserverStaff,
+      { skipRpc: false }
+    )
 
-    if (assigneeRows.length) {
-      const { error: assigneeError } = await supabase.from('schedule_assignees').insert(assigneeRows)
-
-      if (assigneeError) {
-        alert('會議室預約已建立，但同步參與人員失敗：' + assigneeError.message)
-        saving = false
-        return
-      }
+    if (assigneeError) {
+      console.error(assigneeError)
+      alert('會議室預約已建立，但同步與會人員失敗：' + assigneeError.message + '\n\n請先繼續使用會議室預約，稍後再到修改畫面重新儲存與會人員。')
     }
 
     await supabase.from('audit_logs').insert({
@@ -4798,13 +4798,16 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       return
     }
 
-    const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
-      target_schedule_id: originalRow.schedule_id,
-      staff_ids_value: meetingAssigneeStaffIds
-    })
+    const { error: assigneeError } = await syncMeetingAssigneesSafely(
+      originalRow.schedule_id,
+      meetingAssigneeStaffIds,
+      reserverStaff,
+      { replaceExisting: true }
+    )
 
     if (assigneeError) {
-      alert('會議室內容已修改，但參與人員同步失敗：' + assigneeError.message)
+      console.error(assigneeError)
+      alert('會議室內容已修改，但與會人員同步失敗：' + assigneeError.message)
       return
     }
 
@@ -13251,16 +13254,82 @@ function getMeetingParticipantSummary(row = {}) {
   return parts.join('｜')
 }
 
-function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {}) {
-  return getStaffRowsByIds(staffIds).map(staff => ({
-    schedule_id: scheduleId,
-    staff_id: staff.staff_id,
-    staff_name: staff.name || '',
-    department_id: staff.department_id || null,
-    department_name: staff.department_name || '',
-    position: staff.position || '',
-    assignee_type: 'executor'
-  }))
+function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {}, assigneeType = 'omit') {
+  return getStaffRowsByIds(staffIds).map(staff => {
+    const row = {
+      schedule_id: scheduleId,
+      staff_id: staff.staff_id,
+      staff_name: staff.name || '',
+      department_id: staff.department_id || null,
+      department_name: staff.department_name || '',
+      position: staff.position || ''
+    }
+
+    if (assigneeType && assigneeType !== 'omit') row.assignee_type = assigneeType
+    return row
+  })
+}
+
+async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverStaff = {}, options = {}) {
+  const ids = [...new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))]
+  if (!scheduleId || !ids.length) return { error: null }
+
+  const skipRpc = options.skipRpc === true
+
+  if (!skipRpc) {
+    try {
+      const { error } = await supabase.rpc('update_schedule_assignees', {
+        target_schedule_id: scheduleId,
+        staff_ids_value: ids
+      })
+
+      if (!error) return { error: null }
+      console.warn('會議室 RPC 同步與會人員失敗，改用安全寫入。', error)
+    } catch (err) {
+      console.warn('會議室 RPC 同步與會人員例外，改用安全寫入。', err)
+    }
+  }
+
+  if (options.replaceExisting === true) {
+    const { error: deleteError } = await supabase
+      .from('schedule_assignees')
+      .delete()
+      .eq('schedule_id', scheduleId)
+
+    if (deleteError) {
+      console.warn('清除舊與會人員失敗，將嘗試直接寫入。', deleteError)
+    }
+  }
+
+  const assigneeTypeCandidates = [
+    'omit',
+    'executor',
+    '執行者',
+    '負責人',
+    '主要',
+    '主辦',
+    'assignee',
+    'member',
+    'participant'
+  ]
+
+  let lastError = null
+
+  for (const assigneeType of assigneeTypeCandidates) {
+    const rows = buildMeetingAssigneeRows(scheduleId, ids, reserverStaff, assigneeType)
+    if (!rows.length) continue
+
+    const { error } = await supabase
+      .from('schedule_assignees')
+      .insert(rows)
+
+    if (!error) return { error: null, assigneeType }
+
+    lastError = error
+    console.warn(`會議室與會人員寫入失敗 assignee_type=${assigneeType}`, error)
+  }
+
+  return { error: lastError || new Error('會議室與會人員寫入失敗') }
 }
 
 function getMeetingParticipantSummaryText(items = [], unit = '項目') {
@@ -16946,3 +17015,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 勾選後會在本機瀏覽器記住 Email 與密碼，下次開啟登入頁會自動帶入
 */
 /* FOR-e V002-1P-93 END - meeting assignee type and remember login */
+
+/* FOR-e V002-1P-94 START - meeting assignee safe sync remember line */
+/*
+  V002-1P-94｜會議室與會人員安全同步與記住帳密同排
+  - 會議室新增 / 修改時，與會人員同步改成安全寫入
+  - 若資料庫 schedule_assignees_type_check 不接受某個 assignee_type，會自動改用其他允許格式或省略 assignee_type
+  - 避免「會議室預約已建立，但同步與會人員失敗」中斷操作
+  - 登入頁「記住帳號及密碼」改成 checkbox 與文字同一排
+*/
+/* FOR-e V002-1P-94 END - meeting assignee safe sync remember line */

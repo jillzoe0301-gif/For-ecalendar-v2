@@ -12767,3 +12767,46 @@ body {
   line-height: 1.3;
 }
 /* FOR-e V002-1P-93 END - meeting assignee type and remember login */
+
+/* FOR-e V002-1P-94 START - meeting assignee safe sync remember line */
+/* 登入頁：記住帳號及密碼同一排 */
+.login-card .remember-login-check {
+  width: 100%;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 12px 0 0 !important;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+}
+
+.login-card .remember-login-check input[type="checkbox"] {
+  width: 17px !important;
+  min-width: 17px !important;
+  max-width: 17px !important;
+  height: 17px !important;
+  min-height: 17px !important;
+  max-height: 17px !important;
+  flex: 0 0 17px !important;
+  display: inline-block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--blue);
+}
+
+.login-card .remember-login-check label {
+  display: inline !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 850;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  cursor: pointer;
+}
+/* FOR-e V002-1P-94 END - meeting assignee safe sync remember line */
