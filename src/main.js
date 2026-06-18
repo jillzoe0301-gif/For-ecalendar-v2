@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-78'
+const SYSTEM_VERSION = 'V002-1P-79'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -306,6 +306,7 @@ function isTodaySchedule(row) {
 function getPersonalReminderRows() {
   return schedules
     .filter(row => isActivePersonalSchedule(row))
+    .filter(row => !isMeetingRoomSchedule(row))
     .filter(row => isMine(row))
     .filter(row => isReminderSchedule(row))
     .filter(row => isTodaySchedule(row) || isOverdueSchedule(row))
@@ -935,6 +936,10 @@ function isCancelledSchedule(row) {
   const statusText = String(row.status || '').trim()
   return Boolean(
     statusText === '取消' ||
+    statusText === '已取消' ||
+    statusText === '取消行程' ||
+    statusText === '已刪除' ||
+    statusText === '刪除' ||
     row.is_cancelled === true ||
     row.cancelled_at ||
     row.cancelledAt
@@ -966,6 +971,7 @@ function isActiveServiceRecord(record) {
 function isNoCompletionControlSchedule(row) {
   if (!row) return false
 
+  if (isMeetingRoomSchedule(row)) return true
   if (row.category === '請假 / 會議 / 活動 / 外訓') return true
 
   const noCompletionTypes = [
@@ -979,8 +985,8 @@ function isNoCompletionControlSchedule(row) {
     '教育訓練'
   ]
 
-  if (row.category !== '會議室預約' && noCompletionTypes.includes(row.schedule_type)) return true
-  if (row.category !== '會議室預約' && noCompletionTypes.includes(row.sub_type)) return true
+  if (noCompletionTypes.includes(row.schedule_type)) return true
+  if (noCompletionTypes.includes(row.sub_type)) return true
 
   return false
 }
@@ -3880,6 +3886,7 @@ function getFieldDetailStatusOptionsHtml() {
 
 function getFieldDetailRows() {
   return schedules
+    .filter(row => isVisibleSchedule(row))
     .filter(row => isFieldScheduleRow(row))
     .filter(row => {
       if (fieldDetailFilters.status !== '全部' && row.status !== fieldDetailFilters.status) return false
@@ -4140,12 +4147,13 @@ function getMeetingTimeMinutes(value) {
   return hour * 60 + minute
 }
 
-function hasMeetingRoomConflict(room, date, startTime, endTime) {
+function hasMeetingRoomConflict(room, date, startTime, endTime, excludeScheduleId = '') {
   const start = getMeetingTimeMinutes(startTime)
   const end = getMeetingTimeMinutes(endTime)
 
   return schedules
     .filter(row => isVisibleSchedule(row))
+    .filter(row => !excludeScheduleId || row.schedule_id !== excludeScheduleId)
     .filter(row => isMeetingRoomSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, date))
     .filter(row => row.location_name === room)
@@ -4363,6 +4371,240 @@ async function saveMeetingRoomSchedule(event, modal) {
     saving = false
   }
 }
+
+
+function getDateKeysBetween(startDate = '', endDate = '') {
+  const start = getDateFromKey(startDate)
+  const end = getDateFromKey(endDate || startDate)
+  if (!start || !end || start > end) return [startDate].filter(Boolean)
+
+  const keys = []
+  let current = new Date(start)
+  while (current <= end) {
+    keys.push(toDateKey(current))
+    current = addDays(current, 1)
+  }
+  return keys.length ? keys : [startDate].filter(Boolean)
+}
+
+function getMeetingAssigneeStaffId(row = {}) {
+  const activeAssignee = (row.schedule_assignees || []).find(item => item.staff_id && !item.deleted_at)
+  return activeAssignee?.staff_id || row.creator_staff_id || currentProfile?.staff_id || ''
+}
+
+function openEditMeetingRoomModal(scheduleId) {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+
+  if (!canModifySchedule(row)) {
+    alert('您沒有權限修改此會議室預約。')
+    return
+  }
+
+  const start = parseTimeForEdit(row.start_time, '09', '00')
+  const end = parseTimeForEdit(row.end_time, '10', '00')
+  const selectedStaffId = getMeetingAssigneeStaffId(row)
+  const selectedStaff = staffList.find(staff => staff.staff_id === selectedStaffId)
+  const selectedDepartment = getFieldNoteValue(row, '部門') || selectedStaff?.department_name || row.department_name || currentProfile?.department_name || ''
+  const selectedRoom = row.location_name || row.sub_type || ''
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>修改會議室預約</h3>
+        <button class="icon-btn" id="closeMeetingEditModalBtn" type="button">×</button>
+      </div>
+
+      <form id="meetingRoomEditForm" class="form-grid">
+        <label>
+          會議室
+          <select name="room" required>${meetingRoomOptionsHtml(selectedRoom)}</select>
+        </label>
+
+        <label>
+          狀態
+          <input value="${escapeHtml(getScheduleStatusLabel(row))}" disabled>
+        </label>
+
+        <label>
+          開始日期
+          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
+        </label>
+
+        <label>
+          結束日期
+          <input name="end_date" type="date" value="${row.end_date || row.start_date || todayString()}">
+        </label>
+
+        <label>
+          開始時間
+          <div class="compact-time-row">
+            <select name="start_hour">${hourOptionsHtml(start.hour)}</select>
+            <select name="start_minute">${minuteOptionsHtml(start.minute)}</select>
+          </div>
+        </label>
+
+        <label>
+          結束時間
+          <div class="compact-time-row">
+            <select name="end_hour">${hourOptionsHtml(end.hour)}</select>
+            <select name="end_minute">${minuteOptionsHtml(end.minute)}</select>
+          </div>
+        </label>
+
+        <label class="span-2">
+          會議名稱
+          <input name="title" required value="${escapeHtml(row.title || '')}" placeholder="請輸入會議名稱">
+        </label>
+
+        <label>
+          部門
+          <select name="department" id="meetingEditDepartmentSelect">
+            ${departmentOptionsHtml(selectedDepartment)}
+          </select>
+        </label>
+
+        <label>
+          預約人
+          <select name="reserver_staff_id" id="meetingEditReserverSelect">
+            ${staffOptionsSelectHtml(selectedStaffId)}
+          </select>
+        </label>
+
+        <label class="span-2">
+          內容 / 備註
+          <textarea name="description" rows="3" placeholder="會議內容或備註">${escapeHtml(row.description || '')}</textarea>
+        </label>
+
+        <div class="notice span-2">會議室只做預約顯示，不列入個人行程表的逾期通知，也不控管已完成。</div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelMeetingEditModalBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存修改</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const meetingReserverSelect = document.querySelector('#meetingEditReserverSelect')
+  const meetingDepartmentSelect = document.querySelector('#meetingEditDepartmentSelect')
+  if (meetingReserverSelect && meetingDepartmentSelect) {
+    meetingReserverSelect.addEventListener('change', () => {
+      const option = meetingReserverSelect.selectedOptions?.[0]
+      if (option?.dataset?.department) meetingDepartmentSelect.value = option.dataset.department
+    })
+  }
+
+  document.querySelector('#closeMeetingEditModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#cancelMeetingEditModalBtn').addEventListener('click', () => modal.remove())
+  document.querySelector('#meetingRoomEditForm').addEventListener('submit', event => saveEditedMeetingRoomSchedule(event, modal, row))
+}
+
+async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
+  event.preventDefault()
+  if (saving) return
+  saving = true
+
+  try {
+    const form = new FormData(event.target)
+    const room = form.get('room')
+    const startDate = form.get('start_date') || todayString()
+    const endDate = form.get('end_date') || startDate
+    const reserverStaffId = form.get('reserver_staff_id') || currentProfile.staff_id
+    const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || {
+      staff_id: currentProfile.staff_id,
+      name: currentProfile.name || currentProfile.email,
+      department_id: currentProfile.department_id,
+      department_name: form.get('department') || currentProfile.department_name,
+      position: currentProfile.position_name || currentProfile.position
+    }
+    const startTime = getMeetingTimeValue(form, 'start')
+    const endTime = getMeetingTimeValue(form, 'end')
+
+    if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
+      alert('結束時間必須晚於開始時間。')
+      return
+    }
+
+    const conflictDate = getDateKeysBetween(startDate, endDate).find(dateKey => {
+      return hasMeetingRoomConflict(room, dateKey, startTime, endTime, originalRow.schedule_id)
+    })
+
+    if (conflictDate) {
+      alert(`此會議室在 ${conflictDate} 該時段已有預約，請更換時間或會議室。`)
+      return
+    }
+
+    const payload = {
+      department_id: reserverStaff.department_id || currentProfile.department_id,
+      department_name: form.get('department') || reserverStaff.department_name || currentProfile.department_name,
+      category: '會議室預約',
+      schedule_type: '會議室預約',
+      sub_type: room,
+      sub_type_note: [
+        form.get('department') ? `部門：${form.get('department')}` : '',
+        reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
+      ].filter(Boolean).join('｜'),
+      title: form.get('title'),
+      description: form.get('description') || null,
+      start_date: startDate,
+      end_date: endDate,
+      time_type: Number(startTime.slice(0, 2)) < 12 ? '上午' : '下午',
+      start_time: startTime,
+      end_time: endTime,
+      customer_name: null,
+      location_name: room,
+      address: null,
+      car_no: null,
+      need_service_record: false,
+      service_record_submitted: false,
+      service_record_submitted_date: null
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update(payload)
+      .eq('schedule_id', originalRow.schedule_id)
+
+    if (error) {
+      alert('修改會議室預約失敗：' + error.message)
+      return
+    }
+
+    const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+      target_schedule_id: originalRow.schedule_id,
+      staff_ids_value: [reserverStaff.staff_id]
+    })
+
+    if (assigneeError) {
+      alert('會議室內容已修改，但預約人同步失敗：' + assigneeError.message)
+      return
+    }
+
+    await supabase.from('audit_logs').insert({
+      operated_by_profile_id: currentProfile.profile_id,
+      operated_by_staff_id: currentProfile.staff_id,
+      operated_by_name: currentProfile.name || currentProfile.email,
+      action_type: '修改',
+      source_type: 'schedule',
+      source_id: originalRow.schedule_id,
+      note: 'V002-1P-79 修改會議室預約'
+    })
+
+    modal.remove()
+    await refreshData()
+    renderApp()
+  } catch (err) {
+    alert('修改會議室預約失敗：' + (err?.message || err))
+  } finally {
+    saving = false
+  }
+}
+
 /* FOR-e V002-1K-1 END - meeting room weekly calendar */
 
 
@@ -4641,6 +4883,7 @@ function incidentServiceRecordFieldsHtml(row = null) {
 function getIncidentRows() {
   return schedules
     .filter(row => isVisibleSchedule(row))
+    .filter(row => !isCancelledSchedule(row) && !isDeletedSchedule(row))
     .filter(row => isIncidentSchedule(row))
     .filter(row => !isIncidentTrackingTask(row))
     .filter(row => {
@@ -9473,6 +9716,7 @@ function renderServiceRecordReminderArea() {
 function getPersonalOverdueTaskRows() {
   return schedules
     .filter(row => isActivePersonalSchedule(row))
+    .filter(row => !isMeetingRoomSchedule(row))
     .filter(row => isMine(row))
     .filter(row => isOverdueSchedule(row))
     .filter(row => !isReminderSchedule(row))
@@ -11367,7 +11611,8 @@ function openScheduleDetail(scheduleId) {
   if (editBtn) {
     editBtn.addEventListener('click', () => {
       modal.remove()
-      if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
+      if (isMeetingRoomSchedule(row)) openEditMeetingRoomModal(scheduleId)
+      else if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
       else if (isIncidentSchedule(row)) openEditIncidentModal(scheduleId)
       else openEditScheduleModal(scheduleId)
     })
@@ -15414,3 +15659,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 預設帶入內容欄位固定約 10cm 寬，高度控制不過高
 */
 /* FOR-e V002-1P-78 END - options 2-3 columns template 10cm */
+
+/* FOR-e V002-1P-79 START - deleted field meeting incident cleanup */
+/*
+  V002-1P-79｜刪除殘留、會議室控管與修改表單修正
+  - 外務明細改用 isVisibleSchedule，取消 / 刪除後不再殘留
+  - 異況追蹤列表再次排除取消 / 刪除資料
+  - 會議室預約不再列入個人逾期通知與提醒控管
+  - 會議室修改改走專用「修改會議室預約」表單，不再混用一般行程表單
+*/
+/* FOR-e V002-1P-79 END - deleted field meeting incident cleanup */
