@@ -12227,3 +12227,193 @@ body {
   }
 }
 /* FOR-e V002-1P-81 END - meeting participants multiselect */
+
+/* FOR-e V002-1P-82 START - meeting dropdown auto completed */
+/* 會議室參與部門 / 參與人員：下拉複選，靠左，不佔版面 */
+.meeting-participant-box {
+  padding: 10px 12px !important;
+  gap: 8px !important;
+  border-radius: 14px !important;
+  background: #f8fbff !important;
+}
+
+.meeting-participant-title {
+  align-items: center !important;
+}
+
+.meeting-participant-title strong {
+  font-size: 14px !important;
+}
+
+.meeting-participant-title span {
+  font-size: 12px !important;
+  text-align: right;
+}
+
+.meeting-participant-dropdown-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meeting-dropdown-group {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.meeting-dropdown-label {
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 950;
+  text-align: left;
+}
+
+.meeting-dropdown-select {
+  position: relative;
+  min-width: 0;
+}
+
+.meeting-dropdown-select summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.meeting-dropdown-select summary::-webkit-details-marker {
+  display: none;
+}
+
+.meeting-dropdown-select summary::after {
+  content: '▾';
+  margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+  transition: transform .15s ease;
+}
+
+.meeting-dropdown-select[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.meeting-dropdown-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 80;
+  display: grid;
+  gap: 4px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, .14);
+}
+
+.meeting-dropdown-option {
+  min-height: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 7px 8px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 850 !important;
+  text-align: left !important;
+  cursor: pointer;
+}
+
+.meeting-dropdown-option:hover {
+  background: #f8fafc !important;
+}
+
+.meeting-dropdown-option:has(input:checked) {
+  background: #eef5ff !important;
+  color: #3155d4 !important;
+}
+
+.meeting-dropdown-option input {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  accent-color: var(--blue);
+}
+
+.meeting-dropdown-option span {
+  min-width: 0;
+  display: block !important;
+  color: inherit !important;
+  text-align: left !important;
+  line-height: 1.25 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meeting-dropdown-option small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: left;
+}
+
+/* 舊版大型 checkbox 區塊避免殘留佔版面 */
+.meeting-participant-grid,
+.meeting-check-group,
+.meeting-check-list {
+  min-height: 0 !important;
+}
+
+/* 已自動完成的會議室卡片淡化 */
+.meeting-room-card.is-completed {
+  opacity: .62 !important;
+  background: #f3f4f6 !important;
+}
+
+@media (max-width: 768px) {
+  .meeting-participant-title {
+    display: grid !important;
+    gap: 4px;
+  }
+
+  .meeting-participant-title span {
+    text-align: left;
+  }
+
+  .meeting-participant-dropdown-row {
+    grid-template-columns: 1fr;
+  }
+
+  .meeting-dropdown-panel {
+    position: static;
+    margin-top: 6px;
+    max-height: 200px;
+    box-shadow: none;
+  }
+}
+/* FOR-e V002-1P-82 END - meeting dropdown auto completed */

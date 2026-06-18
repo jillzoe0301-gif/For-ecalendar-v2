@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-81'
+const SYSTEM_VERSION = 'V002-1P-82'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -991,14 +991,36 @@ function isNoCompletionControlSchedule(row) {
   return false
 }
 
+function isScheduleTimePassed(row) {
+  if (!row?.start_date) return false
+
+  const today = todayString()
+  const endDate = row.end_date || row.start_date
+
+  if (endDate < today) return true
+  if (endDate > today) return false
+
+  const endTimeText = row.end_time || row.start_time || ''
+  if (!endTimeText) return false
+
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  return getMeetingTimeMinutes(endTimeText) <= nowMinutes
+}
+
+function shouldDisplayAutoCompleted(row) {
+  return isNoCompletionControlSchedule(row) && isScheduleTimePassed(row)
+}
+
 function getScheduleStatusLabel(row) {
+  if (shouldDisplayAutoCompleted(row)) return '已完成'
   if (isNoCompletionControlSchedule(row)) return '行事曆顯示'
   return row?.status || '未完成'
 }
 
 
 function isActivePersonalSchedule(row) {
-  return isVisibleSchedule(row) && row.status !== '已完成' && row.is_completed !== true
+  return isVisibleSchedule(row) && !shouldDisplayAutoCompleted(row) && row.status !== '已完成' && row.is_completed !== true
 }
 
 function isMine(row) {
@@ -4068,7 +4090,7 @@ function renderMeetingRoomCard(row) {
   const reserverName = getMeetingReserverName(row)
 
   return `
-    <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.title || '-')}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
@@ -4240,6 +4262,7 @@ function openMeetingRoomModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+  initMeetingParticipantDropdowns(modal)
 
   const meetingRepeatModeSelect = document.querySelector('#meetingRepeatModeSelect')
   if (meetingRepeatModeSelect) {
@@ -4397,15 +4420,6 @@ function getDateKeysBetween(startDate = '', endDate = '') {
 }
 
 function getMeetingAssigneeStaffId(row = {}) {
-  const noteName = getFieldNoteValue(row, '預約人')
-  if (noteName) {
-    const byName = staffList.find(staff => staff.name === noteName)
-    if (byName?.staff_id) return byName.staff_id
-  }
-
-  const executor = (row.schedule_assignees || []).find(item => item.staff_id && !item.deleted_at && item.assignee_type === 'executor')
-  if (executor?.staff_id) return executor.staff_id
-
   const activeAssignee = (row.schedule_assignees || []).find(item => item.staff_id && !item.deleted_at)
   return activeAssignee?.staff_id || row.creator_staff_id || currentProfile?.staff_id || ''
 }
@@ -4511,6 +4525,7 @@ function openEditMeetingRoomModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initMeetingParticipantDropdowns(modal)
 
   const meetingReserverSelect = document.querySelector('#meetingEditReserverSelect')
   const meetingDepartmentSelect = document.querySelector('#meetingEditDepartmentSelect')
@@ -12577,7 +12592,7 @@ function getMeetingParticipantDepartmentOptions() {
 function meetingDepartmentCheckboxesHtml(selectedDepartments = []) {
   const selected = new Set((selectedDepartments || []).map(item => String(item || '').trim()).filter(Boolean))
   return getMeetingParticipantDepartmentOptions().map(name => `
-    <label class="meeting-check-item">
+    <label class="meeting-dropdown-option">
       <input type="checkbox" name="participant_departments" value="${escapeHtml(name)}" ${selected.has(name) ? 'checked' : ''}>
       <span>${escapeHtml(name)}</span>
     </label>
@@ -12589,12 +12604,52 @@ function meetingParticipantCheckboxesHtml(selectedStaffIds = []) {
   const rows = canAssignAllStaff() ? getActiveMeetingStaffRows() : getActiveMeetingStaffRows().filter(staff => staff.staff_id === currentProfile?.staff_id)
 
   return rows.map(staff => `
-    <label class="meeting-check-item">
+    <label class="meeting-dropdown-option">
       <input type="checkbox" name="participant_staff_ids" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
       <span>${escapeHtml(staff.name || '-')}<small>${escapeHtml(staff.department_name || '')}</small></span>
     </label>
   `).join('')
 }
+
+
+function updateMeetingDropdownSummary(details) {
+  if (!details) return
+  const summaryText = details.querySelector('summary span')
+  if (!summaryText) return
+
+  const checked = [...details.querySelectorAll('input[type="checkbox"]:checked')]
+    .map(input => {
+      const label = input.closest('label')
+      const span = label?.querySelector('span')
+      return (span?.childNodes?.[0]?.textContent || span?.textContent || '').trim()
+    })
+    .filter(Boolean)
+
+  const unit = details.closest('.meeting-dropdown-group')?.querySelector('.meeting-dropdown-label')?.textContent?.includes('部門')
+    ? '部門'
+    : '人員'
+
+  summaryText.textContent = getMeetingParticipantSummaryText(checked, unit)
+}
+
+function initMeetingParticipantDropdowns(root = document) {
+  root.querySelectorAll('.meeting-dropdown-select').forEach(details => {
+    if (details.dataset.meetingDropdownReady === 'true') return
+    details.dataset.meetingDropdownReady = 'true'
+
+    details.addEventListener('change', () => updateMeetingDropdownSummary(details))
+
+    details.addEventListener('toggle', () => {
+      if (!details.open) return
+      root.querySelectorAll('.meeting-dropdown-select[open]').forEach(other => {
+        if (other !== details) other.removeAttribute('open')
+      })
+    })
+
+    updateMeetingDropdownSummary(details)
+  })
+}
+
 
 function getSelectedMeetingDepartments(form) {
   return [...new Set((form.getAll('participant_departments') || [])
@@ -12687,21 +12742,51 @@ function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {})
   }))
 }
 
+function getMeetingParticipantSummaryText(items = [], unit = '項目') {
+  const values = [...new Set((items || []).map(item => String(item || '').trim()).filter(Boolean))]
+  if (!values.length) return '未選擇'
+  if (values.length <= 2) return values.join('、')
+  return `已選 ${values.length} 個${unit}`
+}
+
+function getMeetingParticipantStaffSummaryText(staffIds = []) {
+  const names = getStaffRowsByIds(staffIds)
+    .map(staff => staff.name)
+    .filter(Boolean)
+  return getMeetingParticipantSummaryText(names, '人員')
+}
+
 function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffIds = []) {
   return `
     <section class="meeting-participant-box span-2">
       <div class="meeting-participant-title">
         <strong>參與部門 / 參與人員</strong>
-        <span>可複選。選擇部門時，該部門啟用人員也會看到此會議室預約。</span>
+        <span>下拉複選，不佔版面；選擇部門時該部門啟用人員也會看到預約。</span>
       </div>
-      <div class="meeting-participant-grid">
-        <div class="meeting-check-group">
-          <div class="meeting-check-head">參與部門</div>
-          <div class="meeting-check-list">${meetingDepartmentCheckboxesHtml(selectedDepartments)}</div>
+
+      <div class="meeting-participant-dropdown-row">
+        <div class="meeting-dropdown-group">
+          <span class="meeting-dropdown-label">參與部門</span>
+          <details class="meeting-dropdown-select">
+            <summary>
+              <span>${escapeHtml(getMeetingParticipantSummaryText(selectedDepartments, '部門'))}</span>
+            </summary>
+            <div class="meeting-dropdown-panel">
+              ${meetingDepartmentCheckboxesHtml(selectedDepartments)}
+            </div>
+          </details>
         </div>
-        <div class="meeting-check-group">
-          <div class="meeting-check-head">參與人員</div>
-          <div class="meeting-check-list">${meetingParticipantCheckboxesHtml(selectedStaffIds)}</div>
+
+        <div class="meeting-dropdown-group">
+          <span class="meeting-dropdown-label">參與人員</span>
+          <details class="meeting-dropdown-select">
+            <summary>
+              <span>${escapeHtml(getMeetingParticipantStaffSummaryText(selectedStaffIds))}</span>
+            </summary>
+            <div class="meeting-dropdown-panel">
+              ${meetingParticipantCheckboxesHtml(selectedStaffIds)}
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -15878,3 +15963,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 會議室仍不列入逾期通知與完成控管
 */
 /* FOR-e V002-1P-81 END - meeting participants multiselect */
+
+/* FOR-e V002-1P-82 START - meeting dropdown auto completed */
+/*
+  V002-1P-82｜會議室參與下拉複選與自動完成顯示
+  - 會議室參與部門 / 參與人員改為下拉式複選，文字靠左且不佔版面
+  - 下拉選單會顯示已選摘要，勾選後即時更新
+  - 會議室預約、活動、請假、返鄉、外訓等不需完成控管的行程，時間過後顯示為已完成
+*/
+/* FOR-e V002-1P-82 END - meeting dropdown auto completed */
