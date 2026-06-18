@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-79'
+const SYSTEM_VERSION = 'V002-1P-80'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1134,8 +1134,6 @@ function renderLogin() {
       <div class="login-card">
         <div class="login-brand">${renderBrandLogo('square')}</div>
         <h1>共享排程系統</h1>
-        <p>V002-1E-4｜卡片、證件、提醒與品牌 LOGO</p>
-
         <label for="email">Email / 帳號</label>
         <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
 
@@ -15669,3 +15667,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 會議室修改改走專用「修改會議室預約」表單，不再混用一般行程表單
 */
 /* FOR-e V002-1P-79 END - deleted field meeting incident cleanup */
+
+/* FOR-e V002-1P-80 START - login logo polish */
+/*
+  V002-1P-80｜登入頁與左側品牌區整理
+  - 登入頁移除舊版本文字 舊版登入頁版本文字
+  - 登入頁 LOGO 與系統名稱置中，版面更精緻
+  - 登入後左上角品牌 LOGO 放大
+  - 左側「共享排程系統」名稱放大並置中
+*/
+/* FOR-e V002-1P-80 END - login logo polish */
