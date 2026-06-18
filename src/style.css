@@ -12536,3 +12536,106 @@ body {
   line-height: 1.5;
 }
 /* FOR-e V002-1P-88 END - user modal and medical followup */
+
+/* FOR-e V002-1P-89 START - private notes and mobile popup */
+/* 手機登入提醒彈窗：按鈕固定可點、內容可捲動 */
+.has-login-reminder-open {
+  overflow: hidden;
+}
+
+.login-reminder-backdrop,
+.assigned-reminder-backdrop {
+  z-index: 3000 !important;
+  padding: 14px !important;
+  pointer-events: auto !important;
+}
+
+.login-reminder-modal,
+.assigned-reminder-modal {
+  width: min(720px, 100%) !important;
+  max-height: calc(100vh - 28px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+}
+
+.login-reminder-modal .modal-header,
+.assigned-reminder-modal .modal-header {
+  flex: 0 0 auto;
+}
+
+.login-reminder-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.login-reminder-actions {
+  flex: 0 0 auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 4 !important;
+  margin: 10px -2px -2px !important;
+  padding: 10px 2px 2px !important;
+  background: #ffffff !important;
+  pointer-events: auto !important;
+}
+
+.login-reminder-actions button,
+.login-reminder-modal .icon-btn,
+.assigned-reminder-modal .icon-btn {
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  .login-reminder-backdrop,
+  .assigned-reminder-backdrop {
+    align-items: end !important;
+    place-items: end center !important;
+    padding: 10px !important;
+  }
+
+  .login-reminder-modal,
+  .assigned-reminder-modal {
+    width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 22px 22px 16px 16px !important;
+    padding: 14px !important;
+  }
+
+  .login-reminder-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .login-reminder-body {
+    max-height: none !important;
+  }
+
+  .login-reminder-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .login-reminder-actions button {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+
+  .login-reminder-item {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .login-reminder-actions {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-89 END - private notes and mobile popup */

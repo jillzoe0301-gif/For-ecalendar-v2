@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-88'
+const SYSTEM_VERSION = 'V002-1P-89'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -976,8 +976,19 @@ function isCancelledSchedule(row) {
   )
 }
 
+
+function isPersonalPrivateSchedule(row = {}) {
+  return ['一般記事', '待辦事項'].includes(row?.category)
+}
+
+function canSeePersonalPrivateSchedule(row = {}) {
+  if (!isPersonalPrivateSchedule(row)) return true
+  return isMine(row)
+}
+
+
 function isVisibleSchedule(row) {
-  return row && !isDeletedSchedule(row) && !isCancelledSchedule(row)
+  return row && !isDeletedSchedule(row) && !isCancelledSchedule(row) && canSeePersonalPrivateSchedule(row)
 }
 
 function isSearchableSchedule(row) {
@@ -7895,7 +7906,7 @@ function openAssignedReminderModal(rows = getNewAssignedScheduleRows()) {
     <div class="modal-panel login-reminder-modal assigned-reminder-modal">
       <div class="modal-header">
         <h3>新的指派事項</h3>
-        <button class="icon-btn" id="closeAssignedReminderBtn" type="button">×</button>
+        <button class="icon-btn" data-close-assigned-reminder type="button" aria-label="關閉">×</button>
       </div>
 
       <div class="login-reminder-hello assigned-reminder-hello">
@@ -7915,9 +7926,9 @@ function openAssignedReminderModal(rows = getNewAssignedScheduleRows()) {
         </section>
       </div>
 
-      <div class="modal-actions">
-        <button type="button" class="secondary-btn" id="closeAssignedReminderBtn2">我知道了</button>
-        <button type="button" class="primary-btn" id="goAssignedPersonalBtn">前往個人行程表</button>
+      <div class="modal-actions login-reminder-actions">
+        <button type="button" class="secondary-btn" data-close-assigned-reminder>我知道了</button>
+        <button type="button" class="primary-btn" data-go-assigned-personal>前往個人行程表</button>
       </div>
     </div>
   `
@@ -7929,22 +7940,28 @@ function openAssignedReminderModal(rows = getNewAssignedScheduleRows()) {
     modal.remove()
   }
 
-  document.querySelector('#closeAssignedReminderBtn').addEventListener('click', close)
-  document.querySelector('#closeAssignedReminderBtn2').addEventListener('click', close)
-  document.querySelector('#goAssignedPersonalBtn').addEventListener('click', () => {
-    markAssignedReminderRowsSeen(rows)
-    modal.remove()
-    currentPage = 'personalSchedule'
-    renderApp()
-  })
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-close-assigned-reminder]')) {
+      event.preventDefault()
+      close()
+      return
+    }
 
-  modal.querySelectorAll('[data-assigned-view-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const scheduleId = btn.dataset.assignedViewSchedule
-      markAssignedReminderRowsSeen(rows)
-      modal.remove()
+    if (event.target.closest('[data-go-assigned-personal]')) {
+      event.preventDefault()
+      close()
+      currentPage = 'personalSchedule'
+      renderApp()
+      return
+    }
+
+    const scheduleBtn = event.target.closest('[data-assigned-view-schedule]')
+    if (scheduleBtn) {
+      event.preventDefault()
+      const scheduleId = scheduleBtn.dataset.assignedViewSchedule
+      close()
       openScheduleDetail(scheduleId)
-    })
+    }
   })
 }
 
@@ -7990,13 +8007,16 @@ function maybeOpenLoginDailyReminder(options = {}) {
 }
 
 function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
+  const existing = document.querySelector('.login-reminder-backdrop')
+  if (existing) existing.remove()
+
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop login-reminder-backdrop'
   modal.innerHTML = `
     <div class="modal-panel login-reminder-modal">
       <div class="modal-header">
         <h3>今日待辦提醒</h3>
-        <button class="icon-btn" id="closeLoginReminderBtn" type="button">×</button>
+        <button class="icon-btn" data-close-login-reminder type="button" aria-label="關閉">×</button>
       </div>
 
       <div class="login-reminder-hello">
@@ -8019,32 +8039,59 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
 
       <div class="login-reminder-note">已完成、已取消、已刪除或時間已過的項目不會顯示在此提醒。</div>
 
-      <div class="modal-actions">
-        <button type="button" class="secondary-btn" id="closeLoginReminderBtn2">今天先關閉</button>
-        <button type="button" class="primary-btn" id="goPersonalScheduleBtn">前往個人行程表</button>
+      <div class="modal-actions login-reminder-actions">
+        <button type="button" class="secondary-btn" data-close-login-reminder>今天先關閉</button>
+        <button type="button" class="primary-btn" data-go-personal-schedule>前往個人行程表</button>
       </div>
     </div>
   `
 
   document.body.appendChild(modal)
+  document.body.classList.add('has-login-reminder-open')
 
-  const close = () => modal.remove()
-  document.querySelector('#closeLoginReminderBtn').addEventListener('click', close)
-  document.querySelector('#closeLoginReminderBtn2').addEventListener('click', close)
-
-  document.querySelector('#goPersonalScheduleBtn').addEventListener('click', () => {
+  const close = () => {
+    document.body.classList.remove('has-login-reminder-open')
     modal.remove()
-    currentPage = 'personalSchedule'
-    renderApp()
+  }
+
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-close-login-reminder]')) {
+      event.preventDefault()
+      close()
+      return
+    }
+
+    const goPersonalBtn = event.target.closest('[data-go-personal-schedule]')
+    if (goPersonalBtn) {
+      event.preventDefault()
+      close()
+      currentPage = 'personalSchedule'
+      renderApp()
+      return
+    }
+
+    const scheduleBtn = event.target.closest('[data-login-view-schedule]')
+    if (scheduleBtn) {
+      event.preventDefault()
+      const scheduleId = scheduleBtn.dataset.loginViewSchedule
+      close()
+      openScheduleDetail(scheduleId)
+    }
   })
 
-  modal.querySelectorAll('[data-login-view-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const scheduleId = btn.dataset.loginViewSchedule
-      modal.remove()
-      openScheduleDetail(scheduleId)
-    })
-  })
+  const onKeydown = event => {
+    if (!document.body.classList.contains('has-login-reminder-open')) {
+      document.removeEventListener('keydown', onKeydown)
+      return
+    }
+
+    if (event.key === 'Escape') {
+      close()
+      document.removeEventListener('keydown', onKeydown)
+    }
+  }
+
+  document.addEventListener('keydown', onKeydown)
 }
 
 
@@ -11752,10 +11799,20 @@ function openUserAccountModal(staffId = '') {
         </label>
 
         <label>
+          手動輸入部門
+          <input name="department_custom" placeholder="若選單沒有才填寫新部門；留空使用左側選單">
+        </label>
+
+        <label>
           職務
           <select name="position">
             ${getUserManagePositionOptions(staff?.position || '')}
           </select>
+        </label>
+
+        <label>
+          手動輸入職務
+          <input name="position_custom" placeholder="若要新增新職務才填寫；留空使用左側選單">
         </label>
 
         ${hasRemovedPosition ? `
@@ -16468,7 +16525,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 新增 / 修改人員時不再讓 staff.department_id 寫入 null
   - 手動輸入新部門時，會先嘗試在 departments 建立或取得部門 ID
   - 若 departments 權限或欄位不允許建立，會在寫入 staff 前提示，不會再出現 not-null constraint 錯誤
-  - 部門下拉提示改為：若要新增新部門才填寫；留空則使用左側選單
+  - 手動輸入部門提示改為：若要新增新部門才填寫；留空則使用左側選單
 */
 /* FOR-e V002-1P-66 END - staff department id fix */
 
@@ -16497,7 +16554,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-69｜人員職務必填與舊職務提醒
   - 修改 / 新增人員時，職務不可空白，避免 staff.position not-null constraint 錯誤
   - 若原本職務是「管理員 / 主管 / 行政/海外 / 外務/宿管人員/會計」這類已移除職務，表單會提醒改選實際職務
-  - 職務下拉也會阻擋角色類職務，避免職務與角色混在一起
+  - 手動輸入職務也會阻擋角色類職務，避免職務與角色混在一起
   - 保留 V002-1P-67 部門與職務選項
 */
 /* FOR-e V002-1P-69 END - staff position required */
@@ -16673,9 +16730,19 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /* FOR-e V002-1P-88 START - user modal and medical followup */
 /*
   V002-1P-88｜人員欄位精簡與醫療下次回診同步
-  - 新增 / 修改人員移除「部門下拉」與「職務下拉」
+  - 新增 / 修改人員移除「手動輸入部門」與「手動輸入職務」
   - 人員部門與職務統一從選項管理下拉選擇
   - 修改醫療行程時顯示下次回診日期、時間、掛號號碼、下次執行人
   - 新增或修改醫療行程時，若填下次回診日期，會建立 / 更新下次回診行程
 */
 /* FOR-e V002-1P-88 END - user modal and medical followup */
+
+/* FOR-e V002-1P-89 START - private notes and mobile popup */
+/*
+  V002-1P-89｜個人記事待辦私有化與手機提醒彈窗修正
+  - 一般記事、待辦事項只顯示給建立者 / 執行者本人，不會出現在其他人的總覽、搜尋、統計與列表
+  - 登入後今日待辦提醒彈窗改為手機可正常關閉
+  - 彈窗按鈕改用 modal 範圍內事件綁定，避免手機點擊失效
+  - 彈窗支援點背景關閉與 Escape 關閉
+*/
+/* FOR-e V002-1P-89 END - private notes and mobile popup */
