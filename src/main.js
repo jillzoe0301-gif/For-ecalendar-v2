@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-102'
+const SYSTEM_VERSION = 'V002-1P-103'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -999,16 +999,9 @@ function isActiveServiceRecord(record) {
   if (!record) return false
   if (record.deleted_at || record.deletedAt || record.is_deleted === true || record.deleted === true) return false
   if (record.need_submit === false || record.need_submit === 'false') return false
-
-  if (record.schedule_id) {
-    const schedule = getServiceRecordSchedule(record)
-    if (!schedule) return false
-    if (!isScheduleNeedServiceRecord(schedule)) return false
-  } else {
-    return false
-  }
-
-  return true
+  const schedule = getServiceRecordSchedule(record)
+  if (!schedule) return false
+  return isScheduleNeedServiceRecord(schedule)
 }
 
 
@@ -11144,10 +11137,11 @@ function isScheduleServiceRecordSubmitted(row = {}) {
   )
 }
 
+
 function isScheduleNeedServiceRecord(row = {}) {
   if (!row) return false
   if (!isVisibleSchedule(row)) return false
-  if (isCompactSpecialScheduleType(row.schedule_type)) return false
+  if (typeof isCompactSpecialScheduleType === 'function' && isCompactSpecialScheduleType(row.schedule_type)) return false
   return row.need_service_record === true || row.need_submit === true
 }
 
@@ -11160,6 +11154,7 @@ function isValidPendingServiceRecord(record = {}) {
   if (!schedule) return false
   return isScheduleNeedServiceRecord(schedule)
 }
+
 
 function getScheduleServiceRecordSubmittedDate(row = {}) {
   return row?.service_record_submitted_date || row?.service_record_submit_date || row?.service_record_completed_at || ''
@@ -12340,12 +12335,9 @@ function getFieldStaffRowsForEdit(row = {}) {
   const selectedIds = new Set(getAssigneeIds(row))
   const map = new Map()
 
-  getFieldStaffRows().forEach(staff => map.set(staff.staff_id, staff))
-  getFieldBaseStaffRows().forEach(staff => {
-    if (selectedIds.has(staff.staff_id)) map.set(staff.staff_id, staff)
-  })
-  staffList.forEach(staff => {
-    if (selectedIds.has(staff.staff_id)) map.set(staff.staff_id, staff)
+  ;[...getFieldBaseStaffRows(), ...getFieldStaffRows(), ...staffList].forEach(staff => {
+    if (!staff?.staff_id) return
+    if (selectedIds.has(staff.staff_id) || isStaffFieldWorker(staff)) map.set(staff.staff_id, staff)
   })
 
   return [...map.values()].sort((a, b) => {
@@ -12940,7 +12932,7 @@ function openEditFieldScheduleModal(scheduleId) {
         <div class="span-2">
           <div class="field-title">外務人員</div>
           <div class="checkbox-list">
-            ${getFieldStaffRows().map(staff => `
+            ${getFieldStaffRowsForEdit(row).map(staff => `
               <label class="check-row">
                 <input type="checkbox" name="edit_field_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
                 <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
@@ -13476,6 +13468,7 @@ function getMeetingParticipantStaffIds(row = {}) {
     .filter(staffId => staffId !== reserverStaffId)
 
   return [...new Set([...fromAssignees, ...getMeetingParticipantStaffIdsFromNote(row)])]
+}
 
 function getMeetingParticipantStaffNames(row = {}) {
   const fromNote = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
@@ -17310,52 +17303,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-97 END - schedule insert permission notice */
 
-/* FOR-e V002-1P-98 START - reminder defaults edit stats */
+/* FOR-e V002-1P-103 START - stable rebuild fixes */
 /*
-  V002-1P-98｜個人頁提醒、預設帶入、修改勾選與統計排除
-  - 服務紀錄單提醒只顯示目前仍需要繳交服務紀錄單的有效行程
-  - 行程總覽雙擊人員日期格新增行程時，自動帶入該日期與該人員
-  - 修改一般行程、會議室、外務行程時，已勾選人員 / 部門會保留
-  - 個人行程表新增「今日會議」統計卡
-  - 統計報表排除一般記事、待辦事項、請假 / 會議 / 活動 / 外訓、證件交付等個人性事項
+  V002-1P-103｜穩定重建版
+  - 以 V002-1P-97 可正常 build 的版本為基準重建
+  - 修正服務紀錄單誤提醒、行程總覽預設帶入日期與人員、修改勾選保留、今日會議、統計排除
+  - 修正外務明細開啟、卡片不顯示不指定時間、重要 / 追蹤 / 提醒事項紅字
+  - 已通過 esbuild parse 檢查
 */
-/* FOR-e V002-1P-98 END - reminder defaults edit stats */
-
-/* FOR-e V002-1P-99 START - build syntax repair */
-/*
-  V002-1P-99｜Build Syntax Repair
-  - 修正 Vercel build 失敗：Expected ")" but found "function"
-  - 原因是 isScheduleServiceRecordSubmitted() 被插入服務紀錄單提醒 helper 時函式括號斷開
-  - 已重新整理 isScheduleServiceRecordSubmitted / isScheduleNeedServiceRecord / isValidPendingServiceRecord 順序
-*/
-/* FOR-e V002-1P-99 END - build syntax repair */
-
-/* FOR-e V002-1P-100 START - build syntax repair */
-/*
-  V002-1P-100｜Build Syntax Repair
-  - 修正 main.js:13431 Unexpected ")"
-  - 移除 getMeetingParticipantStaffIds 後方殘留的重複函式片段
-  - 保留 V002-1P-98 / V002-1P-99 的功能修正
-*/
-/* FOR-e V002-1P-100 END - build syntax repair */
-
-/* FOR-e V002-1P-101 START - field detail card time alert */
-/*
-  V002-1P-101｜外務明細開啟、卡片不顯示不指定時間、提醒紅字
-  - 修正外務明細打不開：外務人員下拉改用正確人員清單，不再引用未定義 row
-  - 一般行程表、外務行程、會議室卡片，時間不指定時不顯示時間列
-  - 個人提醒、登入提醒、指派提醒也不再顯示不指定時間
-  - 重要事項、追蹤、提醒事項等項目字體改成紅色
-*/
-/* FOR-e V002-1P-101 END - field detail card time alert */
-
-/* FOR-e V002-1P-102 START - final build EOF repair */
-/*
-  V002-1P-102｜Build EOF Repair
-  - 重新輸出完整 main.js，避免部署時出現 Unexpected end of file
-  - 保留 V002-1P-101 外務明細、卡片時間與提醒紅字修正
-  - 本檔已通過 node --check
-*/
-/* FOR-e V002-1P-102 END - final build EOF repair */
-
-void 0;
+/* FOR-e V002-1P-103 END - stable rebuild fixes */

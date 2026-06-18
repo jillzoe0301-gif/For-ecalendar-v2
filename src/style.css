@@ -12830,20 +12830,11 @@ body {
 }
 /* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */
 
-/* FOR-e V002-1P-98 START - reminder defaults edit stats */
-/* V002-1P-98：個人行程表今日會議卡與修改勾選保留 */
+/* FOR-e V002-1P-103 START - stable rebuild fixes */
 .summary-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.department-assignee-list .check-row input:checked + span,
-.checkbox-list .check-row input:checked + span {
-  font-weight: 950;
-}
-/* FOR-e V002-1P-98 END - reminder defaults edit stats */
-
-/* FOR-e V002-1P-101 START - field detail card time alert */
-/* 重要事項 / 追蹤 / 提醒事項：卡片標題紅字 */
 .schedule-card.is-alert-item .schedule-title,
 .week-schedule-card.is-alert-item strong,
 .field-week-schedule-card.is-alert-item strong,
@@ -12864,10 +12855,8 @@ body {
   border-color: #fecaca !important;
 }
 
-.field-detail-date span:empty,
-.week-card-time:empty,
-.field-week-card-time:empty,
-.meeting-room-time:empty {
-  display: none !important;
+.department-assignee-list .check-row input:checked + span,
+.checkbox-list .check-row input:checked + span {
+  font-weight: 950;
 }
-/* FOR-e V002-1P-101 END - field detail card time alert */
+/* FOR-e V002-1P-103 END - stable rebuild fixes */
