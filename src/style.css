@@ -12639,3 +12639,14 @@ body {
   }
 }
 /* FOR-e V002-1P-89 END - private notes and mobile popup */
+
+/* FOR-e V002-1P-90 START - todo custom filter persist */
+/* 待辦事項選項 + 手動輸入欄位 */
+[data-section="todo"] {
+  align-items: start;
+}
+
+#editTodoBlock {
+  align-items: start;
+}
+/* FOR-e V002-1P-90 END - todo custom filter persist */

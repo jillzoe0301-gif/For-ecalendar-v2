@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-89'
+const SYSTEM_VERSION = 'V002-1P-90'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1407,6 +1407,8 @@ async function loadProfile(options = {}) {
   loadFieldScheduleFiltersPreference()
   currentPage = 'personalSchedule'
   await refreshData()
+  loadOverviewFiltersPreference()
+  loadFieldScheduleFiltersPreference()
   renderApp()
   maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
 }
@@ -3668,8 +3670,7 @@ function setStaffFieldWorker(staffId, checked) {
 const fieldScheduleFiltersStorageKey = 'for-e-field-schedule-filters-v002'
 
 function getFieldFilterStorageKey() {
-  const owner = currentProfile?.staff_id || currentProfile?.email || 'guest'
-  return `${fieldScheduleFiltersStorageKey}-${owner}`
+  return `${fieldScheduleFiltersStorageKey}-${currentProfile?.staff_id || currentProfile?.email || 'guest'}`
 }
 
 function normalizeFieldScheduleFilters(value = {}) {
@@ -3684,21 +3685,11 @@ function normalizeFieldScheduleFilters(value = {}) {
 }
 
 function loadFieldScheduleFiltersPreference() {
-  try {
-    const raw = localStorage.getItem(getFieldFilterStorageKey())
-    fieldScheduleFilters = normalizeFieldScheduleFilters(raw ? JSON.parse(raw) : fieldScheduleFilters)
-  } catch (err) {
-    console.warn('外務行程篩選讀取失敗', err)
-    fieldScheduleFilters = normalizeFieldScheduleFilters()
-  }
+  fieldScheduleFilters = loadFilterPreference(fieldScheduleFiltersStorageKey, normalizeFieldScheduleFilters, fieldScheduleFilters)
 }
 
 function saveFieldScheduleFiltersPreference() {
-  try {
-    localStorage.setItem(getFieldFilterStorageKey(), JSON.stringify(normalizeFieldScheduleFilters(fieldScheduleFilters)))
-  } catch (err) {
-    console.warn('外務行程篩選儲存失敗', err)
-  }
+  fieldScheduleFilters = saveFilterPreference(fieldScheduleFiltersStorageKey, fieldScheduleFilters, normalizeFieldScheduleFilters)
 }
 
 function getFieldBaseStaffRows() {
@@ -10258,27 +10249,61 @@ function normalizeOverviewFilters(value = {}) {
   }
 }
 
+function getFilterStorageOwners() {
+  return [...new Set([
+    currentProfile?.staff_id,
+    currentProfile?.profile_id,
+    currentProfile?.email,
+    currentProfile?.name,
+    'shared'
+  ].map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function getFilterStorageKeys(baseKey) {
+  return [
+    ...getFilterStorageOwners().map(owner => `${baseKey}-${owner}`),
+    baseKey
+  ]
+}
+
+function loadFilterPreference(baseKey, normalizer, fallbackValue) {
+  const keys = getFilterStorageKeys(baseKey)
+
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      return normalizer(JSON.parse(raw))
+    } catch (err) {
+      console.warn('篩選條件讀取失敗', key, err)
+    }
+  }
+
+  return normalizer(fallbackValue)
+}
+
+function saveFilterPreference(baseKey, value, normalizer) {
+  const normalized = normalizer(value)
+  getFilterStorageKeys(baseKey).forEach(key => {
+    try {
+      localStorage.setItem(key, JSON.stringify(normalized))
+    } catch (err) {
+      console.warn('篩選條件儲存失敗', key, err)
+    }
+  })
+  return normalized
+}
+
 function getOverviewFilterStorageKey() {
-  const owner = currentProfile?.staff_id || currentProfile?.email || 'guest'
-  return `${overviewFiltersStorageKey}-${owner}`
+  return `${overviewFiltersStorageKey}-${currentProfile?.staff_id || currentProfile?.email || 'guest'}`
 }
 
 function loadOverviewFiltersPreference() {
-  try {
-    const raw = localStorage.getItem(getOverviewFilterStorageKey())
-    overviewFilters = normalizeOverviewFilters(raw ? JSON.parse(raw) : overviewFilters)
-  } catch (err) {
-    console.warn('行程總覽篩選讀取失敗', err)
-    overviewFilters = normalizeOverviewFilters()
-  }
+  overviewFilters = loadFilterPreference(overviewFiltersStorageKey, normalizeOverviewFilters, overviewFilters)
 }
 
 function saveOverviewFiltersPreference() {
-  try {
-    localStorage.setItem(getOverviewFilterStorageKey(), JSON.stringify(normalizeOverviewFilters(overviewFilters)))
-  } catch (err) {
-    console.warn('行程總覽篩選儲存失敗', err)
-  }
+  overviewFilters = saveFilterPreference(overviewFiltersStorageKey, overviewFilters, normalizeOverviewFilters)
 }
 
 function isOverviewDepartmentSelected(name) {
@@ -13528,7 +13553,7 @@ function openScheduleModal() {
   const defaultStaffId = currentProfile.staff_id || ''
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
-  const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${item}">${item}</option>`).join('')
+  const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const weekdayChecks = weekdays.map(([value, label]) => `
@@ -13727,7 +13752,11 @@ function openScheduleModal() {
               ${todoOptions}
             </select>
           </label>
-          <p class="field-hint">待辦項目之後會放到「選項管理」維護。</p>
+          <label>
+            手動輸入待辦項目
+            <input name="todo_item_custom" placeholder="選項沒有時可自行輸入">
+          </label>
+          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
         <div class="span-2 form-section hidden" data-section="leave-meeting">
@@ -14599,7 +14628,10 @@ function openEditScheduleModal(scheduleId) {
   const serviceTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.schedule_type || '其他')
   const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
-  const editTodoOptions = optionHtml(todoItems, row.category === '待辦事項' ? (row.sub_type || '') : '')
+  const managedTodoItemsForEdit = getManagedListOption('todoItems', todoItems)
+  const currentTodoValue = row.category === '待辦事項' ? (row.sub_type || '') : ''
+  const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
+  const editTodoOptions = optionHtml(managedTodoItemsForEdit, currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
   const editDeliveryChecks = checkedOptionsHtml(deliveryDocumentItems, editDeliveryItems, 'edit_delivery_items')
@@ -14729,6 +14761,11 @@ function openEditScheduleModal(scheduleId) {
               ${editTodoOptions}
             </select>
           </label>
+          <label>
+            手動輸入待辦項目
+            <input name="edit_todo_item_custom" value="${escapeHtml(currentTodoIsManaged ? '' : currentTodoValue)}" placeholder="選項沒有時可自行輸入">
+          </label>
+          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
         <div class="span-2 form-section hidden" id="editLeaveMeetingBlock">
@@ -14926,7 +14963,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   if (category === '待辦事項') {
     editScheduleType = '待辦事項'
-    editSubType = form.get('edit_todo_item') || null
+    editSubType = String(form.get('edit_todo_item_custom') || '').trim() || form.get('edit_todo_item') || null
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
@@ -15061,7 +15098,7 @@ async function saveSchedule(event, modal) {
 
   if (category === '待辦事項') {
     scheduleType = '待辦事項'
-    subType = form.get('todo_item') || null
+    subType = String(form.get('todo_item_custom') || '').trim() || form.get('todo_item') || null
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
@@ -16746,3 +16783,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 彈窗支援點背景關閉與 Escape 關閉
 */
 /* FOR-e V002-1P-89 END - private notes and mobile popup */
+
+/* FOR-e V002-1P-90 START - todo custom filter persist */
+/*
+  V002-1P-90｜待辦手動輸入與行程表篩選記憶
+  - 待辦事項的待辦項目可從選項選擇，也可手動輸入
+  - 修改待辦事項時也保留手動輸入欄位
+  - 行程總覽 / 外務行程的部門、人員、排序套用後會寫入多個穩定 key
+  - 下次登入會重新讀取已套用條件，避免部門 / 人員篩選沒有固定住
+*/
+/* FOR-e V002-1P-90 END - todo custom filter persist */
