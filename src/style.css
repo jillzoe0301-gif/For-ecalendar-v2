@@ -12821,3 +12821,11 @@ body {
   gap: 8px;
 }
 /* FOR-e V002-1P-95 END - edit repeat mode */
+
+/* FOR-e V002-1P-96 START - meeting repeat edit and schedule display */
+/* 會議室修改週期區塊 */
+#meetingRoomEditForm .edit-schedule-mode-box {
+  border-color: #d6c7b4;
+  background: #fbf8f1;
+}
+/* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */

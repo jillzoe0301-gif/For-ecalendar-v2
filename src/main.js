@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-95'
+const SYSTEM_VERSION = 'V002-1P-96'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1079,7 +1079,8 @@ function isMine(row) {
   const myStaffId = currentProfile?.staff_id
   if (!myStaffId) return false
   if (row.creator_staff_id === myStaffId) return true
-  return (row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)
+  if ((row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)) return true
+  return meetingScheduleVisibleForStaff(row, myStaffId)
 }
 
 function isAssignedToMe(row) {
@@ -4634,15 +4635,7 @@ function openEditMeetingRoomModal(scheduleId) {
           <input value="${escapeHtml(getScheduleStatusLabel(row))}" disabled>
         </label>
 
-        <label>
-          開始日期
-          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
-        </label>
-
-        <label>
-          結束日期
-          <input name="end_date" type="date" value="${row.end_date || row.start_date || todayString()}">
-        </label>
+        ${editScheduleModeFieldsHtml(row)}
 
         <label>
           開始時間
@@ -4698,6 +4691,12 @@ function openEditMeetingRoomModal(scheduleId) {
 
   document.body.appendChild(modal)
   initMeetingParticipantDropdowns(modal)
+  refreshScheduleModeBlocks('edit')
+
+  const meetingEditRepeatModeSelect = document.querySelector('#editRepeatModeSelect')
+  if (meetingEditRepeatModeSelect) {
+    meetingEditRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('edit'))
+  }
 
   const meetingReserverSelect = document.querySelector('#meetingEditReserverSelect')
   const meetingDepartmentSelect = document.querySelector('#meetingEditDepartmentSelect')
@@ -4722,7 +4721,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
     const form = new FormData(event.target)
     const room = form.get('room')
     const startDate = form.get('start_date') || todayString()
-    const endDate = form.get('end_date') || startDate
+    const endDate = getScheduleModeEndDate(form)
     const reserverStaffId = form.get('reserver_staff_id') || currentProfile.staff_id
     const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || {
       staff_id: currentProfile.staff_id,
@@ -4748,7 +4747,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
 
     const conflictDate = findMeetingRoomConflictDate(
       room,
-      getMeetingEditConflictDateKeys(originalRow, startDate, endDate),
+      getScheduleDatesFromForm(form),
       startTime,
       endTime,
       originalRow
@@ -4766,7 +4765,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       schedule_type: '會議室預約',
       sub_type: room,
       sub_type_note: [
-        getMeetingEditRepeatNote(originalRow, startDate, endDate),
+        buildRepeatNote(form),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
         participantDepartments.length ? `與會部門：${participantDepartments.join('、')}` : '',
@@ -10517,11 +10516,29 @@ function getOverviewBaseStaffRows() {
 
 
 
+
+function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
+  if (!isMeetingRoomSchedule(row) || !staffId) return false
+  const staff = staffList.find(item => item.staff_id === staffId)
+  if (!staff) return false
+
+  const departments = getMeetingParticipantDepartments(row)
+  const names = getMeetingParticipantStaffNames(row)
+
+  if (departments.includes(staff.department_name)) return true
+  if (names.includes(staff.name)) return true
+
+  return false
+}
+
+
 function getSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
-    return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+    const assigned = (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+    if (assigned) return true
+    return meetingScheduleVisibleForStaff(row, staffId)
   })
 }
 
@@ -17113,3 +17130,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行程總覽、個人行程表、外務行程依更新後週期顯示
 */
 /* FOR-e V002-1P-95 END - edit repeat mode */
+
+/* FOR-e V002-1P-96 START - meeting repeat edit and schedule display */
+/*
+  V002-1P-96｜會議室週期修改與行程表顯示修正
+  - 會議室修改表單新增行程模式 / 週期，可調整單日、連續日期、每週重複、每月重複
+  - 會議室修改儲存時改用表單週期寫回 sub_type_note 與 end_date
+  - 會議室衝突檢查改依修改後實際週期日期檢查
+  - 行程總覽 / 個人行程表補強會議室與會部門、與會人員顯示，避免 schedule_assignees 同步失敗時看不到
+*/
+/* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */
