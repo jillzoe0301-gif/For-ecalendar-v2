@@ -12417,3 +12417,64 @@ body {
   }
 }
 /* FOR-e V002-1P-82 END - meeting dropdown auto completed */
+
+/* FOR-e V002-1P-83 START - personal active today meeting dropdown */
+/* 會議室下拉複選：checkbox 與文字同一排、靠左、不跨行 */
+.meeting-dropdown-option {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+
+.meeting-dropdown-option input[type="checkbox"] {
+  flex: 0 0 15px !important;
+  width: 15px !important;
+  min-width: 15px !important;
+  max-width: 15px !important;
+  height: 15px !important;
+  margin: 0 !important;
+}
+
+.meeting-dropdown-option span {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: block !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
+}
+
+.meeting-dropdown-panel {
+  text-align: left !important;
+}
+
+.meeting-dropdown-select summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.personal-today-schedule-notice {
+  margin-bottom: 16px !important;
+}
+
+.personal-today-schedule-notice .todo-notice-card {
+  border-color: #bfdbfe !important;
+}
+
+.personal-today-schedule-notice .todo-notice-card em {
+  color: #3155d4 !important;
+}
+/* FOR-e V002-1P-83 END - personal active today meeting dropdown */

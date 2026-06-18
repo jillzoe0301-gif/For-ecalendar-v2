@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-82'
+const SYSTEM_VERSION = 'V002-1P-83'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -351,6 +351,36 @@ function renderPersonalReminderArea() {
     </section>
   `
 }
+
+
+function renderPersonalTodayScheduleNotice(rows = []) {
+  const today = todayString()
+  if (!rows.length) return ''
+
+  return `
+    <section class="personal-todo-notice personal-today-schedule-notice has-today">
+      <div class="todo-notice-header">
+        <div>
+          <strong>當日行程提醒通知</strong>
+          <span>${today}｜今天尚未完成、時間未過的行程 ${rows.length} 筆</span>
+        </div>
+      </div>
+
+      <div class="todo-notice-list">
+        ${rows.map(row => `
+          <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
+            <div>
+              <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <span>${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}${row.location_name ? `｜${escapeHtml(row.location_name)}` : ''}</span>
+            </div>
+            <em>今日</em>
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `
+}
+
 
 let currentProfile = null
 let currentPage = 'personalSchedule'
@@ -1019,8 +1049,19 @@ function getScheduleStatusLabel(row) {
 }
 
 
+function isCompletedSchedule(row) {
+  const statusText = String(row?.status || '').trim()
+  return Boolean(
+    statusText === '已完成' ||
+    statusText === '完成' ||
+    row?.is_completed === true ||
+    row?.completed_at ||
+    row?.completedAt
+  )
+}
+
 function isActivePersonalSchedule(row) {
-  return isVisibleSchedule(row) && !shouldDisplayAutoCompleted(row) && row.status !== '已完成' && row.is_completed !== true
+  return isVisibleSchedule(row) && !isCompletedSchedule(row) && !isScheduleTimePassed(row)
 }
 
 function isMine(row) {
@@ -9808,6 +9849,7 @@ function renderPersonalSchedule() {
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
+    ${renderPersonalTodayScheduleNotice(todayRows)}
     ${renderServiceRecordReminderArea()}
     ${renderPersonalReminderArea()}
     ${renderPersonalOverdueTaskArea()}
@@ -10253,7 +10295,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const contentPreview = getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
         return `
-          <div class="schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
+          <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
               <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
               <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(row.schedule_type || row.category)}</span>｜${escapeHtml(row.title)}</div>
@@ -12603,12 +12645,15 @@ function meetingParticipantCheckboxesHtml(selectedStaffIds = []) {
   const selected = new Set((selectedStaffIds || []).map(item => String(item || '').trim()).filter(Boolean))
   const rows = canAssignAllStaff() ? getActiveMeetingStaffRows() : getActiveMeetingStaffRows().filter(staff => staff.staff_id === currentProfile?.staff_id)
 
-  return rows.map(staff => `
-    <label class="meeting-dropdown-option">
-      <input type="checkbox" name="participant_staff_ids" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${escapeHtml(staff.name || '-')}<small>${escapeHtml(staff.department_name || '')}</small></span>
-    </label>
-  `).join('')
+  return rows.map(staff => {
+    const text = [staff.name || '-', staff.department_name || ''].filter(Boolean).join('｜')
+    return `
+      <label class="meeting-dropdown-option">
+        <input type="checkbox" name="participant_staff_ids" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
+        <span>${escapeHtml(text)}</span>
+      </label>
+    `
+  }).join('')
 }
 
 
@@ -15972,3 +16017,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 會議室預約、活動、請假、返鄉、外訓等不需完成控管的行程，時間過後顯示為已完成
 */
 /* FOR-e V002-1P-82 END - meeting dropdown auto completed */
+
+/* FOR-e V002-1P-83 START - personal active today meeting dropdown */
+/*
+  V002-1P-83｜會議室下拉勾選對齊與個人當日提醒恢復
+  - 會議室參與部門 / 參與人員下拉選項改為 checkbox 與文字同一排、靠左、不跨行
+  - 會議室預約、活動、請假、返鄉、外訓與一般行程，只要時間日期已過或已完成，就不再顯示於個人行程表
+  - 個人行程表恢復「當日行程提醒通知」，登入後可看到今天尚未完成且時間未過的行程
+*/
+/* FOR-e V002-1P-83 END - personal active today meeting dropdown */
