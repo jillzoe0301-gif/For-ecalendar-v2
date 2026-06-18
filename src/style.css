@@ -12512,3 +12512,27 @@ body {
   border-color: #86efac !important;
 }
 /* FOR-e V002-1P-87 END - service record assigned popup */
+
+/* FOR-e V002-1P-88 START - user modal and medical followup */
+.medical-followup-inline-box {
+  border: 1px solid rgba(81, 112, 255, .22);
+  border-radius: 16px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
+.medical-followup-inline-box .group-title {
+  margin-bottom: 8px;
+}
+
+.medical-followup-inline-box .compact-grid {
+  gap: 10px;
+}
+
+.medical-followup-inline-box .field-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* FOR-e V002-1P-88 END - user modal and medical followup */

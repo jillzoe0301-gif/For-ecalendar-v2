@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-87'
+const SYSTEM_VERSION = 'V002-1P-88'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -11752,25 +11752,15 @@ function openUserAccountModal(staffId = '') {
         </label>
 
         <label>
-          手動輸入部門
-          <input name="department_custom" placeholder="若選單沒有才填寫新部門；留空使用左側選單">
-        </label>
-
-        <label>
           職務
           <select name="position">
             ${getUserManagePositionOptions(staff?.position || '')}
           </select>
         </label>
 
-        <label>
-          手動輸入職務
-          <input name="position_custom" placeholder="若要新增新職務才填寫；留空使用左側選單">
-        </label>
-
         ${hasRemovedPosition ? `
           <div class="notice span-2">
-            此人員目前職務「${escapeHtml(staff.position)}」已從職務選項移除。請改選或手動輸入新的職務後再儲存。
+            此人員目前職務「${escapeHtml(staff.position)}」已從職務選項移除。請改選新的職務後再儲存。
           </div>
         ` : ''}
 
@@ -11824,8 +11814,8 @@ async function saveUserAccount(event, modal, staffId = '') {
 
   try {
     const form = new FormData(event.target)
-    const departmentName = String(form.get('department_custom') || '').trim() || String(form.get('department_name') || '').trim()
-    const position = (String(form.get('position_custom') || '').trim() || String(form.get('position') || '').trim())
+    const departmentName = String(form.get('department_name') || '').trim()
+    const position = String(form.get('position') || '').trim()
     const displayOrderValue = form.get('display_order')
     const name = String(form.get('name') || '').trim()
 
@@ -11836,7 +11826,7 @@ async function saveUserAccount(event, modal, staffId = '') {
     }
 
     if (!departmentName) {
-      alert('請選擇或輸入部門。')
+      alert('請選擇部門。')
       saving = false
       return
     }
@@ -11848,7 +11838,7 @@ async function saveUserAccount(event, modal, staffId = '') {
     }
 
     if (isRemovedUserManagePosition(position)) {
-      alert('「管理員、主管、行政/海外、外務/宿管人員/會計」屬於角色權限，不可填在職務欄。\n\n請改選或輸入實際職務，例如：執行長、總經理、副總經理、副理、組長、海外行政、PT。')
+      alert('「管理員、主管、行政/海外、外務/宿管人員/會計」屬於角色權限，不可填在職務欄。\n\n請改選實際職務，例如：執行長、總經理、副總經理、副理、組長、海外行政、PT。')
       saving = false
       return
     }
@@ -12245,6 +12235,10 @@ function applyEditCompactSpecialFields() {
 
   form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
     setCompactHidden(block, isCompact)
+  })
+
+  form.querySelectorAll('[data-service-extra]').forEach(block => {
+    block.classList.toggle('hidden', block.dataset.serviceExtra !== serviceTypeSelect.value)
   })
 
   if (isCompact) {
@@ -14059,6 +14053,261 @@ function buildServiceExtraNotes(form, scheduleType) {
 }
 
 
+function parseMedicalFollowupInfo(row = {}) {
+  const rawNext = getNoteValue(row, '下次回診') || getFieldNoteValue(row, '下次回診') || ''
+  const dateMatch = String(rawNext).match(/\d{4}-\d{2}-\d{2}/)
+  const timeMatch = String(rawNext).match(/(\d{1,2}):(\d{2})/)
+  let timeType = '不指定'
+  if (String(rawNext).includes('上午')) timeType = '上午'
+  if (String(rawNext).includes('下午')) timeType = '下午'
+  if (String(rawNext).includes('指定時間')) timeType = '指定時間'
+
+  const staffName = getNoteValue(row, '下次執行人') || getFieldNoteValue(row, '下次執行人') || ''
+  const staff = staffList.find(item => item.name === staffName)
+
+  return {
+    date: dateMatch ? dateMatch[0] : '',
+    timeType,
+    hour: timeMatch ? timeMatch[1].padStart(2, '0') : '09',
+    minute: timeMatch ? timeMatch[2] : '00',
+    registerNo: getNoteValue(row, '掛號號碼') || getFieldNoteValue(row, '掛號號碼') || '',
+    staffId: staff?.staff_id || ''
+  }
+}
+
+function compactTimeSelectHtmlSelected(prefix, selectedType = '不指定', selectedHour = '09', selectedMinute = '00') {
+  const typeOptions = ['不指定', '上午', '下午', '指定時間']
+    .map(item => `<option value="${item}" ${item === selectedType ? 'selected' : ''}>${item}</option>`)
+    .join('')
+
+  return `
+    <div class="compact-time-row">
+      <select name="${prefix}_time_type">${typeOptions}</select>
+      <select name="${prefix}_hour">${hourOptionsHtml(selectedHour)}</select>
+      <select name="${prefix}_minute">${minuteOptionsHtml(selectedMinute)}</select>
+    </div>
+  `
+}
+
+function staffSelectOptionsHtmlSelected(selectedStaffId = '') {
+  const rows = canAssignAllStaff() ? staffList : getAssignableStaffRows()
+  const selectedExists = rows.some(staff => staff.staff_id === selectedStaffId)
+  const extra = selectedStaffId && !selectedExists
+    ? staffList.filter(staff => staff.staff_id === selectedStaffId)
+    : []
+
+  return `<option value="" ${!selectedStaffId ? 'selected' : ''}>未指定</option>` + [...extra, ...rows].map(staff => `
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>
+  `).join('')
+}
+
+function cleanServiceExtraNotes(noteText = '', scheduleType = '') {
+  const removeLabelsByType = {
+    '醫療': ['下次回診', '下次執行人', '掛號號碼']
+  }
+  const labels = removeLabelsByType[scheduleType] || []
+  if (!labels.length) return String(noteText || '').trim()
+
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !labels.some(label => item.startsWith(`${label}：`)))
+    .join('｜')
+}
+
+function getCompactFollowupScheduleTime(form, prefix = 'medical_next') {
+  const rawType = form.get(`${prefix}_time_type`) || '不指定'
+  const hour = String(form.get(`${prefix}_hour`) || '09').padStart(2, '0')
+  const minute = String(form.get(`${prefix}_minute`) || '00').padStart(2, '0')
+
+  if (rawType === '不指定') {
+    return { time_type: '不指定', start_time: null, end_time: null }
+  }
+
+  const timeType = rawType === '指定時間'
+    ? (Number(hour) < 12 ? '上午' : '下午')
+    : rawType
+
+  return {
+    time_type: timeType,
+    start_time: `${hour}:${minute}:00`,
+    end_time: null
+  }
+}
+
+function getMedicalFollowupTargetStaff(form, fallbackStaffIds = []) {
+  const selectedId = String(form.get('medical_next_staff') || '').trim()
+  const fallbackId = (fallbackStaffIds || []).find(Boolean) || currentProfile?.staff_id || ''
+  const staffId = selectedId || fallbackId
+  return staffList.find(staff => staff.staff_id === staffId) || staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || staffList[0]
+}
+
+function getMedicalFollowupNote(sourceSchedule = {}, form) {
+  const sourceId = sourceSchedule.schedule_id || ''
+  const registerNo = String(form.get('medical_register_no') || '').trim()
+  return [
+    '行程模式：單日',
+    sourceId ? `來源醫療行程：${sourceId}` : '',
+    sourceSchedule.title ? `原行程：${sourceSchedule.title}` : '',
+    registerNo ? `掛號號碼：${registerNo}` : ''
+  ].filter(Boolean).join('｜')
+}
+
+async function syncMedicalFollowupServiceRecord(scheduleId, payload, staff) {
+  if (!scheduleId || !staff) return
+
+  const recordPayload = {
+    schedule_id: scheduleId,
+    staff_id: staff.staff_id,
+    staff_name: staff.name,
+    department_id: staff.department_id,
+    department_name: staff.department_name,
+    schedule_date: payload.start_date,
+    schedule_type: payload.schedule_type,
+    title: payload.title,
+    location_name: payload.location_name || payload.customer_name,
+    need_submit: true,
+    submitted: false,
+    submitted_date: null
+  }
+
+  try {
+    const { data } = await supabase
+      .from('service_records')
+      .select('*')
+      .eq('schedule_id', scheduleId)
+      .limit(1)
+
+    if (data && data.length) {
+      await supabase
+        .from('service_records')
+        .update(recordPayload)
+        .eq('schedule_id', scheduleId)
+    } else {
+      await supabase
+        .from('service_records')
+        .insert(recordPayload)
+    }
+  } catch (err) {
+    console.warn('同步下次回診服務紀錄單失敗，不影響行程建立。', err)
+  }
+}
+
+async function syncMedicalFollowupSchedule(sourceSchedule, form, fallbackStaffIds = []) {
+  const scheduleType = String(form.get('schedule_type') || sourceSchedule?.schedule_type || '').trim()
+  if (scheduleType !== '醫療') return
+
+  const nextDate = String(form.get('medical_next_date') || '').trim()
+  if (!nextDate) return
+
+  const sourceId = sourceSchedule?.schedule_id || ''
+  const targetStaff = getMedicalFollowupTargetStaff(form, fallbackStaffIds)
+  if (!targetStaff?.staff_id) return
+
+  const timePayload = getCompactFollowupScheduleTime(form, 'medical_next')
+  const titleBase = sourceSchedule?.customer_name || sourceSchedule?.title || '醫療'
+  const payload = {
+    creator_profile_id: currentProfile.profile_id,
+    creator_staff_id: currentProfile.staff_id,
+    creator_name: currentProfile.name || currentProfile.email,
+    department_id: targetStaff.department_id || currentProfile.department_id,
+    department_name: targetStaff.department_name || currentProfile.department_name,
+    category: '服務行程',
+    schedule_type: '醫療',
+    sub_type: '回診',
+    sub_type_note: getMedicalFollowupNote(sourceSchedule, form),
+    title: `下次回診｜${titleBase}`,
+    description: [
+      '下次回診',
+      sourceSchedule?.title ? `原行程：${sourceSchedule.title}` : '',
+      sourceSchedule?.description ? `原內容：${sourceSchedule.description}` : ''
+    ].filter(Boolean).join('\n'),
+    start_date: nextDate,
+    end_date: nextDate,
+    time_type: timePayload.time_type,
+    start_time: timePayload.start_time,
+    end_time: timePayload.end_time,
+    customer_name: sourceSchedule?.customer_name || null,
+    location_name: sourceSchedule?.location_name || null,
+    address: sourceSchedule?.address || null,
+    car_no: null,
+    status: '未完成',
+    need_service_record: true,
+    service_record_submitted: false,
+    service_record_submitted_date: null
+  }
+
+  let existingScheduleId = ''
+  if (sourceId) {
+    try {
+      const { data } = await supabase
+        .from('schedules')
+        .select('schedule_id')
+        .ilike('sub_type_note', `%來源醫療行程：${sourceId}%`)
+        .limit(1)
+
+      existingScheduleId = data?.[0]?.schedule_id || ''
+    } catch (err) {
+      console.warn('查詢既有下次回診行程失敗，改為新增。', err)
+    }
+  }
+
+  let targetScheduleId = existingScheduleId
+
+  if (existingScheduleId) {
+    const { error } = await supabase
+      .from('schedules')
+      .update(payload)
+      .eq('schedule_id', existingScheduleId)
+
+    if (error) {
+      console.warn('更新既有下次回診行程失敗。', error)
+      return
+    }
+  } else {
+    const { data, error } = await supabase
+      .from('schedules')
+      .insert(payload)
+      .select('schedule_id')
+      .single()
+
+    if (error) {
+      console.warn('建立下次回診行程失敗。', error)
+      return
+    }
+
+    targetScheduleId = data?.schedule_id || ''
+  }
+
+  if (targetScheduleId) {
+    try {
+      const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+        target_schedule_id: targetScheduleId,
+        staff_ids_value: [targetStaff.staff_id]
+      })
+
+      if (assigneeError) {
+        await supabase.from('schedule_assignees').insert([{
+          schedule_id: targetScheduleId,
+          staff_id: targetStaff.staff_id,
+          staff_name: targetStaff.name,
+          department_id: targetStaff.department_id,
+          department_name: targetStaff.department_name,
+          position: targetStaff.position,
+          assignee_type: 'executor'
+        }])
+      }
+    } catch (err) {
+      console.warn('同步下次回診執行人失敗，不影響主行程。', err)
+    }
+
+    await syncMedicalFollowupServiceRecord(targetScheduleId, payload, targetStaff)
+  }
+}
+
+
+
 async function createMedicalFollowupScheduleFromForm(form, originalSchedule, originalPayload) {
   const nextDate = form.get('medical_next_date')
   const nextStaffId = form.get('medical_next_staff')
@@ -14299,6 +14548,7 @@ function openEditScheduleModal(scheduleId) {
   const editDeliveryChecks = checkedOptionsHtml(deliveryDocumentItems, editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
   const showTime = ['上午', '下午'].includes(row.time_type)
+  const medicalInfo = parseMedicalFollowupInfo(row)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -14371,6 +14621,31 @@ function openEditScheduleModal(scheduleId) {
               ${carSelectOptions}
             </select>
           </label>
+
+          <div class="span-2 conditional-service hidden medical-followup-inline-box" data-service-extra="醫療">
+            <div class="group-title">醫療回診資訊</div>
+            <div class="compact-grid">
+              <label>
+                下次回診日期
+                <input name="medical_next_date" type="date" value="${escapeHtml(medicalInfo.date || '')}">
+              </label>
+              <label>
+                下次回診時間
+                ${compactTimeSelectHtmlSelected('medical_next', medicalInfo.timeType, medicalInfo.hour, medicalInfo.minute)}
+              </label>
+              <label>
+                掛號號碼
+                <input name="medical_register_no" value="${escapeHtml(medicalInfo.registerNo || '')}" placeholder="請輸入掛號號碼">
+              </label>
+              <label>
+                下次執行人
+                <select name="medical_next_staff">
+                  ${staffSelectOptionsHtmlSelected(medicalInfo.staffId)}
+                </select>
+              </label>
+            </div>
+            <p class="field-hint">填入後會寫入本次行程備註，並建立 / 更新「下次回診」行程。</p>
+          </div>
         </div>
 
         <div class="span-2 service-location-top" id="editServiceLocationBlock">
@@ -14539,7 +14814,7 @@ function openEditScheduleModal(scheduleId) {
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
-  if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', applyEditCompactSpecialFields)
+  if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', refreshEditServiceBlock)
   if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
   refreshEditExtraScheduleBlock()
@@ -14578,7 +14853,14 @@ async function saveEditedSchedule(event, modal, originalRow) {
   if (category === '服務行程') {
     editScheduleType = form.get('schedule_type') || '其他'
     editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
-    editSubTypeNote = isCompactSpecialScheduleType(editScheduleType) ? null : (form.get('sub_type_note') || null)
+
+    if (isCompactSpecialScheduleType(editScheduleType)) {
+      editSubTypeNote = null
+    } else {
+      const cleanedNote = cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)
+      const extraNotes = buildServiceExtraNotes(form, editScheduleType)
+      editSubTypeNote = [cleanedNote, ...extraNotes].filter(Boolean).join('｜') || null
+    }
   }
 
   if (category === '一般記事') {
@@ -14641,6 +14923,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
     alert('行程內容已修改，但執行者同步失敗：' + assigneeError.message)
     return
   }
+
+  await syncMedicalFollowupSchedule({ ...originalRow, ...payload, schedule_id: originalRow.schedule_id }, form, editExecutorIds)
 
   await supabase.from('audit_logs').insert({
     operated_by_profile_id: currentProfile.profile_id,
@@ -14834,6 +15118,8 @@ async function saveSchedule(event, modal) {
       alert('行程已建立，但服務紀錄單資料寫入失敗：' + serviceError.message)
     }
   }
+
+  await syncMedicalFollowupSchedule({ ...schedulePayload, schedule_id: schedule.schedule_id }, form, executorIds)
 
   await supabase.from('audit_logs').insert({
     operated_by_profile_id: currentProfile.profile_id,
@@ -16182,7 +16468,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 新增 / 修改人員時不再讓 staff.department_id 寫入 null
   - 手動輸入新部門時，會先嘗試在 departments 建立或取得部門 ID
   - 若 departments 權限或欄位不允許建立，會在寫入 staff 前提示，不會再出現 not-null constraint 錯誤
-  - 手動輸入部門提示改為：若要新增新部門才填寫；留空則使用左側選單
+  - 部門下拉提示改為：若要新增新部門才填寫；留空則使用左側選單
 */
 /* FOR-e V002-1P-66 END - staff department id fix */
 
@@ -16211,7 +16497,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-69｜人員職務必填與舊職務提醒
   - 修改 / 新增人員時，職務不可空白，避免 staff.position not-null constraint 錯誤
   - 若原本職務是「管理員 / 主管 / 行政/海外 / 外務/宿管人員/會計」這類已移除職務，表單會提醒改選實際職務
-  - 手動輸入職務也會阻擋角色類職務，避免職務與角色混在一起
+  - 職務下拉也會阻擋角色類職務，避免職務與角色混在一起
   - 保留 V002-1P-67 部門與職務選項
 */
 /* FOR-e V002-1P-69 END - staff position required */
@@ -16383,3 +16669,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 已完成、時間已過、會議室 / 請假 / 活動等不需控管項目不會進入新指派提醒
 */
 /* FOR-e V002-1P-87 END - service record assigned popup */
+
+/* FOR-e V002-1P-88 START - user modal and medical followup */
+/*
+  V002-1P-88｜人員欄位精簡與醫療下次回診同步
+  - 新增 / 修改人員移除「部門下拉」與「職務下拉」
+  - 人員部門與職務統一從選項管理下拉選擇
+  - 修改醫療行程時顯示下次回診日期、時間、掛號號碼、下次執行人
+  - 新增或修改醫療行程時，若填下次回診日期，會建立 / 更新下次回診行程
+*/
+/* FOR-e V002-1P-88 END - user modal and medical followup */
