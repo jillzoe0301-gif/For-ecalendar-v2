@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-90'
+const SYSTEM_VERSION = 'V002-1P-91'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -6547,7 +6547,7 @@ function getScheduleTypeTemplate(type) {
 function getCurrentFormScheduleType(form) {
   const category = form?.querySelector('[name="category"]')?.value || ''
   if (category === '服務行程') return form.querySelector('[name="schedule_type"]')?.value || ''
-  if (category === '待辦事項') return form.querySelector('[name="todo_item"]')?.value || '待辦事項'
+  if (category === '待辦事項') return form.querySelector('[name="todo_item_custom"]')?.value?.trim() || form.querySelector('[name="todo_item"]')?.value || '待辦事項'
   if (category === '請假 / 會議 / 活動 / 外訓') return form.querySelector('[name="leave_meeting_type"]')?.value || ''
   if (category === '證件交付') return '證件交付'
   if (category === '一般記事') return '一般記事'
@@ -12129,6 +12129,60 @@ function editStaffOptionsHtml(row) {
   `).join('')
 }
 
+
+function getAssignableDepartmentRows() {
+  return [...new Set(
+    getAssignableStaffRows()
+      .map(staff => String(staff.department_name || '').trim())
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'zh-Hant'))
+}
+
+function departmentAssigneeOptionsHtml(inputName = 'executor_departments', selectedDepartments = []) {
+  const selected = new Set((selectedDepartments || []).map(item => String(item || '').trim()).filter(Boolean))
+  const rows = getAssignableDepartmentRows()
+  if (!rows.length) return '<div class="empty-state">目前沒有可選部門。</div>'
+
+  return rows.map(name => `
+    <label class="check-row department-assignee-row">
+      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(name)}" ${selected.has(name) ? 'checked' : ''}>
+      <span>${escapeHtml(name)}</span>
+    </label>
+  `).join('')
+}
+
+function getStaffIdsFromAssigneeDepartments(departments = []) {
+  const selected = new Set((departments || []).map(item => String(item || '').trim()).filter(Boolean))
+  if (!selected.size) return []
+
+  return getAssignableStaffRows()
+    .filter(staff => selected.has(String(staff.department_name || '').trim()))
+    .map(staff => staff.staff_id)
+}
+
+function shouldEnableDepartmentAssignee(category = '') {
+  return category === '請假 / 會議 / 活動 / 外訓'
+}
+
+function getSelectedScheduleExecutorIds(form, staffInputName = 'executor', departmentInputName = 'executor_departments', category = '') {
+  const staffIds = form.getAll(staffInputName)
+  const departmentIds = shouldEnableDepartmentAssignee(category)
+    ? getStaffIdsFromAssigneeDepartments(form.getAll(departmentInputName))
+    : []
+
+  return [...new Set([...staffIds, ...departmentIds].map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_departments', staffInputName = 'executor') {
+  if (!form) return
+  const departments = [...form.querySelectorAll(`input[name="${departmentInputName}"]:checked`)].map(input => input.value)
+  const staffIds = new Set(getStaffIdsFromAssigneeDepartments(departments))
+  form.querySelectorAll(`input[name="${staffInputName}"]`).forEach(input => {
+    if (staffIds.has(input.value)) input.checked = true
+  })
+}
+
+
 function staffOptionsHtml(defaultStaffId = '') {
   const rows = getAssignableStaffRows()
   return rows.map(staff => `
@@ -13071,15 +13125,11 @@ function initMeetingParticipantDropdowns(root = document) {
 
 
 function getSelectedMeetingDepartments(form) {
-  return [...new Set((form.getAll('participant_departments') || [])
-    .map(item => String(item || '').trim())
-    .filter(Boolean))]
+  return []
 }
 
 function getSelectedMeetingParticipantStaffIds(form) {
-  return [...new Set((form.getAll('participant_staff_ids') || [])
-    .map(item => String(item || '').trim())
-    .filter(Boolean))]
+  return []
 }
 
 function getStaffIdsFromDepartments(departments = []) {
@@ -13176,40 +13226,7 @@ function getMeetingParticipantStaffSummaryText(staffIds = []) {
 }
 
 function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffIds = []) {
-  return `
-    <section class="meeting-participant-box span-2">
-      <div class="meeting-participant-title">
-        <strong>參與部門 / 參與人員</strong>
-        <span>下拉複選，不佔版面；選擇部門時該部門啟用人員也會看到預約。</span>
-      </div>
-
-      <div class="meeting-participant-dropdown-row">
-        <div class="meeting-dropdown-group">
-          <span class="meeting-dropdown-label">參與部門</span>
-          <details class="meeting-dropdown-select">
-            <summary>
-              <span>${escapeHtml(getMeetingParticipantSummaryText(selectedDepartments, '部門'))}</span>
-            </summary>
-            <div class="meeting-dropdown-panel">
-              ${meetingDepartmentCheckboxesHtml(selectedDepartments)}
-            </div>
-          </details>
-        </div>
-
-        <div class="meeting-dropdown-group">
-          <span class="meeting-dropdown-label">參與人員</span>
-          <details class="meeting-dropdown-select">
-            <summary>
-              <span>${escapeHtml(getMeetingParticipantStaffSummaryText(selectedStaffIds))}</span>
-            </summary>
-            <div class="meeting-dropdown-panel">
-              ${meetingParticipantCheckboxesHtml(selectedStaffIds)}
-            </div>
-          </details>
-        </div>
-      </div>
-    </section>
-  `
+  return ''
 }
 
 
@@ -13889,8 +13906,14 @@ function openScheduleModal() {
 
         </div>
 
+        <div class="span-2 department-assignee-box hidden" id="meetingDepartmentAssigneeBlock">
+          <div class="field-title">選擇部門</div>
+          <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('executor_departments')}</div>
+          <p class="field-hint">適用會議 / 活動 / 外訓，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+        </div>
+
         <div class="span-2">
-          <div class="field-title">執行者</div>
+          <div class="field-title">選擇人員</div>
           <div class="checkbox-list">${staffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
         </div>
 
@@ -13920,6 +13943,7 @@ function openScheduleModal() {
 
     if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') form.querySelector('[data-section="leave-meeting"]')?.classList.remove('hidden')
+    form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (category === '證件交付') form.querySelector('[data-section="document-delivery"]')?.classList.remove('hidden')
     if (category === '服務行程') {
       form.querySelector('[data-section="service-top"]')?.classList.remove('hidden')
@@ -13975,6 +13999,10 @@ function openScheduleModal() {
   if (leaveMeetingTypeSelect) {
     leaveMeetingTypeSelect.addEventListener('change', () => applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false))
   }
+
+  document.querySelectorAll('input[name="executor_departments"]').forEach(input => {
+    input.addEventListener('change', () => syncDepartmentAssigneeChecks(document.querySelector('#scheduleForm'), 'executor_departments', 'executor'))
+  })
 
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
@@ -14837,8 +14865,14 @@ function openEditScheduleModal(scheduleId) {
           <input name="sub_type_note" value="${escapeHtml(row.sub_type_note || '')}">
         </label>
 
+        <div class="span-2 department-assignee-box hidden" id="editMeetingDepartmentAssigneeBlock">
+          <div class="field-title">選擇部門</div>
+          <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('edit_executor_departments')}</div>
+          <p class="field-hint">適用會議 / 活動 / 外訓，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+        </div>
+
         <div class="span-2 edit-assignee-box">
-          <div class="field-title">執行者</div>
+          <div class="field-title">選擇人員</div>
           <div class="checkbox-list">${editStaffOptionsHtml(row) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
           <p class="field-hint">修改執行者會同步更新個人行程表與行程總覽。</p>
         </div>
@@ -14875,6 +14909,7 @@ function openEditScheduleModal(scheduleId) {
     if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', category !== '服務行程')
     if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
+    document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
 
     applyEditCompactSpecialFields()
@@ -14905,6 +14940,9 @@ function openEditScheduleModal(scheduleId) {
   }
 
   categorySelect.addEventListener('change', refreshEditServiceBlock)
+  document.querySelectorAll('input[name="edit_executor_departments"]').forEach(input => {
+    input.addEventListener('change', () => syncDepartmentAssigneeChecks(document.querySelector('#editScheduleForm'), 'edit_executor_departments', 'edit_executor'))
+  })
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
@@ -14926,14 +14964,14 @@ async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
   const form = new FormData(event.target)
-  const editExecutorIds = [...document.querySelectorAll('input[name="edit_executor"]:checked')].map(input => input.value)
+  const category = form.get('category')
+  const editExecutorIds = getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
 
   if (!editExecutorIds.length) {
     alert('請至少選擇一位執行者。')
     return
   }
 
-  const category = form.get('category')
   const isService = category === '服務行程'
   const submitted = isService && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
@@ -15058,7 +15096,7 @@ async function saveSchedule(event, modal) {
     return
   }
 
-  const executorIds = [...document.querySelectorAll('input[name="executor"]:checked')].map(input => input.value)
+  const executorIds = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
 
   if (!executorIds.length) {
     alert('請至少選擇一位執行者。')
@@ -16793,3 +16831,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 下次登入會重新讀取已套用條件，避免部門 / 人員篩選沒有固定住
 */
 /* FOR-e V002-1P-90 END - todo custom filter persist */
+
+/* FOR-e V002-1P-91 START - todo custom meeting department */
+/*
+  V002-1P-91｜待辦手動輸入保留與會議部門選擇
+  - 待辦事項保留選項選擇與手動輸入，手動輸入優先
+  - 會議室預約取消參與部門 / 參與人員選項，避免表單佔版面
+  - 一般會議 / 活動 / 外訓行程下方新增「選擇部門」
+  - 勾選部門會同步勾選該部門人員並寫入行程指派
+*/
+/* FOR-e V002-1P-91 END - todo custom meeting department */

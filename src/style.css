@@ -12650,3 +12650,46 @@ body {
   align-items: start;
 }
 /* FOR-e V002-1P-90 END - todo custom filter persist */
+
+/* FOR-e V002-1P-91 START - todo custom meeting department */
+/* V002-1P-91：會議行程部門選擇與待辦手動輸入 */
+.department-assignee-box {
+  border: 1px solid rgba(81, 112, 255, .18);
+  border-radius: 16px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
+.department-assignee-list {
+  max-height: 150px;
+}
+
+.department-assignee-row {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.department-assignee-row span {
+  font-weight: 900;
+  color: #334155;
+}
+
+[data-section="todo"],
+#editTodoBlock {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+[data-section="todo"].hidden,
+#editTodoBlock.hidden {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  [data-section="todo"],
+  #editTodoBlock {
+    grid-template-columns: 1fr;
+  }
+}
+/* FOR-e V002-1P-91 END - todo custom meeting department */
