@@ -12829,3 +12829,15 @@ body {
   background: #fbf8f1;
 }
 /* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */
+
+/* FOR-e V002-1P-98 START - reminder defaults edit stats */
+/* V002-1P-98：個人行程表今日會議卡與修改勾選保留 */
+.summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.department-assignee-list .check-row input:checked + span,
+.checkbox-list .check-row input:checked + span {
+  font-weight: 950;
+}
+/* FOR-e V002-1P-98 END - reminder defaults edit stats */

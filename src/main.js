@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-97'
+const SYSTEM_VERSION = 'V002-1P-98'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -998,11 +998,14 @@ function isSearchableSchedule(row) {
 function isActiveServiceRecord(record) {
   if (!record) return false
   if (record.deleted_at || record.deletedAt || record.is_deleted === true || record.deleted === true) return false
+  if (record.need_submit === false || record.need_submit === 'false') return false
 
   if (record.schedule_id) {
     const schedule = getServiceRecordSchedule(record)
     if (!schedule) return false
-    if (!isVisibleSchedule(schedule)) return false
+    if (!isScheduleNeedServiceRecord(schedule)) return false
+  } else {
+    return false
   }
 
   return true
@@ -2587,7 +2590,16 @@ function renderApp() {
   }
 
   document.querySelectorAll('.week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => { if (canCreateServiceSchedule()) openScheduleModal(); else denyPermission('你的角色不能在行程總覽新增服務行程，請到個人行程表新增自己的事項。') })
+    cell.addEventListener('dblclick', () => {
+      if (canCreateServiceSchedule()) {
+        openScheduleModal({
+          date: cell.dataset.weekDate || todayString(),
+          staffId: cell.dataset.staffId || currentProfile?.staff_id || ''
+        })
+      } else {
+        denyPermission('你的角色不能在行程總覽新增服務行程，請到個人行程表新增自己的事項。')
+      }
+    })
   })
 
 
@@ -3980,7 +3992,7 @@ function renderFieldScheduleCalendar() {
 
 function getFieldDetailStaffOptionsHtml() {
   return `<option value="全部" ${fieldDetailFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
-    getFieldStaffRows().map(staff => `
+    getFieldStaffRowsForEdit(row).map(staff => `
       <option value="${staff.staff_id}" ${fieldDetailFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
     `).join('')
 }
@@ -5960,7 +5972,16 @@ function getStatsDateRange() {
 }
 
 function isStatsExcludedSchedule(row) {
-  return typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)
+  if (!row) return true
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return true
+
+  const excludedCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  if (excludedCategories.includes(row.category)) return true
+
+  const excludedTypes = ['一般記事', '待辦事項', '請假', '會議', '活動', '外訓', '返鄉', '證件交付']
+  if (excludedTypes.includes(row.schedule_type) || excludedTypes.includes(row.sub_type)) return true
+
+  return false
 }
 
 function getStatsScheduleType(row) {
@@ -6037,7 +6058,7 @@ function getStatsFilteredSchedules() {
 function getStatsFilteredServiceRecords() {
   const range = getStatsDateRange()
 
-  return serviceRecords.filter(record => {
+  return serviceRecords.filter(isActiveServiceRecord).filter(record => {
     const date = record.schedule_date || ''
     if (range.start && date < range.start) return false
     if (range.end && date > range.end) return false
@@ -10086,7 +10107,7 @@ function getMyPendingServiceRecordReminders() {
 
   serviceRecords
     .filter(record => record.staff_id === myStaffId)
-    .filter(record => getServiceRecordStatus(record) !== '已繳交')
+    .filter(isValidPendingServiceRecord)
     .forEach(record => {
       const status = getServiceRecordStatus(record)
       if (status === '超過2週') overdue.push(record)
@@ -10171,6 +10192,7 @@ function renderPersonalSchedule() {
   const today = todayString()
   const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
   const overdueRows = getPersonalOverdueTaskRows()
+  const todayMeetingRows = myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today))
 
   return `
     ${renderToolbar('個人行程表')}
@@ -10183,6 +10205,10 @@ function renderPersonalSchedule() {
       <div class="summary-card">
         <strong>${todayRows.length}</strong>
         <span>今日待處理</span>
+      </div>
+      <div class="summary-card">
+        <strong>${todayMeetingRows.length}</strong>
+        <span>今日會議</span>
       </div>
       <div class="summary-card">
         <strong>${overdueRows.length}</strong>
@@ -11061,7 +11087,26 @@ function isPendingStatusText(value = '') {
   return ['未完成', '未繳交', '未交', '待繳交', 'pending'].includes(text)
 }
 
-function isScheduleServiceRecordSubmitted(row = {}) {
+function isScheduleServiceRecordSubmitted(row = {}
+
+
+function isScheduleNeedServiceRecord(row = {}) {
+  if (!row) return false
+  if (!isVisibleSchedule(row)) return false
+  if (isCompactSpecialScheduleType(row.schedule_type)) return false
+  return row.need_service_record === true || row.need_submit === true
+}
+
+function isValidPendingServiceRecord(record = {}) {
+  if (!record || record.deleted_at || record.deletedAt || record.is_deleted === true || record.deleted === true) return false
+  if (record.need_submit === false || record.need_submit === 'false') return false
+  if (getServiceRecordStatus(record) === '已繳交') return false
+
+  const schedule = getServiceRecordSchedule(record)
+  if (!schedule) return false
+  return isScheduleNeedServiceRecord(schedule)
+}
+) {
   return Boolean(
     row?.service_record_submitted === true ||
     row?.service_record_submitted_date ||
@@ -12219,6 +12264,64 @@ function departmentAssigneeOptionsHtml(inputName = 'executor_departments', selec
   `).join('')
 }
 
+
+function splitDepartmentNoteValue(value = '') {
+  return String(value || '')
+    .split(/[、,，]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function getScheduleExecutorDepartments(row = {}) {
+  const explicit = splitDepartmentNoteValue(getFieldNoteValue(row, '指派部門') || getFieldNoteValue(row, '執行部門'))
+  if (explicit.length) return explicit
+
+  const selectedIds = new Set(getAssigneeIds(row))
+  if (!selectedIds.size) return []
+
+  const selectedStaff = staffList.filter(staff => selectedIds.has(staff.staff_id))
+  const departments = [...new Set(selectedStaff.map(staff => staff.department_name).filter(Boolean))]
+
+  return departments.filter(dept => {
+    const deptStaffIds = getAssignableStaffRows()
+      .filter(staff => staff.department_name === dept)
+      .map(staff => staff.staff_id)
+    return deptStaffIds.length && deptStaffIds.every(staffId => selectedIds.has(staffId))
+  })
+}
+
+function getFieldStaffRowsForEdit(row = {}) {
+  const selectedIds = new Set(getAssigneeIds(row))
+  const map = new Map()
+
+  getFieldStaffRows().forEach(staff => map.set(staff.staff_id, staff))
+  getFieldBaseStaffRows().forEach(staff => {
+    if (selectedIds.has(staff.staff_id)) map.set(staff.staff_id, staff)
+  })
+  staffList.forEach(staff => {
+    if (selectedIds.has(staff.staff_id)) map.set(staff.staff_id, staff)
+  })
+
+  return [...map.values()].sort((a, b) => {
+    if (selectedIds.has(a.staff_id) !== selectedIds.has(b.staff_id)) return selectedIds.has(a.staff_id) ? -1 : 1
+    const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+    if (deptCompare !== 0) return deptCompare
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+  })
+}
+
+function getMeetingParticipantStaffIdsFromNote(row = {}) {
+  const names = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
+    .split(/[、,，]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  return staffList
+    .filter(staff => names.includes(staff.name))
+    .map(staff => staff.staff_id)
+}
+
+
 function getStaffIdsFromAssigneeDepartments(departments = []) {
   const selected = new Set((departments || []).map(item => String(item || '').trim()).filter(Boolean))
   if (!selected.size) return []
@@ -13321,6 +13424,14 @@ function getMeetingReserverName(row = {}) {
 
 function getMeetingParticipantStaffIds(row = {}) {
   const reserverStaffId = getMeetingAssigneeStaffId(row)
+  const fromAssignees = (row.schedule_assignees || [])
+    .filter(item => item.staff_id && !item.deleted_at)
+    .map(item => item.staff_id)
+    .filter(staffId => staffId !== reserverStaffId)
+
+  return [...new Set([...fromAssignees, ...getMeetingParticipantStaffIdsFromNote(row)])]
+}) {
+  const reserverStaffId = getMeetingAssigneeStaffId(row)
   return [...new Set((row.schedule_assignees || [])
     .filter(item => item.staff_id && !item.deleted_at)
     .map(item => item.staff_id)
@@ -13816,9 +13927,10 @@ async function saveFieldSchedule(event, modal) {
 /* FOR-e V002-1I-2 END - field schedule add form */
 
 
-function openScheduleModal() {
+function openScheduleModal(defaults = {}) {
   if (!canCreateForCurrentPage()) return denyPermission('你的角色沒有新增此類行程的權限。')
-  const defaultStaffId = currentProfile.staff_id || ''
+  const defaultStaffId = defaults.staffId || currentProfile.staff_id || ''
+  const defaultDate = defaults.date || todayString()
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
   const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
@@ -13873,12 +13985,12 @@ function openScheduleModal() {
 
             <label>
               開始日期
-              <input name="start_date" type="date" required value="${todayString()}">
+              <input name="start_date" type="date" required value="${defaultDate}">
             </label>
 
             <label class="hidden" id="endDateBlock">
               結束日期
-              <input name="end_date" type="date" value="${todayString()}">
+              <input name="end_date" type="date" value="${defaultDate}">
             </label>
 
             <label class="hidden" id="monthlyDayBlock">
@@ -15110,7 +15222,7 @@ function openEditScheduleModal(scheduleId) {
 
         <div class="span-2 department-assignee-box hidden" id="editMeetingDepartmentAssigneeBlock">
           <div class="field-title">選擇部門</div>
-          <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('edit_executor_departments')}</div>
+          <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('edit_executor_departments', getScheduleExecutorDepartments(row))}</div>
           <p class="field-hint">適用會議 / 活動 / 外訓，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
         </div>
 
@@ -15255,7 +15367,11 @@ async function saveEditedSchedule(event, modal, originalRow) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     editScheduleType = form.get('edit_leave_meeting_type') || '請假'
     editSubType = editScheduleType
-    editSubTypeNote = buildRepeatNote(form)
+    const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
+    editSubTypeNote = [
+      buildRepeatNote(form),
+      selectedDepartments.length ? `指派部門：${selectedDepartments.join('、')}` : ''
+    ].filter(Boolean).join('｜') || null
   }
 
   if (category === '證件交付') {
@@ -15391,6 +15507,8 @@ async function saveSchedule(event, modal) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     scheduleType = form.get('leave_meeting_type') || '請假'
     subType = scheduleType
+    const selectedDepartments = form.getAll('executor_departments').filter(Boolean)
+    if (selectedDepartments.length) subTypeNoteParts.push(`指派部門：${selectedDepartments.join('、')}`)
     if (getSelectedProxyName()) subTypeNoteParts.push(`代理人：${getSelectedProxyName()}`)
   }
 
@@ -17152,3 +17270,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 實際權限修正需執行 supabase/sql/v002-1p-97-schedules-permission.sql
 */
 /* FOR-e V002-1P-97 END - schedule insert permission notice */
+
+/* FOR-e V002-1P-98 START - reminder defaults edit stats */
+/*
+  V002-1P-98｜個人頁提醒、預設帶入、修改勾選與統計排除
+  - 服務紀錄單提醒只顯示目前仍需要繳交服務紀錄單的有效行程
+  - 行程總覽雙擊人員日期格新增行程時，自動帶入該日期與該人員
+  - 修改一般行程、會議室、外務行程時，已勾選人員 / 部門會保留
+  - 個人行程表新增「今日會議」統計卡
+  - 統計報表排除一般記事、待辦事項、請假 / 會議 / 活動 / 外訓、證件交付等個人性事項
+*/
+/* FOR-e V002-1P-98 END - reminder defaults edit stats */
