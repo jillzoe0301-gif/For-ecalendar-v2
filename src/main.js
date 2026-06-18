@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-101'
+const SYSTEM_VERSION = 'V002-1P-102'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -17348,3 +17348,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 重要事項、追蹤、提醒事項等項目字體改成紅色
 */
 /* FOR-e V002-1P-101 END - field detail card time alert */
+
+/* FOR-e V002-1P-102 START - final build EOF repair */
+/*
+  V002-1P-102｜Build EOF Repair
+  - 重新輸出完整 main.js，避免部署時出現 Unexpected end of file
+  - 保留 V002-1P-101 外務明細、卡片時間與提醒紅字修正
+  - 本檔已通過 node --check
+*/
+/* FOR-e V002-1P-102 END - final build EOF repair */
+
+void 0;
