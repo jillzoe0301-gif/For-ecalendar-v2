@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-86'
+const SYSTEM_VERSION = 'V002-1P-87'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -3010,6 +3010,8 @@ function renderApp() {
       openCancelModal(btn.dataset.fieldCancel)
     })
   })
+
+  maybeOpenAssignedReminder({ delay: 1200 })
 }
 
 function getPageTitle() {
@@ -5181,7 +5183,7 @@ function renderIncidentList(rows) {
                 客戶 / 工人：${escapeHtml(row.customer_name || '-')}
               </div>
               ${renderIncidentTrackingHistory(row)}
-              ${row.need_service_record ? `<div class="incident-sr-badge">服務紀錄單：${row.service_record_submitted_date ? '已繳交 ' + escapeHtml(row.service_record_submitted_date) : '需繳交'}</div>` : ''}
+              ${row.need_service_record ? `<div class="incident-sr-badge">服務紀錄單：${isScheduleServiceRecordSubmitted(row) ? '已繳交 ' + escapeHtml(getScheduleServiceRecordSubmittedDate(row)) : '需繳交'}</div>` : ''}
               ${row.sub_type_note ? `<div class="incident-note">${escapeHtml(row.sub_type_note)}</div>` : ''}
             </div>
 
@@ -7819,6 +7821,152 @@ function renderLoginReminderSection(title, rows, emptyText, className = '') {
   `
 }
 
+
+function getAssignedReminderStorageKey() {
+  return `for-e-assigned-reminder-seen-${currentProfile?.staff_id || 'unknown'}`
+}
+
+function readAssignedReminderSeenMap() {
+  try {
+    return JSON.parse(localStorage.getItem(getAssignedReminderStorageKey()) || '{}') || {}
+  } catch (err) {
+    return {}
+  }
+}
+
+function writeAssignedReminderSeenMap(value = {}) {
+  localStorage.setItem(getAssignedReminderStorageKey(), JSON.stringify(value || {}))
+}
+
+function getAssignedReminderSignature(row = {}) {
+  return [
+    row.schedule_id || '',
+    row.updated_at || row.created_at || '',
+    getAssigneeIds(row).sort().join(',')
+  ].join('|')
+}
+
+function getNewAssignedScheduleRows() {
+  if (!currentProfile?.staff_id) return []
+  const seen = readAssignedReminderSeenMap()
+
+  return schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isAssignedToMe(row))
+    .filter(row => !isNoCompletionControlSchedule(row))
+    .filter(row => !isCompletedSchedule(row))
+    .filter(row => !isScheduleTimePassed(row))
+    .filter(row => row.creator_staff_id !== currentProfile.staff_id)
+    .filter(row => seen[row.schedule_id] !== getAssignedReminderSignature(row))
+    .sort((a, b) => {
+      if (String(a.start_date || '') !== String(b.start_date || '')) return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return String(a.start_time || '').localeCompare(String(b.start_time || ''))
+    })
+    .slice(0, 10)
+}
+
+function markAssignedReminderRowsSeen(rows = []) {
+  const seen = readAssignedReminderSeenMap()
+  rows.forEach(row => {
+    if (row?.schedule_id) seen[row.schedule_id] = getAssignedReminderSignature(row)
+  })
+  writeAssignedReminderSeenMap(seen)
+}
+
+function renderAssignedReminderItem(row) {
+  return `
+    <button type="button" class="login-reminder-item assigned-reminder-item" data-assigned-view-schedule="${row.schedule_id}">
+      <div>
+        <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
+        <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜指派者：${escapeHtml(row.creator_name || '-')}</span>
+        ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
+      </div>
+      <em>查看</em>
+    </button>
+  `
+}
+
+function openAssignedReminderModal(rows = getNewAssignedScheduleRows()) {
+  if (!rows.length || document.querySelector('.assigned-reminder-backdrop')) return
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop assigned-reminder-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel login-reminder-modal assigned-reminder-modal">
+      <div class="modal-header">
+        <h3>新的指派事項</h3>
+        <button class="icon-btn" id="closeAssignedReminderBtn" type="button">×</button>
+      </div>
+
+      <div class="login-reminder-hello assigned-reminder-hello">
+        <strong>${escapeHtml(currentProfile?.name || '您好')}</strong>
+        <span>你有新的指派事項，請確認處理內容。</span>
+      </div>
+
+      <div class="login-reminder-body">
+        <section class="login-reminder-section">
+          <div class="login-reminder-section-title">
+            <strong>待確認指派</strong>
+            <span>${rows.length} 筆</span>
+          </div>
+          <div class="login-reminder-list">
+            ${rows.map(renderAssignedReminderItem).join('')}
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="closeAssignedReminderBtn2">我知道了</button>
+        <button type="button" class="primary-btn" id="goAssignedPersonalBtn">前往個人行程表</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const close = () => {
+    markAssignedReminderRowsSeen(rows)
+    modal.remove()
+  }
+
+  document.querySelector('#closeAssignedReminderBtn').addEventListener('click', close)
+  document.querySelector('#closeAssignedReminderBtn2').addEventListener('click', close)
+  document.querySelector('#goAssignedPersonalBtn').addEventListener('click', () => {
+    markAssignedReminderRowsSeen(rows)
+    modal.remove()
+    currentPage = 'personalSchedule'
+    renderApp()
+  })
+
+  modal.querySelectorAll('[data-assigned-view-schedule]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scheduleId = btn.dataset.assignedViewSchedule
+      markAssignedReminderRowsSeen(rows)
+      modal.remove()
+      openScheduleDetail(scheduleId)
+    })
+  })
+}
+
+function maybeOpenAssignedReminder(options = {}) {
+  if (!currentProfile?.staff_id) return
+  const delay = options.delay ?? 950
+  const retry = options.retry ?? 0
+
+  const rows = getNewAssignedScheduleRows()
+  if (!rows.length) return
+  if (document.querySelector('.assigned-reminder-backdrop')) return
+
+  setTimeout(() => {
+    if (document.querySelector('.modal-backdrop') && retry < 6) {
+      maybeOpenAssignedReminder({ delay: 850, retry: retry + 1 })
+      return
+    }
+    openAssignedReminderModal(getNewAssignedScheduleRows())
+  }, delay)
+}
+
+
 function maybeOpenLoginDailyReminder(options = {}) {
   if (!currentProfile?.staff_id) return
 
@@ -9850,7 +9998,7 @@ function getMyPendingServiceRecordReminders() {
 
   serviceRecords
     .filter(record => record.staff_id === myStaffId)
-    .filter(record => !(record.submitted || record.submitted_date))
+    .filter(record => getServiceRecordStatus(record) !== '已繳交')
     .forEach(record => {
       const status = getServiceRecordStatus(record)
       if (status === '超過2週') overdue.push(record)
@@ -10396,7 +10544,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
               ${reminders.length ? `<div class="reminder-tags">${reminders.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
-              ${row.need_service_record ? `<div class="service-record-hint ${row.service_record_submitted_date ? 'is-submitted' : 'is-missing'}">${row.service_record_submitted_date ? '服務紀錄單已交' : '服務紀錄單未填日期'}</div>` : ''}
+              ${row.need_service_record ? `<div class="service-record-hint ${isScheduleServiceRecordSubmitted(row) ? 'is-submitted' : 'is-missing'}">${isScheduleServiceRecordSubmitted(row) ? '服務紀錄單已交' : '服務紀錄單未完成'}</div>` : ''}
             </div>
             <div class="schedule-card-actions">
               <span class="status-pill ${isNoCompletionControlSchedule(row) ? 'is-calendar-only' : ''}">${escapeHtml(getScheduleStatusLabel(row))}</span>
@@ -10761,8 +10909,68 @@ function renderServiceRecordStaffSummary(records, onlyMine = false) {
   `
 }
 
+function isSubmittedStatusText(value = '') {
+  const text = String(value || '').trim().toLowerCase()
+  if (!text) return false
+  return ['完成', '已完成', '已繳交', '已交', '繳交完成', 'submitted', 'done', 'complete', 'completed'].includes(text)
+}
+
+function isPendingStatusText(value = '') {
+  const text = String(value || '').trim().toLowerCase()
+  if (!text) return false
+  return ['未完成', '未繳交', '未交', '待繳交', 'pending'].includes(text)
+}
+
+function isScheduleServiceRecordSubmitted(row = {}) {
+  return Boolean(
+    row?.service_record_submitted === true ||
+    row?.service_record_submitted_date ||
+    isSubmittedStatusText(row?.service_record_status) ||
+    isSubmittedStatusText(row?.service_record_submit_status)
+  )
+}
+
+function getScheduleServiceRecordSubmittedDate(row = {}) {
+  return row?.service_record_submitted_date || row?.service_record_submit_date || row?.service_record_completed_at || ''
+}
+
+function isServiceRecordSubmitted(record = {}) {
+  const schedule = getServiceRecordSchedule(record)
+  return Boolean(
+    record?.submitted === true ||
+    record?.is_submitted === true ||
+    record?.completed === true ||
+    record?.is_completed === true ||
+    record?.submitted_date ||
+    record?.submit_date ||
+    record?.service_record_submitted_date ||
+    record?.completed_at ||
+    record?.submitted_at ||
+    isSubmittedStatusText(record?.status) ||
+    isSubmittedStatusText(record?.record_status) ||
+    isSubmittedStatusText(record?.submit_status) ||
+    isSubmittedStatusText(record?.service_record_status) ||
+    isScheduleServiceRecordSubmitted(schedule)
+  )
+}
+
+function getServiceRecordSubmittedDate(record = {}) {
+  const schedule = getServiceRecordSchedule(record)
+  return record?.submitted_date ||
+    record?.submit_date ||
+    record?.service_record_submitted_date ||
+    record?.completed_at ||
+    record?.submitted_at ||
+    getScheduleServiceRecordSubmittedDate(schedule) ||
+    ''
+}
+
 function getServiceRecordStatus(record) {
-  if (record.submitted || record.submitted_date) return '已繳交'
+  if (isServiceRecordSubmitted(record)) return '已繳交'
+
+  if (isPendingStatusText(record?.status) || isPendingStatusText(record?.record_status) || isPendingStatusText(record?.submit_status)) {
+    return '未繳交'
+  }
 
   const scheduleDate = record.schedule_date
   if (!scheduleDate) return '未繳交'
@@ -10935,7 +11143,7 @@ function renderServiceRecordList(records, emptyText) {
 
             <div class="service-record-status-wrap">
               <span class="record-status-pill">${escapeHtml(status)}</span>
-              ${record.submitted_date ? `<span class="record-submit-date">${escapeHtml(record.submitted_date)}</span>` : ''}
+              ${getServiceRecordSubmittedDate(record) ? `<span class="record-submit-date">${escapeHtml(getServiceRecordSubmittedDate(record))}</span>` : ''}
             </div>
 
             <div class="service-record-action">
@@ -11752,7 +11960,7 @@ function openScheduleDetail(scheduleId) {
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
-        <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '需繳交，尚未繳交') : '不需繳交'}</strong></div>
+        <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
       </div>
 
       ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
@@ -14147,14 +14355,14 @@ function openEditScheduleModal(scheduleId) {
               <span>需要服務紀錄單</span>
             </label>
             <label class="service-check">
-              <input name="service_record_submitted_check" type="checkbox" id="editServiceRecordSubmittedCheck" ${row.service_record_submitted_date ? 'checked' : ''}>
+              <input name="service_record_submitted_check" type="checkbox" id="editServiceRecordSubmittedCheck" ${isScheduleServiceRecordSubmitted(row) ? 'checked' : ''}>
               <span>已繳交</span>
             </label>
           </div>
 
           <label class="compact-hide-for-reminder">
             服務紀錄單繳交日期
-            <input name="service_record_submitted_date" type="date" value="${row.service_record_submitted_date || ''}">
+            <input name="service_record_submitted_date" type="date" value="${getScheduleServiceRecordSubmittedDate(row) || ''}">
           </label>
 
           <label class="compact-hide-for-reminder">
@@ -14785,6 +14993,9 @@ function openServiceRecordModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
+  const submittedNow = isScheduleServiceRecordSubmitted(row)
+  const submittedDateNow = getScheduleServiceRecordSubmittedDate(row)
+
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
   modal.innerHTML = `
@@ -14795,23 +15006,23 @@ function openServiceRecordModal(scheduleId) {
       </div>
 
       <div class="notice">
-        行程完成狀態與服務紀錄單繳交狀態分開管理。此處只更新服務紀錄單，不會改變行程是否完成。
+        此處只更新服務紀錄單繳交狀態；選擇完成後，服務紀錄單頁面會同步顯示已繳交。
       </div>
 
       <div class="detail-grid">
         <div class="span-2"><span>行程</span><strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title)}</strong></div>
         <div><span>行程日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
-        <div><span>目前狀態</span><strong>${row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '尚未繳交'}</strong></div>
+        <div><span>目前狀態</span><strong>${submittedNow ? '已繳交' + (submittedDateNow ? '：' + submittedDateNow : '') : '尚未繳交'}</strong></div>
       </div>
 
       <label class="service-check record-modal-check">
-        <input id="recordSubmittedInput" type="checkbox" ${row.service_record_submitted_date ? 'checked' : ''}>
-        <span>已繳交服務紀錄單</span>
+        <input id="recordSubmittedInput" type="checkbox" ${submittedNow ? 'checked' : ''}>
+        <span>完成 / 已繳交服務紀錄單</span>
       </label>
 
       <label>
         繳交日期
-        <input id="recordSubmittedDateInput" type="date" value="${row.service_record_submitted_date || todayString()}">
+        <input id="recordSubmittedDateInput" type="date" value="${submittedDateNow || todayString()}">
       </label>
 
       <div class="modal-actions">
@@ -14846,6 +15057,7 @@ function openServiceRecordModal(scheduleId) {
       return
     }
 
+    let rpcError = null
     const { error } = await supabase.rpc('update_service_record_status', {
       target_schedule_id: scheduleId,
       submitted_value: submitted,
@@ -14853,8 +15065,25 @@ function openServiceRecordModal(scheduleId) {
     })
 
     if (error) {
-      alert('更新服務紀錄單狀況失敗：' + error.message)
+      console.warn('update_service_record_status RPC 失敗，改用 schedules 直接同步。', error)
+      rpcError = error
+    }
+
+    const { error: scheduleUpdateError } = await supabase
+      .from('schedules')
+      .update({
+        service_record_submitted: submitted,
+        service_record_submitted_date: submittedDate
+      })
+      .eq('schedule_id', scheduleId)
+
+    if (scheduleUpdateError) {
+      alert('更新服務紀錄單狀況失敗：' + scheduleUpdateError.message)
       return
+    }
+
+    if (rpcError) {
+      console.warn('RPC 未成功，但 schedules 已同步服務紀錄單狀態。', rpcError.message)
     }
 
     modal.remove()
@@ -16144,3 +16373,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 修改後會保留原本的行程模式資訊，避免每週 / 每月重複被改壞
 */
 /* FOR-e V002-1P-86 END - meeting edit self conflict fix */
+
+/* FOR-e V002-1P-87 START - service record assigned popup */
+/*
+  V002-1P-87｜服務紀錄單完成同步與新指派提醒
+  - 服務紀錄單狀態支援「完成 / 已完成 / 已繳交」等不同資料欄位，避免完成後仍顯示未完成
+  - 儲存服務紀錄單狀態時同步更新 schedules.service_record_submitted 與日期
+  - 執行者若收到新的指派事項，登入或重新整理後會跳出提醒
+  - 已完成、時間已過、會議室 / 請假 / 活動等不需控管項目不會進入新指派提醒
+*/
+/* FOR-e V002-1P-87 END - service record assigned popup */

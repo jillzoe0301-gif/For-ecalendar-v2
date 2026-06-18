@@ -12491,3 +12491,24 @@ body {
   font-weight: 850;
 }
 /* FOR-e V002-1P-84 END - login daily popup restored style */
+
+/* FOR-e V002-1P-87 START - service record assigned popup */
+.assigned-reminder-backdrop .assigned-reminder-modal {
+  max-width: 620px;
+}
+
+.assigned-reminder-hello {
+  background: #eef5ff;
+  border: 1px solid #c7d2fe;
+}
+
+.assigned-reminder-item em {
+  color: #3155d4;
+}
+
+.service-record-hint.is-submitted {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #86efac !important;
+}
+/* FOR-e V002-1P-87 END - service record assigned popup */
