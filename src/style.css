@@ -13124,3 +13124,38 @@ body {
   text-align: left !important;
 }
 /* FOR-e V002-1P-106 END - birthday calendar public leave */
+
+/* FOR-e V002-1P-107 START - cake holidays leave bg */
+/* 生日提醒改用 CAKE 圖示 */
+.birthday-card-icon {
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain !important;
+}
+
+/* 個人請假 / 休假日背景與假日一致 */
+.week-day-cell.is-personal-leave-day {
+  background: #eef5ff !important;
+}
+
+.week-day-cell.is-personal-leave-day.is-today {
+  background: #e0f2fe !important;
+}
+
+/* 請假 / 休假日格保留今日藍框 */
+.week-day-cell.is-personal-leave-day.is-today {
+  box-shadow: inset 0 0 0 2px #5170ff !important;
+}
+
+/* 生日卡搭配 CAKE icon 左對齊 */
+.birthday-card,
+.field-birthday-card {
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
+.birthday-card *,
+.field-birthday-card * {
+  text-align: left !important;
+}
+/* FOR-e V002-1P-107 END - cake holidays leave bg */

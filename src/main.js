@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-106'
+const SYSTEM_VERSION = 'V002-1P-107'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -143,24 +143,27 @@ const holidayMaps = {
   2026: {
     tw: {
       '2026-01-01': ['元旦'],
+      '2026-02-15': ['小年夜'],
       '2026-02-16': ['除夕'],
       '2026-02-17': ['春節'],
       '2026-02-18': ['春節'],
       '2026-02-19': ['春節'],
-      '2026-02-20': ['春節'],
-      '2026-02-27': ['和平紀念日補假'],
+      '2026-02-20': ['春節補休'],
+      '2026-02-27': ['和平紀念日補休'],
       '2026-02-28': ['和平紀念日'],
-      '2026-04-03': ['兒童節補假'],
+      '2026-04-03': ['兒童節補休'],
       '2026-04-04': ['兒童節'],
       '2026-04-05': ['清明節'],
-      '2026-04-06': ['清明節補假'],
+      '2026-04-06': ['清明節補休'],
       '2026-05-01': ['勞動節'],
       '2026-06-19': ['端午節'],
       '2026-09-25': ['中秋節'],
       '2026-09-28': ['教師節'],
+      '2026-10-09': ['國慶日補休'],
       '2026-10-10': ['國慶日'],
       '2026-10-25': ['臺灣光復節'],
-      '2026-10-26': ['臺灣光復節補假']
+      '2026-10-26': ['臺灣光復節補休'],
+      '2026-12-25': ['行憲紀念日']
     },
     th: {
       '2026-01-01': ['泰國：元旦'],
@@ -978,6 +981,7 @@ function isCancelledSchedule(row) {
 
 
 function isPersonalPrivateSchedule(row = {}) {
+  if (isPublicLeaveMeetingActivitySchedule(row)) return false
   return ['一般記事', '待辦事項'].includes(row?.category)
 }
 
@@ -1131,7 +1135,7 @@ function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview')
   const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
   return `
     <div class="${className}" title="${escapeHtml(staff.name || '')} 生日">
-      <img src="/icons/happy-birthday.png" alt="" class="birthday-card-icon">
+      <img src="/icons/cake.png" alt="" class="birthday-card-icon">
       <div>
         <strong>生日</strong>
         <span>${escapeHtml(staff.name || '-')}</span>
@@ -1145,6 +1149,24 @@ function isPublicLeaveMeetingActivitySchedule(row = {}) {
   const text = [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
   return ['請假', '休假', '會議', '活動', '外訓', '公司活動', '部門活動'].some(keyword => text.includes(keyword))
 }
+
+
+function isPersonalLeaveOrRestSchedule(row = {}) {
+  if (row.category !== '請假 / 會議 / 活動 / 外訓') return false
+  const text = [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
+  return ['請假', '休假'].some(keyword => text.includes(keyword))
+}
+
+function hasStaffLeaveOrRestOnDate(staffId = '', dateKey = '') {
+  if (!staffId || !dateKey) return false
+  return schedules.some(row => {
+    if (!isVisibleSchedule(row)) return false
+    if (!isPersonalLeaveOrRestSchedule(row)) return false
+    if (!scheduleMatchesDateByMode(row, dateKey)) return false
+    return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+  })
+}
+
 
 
 function parseTimeForEdit(value, fallbackHour = '09', fallbackMinute = '00') {
@@ -10761,7 +10783,8 @@ function renderScheduleOverview() {
                 const key = toDateKey(date)
                 const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
                 const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
                   ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
                 </td>`
               }).join('')}
@@ -17399,3 +17422,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 需先執行 supabase/sql/v002-1p-106-add-staff-birthday.sql 建立 birthday 欄位
 */
 /* FOR-e V002-1P-106 END - birthday calendar public leave */
+
+/* FOR-e V002-1P-107 START - cake holidays leave bg */
+/*
+  V002-1P-107｜CAKE 生日圖示、台灣補休、請假背景
+  - 人員生日卡改用 /icons/cake.png
+  - 台灣 2026 休假 / 節日補入補休：春節補休、和平紀念日補休、兒童節補休、清明節補休、國慶日補休、臺灣光復節補休、行憲紀念日
+  - 行程總覽中個人請假 / 休假日格背景套用與假日相同的淡藍色
+*/
+/* FOR-e V002-1P-107 END - cake holidays leave bg */
