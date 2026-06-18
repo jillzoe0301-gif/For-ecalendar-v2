@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-99'
+const SYSTEM_VERSION = 'V002-1P-100'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -13428,12 +13428,6 @@ function getMeetingParticipantStaffIds(row = {}) {
     .filter(staffId => staffId !== reserverStaffId)
 
   return [...new Set([...fromAssignees, ...getMeetingParticipantStaffIdsFromNote(row)])]
-}) {
-  const reserverStaffId = getMeetingAssigneeStaffId(row)
-  return [...new Set((row.schedule_assignees || [])
-    .filter(item => item.staff_id && !item.deleted_at)
-    .map(item => item.staff_id)
-    .filter(staffId => staffId !== reserverStaffId))]
 }
 
 function getMeetingParticipantStaffNames(row = {}) {
@@ -17288,3 +17282,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 已重新整理 isScheduleServiceRecordSubmitted / isScheduleNeedServiceRecord / isValidPendingServiceRecord 順序
 */
 /* FOR-e V002-1P-99 END - build syntax repair */
+
+/* FOR-e V002-1P-100 START - build syntax repair */
+/*
+  V002-1P-100｜Build Syntax Repair
+  - 修正 main.js:13431 Unexpected ")"
+  - 移除 getMeetingParticipantStaffIds 後方殘留的重複函式片段
+  - 保留 V002-1P-98 / V002-1P-99 的功能修正
+*/
+/* FOR-e V002-1P-100 END - build syntax repair */
