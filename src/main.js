@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-110'
+const SYSTEM_VERSION = 'V002-1P-111'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7961,6 +7961,7 @@ function exportCurrentPageCsv(filterOptions = null) {
 
 function getLoginDailyReminderRows() {
   const today = todayString()
+  const birthdayRows = getTodayBirthdayRows()
   const activeTodayRows = schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMine(row))
@@ -7985,6 +7986,7 @@ function getLoginDailyReminderRows() {
     .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
 
   return {
+    birthdayRows,
     todaySchedules,
     todayTodos,
     overdueTasks: [],
@@ -8181,7 +8183,7 @@ function maybeOpenLoginDailyReminder(options = {}) {
   if (!force && sessionStorage.getItem(key) === 'shown') return
 
   const groups = getLoginDailyReminderRows()
-  const total = groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
+  const total = (groups.birthdayRows?.length || 0) + groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
 
   if (!total) {
     if (!force) sessionStorage.setItem(key, 'shown')
@@ -8203,23 +8205,24 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
   modal.innerHTML = `
     <div class="modal-panel login-reminder-modal">
       <div class="modal-header">
-        <h3>今日待辦提醒</h3>
+        <h3>今日提醒</h3>
         <button class="icon-btn" data-close-login-reminder type="button" aria-label="關閉">×</button>
       </div>
 
       <div class="login-reminder-hello">
         <strong>${escapeHtml(currentProfile?.name || '您好')}</strong>
-        <span>${todayString()}｜今天尚未完成、尚未過時間的待辦與行程</span>
+        <span>${todayString()}｜生日、待辦、提醒與今日行程</span>
       </div>
 
       <div class="login-reminder-summary">
+        <div><strong>${groups.birthdayRows?.length || 0}</strong><span>生日</span></div>
         <div><strong>${groups.todayTodos.length}</strong><span>今日待辦</span></div>
         <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
-        <div><strong>${groups.reminderRows.length}</strong><span>待確認 / 待通知</span></div>
-        <div><strong>${groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
+        <div><strong>${(groups.birthdayRows?.length || 0) + groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
       </div>
 
       <div class="login-reminder-body">
+        ${renderLoginBirthdayReminderSection(groups.birthdayRows || [])}
         ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有待處理待辦。')}
         ${renderLoginReminderSection('待確認 / 待通知提醒', groups.reminderRows, '目前沒有待確認 / 待通知提醒。')}
         ${renderLoginReminderSection('今日行程', groups.todaySchedules, '今天沒有待處理行程。')}
@@ -10499,6 +10502,92 @@ function getOverviewViewModeTableClass(viewMode = getOverviewViewMode()) {
   return 'is-all-week'
 }
 
+
+function getMonthCalendarGridDates(monthDates = []) {
+  if (!monthDates.length) return []
+  const first = new Date(monthDates[0])
+  const start = new Date(first)
+  const leadingDays = first.getDay() === 0 ? 6 : first.getDay() - 1
+  start.setDate(start.getDate() - leadingDays)
+
+  const last = new Date(monthDates[monthDates.length - 1])
+  const end = new Date(last)
+  const trailingDays = last.getDay() === 0 ? 0 : 7 - last.getDay()
+  end.setDate(end.getDate() + trailingDays)
+
+  const dates = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    dates.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return dates
+}
+
+function renderPersonalMonthOverview(staff, monthDates = [], todayKey = todayString()) {
+  if (!staff || !monthDates.length) return '<div class="empty-state">目前沒有可顯示的個人當月行程。</div>'
+
+  const monthKey = toDateKey(monthDates[0]).slice(0, 7)
+  const gridDates = getMonthCalendarGridDates(monthDates)
+  const weekLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+
+  return `
+    <div class="personal-month-calendar">
+      <div class="personal-month-calendar-head">
+        ${weekLabels.map(label => `<div>${label}</div>`).join('')}
+      </div>
+
+      <div class="personal-month-calendar-grid">
+        ${gridDates.map(date => {
+          const key = toDateKey(date)
+          const inMonth = key.slice(0, 7) === monthKey
+          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+
+          const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+          const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+          const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+          const holiday = isTaiwanHoliday(date)
+
+          return `
+            <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${holiday ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+              <div class="month-day-header">
+                <strong>${Number(key.slice(8, 10))}</strong>
+                ${renderHolidayLabels(key)}
+              </div>
+              ${birthdayCard}
+              ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
+            </div>
+          `
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
+function getTodayBirthdayRows() {
+  const today = todayString()
+  return staffList
+    .filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .filter(staff => isStaffBirthdayOnDate(staff, today))
+}
+
+function renderLoginBirthdayReminderSection(rows = []) {
+  if (!rows.length) return ''
+
+  return `
+    <section class="login-birthday-reminder">
+      <div class="login-birthday-card">
+        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
+        <div>
+          <strong>HappyBirthday ❤</strong>
+          <span>今天有 ${rows.length} 位同仁生日</span>
+        </div>
+      </div>
+    </section>
+  `
+}
+
+
 function isLeaveMeetingActivityTrainingSchedule(row = {}) {
   return isPublicLeaveMeetingActivitySchedule(row)
 }
@@ -10819,7 +10908,7 @@ function renderScheduleOverview() {
 
     ${renderReadStatus()}
 
-    <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact">
+    <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact no-wrap-filter-panel">
       <div class="overview-filter-compact-row">
         <label class="compact-sort-select compact-filter-control">
           <span class="compact-field-label">檢視範圍</span>
@@ -10866,43 +10955,45 @@ function renderScheduleOverview() {
       </div>
     </form>
 
-    <div class="week-overview-scroll">
-      <table class="week-overview-table ${tableClass}">
-        <thead>
-          <tr>
-            <th class="staff-col">人員</th>
-            ${weekDates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
-            }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${staffRows.map(staff => `
+    ${viewMode === '個人當月' ? renderPersonalMonthOverview(staffRows[0], weekDates, todayKey) : `
+      <div class="week-overview-scroll">
+        <table class="week-overview-table ${tableClass}">
+          <thead>
             <tr>
-              <th class="staff-name-cell">
-                <strong>${escapeHtml(staff.name)}</strong>
-                <span>${escapeHtml(staff.department_name || '')}</span>
-              </th>
+              <th class="staff-col">人員</th>
               ${weekDates.map(date => {
                 const key = toDateKey(date)
-                const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
-                const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-                const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-                  ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
-                </td>`
+                const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+                return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                  <span>${weekName}</span>
+                  <strong>${key.slice(5)}</strong>
+                  ${renderHolidayLabels(key)}
+                </th>`
               }).join('')}
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            ${staffRows.map(staff => `
+              <tr>
+                <th class="staff-name-cell">
+                  <strong>${escapeHtml(staff.name)}</strong>
+                  <span>${escapeHtml(staff.department_name || '')}</span>
+                </th>
+                ${weekDates.map(date => {
+                  const key = toDateKey(date)
+                  const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+                  const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+                  const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                  return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                    ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
+                  </td>`
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `}
 
     ${!staffRows.length ? '<div class="empty-state">目前沒有可顯示的人員。</div>' : ''}
   `
@@ -17571,3 +17662,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留 V002-1P-108 / V002-1P-109 的生日卡 HappyBirthday ❤ 與月日生日格式
 */
 /* FOR-e V002-1P-110 END - overview personal periods auto close */
+
+/* FOR-e V002-1P-111 START - overview month calendar birthday login */
+/*
+  V002-1P-111｜行程總覽個人當月月曆與登入生日提醒
+  - 行程總覽上方選擇欄位不跨行，改橫向捲動
+  - 個人當月改成月曆格狀呈現
+  - 登入後今日提醒最上方加入生日提醒：HappyBirthday ❤ / 今天有 N 位同仁生日
+*/
+/* FOR-e V002-1P-111 END - overview month calendar birthday login */
