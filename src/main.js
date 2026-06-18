@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-92'
+const SYSTEM_VERSION = 'V002-1P-93'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1202,17 +1202,62 @@ function renderBrandLogo(kind = 'horizontal') {
   return `<img class="brand-logo-img ${kind === 'icon' ? 'icon-logo' : ''} ${kind === 'square' ? 'square-logo' : ''}" src="${src}" alt="FOR-e">`
 }
 
+
+const rememberLoginStorageKey = 'for-e-remember-login-v001'
+
+function getRememberedLogin() {
+  try {
+    const raw = localStorage.getItem(rememberLoginStorageKey)
+    const data = raw ? JSON.parse(raw) : null
+    if (!data || data.remember !== true) return { remember: false, email: '', password: '' }
+    return {
+      remember: true,
+      email: String(data.email || ''),
+      password: String(data.password || '')
+    }
+  } catch (err) {
+    return { remember: false, email: '', password: '' }
+  }
+}
+
+function saveRememberedLogin(email = '', password = '', remember = false) {
+  try {
+    if (!remember) {
+      localStorage.removeItem(rememberLoginStorageKey)
+      return
+    }
+
+    localStorage.setItem(rememberLoginStorageKey, JSON.stringify({
+      remember: true,
+      email,
+      password,
+      saved_at: new Date().toISOString()
+    }))
+  } catch (err) {
+    console.warn('記住帳號密碼失敗', err)
+  }
+}
+
+
 function renderLogin() {
+  const rememberedLogin = getRememberedLogin()
+
   document.querySelector('#app').innerHTML = `
     <section class="login-page">
       <div class="login-card">
         <div class="login-brand">${renderBrandLogo('square')}</div>
         <h1>共享排程系統</h1>
+
         <label for="email">Email / 帳號</label>
-        <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" />
+        <input id="email" type="email" placeholder="請輸入 Email" autocomplete="email" value="${escapeHtml(rememberedLogin.email)}" />
 
         <label for="password">密碼</label>
-        <input id="password" type="password" placeholder="請輸入密碼" autocomplete="current-password" />
+        <input id="password" type="password" placeholder="請輸入密碼" autocomplete="current-password" value="${escapeHtml(rememberedLogin.password)}" />
+
+        <label class="remember-login-check">
+          <input id="rememberLoginCheck" type="checkbox" ${rememberedLogin.remember ? 'checked' : ''}>
+          <span>記住帳號及密碼</span>
+        </label>
 
         <button id="loginBtn">登入</button>
         <div id="errorText" class="error"></div>
@@ -1251,6 +1296,9 @@ async function login() {
     errorText.textContent = `登入失敗：${error.message}`
     return
   }
+
+  const remember = document.querySelector('#rememberLoginCheck')?.checked === true
+  saveRememberedLogin(email, password, remember)
 
   await loadProfile({ fromLogin: true, forceDailyReminder: true })
 }
@@ -13211,7 +13259,7 @@ function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {})
     department_id: staff.department_id || null,
     department_name: staff.department_name || '',
     position: staff.position || '',
-    assignee_type: staff.staff_id === reserverStaff.staff_id ? 'executor' : 'participant'
+    assignee_type: 'executor'
   }))
 }
 
@@ -16888,3 +16936,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 會議室卡片恢復顯示與會摘要
 */
 /* FOR-e V002-1P-92 END - restore meeting participants */
+
+/* FOR-e V002-1P-93 START - meeting assignee type and remember login */
+/*
+  V002-1P-93｜會議室與會人員同步與登入記住帳密
+  - 修正會議室新增後同步與會人員失敗：schedule_assignees_type_check
+  - 會議室與會人員寫入 schedule_assignees 時，assignee_type 一律使用資料庫允許的 executor
+  - 登入頁新增「記住帳號及密碼」勾選
+  - 勾選後會在本機瀏覽器記住 Email 與密碼，下次開啟登入頁會自動帶入
+*/
+/* FOR-e V002-1P-93 END - meeting assignee type and remember login */

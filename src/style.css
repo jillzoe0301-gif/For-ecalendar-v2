@@ -12740,3 +12740,30 @@ body {
   }
 }
 /* FOR-e V002-1P-92 END - restore meeting participants */
+
+/* FOR-e V002-1P-93 START - meeting assignee type and remember login */
+/* 登入頁：記住帳號及密碼 */
+.remember-login-check {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 12px 0 0 !important;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 850;
+  user-select: none;
+}
+
+.remember-login-check input {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  margin: 0 !important;
+  accent-color: var(--blue);
+}
+
+.remember-login-check span {
+  line-height: 1.3;
+}
+/* FOR-e V002-1P-93 END - meeting assignee type and remember login */
