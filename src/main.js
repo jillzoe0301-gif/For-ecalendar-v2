@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-80'
+const SYSTEM_VERSION = 'V002-1P-81'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4064,11 +4064,15 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
 }
 
 function renderMeetingRoomCard(row) {
+  const participantSummary = getMeetingParticipantSummary(row)
+  const reserverName = getMeetingReserverName(row)
+
   return `
     <button type="button" class="meeting-room-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
       <strong>${escapeHtml(row.title || '-')}</strong>
-      <span class="meeting-room-meta">預約人：${escapeHtml(getAssigneeNames(row) || row.creator_name || '-')}</span>
+      <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
+      ${participantSummary ? `<span class="meeting-room-meta">參與：${escapeHtml(participantSummary)}</span>` : ''}
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -4220,6 +4224,8 @@ function openMeetingRoomModal(defaults = {}) {
           </select>
         </label>
 
+        ${getMeetingParticipantFormHtml([], [])}
+
         <label class="span-2">
           內容 / 備註
           <textarea name="description" rows="3" placeholder="會議內容或備註"></textarea>
@@ -4274,6 +4280,13 @@ async function saveMeetingRoomSchedule(event, modal) {
       department_name: form.get('department') || currentProfile.department_name,
       position: currentProfile.position_name || currentProfile.position
     }
+    const participantDepartments = getSelectedMeetingDepartments(form)
+    const explicitParticipantStaffIds = getSelectedMeetingParticipantStaffIds(form)
+    const meetingAssigneeStaffIds = buildMeetingAssigneeStaffIds(reserverStaff.staff_id, participantDepartments, explicitParticipantStaffIds)
+    const participantStaffNames = getStaffRowsByIds(meetingAssigneeStaffIds)
+      .filter(staff => staff.staff_id !== reserverStaff.staff_id)
+      .map(staff => staff.name)
+      .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
 
@@ -4303,7 +4316,9 @@ async function saveMeetingRoomSchedule(event, modal) {
       sub_type_note: [
         buildRepeatNote(form),
         form.get('department') ? `部門：${form.get('department')}` : '',
-        reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
+        reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
+        participantDepartments.length ? `參與部門：${participantDepartments.join('、')}` : '',
+        participantStaffNames.length ? `參與人員：${participantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -4334,20 +4349,16 @@ async function saveMeetingRoomSchedule(event, modal) {
       return
     }
 
-    const { error: assigneeError } = await supabase.from('schedule_assignees').insert([{
-      schedule_id: schedule.schedule_id,
-      staff_id: reserverStaff.staff_id,
-      staff_name: reserverStaff.name || currentProfile.email,
-      department_id: reserverStaff.department_id || currentProfile.department_id,
-      department_name: reserverStaff.department_name || form.get('department') || currentProfile.department_name,
-      position: reserverStaff.position || currentProfile.position_name || currentProfile.position,
-      assignee_type: 'executor'
-    }])
+    const assigneeRows = buildMeetingAssigneeRows(schedule.schedule_id, meetingAssigneeStaffIds, reserverStaff)
 
-    if (assigneeError) {
-      alert('會議室預約已建立，但同步個人行程失敗：' + assigneeError.message)
-      saving = false
-      return
+    if (assigneeRows.length) {
+      const { error: assigneeError } = await supabase.from('schedule_assignees').insert(assigneeRows)
+
+      if (assigneeError) {
+        alert('會議室預約已建立，但同步參與人員失敗：' + assigneeError.message)
+        saving = false
+        return
+      }
     }
 
     await supabase.from('audit_logs').insert({
@@ -4386,6 +4397,15 @@ function getDateKeysBetween(startDate = '', endDate = '') {
 }
 
 function getMeetingAssigneeStaffId(row = {}) {
+  const noteName = getFieldNoteValue(row, '預約人')
+  if (noteName) {
+    const byName = staffList.find(staff => staff.name === noteName)
+    if (byName?.staff_id) return byName.staff_id
+  }
+
+  const executor = (row.schedule_assignees || []).find(item => item.staff_id && !item.deleted_at && item.assignee_type === 'executor')
+  if (executor?.staff_id) return executor.staff_id
+
   const activeAssignee = (row.schedule_assignees || []).find(item => item.staff_id && !item.deleted_at)
   return activeAssignee?.staff_id || row.creator_staff_id || currentProfile?.staff_id || ''
 }
@@ -4405,6 +4425,8 @@ function openEditMeetingRoomModal(scheduleId) {
   const selectedStaff = staffList.find(staff => staff.staff_id === selectedStaffId)
   const selectedDepartment = getFieldNoteValue(row, '部門') || selectedStaff?.department_name || row.department_name || currentProfile?.department_name || ''
   const selectedRoom = row.location_name || row.sub_type || ''
+  const selectedParticipantDepartments = getMeetingParticipantDepartments(row)
+  const selectedParticipantStaffIds = getMeetingParticipantStaffIds(row)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -4471,6 +4493,8 @@ function openEditMeetingRoomModal(scheduleId) {
           </select>
         </label>
 
+        ${getMeetingParticipantFormHtml(selectedParticipantDepartments, selectedParticipantStaffIds)}
+
         <label class="span-2">
           內容 / 備註
           <textarea name="description" rows="3" placeholder="會議內容或備註">${escapeHtml(row.description || '')}</textarea>
@@ -4520,6 +4544,13 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       department_name: form.get('department') || currentProfile.department_name,
       position: currentProfile.position_name || currentProfile.position
     }
+    const participantDepartments = getSelectedMeetingDepartments(form)
+    const explicitParticipantStaffIds = getSelectedMeetingParticipantStaffIds(form)
+    const meetingAssigneeStaffIds = buildMeetingAssigneeStaffIds(reserverStaff.staff_id, participantDepartments, explicitParticipantStaffIds)
+    const participantStaffNames = getStaffRowsByIds(meetingAssigneeStaffIds)
+      .filter(staff => staff.staff_id !== reserverStaff.staff_id)
+      .map(staff => staff.name)
+      .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
 
@@ -4545,7 +4576,9 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       sub_type: room,
       sub_type_note: [
         form.get('department') ? `部門：${form.get('department')}` : '',
-        reserverStaff.name ? `預約人：${reserverStaff.name}` : ''
+        reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
+        participantDepartments.length ? `參與部門：${participantDepartments.join('、')}` : '',
+        participantStaffNames.length ? `參與人員：${participantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -4575,11 +4608,11 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
 
     const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
       target_schedule_id: originalRow.schedule_id,
-      staff_ids_value: [reserverStaff.staff_id]
+      staff_ids_value: meetingAssigneeStaffIds
     })
 
     if (assigneeError) {
-      alert('會議室內容已修改，但預約人同步失敗：' + assigneeError.message)
+      alert('會議室內容已修改，但參與人員同步失敗：' + assigneeError.message)
       return
     }
 
@@ -11562,7 +11595,8 @@ function openScheduleDetail(scheduleId) {
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
         <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
-        <div><span>執行者</span><strong>${escapeHtml(getAssigneeNames(row))}</strong></div>
+        <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
+        ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
         <div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
@@ -12518,6 +12552,162 @@ function departmentOptionsHtml(selectedDepartment = '') {
 
   return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
+
+
+function getActiveMeetingStaffRows() {
+  return staffList
+    .filter(staff => staff && staff.staff_id)
+    .filter(staff => !staff.deleted_at)
+    .filter(staff => String(staff.status || '啟用') !== '停用')
+    .sort((a, b) => {
+      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''))
+      if (deptCompare !== 0) return deptCompare
+      const orderCompare = Number(a.display_order || 9999) - Number(b.display_order || 9999)
+      if (orderCompare !== 0) return orderCompare
+      return String(a.name || '').localeCompare(String(b.name || ''))
+    })
+}
+
+function getMeetingParticipantDepartmentOptions() {
+  const managed = typeof getManagedUserDepartmentOptions === 'function' ? getManagedUserDepartmentOptions() : []
+  const fromStaff = staffList.map(staff => staff.department_name).filter(Boolean)
+  return [...new Set([...managed, ...fromStaff])]
+}
+
+function meetingDepartmentCheckboxesHtml(selectedDepartments = []) {
+  const selected = new Set((selectedDepartments || []).map(item => String(item || '').trim()).filter(Boolean))
+  return getMeetingParticipantDepartmentOptions().map(name => `
+    <label class="meeting-check-item">
+      <input type="checkbox" name="participant_departments" value="${escapeHtml(name)}" ${selected.has(name) ? 'checked' : ''}>
+      <span>${escapeHtml(name)}</span>
+    </label>
+  `).join('')
+}
+
+function meetingParticipantCheckboxesHtml(selectedStaffIds = []) {
+  const selected = new Set((selectedStaffIds || []).map(item => String(item || '').trim()).filter(Boolean))
+  const rows = canAssignAllStaff() ? getActiveMeetingStaffRows() : getActiveMeetingStaffRows().filter(staff => staff.staff_id === currentProfile?.staff_id)
+
+  return rows.map(staff => `
+    <label class="meeting-check-item">
+      <input type="checkbox" name="participant_staff_ids" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
+      <span>${escapeHtml(staff.name || '-')}<small>${escapeHtml(staff.department_name || '')}</small></span>
+    </label>
+  `).join('')
+}
+
+function getSelectedMeetingDepartments(form) {
+  return [...new Set((form.getAll('participant_departments') || [])
+    .map(item => String(item || '').trim())
+    .filter(Boolean))]
+}
+
+function getSelectedMeetingParticipantStaffIds(form) {
+  return [...new Set((form.getAll('participant_staff_ids') || [])
+    .map(item => String(item || '').trim())
+    .filter(Boolean))]
+}
+
+function getStaffIdsFromDepartments(departments = []) {
+  const selected = new Set((departments || []).map(item => String(item || '').trim()).filter(Boolean))
+  if (!selected.size) return []
+
+  return getActiveMeetingStaffRows()
+    .filter(staff => selected.has(staff.department_name))
+    .map(staff => staff.staff_id)
+}
+
+function getStaffRowsByIds(staffIds = []) {
+  const idSet = new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))
+  return getActiveMeetingStaffRows().filter(staff => idSet.has(staff.staff_id))
+}
+
+function buildMeetingAssigneeStaffIds(reserverStaffId = '', participantDepartments = [], participantStaffIds = []) {
+  return [...new Set([
+    reserverStaffId,
+    ...getStaffIdsFromDepartments(participantDepartments),
+    ...participantStaffIds
+  ].map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function getMeetingParticipantDepartments(row = {}) {
+  return String(getFieldNoteValue(row, '參與部門') || '')
+    .split(/[、,，]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function getMeetingReserverName(row = {}) {
+  return getFieldNoteValue(row, '預約人') || row.creator_name || '-'
+}
+
+
+
+function getMeetingParticipantStaffIds(row = {}) {
+  const reserverStaffId = getMeetingAssigneeStaffId(row)
+  return [...new Set((row.schedule_assignees || [])
+    .filter(item => item.staff_id && !item.deleted_at)
+    .map(item => item.staff_id)
+    .filter(staffId => staffId !== reserverStaffId))]
+}
+
+function getMeetingParticipantStaffNames(row = {}) {
+  const fromNote = String(getFieldNoteValue(row, '參與人員') || '')
+    .split(/[、,，]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  if (fromNote.length) return fromNote
+
+  const selectedIds = new Set(getMeetingParticipantStaffIds(row))
+  return (row.schedule_assignees || [])
+    .filter(item => item.staff_id && selectedIds.has(item.staff_id) && !item.deleted_at)
+    .map(item => item.staff_name)
+    .filter(Boolean)
+}
+
+function getMeetingParticipantSummary(row = {}) {
+  const departments = getMeetingParticipantDepartments(row)
+  const names = getMeetingParticipantStaffNames(row)
+  const parts = []
+  if (departments.length) parts.push(`部門：${departments.join('、')}`)
+  if (names.length) parts.push(`人員：${names.join('、')}`)
+  return parts.join('｜')
+}
+
+function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {}) {
+  return getStaffRowsByIds(staffIds).map(staff => ({
+    schedule_id: scheduleId,
+    staff_id: staff.staff_id,
+    staff_name: staff.name || '',
+    department_id: staff.department_id || null,
+    department_name: staff.department_name || '',
+    position: staff.position || '',
+    assignee_type: staff.staff_id === reserverStaff.staff_id ? 'executor' : 'participant'
+  }))
+}
+
+function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffIds = []) {
+  return `
+    <section class="meeting-participant-box span-2">
+      <div class="meeting-participant-title">
+        <strong>參與部門 / 參與人員</strong>
+        <span>可複選。選擇部門時，該部門啟用人員也會看到此會議室預約。</span>
+      </div>
+      <div class="meeting-participant-grid">
+        <div class="meeting-check-group">
+          <div class="meeting-check-head">參與部門</div>
+          <div class="meeting-check-list">${meetingDepartmentCheckboxesHtml(selectedDepartments)}</div>
+        </div>
+        <div class="meeting-check-group">
+          <div class="meeting-check-head">參與人員</div>
+          <div class="meeting-check-list">${meetingParticipantCheckboxesHtml(selectedStaffIds)}</div>
+        </div>
+      </div>
+    </section>
+  `
+}
+
 
 function staffOptionsSelectHtml(selectedStaffId = '') {
   const rows = canAssignAllStaff() ? staffList : getAssignableStaffRows()
@@ -15671,9 +15861,20 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /* FOR-e V002-1P-80 START - login logo polish */
 /*
   V002-1P-80｜登入頁與左側品牌區整理
-  - 登入頁移除舊版本文字 舊版登入頁版本文字
+  - 登入頁移除舊版本文字 V002-1E-4｜卡片、證件、提醒與品牌 LOGO
   - 登入頁 LOGO 與系統名稱置中，版面更精緻
   - 登入後左上角品牌 LOGO 放大
   - 左側「共享排程系統」名稱放大並置中
 */
 /* FOR-e V002-1P-80 END - login logo polish */
+
+/* FOR-e V002-1P-81 START - meeting participants multiselect */
+/*
+  V002-1P-81｜會議室參與部門 / 參與人員複選
+  - 新增會議室預約可複選參與部門
+  - 新增會議室預約可複選參與人員
+  - 修改會議室預約可重新調整參與部門與參與人員
+  - 選擇參與部門時，該部門啟用人員會同步到 schedule_assignees，讓個人行程表可看到會議
+  - 會議室仍不列入逾期通知與完成控管
+*/
+/* FOR-e V002-1P-81 END - meeting participants multiselect */
