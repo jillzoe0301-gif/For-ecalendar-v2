@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-96'
+const SYSTEM_VERSION = 'V002-1P-97'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -15452,7 +15452,11 @@ async function saveSchedule(event, modal) {
 
   if (scheduleError) {
     console.error(scheduleError)
-    alert('新增行程失敗：' + scheduleError.message)
+    if (String(scheduleError.message || '').includes('permission denied for table schedules')) {
+      alert('新增行程失敗：資料庫尚未開放 schedules 新增權限。\n\n請到 Supabase SQL Editor 執行 V002-1P-97 的 schedules 權限修正 SQL 後，再重新整理系統。')
+    } else {
+      alert('新增行程失敗：' + scheduleError.message)
+    }
     saving = false
     return
   }
@@ -17140,3 +17144,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行程總覽 / 個人行程表補強會議室與會部門、與會人員顯示，避免 schedule_assignees 同步失敗時看不到
 */
 /* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */
+
+/* FOR-e V002-1P-97 START - schedule insert permission notice */
+/*
+  V002-1P-97｜休息日連休 / 一般行程新增權限提示
+  - 新增行程若遇到 permission denied for table schedules，改顯示明確 SQL 修正提示
+  - 實際權限修正需執行 supabase/sql/v002-1p-97-schedules-permission.sql
+*/
+/* FOR-e V002-1P-97 END - schedule insert permission notice */
