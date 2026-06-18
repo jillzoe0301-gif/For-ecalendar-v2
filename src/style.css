@@ -12841,3 +12841,33 @@ body {
   font-weight: 950;
 }
 /* FOR-e V002-1P-98 END - reminder defaults edit stats */
+
+/* FOR-e V002-1P-101 START - field detail card time alert */
+/* 重要事項 / 追蹤 / 提醒事項：卡片標題紅字 */
+.schedule-card.is-alert-item .schedule-title,
+.week-schedule-card.is-alert-item strong,
+.field-week-schedule-card.is-alert-item strong,
+.meeting-room-card.is-alert-item strong,
+.todo-notice-card.is-alert-item strong,
+.login-reminder-item.is-alert-item strong,
+.field-detail-row.is-alert-item .field-detail-title {
+  color: #dc2626 !important;
+}
+
+.schedule-card.is-alert-item,
+.week-schedule-card.is-alert-item,
+.field-week-schedule-card.is-alert-item,
+.meeting-room-card.is-alert-item,
+.todo-notice-card.is-alert-item,
+.login-reminder-item.is-alert-item,
+.field-detail-row.is-alert-item {
+  border-color: #fecaca !important;
+}
+
+.field-detail-date span:empty,
+.week-card-time:empty,
+.field-week-card-time:empty,
+.meeting-room-time:empty {
+  display: none !important;
+}
+/* FOR-e V002-1P-101 END - field detail card time alert */

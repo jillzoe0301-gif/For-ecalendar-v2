@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-100'
+const SYSTEM_VERSION = 'V002-1P-101'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -368,10 +368,10 @@ function renderPersonalTodayScheduleNotice(rows = []) {
 
       <div class="todo-notice-list">
         ${rows.map(row => `
-          <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
+          <button type="button" class="todo-notice-card ${getAlertItemClass(row)}" data-view-schedule="${row.schedule_id}">
             <div>
               <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-              <span>${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}${row.location_name ? `｜${escapeHtml(row.location_name)}` : ''}</span>
+              <span>${escapeHtml(getScheduleMetaParts([getCardTimeText(row), getAssigneeNames(row), row.location_name]))}</span>
             </div>
             <em>今日</em>
           </button>
@@ -1121,6 +1121,44 @@ function formatTime(row) {
   if (['上午', '下午'].includes(row.time_type) && start) return `${row.time_type} ${start}`
   return row.time_type || '不指定'
 }
+
+
+function getCardTimeText(row = {}) {
+  const text = String(formatTime(row) || '').trim()
+  if (!text || text === '不指定') return ''
+  return text
+}
+
+function renderCardTime(row = {}, className = '') {
+  const text = getCardTimeText(row)
+  if (!text) return ''
+  return `<span class="${escapeHtml(className)}">${escapeHtml(text)}</span>`
+}
+
+function isAlertTextSchedule(row = {}) {
+  const text = [
+    row.category,
+    row.schedule_type,
+    row.sub_type,
+    row.title,
+    row.description,
+    row.sub_type_note
+  ].filter(Boolean).join('｜')
+
+  return ['重要事項', '重要事項!', '追蹤', '追蹤事項', '提醒事項'].some(keyword => text.includes(keyword))
+}
+
+function getAlertItemClass(row = {}) {
+  return isAlertTextSchedule(row) ? 'is-alert-item' : ''
+}
+
+function getScheduleMetaParts(parts = []) {
+  return parts
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .join('｜')
+}
+
 
 function getAssigneeIds(row) {
   return (row.schedule_assignees || [])
@@ -3869,8 +3907,8 @@ function renderFieldScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
 
   return `
-    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
+    <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderCardTime(row, 'field-week-card-time')}
       <strong>${escapeHtml(isMeetingRoomSchedule(row) ? '會議室預約' : (row.schedule_type || row.category || '外務'))}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
@@ -3991,9 +4029,19 @@ function renderFieldScheduleCalendar() {
 */
 
 function getFieldDetailStaffOptionsHtml() {
+  const rowsMap = new Map()
+  ;[...getFieldBaseStaffRows(), ...getFieldStaffRows(), ...staffList].forEach(staff => {
+    if (staff?.staff_id && !staff.deleted_at) rowsMap.set(staff.staff_id, staff)
+  })
+  const rows = [...rowsMap.values()].sort((a, b) => {
+    const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+    if (deptCompare !== 0) return deptCompare
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+  })
+
   return `<option value="全部" ${fieldDetailFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
-    getFieldStaffRowsForEdit(row).map(staff => `
-      <option value="${staff.staff_id}" ${fieldDetailFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name || ''}</option>
+    rows.map(staff => `
+      <option value="${staff.staff_id}" ${fieldDetailFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</option>
     `).join('')
 }
 
@@ -4140,10 +4188,10 @@ function renderFieldDetailList(rows) {
         const result = getFieldResultFromRow(row)
         const specialReminders = getFieldSpecialRemindersFromRow(row)
         return `
-          <div class="field-detail-row ${row.status === '已完成' ? 'is-completed' : ''} ${result ? 'has-result' : ''}">
+          <div class="field-detail-row ${row.status === '已完成' ? 'is-completed' : ''} ${result ? 'has-result' : ''} ${getAlertItemClass(row)}">
             <div class="field-detail-date">
               <strong>${escapeHtml(row.start_date || '-')}</strong>
-              <span>${escapeHtml(formatTime(row))}</span>
+              ${getCardTimeText(row) ? `<span>${escapeHtml(getCardTimeText(row))}</span>` : ''}
             </div>
 
             <div class="field-detail-main">
@@ -4203,8 +4251,8 @@ function renderMeetingRoomCard(row) {
   const reserverName = getMeetingReserverName(row)
 
   return `
-    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <span class="meeting-room-time">${escapeHtml(formatTime(row))}</span>
+    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderCardTime(row, 'meeting-room-time')}
       <strong>${escapeHtml(row.title || '-')}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
       ${participantSummary ? `<span class="meeting-room-meta">與會：${escapeHtml(participantSummary)}</span>` : ''}
@@ -7868,10 +7916,10 @@ function getLoginDailyReminderRows() {
 
 function renderLoginReminderItem(row) {
   return `
-    <button type="button" class="login-reminder-item" data-login-view-schedule="${row.schedule_id}">
+    <button type="button" class="login-reminder-item ${getAlertItemClass(row)}" data-login-view-schedule="${row.schedule_id}">
       <div>
         <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row) || '-')}</span>
+        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
       <em>${isOverdueSchedule(row) ? '逾期' : '查看'}</em>
@@ -7948,10 +7996,10 @@ function markAssignedReminderRowsSeen(rows = []) {
 
 function renderAssignedReminderItem(row) {
   return `
-    <button type="button" class="login-reminder-item assigned-reminder-item" data-assigned-view-schedule="${row.schedule_id}">
+    <button type="button" class="login-reminder-item assigned-reminder-item ${getAlertItemClass(row)}" data-assigned-view-schedule="${row.schedule_id}">
       <div>
         <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜指派者：${escapeHtml(row.creator_name || '-')}</span>
+        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), `指派者：${row.creator_name || '-'}`]))}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
       <em>查看</em>
@@ -10571,8 +10619,8 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 function renderWeekScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
   return `
-    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <span class="week-card-time">${escapeHtml(formatTime(row))}</span>
+    <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderCardTime(row, 'week-card-time')}
       <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       <span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
@@ -13428,7 +13476,6 @@ function getMeetingParticipantStaffIds(row = {}) {
     .filter(staffId => staffId !== reserverStaffId)
 
   return [...new Set([...fromAssignees, ...getMeetingParticipantStaffIdsFromNote(row)])]
-}
 
 function getMeetingParticipantStaffNames(row = {}) {
   const fromNote = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
@@ -17291,3 +17338,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留 V002-1P-98 / V002-1P-99 的功能修正
 */
 /* FOR-e V002-1P-100 END - build syntax repair */
+
+/* FOR-e V002-1P-101 START - field detail card time alert */
+/*
+  V002-1P-101｜外務明細開啟、卡片不顯示不指定時間、提醒紅字
+  - 修正外務明細打不開：外務人員下拉改用正確人員清單，不再引用未定義 row
+  - 一般行程表、外務行程、會議室卡片，時間不指定時不顯示時間列
+  - 個人提醒、登入提醒、指派提醒也不再顯示不指定時間
+  - 重要事項、追蹤、提醒事項等項目字體改成紅色
+*/
+/* FOR-e V002-1P-101 END - field detail card time alert */
