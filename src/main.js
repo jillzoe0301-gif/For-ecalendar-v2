@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-84'
+const SYSTEM_VERSION = 'V002-1P-85'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -337,7 +337,7 @@ function renderPersonalReminderArea() {
           return `
             <button type="button" class="reminder-alert-card ${overdue ? 'is-overdue' : 'is-today'}" data-view-schedule="${row.schedule_id}">
               <div class="reminder-alert-main">
-                <div class="reminder-alert-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+                <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
                 <div class="reminder-alert-meta">
                   ${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
                 </div>
@@ -370,7 +370,7 @@ function renderPersonalTodayScheduleNotice(rows = []) {
         ${rows.map(row => `
           <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
             <div>
-              <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}${row.location_name ? `｜${escapeHtml(row.location_name)}` : ''}</span>
             </div>
             <em>今日</em>
@@ -3089,7 +3089,7 @@ function renderSearchResultList(rows, emptyText) {
           </div>
 
           <div class="search-result-main">
-            <div class="search-result-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+            <div class="search-result-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
             <div class="search-result-meta">
               ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
               ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
@@ -3806,7 +3806,7 @@ function renderFieldScheduleCard(row) {
   return `
     <button type="button" class="field-week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="field-week-card-time">${escapeHtml(formatTime(row))}</span>
-      <strong>${escapeHtml(row.schedule_type || row.category || '外務')}｜${escapeHtml(row.title || '-')}</strong>
+      <strong>${escapeHtml(isMeetingRoomSchedule(row) ? '會議室預約' : (row.schedule_type || row.category || '外務'))}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
       <span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
@@ -4116,6 +4116,13 @@ function isMeetingRoomSchedule(row) {
   const text = [row.category, row.schedule_type, row.sub_type, row.title, row.location_name, row.sub_type_note].filter(Boolean).join('｜')
   return row.category === '會議室預約' || row.schedule_type === '會議室預約' || text.includes('會議室預約') || getManagedListOption('meetingRoomOptions', meetingRoomOptions).includes(row.location_name)
 }
+
+
+function getScheduleDisplayType(row = {}) {
+  if (isMeetingRoomSchedule(row)) return '會議室預約'
+  return row?.schedule_type || row?.category || '-'
+}
+
 
 function getMeetingSchedulesForRoomDate(room, dateKey) {
   return schedules
@@ -7015,7 +7022,7 @@ function getLineNotifyRows() {
 function formatLineScheduleItem(row, index) {
   const parts = [
     `${index + 1}. ${row.start_date || '-'} ${formatTime(row)}`,
-    `${row.schedule_type || row.category || '行程'}｜${row.title || '-'}`,
+    `${getScheduleDisplayType(row)}｜${row.title || '-'}`,
     `執行者：${getAssigneeNames(row) || '-'}`,
     row.customer_name ? `客戶 / 區域：${row.customer_name}` : '',
     row.location_name ? `地點：${row.location_name}` : '',
@@ -7711,7 +7718,7 @@ function renderLoginReminderItem(row) {
   return `
     <button type="button" class="login-reminder-item" data-login-view-schedule="${row.schedule_id}">
       <div>
-        <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+        <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
         <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row) || '-')}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
@@ -9718,7 +9725,7 @@ function renderAssignedTrackingList(rows) {
             </div>
 
             <div class="assigned-tracking-main">
-              <div class="assigned-tracking-title">${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</div>
+              <div class="assigned-tracking-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
               <div class="assigned-tracking-meta">
                 被指派人：${escapeHtml(assignees.length ? assignees.join('、') : '-')}
                 ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
@@ -9834,7 +9841,7 @@ function renderPersonalOverdueTaskArea() {
         ${rows.map(row => `
           <button type="button" class="overdue-task-card" data-view-schedule="${row.schedule_id}">
             <div>
-              <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}</span>
               ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
             </div>
@@ -9891,7 +9898,7 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
         ${todayRows.length ? todayRows.map(row => `
           <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
             <div>
-              <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(row.customer_name || row.location_name || getAssigneeNames(row) || '個人待辦')}</span>
             </div>
             <em>查看</em>
@@ -10175,7 +10182,7 @@ function renderWeekScheduleCard(row) {
   return `
     <button type="button" class="week-schedule-card ${row.status === '已完成' ? 'is-completed' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="week-card-time">${escapeHtml(formatTime(row))}</span>
-      <strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title || '-')}</strong>
+      <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       <span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
       ${row.sub_type ? `<span class="week-card-extra">附加：${escapeHtml(row.sub_type)}</span>` : ''}
@@ -10304,7 +10311,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
           <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
               <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
-              <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(row.schedule_type || row.category)}</span>｜${escapeHtml(row.title)}</div>
+              <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(getScheduleDisplayType(row))}</span>｜${escapeHtml(row.title)}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
               ${row.sub_type ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(row.sub_type)}</div>` : ''}
@@ -14715,7 +14722,7 @@ function openServiceRecordModal(scheduleId) {
       </div>
 
       <div class="detail-grid">
-        <div class="span-2"><span>行程</span><strong>${escapeHtml(row.schedule_type || row.category)}｜${escapeHtml(row.title)}</strong></div>
+        <div class="span-2"><span>行程</span><strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title)}</strong></div>
         <div><span>行程日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
         <div><span>目前狀態</span><strong>${row.service_record_submitted_date ? '已繳交：' + row.service_record_submitted_date : '尚未繳交'}</strong></div>
       </div>
@@ -16042,3 +16049,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 已完成、時間已過、會議室 / 請假 / 返鄉 / 外訓 / 活動等過期項目不會顯示
 */
 /* FOR-e V002-1P-84 END - login daily popup restored */
+
+/* FOR-e V002-1P-85 START - meeting title prefix */
+/*
+  V002-1P-85｜會議室預約標題前綴修正
+  - 新增 getScheduleDisplayType(row)
+  - 只要資料被判定為會議室預約，個人行程表 / 當日提醒 / 登入提醒彈窗前綴都顯示「會議室預約」
+  - 修正舊資料 schedule_type 仍是「面談」時，畫面標題顯示錯誤的問題
+*/
+/* FOR-e V002-1P-85 END - meeting title prefix */
