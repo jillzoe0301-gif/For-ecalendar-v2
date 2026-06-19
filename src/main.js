@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-125'
+const SYSTEM_VERSION = 'V002-1P-126'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18496,3 +18496,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 返鄉色碼預設與舊預設遷移為 #B0A1BA
 */
 /* FOR-e V002-1P-125 END - filter alignment and color cleanup */
+
+/* FOR-e V002-1P-126 START - fixed filter widths left aligned */
+/*
+  V002-1P-126｜篩選欄位固定大小、靠左對齊
+  - 全頁面篩選列改為固定欄寬
+  - 下拉選項文字過長時不撐大欄位，改以省略顯示
+  - 排版統一靠左、底部對齊
+  - 篩選框與按鈕不超出卡片與頁面
+*/
+/* FOR-e V002-1P-126 END - fixed filter widths left aligned */
