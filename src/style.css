@@ -15055,3 +15055,277 @@ body {
   }
 }
 /* FOR-e V002-1P-126 END - fixed filter widths left aligned */
+
+/* FOR-e V002-1P-127 START - simple single row filters */
+/* 上方篩選列：桌機固定單行、簡約、不超出 */
+@media (min-width: 1024px) {
+  #overviewFilterForm,
+  #fieldScheduleFilterForm,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    align-items: end !important;
+    justify-content: start !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    padding-right: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* 行程總覽：檢視範圍 / 月份 / 部門 / 人員 / 排序 / 順序 / 套用 / 全部 */
+  #overviewFilterForm .overview-filter-compact-row {
+    grid-template-columns: 116px 140px 140px 140px 112px 112px 112px 66px !important;
+  }
+
+  /* 外務行程：檢視範圍 / 月份 / 部門 / 外務人員 / 排序 / 順序 / 套用 / 全部 */
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    grid-template-columns: 116px 140px 140px 150px 112px 112px 112px 66px !important;
+  }
+
+  /* 外務明細 */
+  #fieldDetailFilterForm {
+    grid-template-columns: 132px 132px 168px 118px 118px minmax(180px, 1fr) 86px !important;
+  }
+
+  /* 異況追蹤 */
+  #incidentFilterForm {
+    grid-template-columns: 190px 120px minmax(220px, 1fr) 86px !important;
+  }
+
+  /* 統計報表 */
+  #statsFilterForm {
+    grid-template-columns: 104px 132px 132px 146px 160px 146px 112px !important;
+  }
+
+  /* 服務紀錄單 */
+  #serviceRecordFilterForm {
+    grid-template-columns: 108px 158px 132px 142px 132px 132px minmax(190px, 1fr) 86px !important;
+  }
+
+  /* 人員 / 帳號 */
+  #usersFilterForm {
+    grid-template-columns: minmax(190px, 1fr) 156px 156px 146px 86px !important;
+  }
+
+  /* 每個欄位固定，不因文字撐大 */
+  #overviewFilterForm .overview-filter-compact-row > label,
+  #overviewFilterForm .overview-filter-compact-row > details,
+  #fieldScheduleFilterForm .overview-filter-compact-row > label,
+  #fieldScheduleFilterForm .overview-filter-compact-row > details,
+  #fieldDetailFilterForm > label,
+  #incidentFilterForm > label,
+  #statsFilterForm > label,
+  #serviceRecordFilterForm > label,
+  #usersFilterForm > label {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: grid !important;
+    gap: 5px !important;
+    align-content: end !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    text-align: left !important;
+  }
+
+  /* 避免隱藏月份欄位佔位 */
+  #overviewFilterForm .is-hidden-month-picker,
+  #fieldScheduleFilterForm .is-hidden-month-picker {
+    display: none !important;
+  }
+
+  /* 標題字縮小、靠左 */
+  #overviewFilterForm .compact-field-label,
+  #fieldScheduleFilterForm .compact-field-label,
+  #fieldDetailFilterForm label,
+  #incidentFilterForm label,
+  #statsFilterForm label,
+  #serviceRecordFilterForm label,
+  #usersFilterForm label {
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+    color: #1f2937 !important;
+    text-align: left !important;
+  }
+
+  /* input / select / summary 固定大小，長字省略 */
+  #overviewFilterForm input,
+  #overviewFilterForm select,
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm input,
+  #fieldScheduleFilterForm select,
+  #fieldScheduleFilterForm summary,
+  #fieldDetailFilterForm input,
+  #fieldDetailFilterForm select,
+  #incidentFilterForm input,
+  #incidentFilterForm select,
+  #statsFilterForm input,
+  #statsFilterForm select,
+  #serviceRecordFilterForm input,
+  #serviceRecordFilterForm select,
+  #usersFilterForm input,
+  #usersFilterForm select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    line-height: 1.2 !important;
+    padding-left: 10px !important;
+    padding-right: 28px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm summary {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  /* 按鈕固定高度與寬度，底部持平 */
+  #overviewFilterForm button,
+  #fieldScheduleFilterForm button,
+  #fieldDetailFilterForm button,
+  #incidentFilterForm button,
+  #statsFilterForm button,
+  #serviceRecordFilterForm button,
+  #usersFilterForm button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    align-self: end !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    font-size: 12.5px !important;
+    line-height: 1 !important;
+  }
+
+  /* 行程總覽與外務的套用 / 全部留出清楚間距 */
+  #overviewFilterForm .overview-filter-compact-row > button.primary-btn,
+  #fieldScheduleFilterForm .overview-filter-compact-row > button.primary-btn {
+    margin-left: 6px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > #resetOverviewFilterBtn,
+  #fieldScheduleFilterForm .overview-filter-compact-row > #resetFieldScheduleFilterBtn {
+    margin-left: 4px !important;
+  }
+
+  /* 摘要不撐破 */
+  #overviewFilterForm .overview-filter-summary,
+  #fieldScheduleFilterForm .overview-filter-summary,
+  .compact-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+  }
+
+  /* 會議室上方工具列一整列，不跨行 */
+  .page-toolbar .toolbar-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .page-toolbar .toolbar-actions > *,
+  .calendar-view-select {
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+    margin: 0 !important;
+  }
+
+  .page-toolbar .toolbar-actions button,
+  .calendar-view-select select,
+  .calendar-view-select input[type="month"] {
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .calendar-view-select select {
+    width: 118px !important;
+    min-width: 118px !important;
+  }
+
+  .calendar-view-select input[type="month"] {
+    width: 142px !important;
+    min-width: 142px !important;
+  }
+}
+
+/* 中小螢幕：保持不超出卡片，必要時才換為兩欄 */
+@media (max-width: 1023px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > *,
+  #fieldScheduleFilterForm .overview-filter-compact-row > *,
+  #fieldDetailFilterForm > *,
+  #incidentFilterForm > *,
+  #statsFilterForm > *,
+  #serviceRecordFilterForm > *,
+  #usersFilterForm > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+/* FOR-e V002-1P-127 END - simple single row filters */
