@@ -13858,3 +13858,18 @@ body {
   }
 }
 /* FOR-e V002-1P-145 END - daily continuation marks */
+
+/* FOR-e V002-1P-146 START - personal calendar filter and continuation labels */
+/* V002-1P-146｜延續標記依項目顏色 */
+.leave-return-day-mark,
+.continuation-day-mark {
+  background: color-mix(in srgb, var(--day-accent, #4E71FF) 12%, #ffffff) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 42%, #ffffff) !important;
+}
+
+.leave-return-day-mark span,
+.continuation-day-mark span {
+  background: var(--day-accent, #4E71FF) !important;
+  color: #0f172a !important;
+}
+/* FOR-e V002-1P-146 END - personal calendar filter and continuation labels */

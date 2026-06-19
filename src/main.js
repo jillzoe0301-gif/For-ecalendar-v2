@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-145'
+const SYSTEM_VERSION = 'V002-1P-146'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -310,7 +310,8 @@ function getPersonalReminderRows() {
   return schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
-    .filter(row => isMine(row))
+    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => isActionReminderSchedule(row))
     .filter(row => isReminderSchedule(row))
     .filter(row => isTodaySchedule(row) || isOverdueSchedule(row))
     .sort((a, b) => {
@@ -1090,6 +1091,59 @@ function isMine(row) {
   return meetingScheduleVisibleForStaff(row, myStaffId)
 }
 
+
+function isAssignedToCurrentUser(row = {}) {
+  const myStaffId = currentProfile?.staff_id
+  if (!myStaffId) return false
+  return (row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)
+}
+
+function hasActiveAssignees(row = {}) {
+  return (row.schedule_assignees || []).some(item => !item.deleted_at)
+}
+
+function isPersonalCalendarForMe(row = {}) {
+  const myStaffId = currentProfile?.staff_id
+  if (!myStaffId || !row) return false
+
+  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, myStaffId)
+  if (hasActiveAssignees(row)) return isAssignedToCurrentUser(row)
+
+  return row.creator_staff_id === myStaffId
+}
+
+function isActionReminderSchedule(row = {}) {
+  if (!row) return false
+  if (isNoCompletionControlSchedule(row)) return false
+  if (isLeaveOrReturnSchedule(row)) return false
+  return true
+}
+
+function getContinuationInitial(row = {}) {
+  const key = getScheduleColorKey(row)
+  const map = {
+    '服務行程': '服',
+    '一般記事': '記',
+    '待辦事項': '待',
+    '請假': '休',
+    '返鄉': '返',
+    '會議': '會',
+    '活動': '活',
+    '外訓': '訓',
+    '證件交付': '證',
+    '外務行程': '外',
+    '異況追蹤': '異',
+    '會議室預約': '室',
+    '追蹤事項': '追',
+    '提醒事項': '提'
+  }
+
+  if (map[key]) return map[key]
+  const text = key || getScheduleDisplayType(row) || row.title || '續'
+  return String(text).trim().slice(0, 1) || '續'
+}
+
+
 function isAssignedToMe(row) {
   const myStaffId = currentProfile?.staff_id
   if (!myStaffId) return false
@@ -1200,7 +1254,8 @@ function formatTime(row) {
   const end = row.end_time ? row.end_time.slice(0, 5) : ''
   if (['上午', '下午'].includes(row.time_type) && start && end) return `${row.time_type} ${start}-${end}`
   if (['上午', '下午'].includes(row.time_type) && start) return `${row.time_type} ${start}`
-  return row.time_type || '不指定'
+  if (row.time_type && row.time_type !== '不指定') return row.time_type
+  return ''
 }
 
 
@@ -7637,11 +7692,11 @@ function getExportSchedulesForCurrentPage() {
   const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
   if (currentPage === 'personalSchedule') {
-    return schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
+    return schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
   }
 
   if (currentPage === 'personalTodo') {
-    return schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && todoCategories.includes(row.category))
+    return schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row) && isActionReminderSchedule(row) && todoCategories.includes(row.category))
   }
 
   if (currentPage === 'assignedTracking') return getAssignedTrackingRows()
@@ -8027,20 +8082,19 @@ function getLoginDailyReminderRows() {
   const personalBirthday = isCurrentUserBirthdayToday()
   const activeTodayRows = schedules
     .filter(row => isVisibleSchedule(row))
-    .filter(row => isMine(row))
+    .filter(row => isPersonalCalendarForMe(row))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => scheduleMatchesDateByMode(row, today))
+    .filter(row => isActionReminderSchedule(row))
 
-  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const todoCategories = ['一般記事', '待辦事項', '證件交付']
 
   const todayTodos = activeTodayRows
-    .filter(row => !isLeaveOrReturnSchedule(row))
     .filter(row => todoCategories.includes(row.category))
     .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
 
   const reminderRows = activeTodayRows
-    .filter(row => !isLeaveOrReturnSchedule(row))
     .filter(row => isReminderSchedule(row))
     .filter(row => !todayTodos.some(todo => todo.schedule_id === row.schedule_id))
     .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
@@ -10347,7 +10401,8 @@ function getPersonalOverdueTaskRows() {
   return schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
-    .filter(row => isMine(row))
+    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => isActionReminderSchedule(row))
     .filter(row => isOverdueSchedule(row))
     .filter(row => !isReminderSchedule(row))
     .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
@@ -10384,9 +10439,11 @@ function renderPersonalOverdueTaskArea() {
 }
 
 function renderPersonalSchedule() {
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row))
+  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
   const today = todayString()
-  const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
+  const todayRows = myRows
+    .filter(row => isActionReminderSchedule(row))
+    .filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
   const overdueRows = getPersonalOverdueTaskRows()
   const todayMeetingRows = myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today))
 
@@ -10445,8 +10502,12 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
 }
 
 function renderPersonalTodo() {
-  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isMine(row) && todoCategories.includes(row.category))
+  const todoCategories = ['一般記事', '待辦事項', '證件交付']
+  const myRows = schedules
+    .filter(row => isActivePersonalSchedule(row))
+    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => isActionReminderSchedule(row))
+    .filter(row => todoCategories.includes(row.category))
   const today = todayString()
   const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
   const overdueRows = myRows.filter(row => row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
@@ -10909,7 +10970,7 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '') {
   const label = isReturnHomeSchedule(row) ? '返' : '休'
 
   return `
-    <button type="button" class="leave-return-day-mark ${isFirstDay ? 'is-first-day' : ''}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="leave-return-day-mark ${isFirstDay ? 'is-first-day' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
       <span>${label}</span>
       ${isFirstDay ? '' : `<strong>${escapeHtml(title)}</strong>`}
     </button>
@@ -10923,8 +10984,8 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
   if (!continuationRows.length) return ''
 
   return continuationRows.map(row => `
-    <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" data-view-schedule="${row.schedule_id}">
-      <span>續</span>
+    <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
+      <span>${escapeHtml(getContinuationInitial(row))}</span>
       <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
     </button>
   `).join('')
@@ -18462,3 +18523,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 移除 V144 跨欄長條樣式與無效舊內容
 */
 /* FOR-e V002-1P-145 END - daily continuation marks */
+
+/* FOR-e V002-1P-146 START - personal calendar filter and continuation labels */
+/*
+  V002-1P-146｜個人行程歸屬與提醒排除修正
+  - 替他人建立的休假 / 返鄉 / 外訓 / 活動等，不再因為建立者是自己而出現在自己的個人行事曆
+  - 請假 / 休假 / 返鄉 / 會議 / 活動 / 外訓等不控管完成的行程，不再出現在當日待辦與當日行程提醒通知
+  - 沒有指定時間時不再顯示「不指定」
+  - 連續行程延續日標記依各自項目顏色顯示，開頭改用項目頭字
+*/
+/* FOR-e V002-1P-146 END - personal calendar filter and continuation labels */
