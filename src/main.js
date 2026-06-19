@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-129'
+const SYSTEM_VERSION = 'V002-1P-130'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18580,3 +18580,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 篩選區新增顯示 / 隱藏按鈕
 */
 /* FOR-e V002-1P-129 END - stable wrapped collapsible filters */
+
+/* FOR-e V002-1P-130 START - final grid filter layout */
+/*
+  V002-1P-130｜全頁篩選列 CSS Grid 最終穩定版
+  - 重新以 CSS Grid 規劃各頁篩選列
+  - 桌機版同一列，不堆疊、不遮擋、不超出
+  - 平板與手機才改兩欄 / 單欄
+*/
+/* FOR-e V002-1P-130 END - final grid filter layout */
