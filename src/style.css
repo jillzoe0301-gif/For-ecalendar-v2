@@ -13731,10 +13731,10 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-145 START - daily continuation marks */
-/* V002-1P-145｜休假返鄉背景與連續日期每日標記 */
+/* FOR-e V002-1P-147 START - continuation strips and creator cleanup */
+/* V002-1P-147｜連續延續細條與休假背景 */
 
-/* 連續日期不再使用跨欄長條 */
+/* 舊版跨欄 / 每日線段長條全部停用 */
 .continuous-span-row,
 .month-continuous-bars,
 .continuous-schedule-bar,
@@ -13742,48 +13742,61 @@ body {
   display: none !important;
 }
 
-/* 日期格背景：休假 / 返鄉 / 連續延續 */
+/* 只有休假 / 返鄉的當天才整格反色 */
 .week-day-cell.is-leave-day,
 .field-week-day-cell.is-leave-day,
 .month-day-cell.is-leave-day,
 .week-day-cell.is-return-day,
 .field-week-day-cell.is-return-day,
-.month-day-cell.is-return-day,
-.week-day-cell.is-continuation-day,
-.field-week-day-cell.is-continuation-day,
-.month-day-cell.is-continuation-day,
-.meeting-week-day-cell.is-continuation-day {
+.month-day-cell.is-return-day {
   background: color-mix(in srgb, var(--day-accent, #BFDDF0) 16%, #ffffff) !important;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #BFDDF0) 48%, #ffffff) !important;
   cursor: pointer;
 }
 
-/* 返鄉背景略深一點 */
 .week-day-cell.is-return-day,
 .field-week-day-cell.is-return-day,
 .month-day-cell.is-return-day {
   background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
 }
 
-/* 休 / 返 標記 */
+/* 一般連續行程、連續休假/返鄉的延續日：不整格反色，只保留可點擊與細條 */
+.week-day-cell.has-continuation-mark,
+.field-week-day-cell.has-continuation-mark,
+.month-day-cell.has-continuation-mark,
+.meeting-week-day-cell.has-continuation-mark {
+  background: inherit !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.week-day-cell.has-continuation-mark:hover,
+.field-week-day-cell.has-continuation-mark:hover,
+.month-day-cell.has-continuation-mark:hover,
+.meeting-week-day-cell.has-continuation-mark:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 42%, #ffffff) !important;
+}
+
+/* 細條標記：依該項目顏色反色 */
 .leave-return-day-mark,
 .continuation-day-mark {
   width: 100%;
   border: 0;
-  background: rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
+  background: color-mix(in srgb, var(--day-accent, #4E71FF) 18%, #ffffff) !important;
+  border-left: 6px solid var(--day-accent, #4E71FF);
+  border-radius: 12px;
   min-height: 28px;
   padding: 4px 8px;
   margin: 3px 0 5px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   color: #0f172a;
   font-size: 12px;
   font-weight: 950;
   text-align: left;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 38%, #ffffff) !important;
 }
 
 .leave-return-day-mark span,
@@ -13795,8 +13808,8 @@ body {
   min-width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: var(--day-accent, #BFDDF0);
-  color: #0f172a;
+  background: var(--day-accent, #4E71FF) !important;
+  color: #0f172a !important;
   font-size: 12px;
   font-weight: 950;
 }
@@ -13810,36 +13823,16 @@ body {
   white-space: nowrap;
 }
 
+/* 單日休假 / 返鄉仍可保留簡短休/返標籤 */
 .leave-return-day-mark.is-first-day {
   width: auto;
-  padding: 3px 5px;
+  padding: 3px 7px;
   min-height: 26px;
 }
 
 .leave-return-day-mark.is-first-day span {
   min-width: 24px;
   height: 24px;
-}
-
-/* 延續行程標題 */
-.continuation-day-mark span {
-  background: color-mix(in srgb, var(--day-accent, #4E71FF) 75%, #ffffff);
-}
-
-/* 空白格可點擊提示 */
-.week-day-cell.is-continuation-day:hover,
-.field-week-day-cell.is-continuation-day:hover,
-.meeting-week-day-cell.is-continuation-day:hover,
-.month-day-cell.is-continuation-day:hover,
-.week-day-cell.is-leave-day:hover,
-.field-week-day-cell.is-leave-day:hover,
-.month-day-cell.is-leave-day:hover,
-.week-day-cell.is-return-day:hover,
-.field-week-day-cell.is-return-day:hover,
-.month-day-cell.is-return-day:hover {
-  box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #4E71FF) 62%, #ffffff),
-    0 4px 10px rgba(15, 23, 42, 0.08) !important;
 }
 
 /* color-mix 備援 */
@@ -13849,27 +13842,13 @@ body {
   .month-day-cell.is-leave-day,
   .week-day-cell.is-return-day,
   .field-week-day-cell.is-return-day,
-  .month-day-cell.is-return-day,
-  .week-day-cell.is-continuation-day,
-  .field-week-day-cell.is-continuation-day,
-  .month-day-cell.is-continuation-day,
-  .meeting-week-day-cell.is-continuation-day {
+  .month-day-cell.is-return-day {
     background: #f8fafc !important;
   }
-}
-/* FOR-e V002-1P-145 END - daily continuation marks */
 
-/* FOR-e V002-1P-146 START - personal calendar filter and continuation labels */
-/* V002-1P-146｜延續標記依項目顏色 */
-.leave-return-day-mark,
-.continuation-day-mark {
-  background: color-mix(in srgb, var(--day-accent, #4E71FF) 12%, #ffffff) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 42%, #ffffff) !important;
+  .leave-return-day-mark,
+  .continuation-day-mark {
+    background: #ffffff !important;
+  }
 }
-
-.leave-return-day-mark span,
-.continuation-day-mark span {
-  background: var(--day-accent, #4E71FF) !important;
-  color: #0f172a !important;
-}
-/* FOR-e V002-1P-146 END - personal calendar filter and continuation labels */
+/* FOR-e V002-1P-147 END - continuation strips and creator cleanup */

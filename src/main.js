@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-146'
+const SYSTEM_VERSION = 'V002-1P-147'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1085,10 +1085,15 @@ function isActivePersonalSchedule(row) {
 
 function isMine(row) {
   const myStaffId = currentProfile?.staff_id
-  if (!myStaffId) return false
-  if (row.creator_staff_id === myStaffId) return true
-  if ((row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)) return true
-  return meetingScheduleVisibleForStaff(row, myStaffId)
+  if (!myStaffId || !row) return false
+
+  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, myStaffId)
+
+  if (hasActiveAssignees(row)) {
+    return isAssignedToCurrentUser(row)
+  }
+
+  return row.creator_staff_id === myStaffId
 }
 
 
@@ -1103,19 +1108,14 @@ function hasActiveAssignees(row = {}) {
 }
 
 function isPersonalCalendarForMe(row = {}) {
-  const myStaffId = currentProfile?.staff_id
-  if (!myStaffId || !row) return false
-
-  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, myStaffId)
-  if (hasActiveAssignees(row)) return isAssignedToCurrentUser(row)
-
-  return row.creator_staff_id === myStaffId
+  return isMine(row)
 }
 
 function isActionReminderSchedule(row = {}) {
   if (!row) return false
   if (isNoCompletionControlSchedule(row)) return false
   if (isLeaveOrReturnSchedule(row)) return false
+  if (['請假 / 會議 / 活動 / 外訓'].includes(row.category)) return false
   return true
 }
 
@@ -10939,9 +10939,10 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   }
 
   const color = getScheduleColor(row)
+  const isLeaveContinuation = leaveRow && isContinuousDateSchedule(leaveRow) && leaveRow.start_date < dateKey
   const className = leaveRow
-    ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
-    : 'is-continuation-day'
+    ? (isLeaveContinuation ? 'has-continuation-mark' : (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day'))
+    : 'has-continuation-mark'
 
   return {
     className,
@@ -10956,7 +10957,7 @@ function getMeetingDayMarkInfo(continuationRows = []) {
   if (!row) return { className: '', attrs: '', continuationRows }
 
   return {
-    className: 'is-continuation-day',
+    className: 'has-continuation-mark',
     attrs: `style="--day-accent:${getScheduleColor(row)}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}"`,
     continuationRows
   }
@@ -10966,6 +10967,11 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '') {
   if (!rows.length) return ''
   const row = rows[0]
   const isFirstDay = row.start_date === dateKey
+  const isContinuous = isContinuousDateSchedule(row)
+
+  // 連續休假 / 返鄉第一天已顯示完整卡片，不再另外顯示單一「休 / 返」字。
+  if (isFirstDay && isContinuous) return ''
+
   const title = row.title || row.sub_type || getScheduleDisplayType(row) || '休假'
   const label = isReturnHomeSchedule(row) ? '返' : '休'
 
@@ -18513,23 +18519,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-144 END - cleanup obsolete safe blocks */
 
-/* FOR-e V002-1P-145 START - daily continuation marks */
+/* FOR-e V002-1P-147 START - continuation strips and creator cleanup */
 /*
-  V002-1P-145｜休假返鄉背景與連續日期改為每日標記
-  - 請假 / 休假 / 返鄉不再出現在待辦與提醒
-  - 外務人員請假 / 返鄉日期反背景色並顯示休 / 返
-  - 連續日期行程第一天顯示完整卡片，後續日期顯示背景色與標題
-  - 點日期格空白處可查看延續行程內容
-  - 移除 V144 跨欄長條樣式與無效舊內容
+  V002-1P-147｜連續延續細條與指派者行程移除
+  - 有指定執行者 / 參與人的行程，只會出現在執行者 / 參與者個人行程，不因建立者是自己而顯示
+  - 已建立的休假 / 返鄉 / 外訓 / 活動等，也會從非執行者的指派者個人行程移除
+  - 請假 / 休假 / 返鄉 / 會議 / 活動 / 外訓等不控管完成行程，不出現在待辦與提醒通知
+  - 連續行程第一天不顯示單字標記，其他天只讓細條依類別顏色顯示，不再整格反色
+  - 清除 V145 / V146 舊樣式區塊，改用單一 V147 樣式
 */
-/* FOR-e V002-1P-145 END - daily continuation marks */
-
-/* FOR-e V002-1P-146 START - personal calendar filter and continuation labels */
-/*
-  V002-1P-146｜個人行程歸屬與提醒排除修正
-  - 替他人建立的休假 / 返鄉 / 外訓 / 活動等，不再因為建立者是自己而出現在自己的個人行事曆
-  - 請假 / 休假 / 返鄉 / 會議 / 活動 / 外訓等不控管完成的行程，不再出現在當日待辦與當日行程提醒通知
-  - 沒有指定時間時不再顯示「不指定」
-  - 連續行程延續日標記依各自項目顏色顯示，開頭改用項目頭字
-*/
-/* FOR-e V002-1P-146 END - personal calendar filter and continuation labels */
+/* FOR-e V002-1P-147 END - continuation strips and creator cleanup */
