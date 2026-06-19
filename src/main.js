@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-124'
+const SYSTEM_VERSION = 'V002-1P-125'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7178,10 +7178,9 @@ function getScheduleColorDefinitions() {
     { key: '一般記事', label: '一般記事', defaultColor: '#AEE2FF' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#CCD3CA' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#DDD6FE' },
-    { key: '返鄉', label: '返鄉', defaultColor: '#FED7AA' },
+    { key: '返鄉', label: '返鄉', defaultColor: '#B0A1BA' },
     { key: '活動', label: '活動', defaultColor: '#BFDBFE' },
     { key: '外訓', label: '外訓', defaultColor: '#BBF7D0' },
-    { key: '請假 / 會議 / 活動 / 外訓', label: '請假 / 會議 / 活動 / 外訓', defaultColor: '#E0E7FF' },
     { key: '證件交付', label: '證件交付', defaultColor: '#EED3D9' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFDBB6' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FFB199' },
@@ -7198,13 +7197,21 @@ function getScheduleColorSettings() {
       ? normalizeSettingValue(appSettings.schedule_colors)
       : null
 
-    const saved = remoteSaved || localSaved
+    const saved = remoteSaved || localSaved || {}
 
     if (saved['提醒事項'] === '#EED3D9') {
       saved['提醒事項'] = '#FF8383'
-      localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
-      if (remoteSaved) saveAppSetting('schedule_colors', saved)
     }
+
+    delete saved['請假 / 會議 / 活動 / 外訓']
+
+    const currentReturnHome = normalizeManualColorCode(saved['返鄉'])
+    if (!currentReturnHome || ['#FED7AA', '#FDBA74'].includes(currentReturnHome)) {
+      saved['返鄉'] = '#B0A1BA'
+    }
+
+    localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
+    if (remoteSaved) saveAppSetting('schedule_colors', saved)
 
     return {
       ...getDefaultScheduleColorMap(),
@@ -7236,9 +7243,19 @@ function getScheduleColorKey(row) {
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
+  const subtypeText = getScheduleSubtypeText(row)
+  if (subtypeText.includes('返鄉')) return '返鄉'
+  if (subtypeText.includes('請假') || subtypeText.includes('休假')) return '請假'
+  if (subtypeText.includes('外訓')) return '外訓'
+  if (subtypeText.includes('活動')) return '活動'
+
   const note = String(row.sub_type_note || '')
   if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
   if (String(row.schedule_type || '').includes('提醒')) return '提醒事項'
+
+  if (row.category === '請假 / 會議 / 活動 / 外訓') {
+    return row.sub_type || row.schedule_type || '服務行程'
+  }
 
   return row.category || row.schedule_type || '服務行程'
 }
@@ -11122,7 +11139,7 @@ function renderScheduleDetailTemplateContent(row = {}) {
 
 
 function getScheduleCardAccentColor(row = {}) {
-  if (isReturnHomeScheduleType(row)) return getConfiguredScheduleColorByKey('返鄉', '#FED7AA')
+  if (isReturnHomeScheduleType(row)) return getConfiguredScheduleColorByKey('返鄉', '#B0A1BA')
   if (isLeaveScheduleType(row)) return getConfiguredScheduleColorByKey('請假', '#DDD6FE')
   if (isTrainingScheduleType(row)) return getConfiguredScheduleColorByKey('外訓', '#BBF7D0')
   if (isActivityScheduleType(row)) return getConfiguredScheduleColorByKey('活動', '#BFDBFE')
@@ -18467,3 +18484,15 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 篩選項目與按鈕高度對齊
 */
 /* FOR-e V002-1P-124 END - separate leave return activity training colors align filters */
+
+/* FOR-e V002-1P-125 START - filter alignment and color cleanup */
+/*
+  V002-1P-125｜篩選列底部對齊、按鈕統一與顏色項目清理
+  - 外務明細 / 異況追蹤 / 統計報表 / 服務紀錄單 / 人員帳號篩選列底部持平
+  - 篩選按鈕與欄位同高、同底線
+  - 外務明細篩選列收回框內
+  - 會議室週檢視下拉與按鈕同高對齊
+  - 移除顏色設定「請假 / 會議 / 活動 / 外訓」大項
+  - 返鄉色碼預設與舊預設遷移為 #B0A1BA
+*/
+/* FOR-e V002-1P-125 END - filter alignment and color cleanup */

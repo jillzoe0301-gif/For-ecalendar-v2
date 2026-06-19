@@ -14523,3 +14523,199 @@ body {
   }
 }
 /* FOR-e V002-1P-124 END - separate leave return activity training colors align filters */
+
+/* FOR-e V002-1P-125 START - filter alignment and color cleanup */
+/* 共用篩選列：底部持平、按鈕與輸入同高 */
+#fieldDetailFilterForm,
+#incidentFilterForm,
+#statsFilterForm,
+#serviceRecordFilterForm,
+#usersFilterForm {
+  align-items: end !important;
+  box-sizing: border-box !important;
+}
+
+#fieldDetailFilterForm label,
+#incidentFilterForm label,
+#statsFilterForm label,
+#serviceRecordFilterForm label,
+#usersFilterForm label {
+  display: grid !important;
+  gap: 8px !important;
+  align-content: end !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+#fieldDetailFilterForm input,
+#fieldDetailFilterForm select,
+#incidentFilterForm input,
+#incidentFilterForm select,
+#statsFilterForm input,
+#statsFilterForm select,
+#serviceRecordFilterForm input,
+#serviceRecordFilterForm select,
+#usersFilterForm input,
+#usersFilterForm select,
+.calendar-view-select select,
+.calendar-view-select input[type="month"] {
+  height: 48px !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  border-radius: 14px !important;
+}
+
+#fieldDetailFilterForm button,
+#incidentFilterForm button,
+#statsFilterForm button,
+#serviceRecordFilterForm button,
+#usersFilterForm button,
+.toolbar-actions > button,
+.calendar-view-select select,
+.calendar-view-select input[type="month"] {
+  height: 48px !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  align-self: end !important;
+}
+
+#fieldDetailFilterForm button[type="submit"],
+#incidentFilterForm button[type="submit"],
+#statsFilterForm button[type="submit"],
+#serviceRecordFilterForm button[type="submit"],
+#usersFilterForm button[type="submit"] {
+  min-width: 112px !important;
+  width: 112px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+/* 外務明細：收回框內，不再跑出外框 */
+#fieldDetailFilterForm.field-detail-filter {
+  display: grid !important;
+  grid-template-columns:
+    minmax(142px, 0.75fr)
+    minmax(142px, 0.75fr)
+    minmax(180px, 0.95fr)
+    minmax(126px, 0.65fr)
+    minmax(126px, 0.65fr)
+    minmax(250px, 1.1fr)
+    112px !important;
+  gap: 16px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  padding-right: 16px !important;
+}
+
+#fieldDetailFilterForm .field-detail-location-filter {
+  min-width: 0 !important;
+}
+
+/* 異況追蹤 */
+#incidentFilterForm.incident-filter {
+  display: grid !important;
+  grid-template-columns: minmax(190px, 1fr) minmax(160px, 0.75fr) minmax(360px, 1.4fr) 112px !important;
+  gap: 16px !important;
+}
+
+/* 統計報表 */
+#statsFilterForm.clean-stats-filter {
+  display: grid !important;
+  grid-template-columns:
+    minmax(132px, 0.72fr)
+    minmax(168px, 0.9fr)
+    minmax(168px, 0.9fr)
+    minmax(168px, 0.95fr)
+    minmax(168px, 0.95fr)
+    minmax(168px, 0.95fr)
+    132px !important;
+  gap: 16px !important;
+}
+
+/* 服務紀錄單 */
+#serviceRecordFilterForm.service-record-filter-upgraded {
+  display: grid !important;
+  grid-template-columns:
+    minmax(132px, 0.62fr)
+    minmax(170px, 0.9fr)
+    minmax(150px, 0.75fr)
+    minmax(150px, 0.75fr)
+    minmax(150px, 0.75fr)
+    minmax(150px, 0.75fr)
+    minmax(250px, 1.1fr)
+    112px !important;
+  gap: 16px !important;
+}
+
+/* 人員 / 帳號 */
+#usersFilterForm.users-filter-panel {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 1.4fr) minmax(190px, 0.95fr) minmax(190px, 0.95fr) minmax(190px, 0.95fr) 112px !important;
+  gap: 16px !important;
+}
+
+/* 會議室預約：下拉與按鈕同高、同底部、大小一致 */
+.page-toolbar .toolbar-actions {
+  align-items: flex-end !important;
+}
+
+.page-toolbar .toolbar-actions > *,
+.calendar-view-select {
+  align-self: flex-end !important;
+}
+
+.calendar-view-select {
+  display: inline-flex !important;
+  align-items: flex-end !important;
+  height: 48px !important;
+  margin: 0 !important;
+}
+
+.calendar-view-select select,
+.calendar-view-select input[type="month"] {
+  min-width: 128px !important;
+}
+
+/* 桌機工具列按鈕高度統一 */
+.page-toolbar .toolbar-actions button {
+  min-height: 48px !important;
+  height: 48px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* 移除大項後，避免舊顏色項目殘留造成視覺混亂 */
+.color-preview-card[data-color-preview-key="請假 / 會議 / 活動 / 外訓"] {
+  display: none !important;
+}
+
+/* 返鄉預設色提示 */
+.leave-proxy-badge {
+  border-color: #B0A1BA !important;
+}
+
+/* 中小螢幕：改成可換行，但仍底部對齊且不溢出 */
+@media (max-width: 1280px) {
+  #fieldDetailFilterForm.field-detail-filter,
+  #incidentFilterForm.incident-filter,
+  #statsFilterForm.clean-stats-filter,
+  #serviceRecordFilterForm.service-record-filter-upgraded,
+  #usersFilterForm.users-filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  #fieldDetailFilterForm button[type="submit"],
+  #incidentFilterForm button[type="submit"],
+  #statsFilterForm button[type="submit"],
+  #serviceRecordFilterForm button[type="submit"],
+  #usersFilterForm button[type="submit"] {
+    width: 100% !important;
+  }
+}
+/* FOR-e V002-1P-125 END - filter alignment and color cleanup */
