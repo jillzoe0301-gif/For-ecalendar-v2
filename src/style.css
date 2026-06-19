@@ -16369,3 +16369,366 @@ body {
   }
 }
 /* FOR-e V002-1P-130 END - final grid filter layout */
+
+/* FOR-e V002-1P-131 START - filter auto grid stable final */
+/*
+  V002-1P-131｜篩選列 Auto Grid 穩定版
+  最終原則：
+  - 不再硬塞同一列
+  - 不使用 flex nowrap
+  - 不用 minmax(0, 0.xxfr) 壓縮欄位
+  - 用固定欄寬 auto-fill，空間不夠自動換第二列
+  - 所有欄位從左開始、等距、齊高、齊平
+*/
+
+/* 收合按鈕獨立，不影響篩選列 */
+.filter-toggle-wrap {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  margin: 8px 0 10px !important;
+}
+
+.filter-toggle-btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #f8fbff !important;
+  color: #3155d4 !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
+
+.is-filter-collapsed {
+  display: none !important;
+}
+
+/* 篩選卡片本體 */
+#overviewFilterForm,
+#fieldScheduleFilterForm,
+#fieldDetailFilterForm,
+#incidentFilterForm,
+#statsFilterForm,
+#serviceRecordFilterForm,
+#usersFilterForm {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  padding: 14px 16px !important;
+}
+
+/* 桌機版：Auto Grid，欄位固定寬，放不下自動第二列 */
+@media (min-width: 1024px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, 170px) !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: auto !important;
+    justify-content: start !important;
+    align-items: end !important;
+    justify-items: stretch !important;
+    align-content: start !important;
+    gap: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+
+  /* 欄位容器：固定格內，不被內容撐大 */
+  #overviewFilterForm .overview-filter-compact-row > label,
+  #overviewFilterForm .overview-filter-compact-row > details,
+  #fieldScheduleFilterForm .overview-filter-compact-row > label,
+  #fieldScheduleFilterForm .overview-filter-compact-row > details,
+  #fieldDetailFilterForm > label,
+  #incidentFilterForm > label,
+  #statsFilterForm > label,
+  #serviceRecordFilterForm > label,
+  #usersFilterForm > label {
+    width: 170px !important;
+    max-width: 170px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-rows: auto 42px !important;
+    align-content: end !important;
+    align-self: end !important;
+    gap: 5px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+    overflow: visible !important;
+  }
+
+  /* 日期 / 月份欄位固定 160px */
+  #overviewFilterForm label:has(input[type="month"]),
+  #fieldScheduleFilterForm label:has(input[type="month"]),
+  #fieldDetailFilterForm label:has(input[type="date"]),
+  #statsFilterForm label:has(input[type="date"]),
+  #serviceRecordFilterForm label:has(input[type="date"]) {
+    width: 160px !important;
+    max-width: 160px !important;
+  }
+
+  /* 短欄位 150px */
+  #overviewFilterForm label:has(select[name="sortBy"]),
+  #overviewFilterForm label:has(select[name="sortDir"]),
+  #fieldScheduleFilterForm label:has(select[name="fieldSortBy"]),
+  #fieldScheduleFilterForm label:has(select[name="fieldSortDir"]),
+  #fieldDetailFilterForm label:has(select[name="purpose"]),
+  #fieldDetailFilterForm label:has(select[name="status"]),
+  #incidentFilterForm label:has(select[name="status"]),
+  #statsFilterForm label:has(select[name="period"]),
+  #statsFilterForm label:has(select[name="department"]),
+  #statsFilterForm label:has(select[name="category"]),
+  #serviceRecordFilterForm label:has(select[name="status"]),
+  #serviceRecordFilterForm label:has(select[name="department"]),
+  #serviceRecordFilterForm label:has(select[name="scheduleType"]),
+  #usersFilterForm label:has(select[name="fieldStaff"]) {
+    width: 150px !important;
+    max-width: 150px !important;
+  }
+
+  /* 關鍵字欄 320px，跨兩格 */
+  #fieldDetailFilterForm .field-detail-location-filter,
+  #incidentFilterForm .incident-keyword-filter,
+  #serviceRecordFilterForm .service-record-keyword-filter,
+  #usersFilterForm label:first-child {
+    grid-column: span 2 !important;
+    width: 320px !important;
+    max-width: 320px !important;
+  }
+
+  /* 隱藏月份欄不佔格 */
+  #overviewFilterForm .is-hidden-month-picker,
+  #fieldScheduleFilterForm .is-hidden-month-picker,
+  .meeting-month-picker.is-hidden-month-picker {
+    display: none !important;
+  }
+
+  /* 欄位標題 */
+  #overviewFilterForm .compact-field-label,
+  #fieldScheduleFilterForm .compact-field-label,
+  #fieldDetailFilterForm label,
+  #incidentFilterForm label,
+  #statsFilterForm label,
+  #serviceRecordFilterForm label,
+  #usersFilterForm label {
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+    font-weight: 850 !important;
+    color: #1f2937 !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+  }
+
+  /* input / select / summary 固定高度，不撐寬 */
+  #overviewFilterForm input,
+  #overviewFilterForm select,
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm input,
+  #fieldScheduleFilterForm select,
+  #fieldScheduleFilterForm summary,
+  #fieldDetailFilterForm input,
+  #fieldDetailFilterForm select,
+  #incidentFilterForm input,
+  #incidentFilterForm select,
+  #statsFilterForm input,
+  #statsFilterForm select,
+  #serviceRecordFilterForm input,
+  #serviceRecordFilterForm select,
+  #usersFilterForm input,
+  #usersFilterForm select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    line-height: 1.2 !important;
+    padding: 0 28px 0 10px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm summary {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  #overviewFilterForm summary::after,
+  #fieldScheduleFilterForm summary::after {
+    flex: 0 0 auto !important;
+  }
+
+  /* 按鈕：固定寬度 */
+  #overviewFilterForm button,
+  #fieldScheduleFilterForm button,
+  #fieldDetailFilterForm button,
+  #incidentFilterForm button,
+  #statsFilterForm button,
+  #serviceRecordFilterForm button,
+  #usersFilterForm button {
+    height: 42px !important;
+    min-height: 42px !important;
+    align-self: end !important;
+    justify-self: start !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    font-size: 12.5px !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #fieldDetailFilterForm button,
+  #incidentFilterForm button,
+  #serviceRecordFilterForm button,
+  #usersFilterForm button {
+    width: 88px !important;
+    min-width: 88px !important;
+    max-width: 88px !important;
+  }
+
+  #statsFilterForm button,
+  #overviewFilterForm button.primary-btn,
+  #fieldScheduleFilterForm button.primary-btn {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+
+  #overviewFilterForm #resetOverviewFilterBtn,
+  #fieldScheduleFilterForm #resetFieldScheduleFilterBtn {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+  }
+
+  /* 摘要獨立一整列 */
+  #overviewFilterForm .overview-filter-summary,
+  #fieldScheduleFilterForm .overview-filter-summary,
+  .compact-summary {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+  }
+}
+
+/* 會議室工具列：可換列，但左起、等距、齊高，不遮住 */
+@media (min-width: 1024px) {
+  .page-toolbar .toolbar-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: flex-end !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  .page-toolbar .toolbar-actions > *,
+  .calendar-view-select {
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+    margin: 0 !important;
+  }
+
+  .page-toolbar .toolbar-actions button,
+  .calendar-view-select select,
+  .calendar-view-select input[type="month"] {
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .calendar-view-select select {
+    width: 160px !important;
+    min-width: 160px !important;
+  }
+
+  .calendar-view-select input[type="month"] {
+    width: 160px !important;
+    min-width: 160px !important;
+  }
+}
+
+/* 平板 / 手機才改兩欄或單欄 */
+@media (max-width: 1023px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > *,
+  #fieldScheduleFilterForm .overview-filter-compact-row > *,
+  #fieldDetailFilterForm > *,
+  #incidentFilterForm > *,
+  #statsFilterForm > *,
+  #serviceRecordFilterForm > *,
+  #usersFilterForm > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 560px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1P-131 END - filter auto grid stable final */

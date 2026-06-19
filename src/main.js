@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-130'
+const SYSTEM_VERSION = 'V002-1P-131'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18589,3 +18589,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 平板與手機才改兩欄 / 單欄
 */
 /* FOR-e V002-1P-130 END - final grid filter layout */
+
+/* FOR-e V002-1P-131 START - filter auto grid stable final */
+/*
+  V002-1P-131｜篩選列 Auto Grid 穩定版
+  - 取消硬塞同一列造成壓縮、遮擋、超版
+  - 桌機版採 CSS Grid auto-fill，空間不足自然換第二列
+  - 欄位固定寬度、靠左、等距、齊高、齊平
+*/
+/* FOR-e V002-1P-131 END - filter auto grid stable final */
