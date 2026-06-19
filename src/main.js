@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-120'
+const SYSTEM_VERSION = 'V002-1P-121'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2698,7 +2698,7 @@ function renderApp() {
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
   if (prevWeekBtn) {
     prevWeekBtn.addEventListener('click', () => {
-      overviewWeekOffset += getOverviewViewMode() === '月份顯示' ? -5 : -1
+      getOverviewViewMode() === '月份顯示' ? overviewDisplayMonth = v120ShiftMonthValue(v120ActiveOverviewMonth(), -1) : overviewWeekOffset -= 1
       renderApp()
     })
   }
@@ -2707,6 +2707,7 @@ function renderApp() {
   if (thisWeekBtn) {
     thisWeekBtn.addEventListener('click', () => {
       overviewWeekOffset = 0
+      overviewDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2714,7 +2715,7 @@ function renderApp() {
   const nextWeekBtn = document.querySelector('#nextWeekBtn')
   if (nextWeekBtn) {
     nextWeekBtn.addEventListener('click', () => {
-      overviewWeekOffset += getOverviewViewMode() === '月份顯示' ? 5 : 1
+      getOverviewViewMode() === '月份顯示' ? overviewDisplayMonth = v120ShiftMonthValue(v120ActiveOverviewMonth(), 1) : overviewWeekOffset += 1
       renderApp()
     })
   }
@@ -2763,7 +2764,7 @@ function renderApp() {
   const fieldPrevWeekBtn = document.querySelector('#fieldPrevWeekBtn')
   if (fieldPrevWeekBtn) {
     fieldPrevWeekBtn.addEventListener('click', () => {
-      fieldWeekOffset += fieldCalendarViewMode === '月份顯示' ? -5 : -1
+      fieldCalendarViewMode === '月份顯示' ? fieldDisplayMonth = v120ShiftMonthValue(v120ActiveFieldMonth(), -1) : fieldWeekOffset -= 1
       renderApp()
     })
   }
@@ -2772,6 +2773,7 @@ function renderApp() {
   if (fieldThisWeekBtn) {
     fieldThisWeekBtn.addEventListener('click', () => {
       fieldWeekOffset = 0
+      fieldDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2779,7 +2781,7 @@ function renderApp() {
   const fieldNextWeekBtn = document.querySelector('#fieldNextWeekBtn')
   if (fieldNextWeekBtn) {
     fieldNextWeekBtn.addEventListener('click', () => {
-      fieldWeekOffset += fieldCalendarViewMode === '月份顯示' ? 5 : 1
+      fieldCalendarViewMode === '月份顯示' ? fieldDisplayMonth = v120ShiftMonthValue(v120ActiveFieldMonth(), 1) : fieldWeekOffset += 1
       renderApp()
     })
   }
@@ -2814,7 +2816,7 @@ function renderApp() {
   const meetingPrevWeekBtn = document.querySelector('#meetingPrevWeekBtn')
   if (meetingPrevWeekBtn) {
     meetingPrevWeekBtn.addEventListener('click', () => {
-      meetingWeekOffset += meetingCalendarViewMode === '月份顯示' ? -5 : -1
+      meetingCalendarViewMode === '月份顯示' ? meetingDisplayMonth = v120ShiftMonthValue(v120ActiveMeetingMonth(), -1) : meetingWeekOffset -= 1
       renderApp()
     })
   }
@@ -2823,6 +2825,7 @@ function renderApp() {
   if (meetingThisWeekBtn) {
     meetingThisWeekBtn.addEventListener('click', () => {
       meetingWeekOffset = 0
+      meetingDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2830,7 +2833,7 @@ function renderApp() {
   const meetingNextWeekBtn = document.querySelector('#meetingNextWeekBtn')
   if (meetingNextWeekBtn) {
     meetingNextWeekBtn.addEventListener('click', () => {
-      meetingWeekOffset += meetingCalendarViewMode === '月份顯示' ? 5 : 1
+      meetingCalendarViewMode === '月份顯示' ? meetingDisplayMonth = v120ShiftMonthValue(v120ActiveMeetingMonth(), 1) : meetingWeekOffset += 1
       renderApp()
     })
   }
@@ -4102,7 +4105,7 @@ function renderFieldScheduleCalendar() {
       </div>
     </form>
 
-    ${isMonthView ? v120RenderFieldMonthCalendars(staffRows, weekDates, todayKey) : `
+    ${isMonthView ? v121RenderFieldMonthView(staffRows, weekDates, todayKey) : `
     <div class="field-week-scroll">
       <table class="field-week-table">
         <thead>
@@ -4417,7 +4420,7 @@ function renderMeetingRoomCalendar() {
 
     ${renderReadStatus()}
 
-    ${isMonthView ? v120RenderMeetingMonthCalendars(getManagedListOption('meetingRoomOptions', meetingRoomOptions), weekDates, todayKey) : `
+    ${isMonthView ? v121RenderMeetingMonthView(getManagedListOption('meetingRoomOptions', meetingRoomOptions), weekDates, todayKey) : `
     <div class="meeting-week-scroll">
       <table class="meeting-week-table">
         <thead>
@@ -10803,6 +10806,144 @@ function v120RenderMeetingMonthCalendars(roomRows = [], monthDates = [], todayKe
 }
 
 
+function v121RenderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的人員。</div>'
+
+  return `
+    <div class="week-overview-scroll month-multi-scroll">
+      <table class="week-overview-table is-overview-month is-month-sliding">
+        <thead>
+          <tr>
+            <th class="staff-col">人員</th>
+            ${monthDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${staffRows.map(staff => `
+            <tr>
+              <th class="staff-name-cell">
+                <strong>${escapeHtml(staff.name || '-')}</strong>
+                <span>${escapeHtml(staff.department_name || '')}</span>
+              </th>
+              ${monthDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+                const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                  ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+function v121RenderOverviewMonthView(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (staffRows.length === 1) return v120RenderOverviewMonthCalendars(staffRows, monthDates, todayKey)
+  return v121RenderOverviewMonthSlidingTable(staffRows, monthDates, todayKey)
+}
+
+function v121RenderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的外務人員。</div>'
+
+  return `
+    <div class="field-week-scroll month-multi-scroll">
+      <table class="field-week-table is-field-month is-month-sliding">
+        <thead>
+          <tr>
+            <th class="field-staff-col">外務人員</th>
+            ${monthDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${staffRows.map(staff => `
+            <tr>
+              <th class="field-staff-name-cell">
+                <strong>${escapeHtml(staff.name || '-')}</strong>
+                <span>${escapeHtml(staff.department_name || '')}</span>
+              </th>
+              ${monthDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+                return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
+                  ${birthdayCard}${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+function v121RenderFieldMonthView(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (staffRows.length === 1) return v120RenderFieldMonthCalendars(staffRows, monthDates, todayKey)
+  return v121RenderFieldMonthSlidingTable(staffRows, monthDates, todayKey)
+}
+
+function v121RenderMeetingMonthView(roomRows = [], monthDates = [], todayKey = todayString()) {
+  if (roomRows.length === 1) return v120RenderMeetingMonthCalendars(roomRows, monthDates, todayKey)
+
+  return `
+    <div class="meeting-week-scroll month-multi-scroll">
+      <table class="meeting-week-table is-meeting-month is-month-sliding">
+        <thead>
+          <tr>
+            <th class="meeting-room-col">會議室</th>
+            ${monthDates.map(date => {
+              const key = toDateKey(date)
+              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                <span>${weekName}</span>
+                <strong>${key.slice(5)}</strong>
+                ${renderHolidayLabels(key)}
+              </th>`
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${roomRows.map(room => `
+            <tr>
+              <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
+              ${monthDates.map(date => {
+                const key = toDateKey(date)
+                const dayRows = getMeetingSchedulesForRoomDate(room, key)
+                return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
+                  ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
+                </td>`
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+
+
 function isLeaveScheduleType(row = {}) {
   const text = [row.category, row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
   return text.includes('請假') || text.includes('休假')
@@ -10903,10 +11044,29 @@ function renderScheduleDetailTemplateContent(row = {}) {
 
 
 function getScheduleCardAccentColor(row = {}) {
-  if (isReturnHomeScheduleType(row)) return '#ea580c'
-  if (isLeaveScheduleType(row)) return '#7c3aed'
+  if (isReturnHomeScheduleType(row)) return '#fdba74'
+  if (isLeaveScheduleType(row)) return '#c4b5fd'
   const colorKey = getScheduleColorKey(row)
-  return colorKey === '會議室預約' ? '#b8946f' : getScheduleColor(row)
+  if (colorKey === '會議室預約') return '#cdb9a5'
+  const rawColor = getScheduleColor(row)
+  return softenScheduleColor(rawColor)
+}
+
+function softenScheduleColor(color = '#c7d2fe') {
+  const hex = String(color || '').trim()
+  const match = hex.match(/^#?([0-9a-fA-F]{6})$/)
+  if (!match) return color || '#c7d2fe'
+
+  const raw = match[1]
+  const r = parseInt(raw.slice(0, 2), 16)
+  const g = parseInt(raw.slice(2, 4), 16)
+  const b = parseInt(raw.slice(4, 6), 16)
+  const mix = 0.42
+  const nr = Math.round(r + (255 - r) * mix)
+  const ng = Math.round(g + (255 - g) * mix)
+  const nb = Math.round(b + (255 - b) * mix)
+
+  return `#${[nr, ng, nb].map(value => value.toString(16).padStart(2, '0')).join('')}`
 }
 
 
@@ -11369,7 +11529,7 @@ function renderScheduleOverview() {
       </div>
     </form>
 
-    ${['月份顯示', '個人當月'].includes(viewMode) ? v120RenderOverviewMonthCalendars(staffRows, weekDates, todayKey) : `
+    ${['月份顯示', '個人當月'].includes(viewMode) ? v121RenderOverviewMonthView(staffRows, weekDates, todayKey) : `
       <div class="week-overview-scroll">
         <table class="week-overview-table ${tableClass}">
           <thead>
@@ -18180,3 +18340,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 點開查看行程依行程類別 / 原內容模板顯示
 */
 /* FOR-e V002-1P-120 END - month calendar detail attendees */
+
+/* FOR-e V002-1P-121 START - month view nav filter soft colors */
+/*
+  V002-1P-121｜月份檢視顯示規則、月份切換、篩選列與柔和配色
+  - 月份檢視：多人用橫向滑動表格，單人用真正月曆顯示
+  - 修正月份檢視上一月 / 本月 / 下一月按鈕無反應
+  - 外務行程表套用並記住與全部按鈕增加間距
+  - 行程總覽檢視範圍列固定同一排
+  - 行程卡片外框顏色柔和化，避免畫面太混亂
+*/
+/* FOR-e V002-1P-121 END - month view nav filter soft colors */

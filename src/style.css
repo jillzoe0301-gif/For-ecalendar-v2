@@ -14174,3 +14174,101 @@ body {
   }
 }
 /* FOR-e V002-1P-120 END - month calendar detail attendees */
+
+/* FOR-e V002-1P-121 START - month view nav filter soft colors */
+/* 月份檢視：多人使用橫向滑動，單人使用月曆 */
+.month-multi-scroll {
+  overflow-x: auto !important;
+  padding-bottom: 8px !important;
+}
+
+.is-month-sliding {
+  min-width: 3600px !important;
+}
+
+.is-month-sliding .week-day-cell,
+.is-month-sliding .field-week-day-cell,
+.is-month-sliding .meeting-week-day-cell {
+  min-width: 112px !important;
+  min-height: 132px !important;
+  height: auto !important;
+}
+
+/* 行程總覽檢視範圍列固定同一排 */
+@media (min-width: 981px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    display: grid !important;
+    grid-template-columns: 116px 126px 132px 132px 118px 96px max-content max-content !important;
+    gap: 8px !important;
+    align-items: end !important;
+    overflow: visible !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > * {
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+  }
+
+  #overviewFilterForm select,
+  #overviewFilterForm summary,
+  #overviewFilterForm input[type="month"] {
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm button {
+    width: auto !important;
+    min-width: fit-content !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* 外務行程表按鈕分開一點 */
+@media (min-width: 981px) {
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    column-gap: 12px !important;
+  }
+
+  #fieldScheduleFilterForm button.primary-btn {
+    margin-left: 4px !important;
+    margin-right: 4px !important;
+  }
+
+  #fieldScheduleFilterForm button.secondary-btn {
+    margin-left: 4px !important;
+  }
+}
+
+/* 顏色柔和化：保留粗框但降低視覺混亂 */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.schedule-card,
+.todo-notice-card,
+.login-reminder-item {
+  border-color: var(--schedule-accent, #c7d2fe) !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.045) !important;
+}
+
+.week-schedule-card:hover,
+.field-week-schedule-card:hover,
+.meeting-room-card:hover,
+.schedule-card:hover {
+  box-shadow: 0 7px 16px rgba(15, 23, 42, 0.10) !important;
+}
+
+/* 請假 / 返鄉外框柔和但保持辨識 */
+.leave-proxy-badge {
+  background: #faf5ff !important;
+  color: #7c3aed !important;
+  border-color: #ddd6fe !important;
+}
+/* FOR-e V002-1P-121 END - month view nav filter soft colors */
