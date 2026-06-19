@@ -16732,3 +16732,180 @@ body {
   }
 }
 /* FOR-e V002-1P-131 END - filter auto grid stable final */
+
+/* FOR-e V002-1P-132 START - separate view month controls */
+/*
+  V002-1P-132｜檢視範圍 / 顯示月份獨立控制列
+  目的：
+  - 不讓檢視範圍與顯示月份擠在主要篩選欄位內
+  - 主要篩選欄位恢復原本 select / dropdown 的視覺
+*/
+
+/* 獨立控制列 */
+#overviewFilterForm .calendar-filter-control-bar,
+#fieldScheduleFilterForm .calendar-filter-control-bar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#overviewFilterForm .calendar-filter-control,
+#fieldScheduleFilterForm .calendar-filter-control {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-rows: auto 42px !important;
+  gap: 5px !important;
+  align-content: end !important;
+  box-sizing: border-box !important;
+}
+
+#overviewFilterForm .calendar-filter-control span,
+#fieldScheduleFilterForm .calendar-filter-control span {
+  font-size: 12px !important;
+  line-height: 1.15 !important;
+  font-weight: 850 !important;
+  color: #1f2937 !important;
+  text-align: left !important;
+}
+
+#overviewFilterForm .calendar-filter-select,
+#fieldScheduleFilterForm .calendar-filter-select {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  border-radius: 13px !important;
+  box-sizing: border-box !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  color: #1e3a8a !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 0 30px 0 12px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#overviewFilterForm .calendar-filter-month,
+#fieldScheduleFilterForm .calendar-filter-month {
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  border-radius: 13px !important;
+  box-sizing: border-box !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  color: #1e3a8a !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 0 12px !important;
+}
+
+#overviewFilterForm .calendar-filter-control.is-hidden-month-picker,
+#fieldScheduleFilterForm .calendar-filter-control.is-hidden-month-picker {
+  display: none !important;
+}
+
+/* 主要篩選列恢復穩定的原本選擇欄位樣式 */
+@media (min-width: 1024px) {
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, 170px) !important;
+    grid-auto-flow: row !important;
+    justify-content: start !important;
+    align-items: end !important;
+    gap: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row > label,
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row > details,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row > label,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row > details {
+    width: 170px !important;
+    max-width: 170px !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto 42px !important;
+    gap: 5px !important;
+    align-content: end !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row > button.primary-btn,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row > button.primary-btn {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 42px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row > #resetOverviewFilterBtn,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row > #resetFieldScheduleFilterBtn {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    height: 42px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row select,
+  #overviewFilterForm .overview-filter-compact-row.main-filter-row summary,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row select,
+  #fieldScheduleFilterForm .overview-filter-compact-row.main-filter-row summary {
+    height: 42px !important;
+    min-height: 42px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 13px !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* 平板以下仍維持不超出版面 */
+@media (max-width: 1023px) {
+  #overviewFilterForm .calendar-filter-control,
+  #fieldScheduleFilterForm .calendar-filter-control {
+    flex: 1 1 calc(50% - 8px) !important;
+    width: auto !important;
+  }
+
+  #overviewFilterForm .calendar-filter-select,
+  #overviewFilterForm .calendar-filter-month,
+  #fieldScheduleFilterForm .calendar-filter-select,
+  #fieldScheduleFilterForm .calendar-filter-month {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 560px) {
+  #overviewFilterForm .calendar-filter-control,
+  #fieldScheduleFilterForm .calendar-filter-control {
+    flex: 1 1 100% !important;
+  }
+}
+/* FOR-e V002-1P-132 END - separate view month controls */

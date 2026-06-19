@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-131'
+const SYSTEM_VERSION = 'V002-1P-132'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4131,19 +4131,21 @@ function renderFieldScheduleCalendar() {
     ${renderReadStatus()}
 
     <form id="fieldScheduleFilterForm" class="overview-filter-panel overview-filter-panel-compact field-filter-panel-compact">
-      <div class="overview-filter-compact-row">
-        <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">檢視範圍</span>
-          <select name="fieldViewMode" id="fieldViewModeSelect">
+      <div class="calendar-filter-control-bar">
+        <label class="calendar-filter-control">
+          <span>檢視範圍</span>
+          <select name="fieldViewMode" id="fieldViewModeSelect" class="calendar-filter-select">
             ${getCalendarViewModeOptionsHtml(fieldCalendarViewMode)}
           </select>
         </label>
 
-        <label class="compact-sort-select compact-filter-control field-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
-          <span class="compact-field-label">顯示月份</span>
-          <input name="fieldMonth" type="month" value="${escapeHtml(v120ActiveFieldMonth())}">
+        <label class="calendar-filter-control field-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
+          <span>顯示月份</span>
+          <input name="fieldMonth" class="calendar-filter-month" type="month" value="${escapeHtml(v120ActiveFieldMonth())}">
         </label>
+      </div>
 
+      <div class="overview-filter-compact-row main-filter-row">
         <details class="compact-multi-select compact-filter-control">
           <summary>部門｜${escapeHtml(getFieldDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -11627,19 +11629,21 @@ function renderScheduleOverview() {
     ${renderReadStatus()}
 
     <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact no-wrap-filter-panel">
-      <div class="overview-filter-compact-row">
-        <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">檢視範圍</span>
-          <select name="viewMode">
+      <div class="calendar-filter-control-bar">
+        <label class="calendar-filter-control">
+          <span>檢視範圍</span>
+          <select name="viewMode" class="calendar-filter-select">
             ${getOverviewViewModeOptionsHtml()}
           </select>
         </label>
 
-        <label class="compact-sort-select compact-filter-control overview-month-picker ${['月份顯示', '個人當月'].includes(viewMode) ? '' : 'is-hidden-month-picker'}">
-          <span class="compact-field-label">顯示月份</span>
-          <input name="overviewMonth" type="month" value="${escapeHtml(v120ActiveOverviewMonth())}">
+        <label class="calendar-filter-control overview-month-picker ${['月份顯示', '個人當月'].includes(viewMode) ? '' : 'is-hidden-month-picker'}">
+          <span>顯示月份</span>
+          <input name="overviewMonth" class="calendar-filter-month" type="month" value="${escapeHtml(v120ActiveOverviewMonth())}">
         </label>
+      </div>
 
+      <div class="overview-filter-compact-row main-filter-row">
         <details class="compact-multi-select compact-filter-control ${viewMode !== '全部行程' ? 'is-disabled-filter' : ''}">
           <summary>部門｜${escapeHtml(getOverviewDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -18598,3 +18602,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 欄位固定寬度、靠左、等距、齊高、齊平
 */
 /* FOR-e V002-1P-131 END - filter auto grid stable final */
+
+/* FOR-e V002-1P-132 START - separate view month controls */
+/*
+  V002-1P-132｜檢視範圍與月份控制列分離
+  - 行程總覽 / 外務行程的檢視範圍與顯示月份改成獨立控制列
+  - 部門、人員、排序、順序與按鈕恢復原本選擇欄位樣式
+  - 避免檢視範圍與顯示月份擠壓主要篩選列
+*/
+/* FOR-e V002-1P-132 END - separate view month controls */
