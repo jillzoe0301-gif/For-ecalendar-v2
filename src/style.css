@@ -13973,3 +13973,204 @@ body {
   }
 }
 /* FOR-e V002-1P-119 END - calendar month proxy detail polish */
+
+/* FOR-e V002-1P-120 START - month calendar detail attendees */
+/* 月份顯示改成真正行事曆格狀 */
+.overview-month-calendar-wrap,
+.field-month-calendar-wrap,
+.meeting-month-calendar-wrap {
+  display: grid;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.month-calendar-section {
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.month-calendar-section-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 10px;
+  color: #111827;
+  text-align: left;
+}
+
+.month-calendar-section-title strong {
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.month-calendar-section-title span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.month-calendar-head,
+.month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.month-calendar-head {
+  margin-bottom: 8px;
+}
+
+.month-calendar-head > div {
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 950;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+.month-day-cell {
+  min-height: 150px;
+  height: auto !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: left !important;
+}
+
+.month-day-cell.is-outside-month {
+  background: #f8fafc;
+  border-style: dashed;
+  opacity: 0.5;
+}
+
+.month-day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.month-day-header strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.month-day-cell.is-today .month-day-header strong {
+  background: #5170ff;
+  color: #ffffff;
+}
+
+.month-day-cell.is-holiday,
+.month-day-cell.is-personal-leave-day {
+  background: #eef5ff !important;
+}
+
+/* 外務月曆節日維持外務橘色系 */
+.field-month-calendar-wrap .month-day-cell.is-holiday,
+.field-month-calendar-wrap .month-day-cell.is-holiday.is-today,
+.field-week-table thead th.is-holiday,
+.field-week-day-cell.is-holiday {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+}
+
+/* 顯示月份輸入框 */
+.overview-month-picker input,
+.field-month-picker input,
+.meeting-month-picker input,
+.calendar-view-select input[type="month"] {
+  height: 42px;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  padding: 0 12px;
+  font-weight: 900;
+  color: #1e3a8a;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.is-hidden-month-picker {
+  display: none !important;
+}
+
+/* 外務行程檢視範圍列：同一排、不滑動、不縮減 */
+@media (min-width: 981px) {
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    display: grid !important;
+    grid-template-columns: 116px 126px 150px 160px 118px 106px max-content max-content !important;
+    gap: 8px !important;
+    align-items: end !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  #fieldScheduleFilterForm .overview-filter-compact-row > * {
+    min-width: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    flex: initial !important;
+    white-space: nowrap !important;
+  }
+
+  #fieldScheduleFilterForm .compact-filter-control,
+  #fieldScheduleFilterForm .compact-sort-select,
+  #fieldScheduleFilterForm .compact-multi-select {
+    min-width: auto !important;
+    width: auto !important;
+  }
+
+  #fieldScheduleFilterForm select,
+  #fieldScheduleFilterForm summary,
+  #fieldScheduleFilterForm input[type="month"] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #fieldScheduleFilterForm button {
+    width: auto !important;
+    min-width: fit-content !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .month-calendar-section {
+    min-width: 980px;
+  }
+
+  .overview-month-calendar-wrap,
+  .field-month-calendar-wrap,
+  .meeting-month-calendar-wrap {
+    overflow-x: auto;
+  }
+
+  .month-calendar-head,
+  .month-calendar-grid {
+    grid-template-columns: repeat(7, 140px);
+  }
+
+  .month-day-cell {
+    min-height: 140px;
+  }
+}
+/* FOR-e V002-1P-120 END - month calendar detail attendees */

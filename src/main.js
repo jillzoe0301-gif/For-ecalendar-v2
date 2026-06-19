@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-119'
+const SYSTEM_VERSION = 'V002-1P-120'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -398,6 +398,7 @@ let saving = false
 let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
+let overviewDisplayMonth = ''
 let overviewFilters = {
   viewMode: '全部行程',
   departments: [],
@@ -406,6 +407,7 @@ let overviewFilters = {
   sortDir: 'asc'
 }
 let fieldWeekOffset = 0
+let fieldDisplayMonth = ''
 let fieldCalendarViewMode = '週檢視'
 let fieldScheduleFilters = {
   departments: [],
@@ -414,6 +416,7 @@ let fieldScheduleFilters = {
   sortDir: 'asc'
 }
 let meetingWeekOffset = 0
+let meetingDisplayMonth = ''
 let meetingCalendarViewMode = '週檢視'
 let fieldDetailFilters = {
   staffId: '全部',
@@ -2670,6 +2673,7 @@ function renderApp() {
     overviewFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
+      overviewDisplayMonth = v120NormalizeMonthValue(form.get('overviewMonth') || overviewDisplayMonth || v120CurrentMonthValue())
       overviewFilters = normalizeOverviewFilters({
         viewMode: form.get('viewMode') || '全部行程',
         departments: form.getAll('departments'),
@@ -2735,6 +2739,7 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       fieldCalendarViewMode = form.get('fieldViewMode') || fieldCalendarViewMode || '週檢視'
+      fieldDisplayMonth = v120NormalizeMonthValue(form.get('fieldMonth') || fieldDisplayMonth || v120CurrentMonthValue())
       fieldScheduleFilters = normalizeFieldScheduleFilters({
         departments: form.getAll('fieldDepartments'),
         staffIds: form.getAll('fieldStaffIds'),
@@ -2794,6 +2799,14 @@ function renderApp() {
   if (meetingViewModeSelect) {
     meetingViewModeSelect.addEventListener('change', event => {
       meetingCalendarViewMode = event.target.value || '週檢視'
+      renderApp()
+    })
+  }
+
+  const meetingMonthInput = document.querySelector('#meetingMonthInput')
+  if (meetingMonthInput) {
+    meetingMonthInput.addEventListener('change', event => {
+      meetingDisplayMonth = v120NormalizeMonthValue(event.target.value || meetingDisplayMonth || v120CurrentMonthValue())
       renderApp()
     })
   }
@@ -4047,6 +4060,11 @@ function renderFieldScheduleCalendar() {
           </select>
         </label>
 
+        <label class="compact-sort-select compact-filter-control field-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
+          <span class="compact-field-label">顯示月份</span>
+          <input name="fieldMonth" type="month" value="${escapeHtml(v120ActiveFieldMonth())}">
+        </label>
+
         <details class="compact-multi-select compact-filter-control">
           <summary>部門｜${escapeHtml(getFieldDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -4084,8 +4102,9 @@ function renderFieldScheduleCalendar() {
       </div>
     </form>
 
+    ${isMonthView ? v120RenderFieldMonthCalendars(staffRows, weekDates, todayKey) : `
     <div class="field-week-scroll">
-      <table class="field-week-table ${isMonthView ? 'is-field-month' : ''}">
+      <table class="field-week-table">
         <thead>
           <tr>
             <th class="field-staff-col">外務人員</th>
@@ -4122,6 +4141,7 @@ function renderFieldScheduleCalendar() {
         </tbody>
       </table>
     </div>
+    `}
 
     ${!staffRows.length ? '<div class="empty-state">目前沒有可顯示的外務人員。</div>' : ''}
   `
@@ -4384,6 +4404,9 @@ function renderMeetingRoomCalendar() {
             ${getCalendarViewModeOptionsHtml(meetingCalendarViewMode)}
           </select>
         </label>
+        <label class="calendar-view-select meeting-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
+          <input id="meetingMonthInput" type="month" value="${escapeHtml(v120ActiveMeetingMonth())}">
+        </label>
         <button class="secondary-btn" id="meetingPrevWeekBtn">${isMonthView ? '上一月' : '上一週'}</button>
         <button class="secondary-btn" id="meetingThisWeekBtn">${isMonthView ? '本月' : '本週'}</button>
         <button class="secondary-btn" id="meetingNextWeekBtn">${isMonthView ? '下一月' : '下一週'}</button>
@@ -4394,8 +4417,9 @@ function renderMeetingRoomCalendar() {
 
     ${renderReadStatus()}
 
+    ${isMonthView ? v120RenderMeetingMonthCalendars(getManagedListOption('meetingRoomOptions', meetingRoomOptions), weekDates, todayKey) : `
     <div class="meeting-week-scroll">
-      <table class="meeting-week-table ${isMonthView ? 'is-meeting-month' : ''}">
+      <table class="meeting-week-table">
         <thead>
           <tr>
             <th class="meeting-room-col">會議室</th>
@@ -4426,6 +4450,7 @@ function renderMeetingRoomCalendar() {
         </tbody>
       </table>
     </div>
+    `}
   `
 }
 
@@ -10506,8 +10531,8 @@ function getDatesInCurrentMonth() {
 
 function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
   if (viewMode === '個人當天') return [getDateFromKey(todayString())].filter(Boolean)
-  if (viewMode === '個人當月') return getDatesInCurrentMonth()
-  if (viewMode === '月份顯示') return getMonthDatesFromOffset(getOverviewMonthOffsetFromWeekOffset())
+  if (viewMode === '個人當月') return v120MonthDates(v120ActiveOverviewMonth())
+  if (viewMode === '月份顯示') return v120MonthDates(v120ActiveOverviewMonth())
   if (viewMode === '個人當週') return getWeekDates(0)
   return getWeekDates(overviewWeekOffset)
 }
@@ -10515,8 +10540,8 @@ function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
 function getOverviewCalendarLabel(weekDates = [], viewMode = getOverviewViewMode()) {
   if (!weekDates.length) return ''
   if (viewMode === '個人當天') return `${toDateKey(weekDates[0])}`
-  if (viewMode === '個人當月') return `${toDateKey(weekDates[0]).slice(0, 7)}｜個人當月`
-  if (viewMode === '月份顯示') return `${toDateKey(weekDates[0]).slice(0, 7)}｜月份顯示`
+  if (viewMode === '個人當月') return `${v120ActiveOverviewMonth()}｜個人當月`
+  if (viewMode === '月份顯示') return `${v120ActiveOverviewMonth()}｜月份顯示`
   if (viewMode === '個人當週') return `個人當週｜${getWeekLabel(weekDates)}`
   return getWeekLabel(weekDates)
 }
@@ -10586,26 +10611,197 @@ function getMeetingMonthOffsetFromWeekOffset() {
 }
 
 function getFieldCalendarDates() {
-  if (fieldCalendarViewMode === '月份顯示') return getMonthDatesFromOffset(getFieldMonthOffsetFromWeekOffset())
+  if (fieldCalendarViewMode === '月份顯示') return v120MonthDates(v120ActiveFieldMonth())
   return getWeekDates(fieldWeekOffset)
 }
 
 function getMeetingCalendarDates() {
-  if (meetingCalendarViewMode === '月份顯示') return getMonthDatesFromOffset(getMeetingMonthOffsetFromWeekOffset())
+  if (meetingCalendarViewMode === '月份顯示') return v120MonthDates(v120ActiveMeetingMonth())
   return getWeekDates(meetingWeekOffset)
 }
 
 function getFieldCalendarLabel(dates = getFieldCalendarDates()) {
   if (!dates.length) return ''
-  if (fieldCalendarViewMode === '月份顯示') return `${toDateKey(dates[0]).slice(0, 7)}｜月份顯示`
+  if (fieldCalendarViewMode === '月份顯示') return `${v120ActiveFieldMonth()}｜月份顯示`
   return getWeekLabel(dates)
 }
 
 function getMeetingCalendarLabel(dates = getMeetingCalendarDates()) {
   if (!dates.length) return ''
-  if (meetingCalendarViewMode === '月份顯示') return `${toDateKey(dates[0]).slice(0, 7)}｜月份顯示`
+  if (meetingCalendarViewMode === '月份顯示') return `${v120ActiveMeetingMonth()}｜月份顯示`
   return getWeekLabel(dates)
 }
+
+
+function v120CurrentMonthValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function v120NormalizeMonthValue(value = '') {
+  const text = String(value || '').trim()
+  return /^\d{4}-\d{2}$/.test(text) ? text : v120CurrentMonthValue()
+}
+
+function v120ShiftMonthValue(value = '', delta = 0) {
+  const normalized = v120NormalizeMonthValue(value)
+  const [year, month] = normalized.split('-').map(Number)
+  const date = new Date(year, month - 1 + delta, 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function v120MonthDates(value = '') {
+  const normalized = v120NormalizeMonthValue(value)
+  const [year, month] = normalized.split('-').map(Number)
+  const first = new Date(year, month - 1, 1)
+  const dates = []
+  const cursor = new Date(first)
+  while (cursor.getMonth() === first.getMonth()) {
+    dates.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return dates
+}
+
+function v120ActiveOverviewMonth() {
+  return v120NormalizeMonthValue(overviewDisplayMonth || v120CurrentMonthValue())
+}
+
+function v120ActiveFieldMonth() {
+  return v120NormalizeMonthValue(fieldDisplayMonth || v120CurrentMonthValue())
+}
+
+function v120ActiveMeetingMonth() {
+  return v120NormalizeMonthValue(meetingDisplayMonth || v120CurrentMonthValue())
+}
+
+function v120MonthGridDates(monthDates = []) {
+  if (!monthDates.length) return []
+  const first = new Date(monthDates[0])
+  const start = new Date(first)
+  const leadingDays = first.getDay() === 0 ? 6 : first.getDay() - 1
+  start.setDate(start.getDate() - leadingDays)
+
+  const last = new Date(monthDates[monthDates.length - 1])
+  const end = new Date(last)
+  const trailingDays = last.getDay() === 0 ? 0 : 7 - last.getDay()
+  end.setDate(end.getDate() + trailingDays)
+
+  const dates = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    dates.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return dates
+}
+
+function v120RenderMonthShell(title = '', monthDates = [], renderDayContent) {
+  if (!monthDates.length) return '<div class="empty-state">目前沒有可顯示的月份資料。</div>'
+  const monthKey = toDateKey(monthDates[0]).slice(0, 7)
+  const gridDates = v120MonthGridDates(monthDates)
+  const weekLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+
+  return `
+    <section class="month-calendar-section">
+      ${title ? `<div class="month-calendar-section-title">${title}</div>` : ''}
+      <div class="month-calendar-head">
+        ${weekLabels.map(label => `<div>${label}</div>`).join('')}
+      </div>
+      <div class="month-calendar-grid">
+        ${gridDates.map(date => {
+          const key = toDateKey(date)
+          const inMonth = key.slice(0, 7) === monthKey
+          return renderDayContent(date, key, inMonth)
+        }).join('')}
+      </div>
+    </section>
+  `
+}
+
+function v120RenderOverviewMonthCalendars(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的人員。</div>'
+
+  return `
+    <div class="overview-month-calendar-wrap">
+      ${staffRows.map(staff => v120RenderMonthShell(
+        `<strong>${escapeHtml(staff.name || '-')}</strong><span>${escapeHtml(staff.department_name || '')}</span>`,
+        monthDates,
+        (date, key, inMonth) => {
+          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+          const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
+          const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+          const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+          return `
+            <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+              <div class="month-day-header">
+                <strong>${Number(key.slice(8, 10))}</strong>
+                ${renderHolidayLabels(key)}
+              </div>
+              ${birthdayCard}
+              ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
+            </div>
+          `
+        }
+      )).join('')}
+    </div>
+  `
+}
+
+function v120RenderFieldMonthCalendars(staffRows = [], monthDates = [], todayKey = todayString()) {
+  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的外務人員。</div>'
+
+  return `
+    <div class="field-month-calendar-wrap">
+      ${staffRows.map(staff => v120RenderMonthShell(
+        `<strong>${escapeHtml(staff.name || '-')}</strong><span>${escapeHtml(staff.department_name || '')}</span>`,
+        monthDates,
+        (date, key, inMonth) => {
+          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+          const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
+          const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+          return `
+            <div class="field-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
+              <div class="month-day-header">
+                <strong>${Number(key.slice(8, 10))}</strong>
+                ${renderHolidayLabels(key)}
+              </div>
+              ${birthdayCard}
+              ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
+            </div>
+          `
+        }
+      )).join('')}
+    </div>
+  `
+}
+
+function v120RenderMeetingMonthCalendars(roomRows = [], monthDates = [], todayKey = todayString()) {
+  if (!roomRows.length) return '<div class="empty-state">目前沒有會議室資料。</div>'
+
+  return `
+    <div class="meeting-month-calendar-wrap">
+      ${roomRows.map(room => v120RenderMonthShell(
+        `<strong>${escapeHtml(room)}</strong>`,
+        monthDates,
+        (date, key, inMonth) => {
+          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+          const dayRows = getMeetingSchedulesForRoomDate(room, key)
+          return `
+            <div class="meeting-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
+              <div class="month-day-header">
+                <strong>${Number(key.slice(8, 10))}</strong>
+                ${renderHolidayLabels(key)}
+              </div>
+              ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
+            </div>
+          `
+        }
+      )).join('')}
+    </div>
+  `
+}
+
 
 function isLeaveScheduleType(row = {}) {
   const text = [row.category, row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
@@ -11130,6 +11326,11 @@ function renderScheduleOverview() {
           </select>
         </label>
 
+        <label class="compact-sort-select compact-filter-control overview-month-picker ${['月份顯示', '個人當月'].includes(viewMode) ? '' : 'is-hidden-month-picker'}">
+          <span class="compact-field-label">顯示月份</span>
+          <input name="overviewMonth" type="month" value="${escapeHtml(v120ActiveOverviewMonth())}">
+        </label>
+
         <details class="compact-multi-select compact-filter-control ${viewMode !== '全部行程' ? 'is-disabled-filter' : ''}">
           <summary>部門｜${escapeHtml(getOverviewDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -11168,7 +11369,7 @@ function renderScheduleOverview() {
       </div>
     </form>
 
-    ${viewMode === '個人當月' ? renderPersonalMonthOverview(staffRows[0], weekDates, todayKey) : `
+    ${['月份顯示', '個人當月'].includes(viewMode) ? v120RenderOverviewMonthCalendars(staffRows, weekDates, todayKey) : `
       <div class="week-overview-scroll">
         <table class="week-overview-table ${tableClass}">
           <thead>
@@ -12676,6 +12877,7 @@ function openScheduleDetail(scheduleId) {
         <div><span>附加 / 待辦</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         ${proxyName ? `<div class="detail-proxy-row"><span>請假代理人</span><strong>${escapeHtml(proxyName)}</strong></div>` : ''}
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
+        ${isMeetingRoomSchedule(row) ? `<div class="span-2"><span>與會者 / 與會部門</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
         <div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
@@ -17967,3 +18169,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 點開查看行程時，內容依原行程類型設定模板呈現
 */
 /* FOR-e V002-1P-119 END - calendar month proxy detail polish */
+
+/* FOR-e V002-1P-120 START - month calendar detail attendees */
+/*
+  V002-1P-120｜月份月曆、顯示月份與會議室與會者詳情
+  - 選擇人員後切月份顯示時，改成真正行事曆樣式
+  - 行程總覽、外務行程表、會議室都可選擇顯示月份
+  - 外務檢視範圍列同一排、不滑動、不縮減
+  - 會議室卡片不顯示與會人員，但點開查看會顯示與會者 / 與會部門
+  - 點開查看行程依行程類別 / 原內容模板顯示
+*/
+/* FOR-e V002-1P-120 END - month calendar detail attendees */
