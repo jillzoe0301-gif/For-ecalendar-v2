@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-149'
+const SYSTEM_VERSION = 'V002-1P-150'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1789,6 +1789,7 @@ function openOwnPasswordModal(email = currentProfile?.email || '') {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeOwnPasswordBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelOwnPasswordBtn').addEventListener('click', () => modal.remove())
@@ -1880,6 +1881,7 @@ function openAdminPasswordResetModal(email = '', staffName = '') {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.querySelector('#closeAdminResetPasswordBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelAdminResetPasswordBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#adminResetPasswordForm').addEventListener('submit', event => resetLoginPasswordDirectly(event, modal, email))
@@ -2166,6 +2168,7 @@ function openLoginAccountModal(staffId = '') {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeLoginAccountModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelLoginAccountModalBtn').addEventListener('click', () => modal.remove())
@@ -2306,6 +2309,7 @@ function openRebindLoginAccountModal(staffId = '') {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeRebindLoginAccountModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelRebindLoginAccountModalBtn').addEventListener('click', () => modal.remove())
@@ -2612,6 +2616,8 @@ function renderApp() {
       </nav>
     </section>
   `
+
+  initSearchableChoicePanels(document)
 
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3678,6 +3684,7 @@ function openAuditDetailModal(index) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.querySelector('#closeAuditDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeAuditDetailBtn2').addEventListener('click', () => modal.remove())
 
@@ -4152,12 +4159,9 @@ function isFieldDayReminderSchedule(row = {}) {
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
-    if (!isFieldScheduleRow(row)) return false
+    if (!(isFieldScheduleRow(row) || isLeaveOrReturnSchedule(row))) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
-
-    return (row.schedule_assignees || []).some(item => {
-      return item.staff_id === staffId && !item.deleted_at
-    })
+    return scheduleBelongsToStaff(row, staffId)
   })
 }
 
@@ -4465,6 +4469,25 @@ function getScheduleDisplayType(row = {}) {
 }
 
 
+function getDisplaySubTypeExtra(row = {}) {
+  const extra = String(row.sub_type || '').trim()
+  if (!extra) return ''
+
+  const normalize = value => String(value || '').trim().replace(/\s+/g, '')
+  const normalizedExtra = normalize(extra)
+  const duplicates = [
+    row.title,
+    row.schedule_type,
+    row.category,
+    getScheduleDisplayType(row)
+  ].map(normalize).filter(Boolean)
+
+  if (duplicates.includes(normalizedExtra)) return ''
+  return extra
+}
+
+
+
 function getMeetingSchedulesForRoomDate(room, dateKey) {
   return schedules
     .filter(row => isVisibleSchedule(row))
@@ -4694,6 +4717,7 @@ function openMeetingRoomModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   initMeetingParticipantDropdowns(modal)
 
   const meetingRepeatModeSelect = document.querySelector('#meetingRepeatModeSelect')
@@ -4949,6 +4973,7 @@ function openEditMeetingRoomModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   initMeetingParticipantDropdowns(modal)
   refreshScheduleModeBlocks('edit')
 
@@ -5580,6 +5605,7 @@ function openIncidentTrackingEditModal(scheduleId, trackingIndex) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.querySelector('#closeIncidentTrackingEditBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelIncidentTrackingEditBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#incidentTrackingEditForm').addEventListener('submit', event => saveIncidentTrackingEdit(event, modal, row, trackingIndex))
@@ -5692,6 +5718,7 @@ function openIncidentNextTrackingModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.querySelector('#closeIncidentNextModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelIncidentNextModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#incidentNextTrackingForm').addEventListener('submit', event => saveIncidentNextTracking(event, modal, row))
@@ -5861,6 +5888,7 @@ function openEditIncidentModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   bindIncidentTrackingEditButtons(modal)
   document.querySelector('#closeEditIncidentModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditIncidentModalBtn').addEventListener('click', () => modal.remove())
@@ -6031,6 +6059,7 @@ function openIncidentModal() {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.querySelector('#closeIncidentModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelIncidentModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#incidentForm').addEventListener('submit', event => saveIncident(event, modal))
@@ -7942,6 +7971,7 @@ function openExportCsvModal() {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeExportCsvModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelExportCsvModalBtn').addEventListener('click', () => modal.remove())
@@ -8283,6 +8313,7 @@ function openAssignedReminderModal(rows = getNewAssignedScheduleRows()) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   const close = () => {
     markAssignedReminderRowsSeen(rows)
@@ -8398,6 +8429,7 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   document.body.classList.add('has-login-reminder-open')
 
   const close = () => {
@@ -10977,9 +11009,8 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   }
 
   const color = getScheduleColor(row)
-  const isLeaveContinuation = leaveRow && isContinuousDateSchedule(leaveRow) && leaveRow.start_date < dateKey
   const className = leaveRow
-    ? (isLeaveContinuation ? 'has-continuation-mark' : (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day'))
+    ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
     : 'has-continuation-mark'
 
   return {
@@ -11615,6 +11646,44 @@ function renderCompactCheckOption(name, value, checked, inputName) {
 }
 
 
+function initSearchableChoicePanels(root = document) {
+  const panelSelectors = [
+    '.checkbox-list',
+    '.compact-check-panel',
+    '.meeting-dropdown-panel',
+    '.field-staff-dropdown-panel'
+  ]
+
+  root.querySelectorAll(panelSelectors.join(',')).forEach(panel => {
+    if (panel.dataset.searchReady === '1') return
+
+    const labels = [...panel.querySelectorAll('label')]
+    if (labels.length < 4) return
+
+    panel.dataset.searchReady = '1'
+
+    const input = document.createElement('input')
+    input.type = 'search'
+    input.className = 'choice-search-input'
+    input.placeholder = '搜尋人員 / 部門'
+    input.autocomplete = 'off'
+
+    input.addEventListener('click', event => event.stopPropagation())
+    input.addEventListener('keydown', event => event.stopPropagation())
+    input.addEventListener('input', () => {
+      const keyword = input.value.trim().toLowerCase()
+      labels.forEach(label => {
+        const text = label.textContent.trim().toLowerCase()
+        label.classList.toggle('is-filter-hidden', Boolean(keyword) && !text.includes(keyword))
+      })
+    })
+
+    panel.prepend(input)
+  })
+}
+
+
+
 function getStaffSortOptions(selected = 'display_order') {
   const options = [
     ['display_order', '顯示順序'],
@@ -11747,13 +11816,14 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 
 function renderWeekScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
+  const extra = getDisplaySubTypeExtra(row)
   return `
     <button type="button" class="week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderCardTime(row, 'week-card-time')}
       <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${isNoCompletionControlSchedule(row) ? '' : `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
-      ${row.sub_type ? `<span class="week-card-extra">附加：${escapeHtml(row.sub_type)}</span>` : ''}
+      ${extra ? `<span class="week-card-extra">附加：${escapeHtml(extra)}</span>` : ''}
     </button>
   `
 }
@@ -11856,14 +11926,16 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
       ${rows.map(row => {
         const contentPreview = getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
+        const extra = getDisplaySubTypeExtra(row)
+        const timeText = formatTime(row)
         return `
           <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
-              <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}｜${formatTime(row)}</div>
+              <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
               <div class="schedule-title"><span class="schedule-type-prefix">${escapeHtml(getScheduleDisplayType(row))}</span>｜${escapeHtml(row.title)}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
-              ${row.sub_type ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(row.sub_type)}</div>` : ''}
+              ${extra ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(extra)}</div>` : ''}
               <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
               ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
@@ -13095,20 +13167,10 @@ function openUserAccountModal(staffId = '') {
         </label>
 
         <label>
-          手動輸入部門
-          <input name="department_custom" placeholder="若選單沒有才填寫新部門；留空使用左側選單">
-        </label>
-
-        <label>
           職務
           <select name="position">
             ${getUserManagePositionOptions(staff?.position || '')}
           </select>
-        </label>
-
-        <label>
-          手動輸入職務
-          <input name="position_custom" placeholder="若要新增新職務才填寫；留空使用左側選單">
         </label>
 
         ${hasRemovedPosition ? `
@@ -13158,6 +13220,7 @@ function openUserAccountModal(staffId = '') {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeUserAccountModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelUserAccountModalBtn').addEventListener('click', () => modal.remove())
@@ -13332,6 +13395,7 @@ function openScheduleDetail(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   bindIncidentTrackingEditButtons(modal)
   document.querySelector('#closeDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeDetailBtn2').addEventListener('click', () => modal.remove())
@@ -13984,6 +14048,7 @@ function openFieldResultModal(scheduleId, result) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   document.querySelector('#closeFieldResultBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelFieldResultBtn').addEventListener('click', () => modal.remove())
@@ -14144,6 +14209,7 @@ function openEditFieldScheduleModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   initFieldSpecialDropdowns(modal)
 
   const locationSelect = document.querySelector('#editFieldLocationSelect')
@@ -14879,6 +14945,7 @@ function openFieldScheduleModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
   initFieldSpecialDropdowns(modal)
 
   const fieldRepeatModeSelect = document.querySelector('#fieldRepeatModeSelect')
@@ -15450,6 +15517,7 @@ function openScheduleModal(defaults = {}) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   const categorySelect = document.querySelector('#categorySelect')
   const timeTypeSelect = document.querySelector('#timeTypeSelect')
@@ -16102,6 +16170,7 @@ function openMedicalFollowModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   if (currentTimeText.includes('上午')) document.querySelector('#medicalNextTimeType').value = '上午'
   if (currentTimeText.includes('下午')) document.querySelector('#medicalNextTimeType').value = '下午'
@@ -16402,6 +16471,7 @@ function openEditScheduleModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   const categorySelect = document.querySelector('#editCategorySelect')
   const serviceBlock = document.querySelector('#editServiceBlock')
@@ -16886,6 +16956,7 @@ function openCancelModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   function refreshDeleteAllBlock() {
     const scope = document.querySelector('input[name="deleteScope"]:checked')?.value
@@ -16983,6 +17054,7 @@ function openServiceRecordModal(scheduleId) {
   `
 
   document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
 
   const submittedInput = document.querySelector('#recordSubmittedInput')
   const dateInput = document.querySelector('#recordSubmittedDateInput')
@@ -18565,14 +18637,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-144 END - cleanup obsolete safe blocks */
 
-/* FOR-e V002-1P-149 START - fieldday creator continuation final */
+/* FOR-e V002-1P-150 START - field leave search cleanup */
 /*
-  V002-1P-149｜外務日與指派者顯示最終修正
-  - 外務日 / 請勿安排其他行程為提醒，不進外務明細、不進指派任務、不算任務
-  - 外務日使用 #F48F68
-  - 幫別人安排請假 / 休假 / 返鄉 / 活動 / 外訓時，不出現在指派者行事曆與待辦，也不顯示指派者
-  - 相同連續行程延續日維持同一排，第一天不多顯示單字
-  - 外訓優先於休假判斷，避免外訓內容有休息字樣被誤標為休
-  - 清除 V147 / V148 舊樣式，保留單一 V149 樣式
+  V002-1P-150｜外務休假第一天、附加重複與搜尋修正
+  - 外務行事曆請假 / 休假 / 返鄉第一天顯示完整行程內容
+  - 連續請假 / 返鄉每一天維持整格背景色
+  - 附加與標題相同時不重複顯示
+  - 人員帳號移除手動輸入部門 / 手動輸入職務欄位
+  - 執行者 / 參與者 / 部門複選清單加入搜尋
+  - 清除 V149 舊樣式，改成單一 V150 樣式
 */
-/* FOR-e V002-1P-149 END - fieldday creator continuation final */
+/* FOR-e V002-1P-150 END - field leave search cleanup */

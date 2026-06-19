@@ -13731,8 +13731,36 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-149 START - fieldday creator continuation final */
-/* V002-1P-149｜外務日提醒、連續延續細條與指派者修正 */
+/* FOR-e V002-1P-150 START - field leave search cleanup */
+/* V002-1P-150｜外務休假第一天、附加重複與搜尋修正 */
+
+/* 複選清單搜尋 */
+.choice-search-input {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 0 10px;
+  margin: 0 0 8px;
+  box-sizing: border-box;
+  font-size: 12.5px;
+  font-weight: 850;
+  color: #334155;
+}
+
+.choice-search-input:focus {
+  outline: 2px solid rgba(81, 112, 255, 0.18);
+  border-color: #5170ff;
+}
+
+.check-row.is-filter-hidden,
+.compact-check-option.is-filter-hidden,
+.department-assignee-row.is-filter-hidden,
+.field-staff-check-row.is-filter-hidden {
+  display: none !important;
+}
 
 /* 舊版跨欄 / 每日線段長條全部停用 */
 .continuous-span-row,
@@ -13749,7 +13777,7 @@ body {
   border-color: #F48F68 !important;
 }
 
-/* 只有單日休假 / 返鄉才整格反色 */
+/* 請假 / 休假 / 返鄉：包含連續日期的每一天，都整格反背景色 */
 .week-day-cell.is-leave-day,
 .field-week-day-cell.is-leave-day,
 .month-day-cell.is-leave-day,
@@ -13767,7 +13795,7 @@ body {
   background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
 }
 
-/* 連續延續日不整格反色，只顯示細條 */
+/* 一般連續行程延續日：不整格反色，只顯示細條 */
 .week-day-cell.has-continuation-mark,
 .field-week-day-cell.has-continuation-mark,
 .month-day-cell.has-continuation-mark,
@@ -13866,4 +13894,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-149 END - fieldday creator continuation final */
+/* FOR-e V002-1P-150 END - field leave search cleanup */
