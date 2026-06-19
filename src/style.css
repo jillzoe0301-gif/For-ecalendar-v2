@@ -13731,536 +13731,130 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-139 START - continuous schedule bars */
-/* V002-1P-139｜連續天數行程長條 */
-.continuous-span-row th,
-.continuous-span-row td {
-  padding-top: 2px !important;
-  padding-bottom: 6px !important;
-  background: #ffffff;
-  border-top: 0 !important;
-}
+/* FOR-e V002-1P-145 START - daily continuation marks */
+/* V002-1P-145｜休假返鄉背景與連續日期每日標記 */
 
-.continuous-side-cell {
-  opacity: 0.35;
-  min-height: 36px;
-}
-
-.continuous-empty-cell {
-  background: transparent !important;
-  border-left: 0 !important;
-  border-right: 0 !important;
-}
-
-.continuous-span-cell {
-  padding: 4px 6px !important;
-}
-
-.continuous-schedule-bar {
-  min-height: 38px;
-  border-radius: 999px;
-  background: #ffffff !important;
-  border-width: 4px !important;
-  border-style: solid !important;
-  border-color: var(--schedule-accent, #4E71FF) !important;
-  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.continuous-schedule-bar.is-completed {
-  opacity: 0.72;
-}
-
-.continuous-schedule-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: #111827;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.continuous-schedule-type {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.continuous-schedule-main strong {
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 950;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.continuous-schedule-date {
-  flex: 0 0 auto;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.continuous-complete-btn {
-  flex: 0 0 auto;
-  border: 0;
-  border-left: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #3155d4;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.continuous-complete-btn:hover {
-  background: #eef5ff;
-}
-
-/* 月曆格狀裡的跨日長條 */
-.personal-month-week-block {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.month-continuous-bars {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(128px, 1fr));
-  gap: 8px;
-}
-
-.month-continuous-grid-item {
-  min-width: 0;
-}
-
-.month-continuous-grid-item .continuous-schedule-bar {
-  min-height: 36px;
-}
-
-/* 連續長條也保留外務今日色 */
-.field-continuous-bar {
-  border-color: var(--schedule-accent, #FFCF95) !important;
-}
-
-@media (max-width: 768px) {
-  .continuous-schedule-main {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .continuous-schedule-date {
-    display: none;
-  }
-
-  .month-continuous-bars {
-    min-width: 980px;
-    grid-template-columns: repeat(7, 140px);
-  }
-}
-/* FOR-e V002-1P-139 END - continuous schedule bars */
-
-/* FOR-e V002-1P-140 START - inline continuous segments */
-/* V002-1P-140｜格內連續行程線段 */
+/* 連續日期不再使用跨欄長條 */
+.continuous-span-row,
+.month-continuous-bars,
+.continuous-schedule-bar,
 .continuous-segment {
-  min-height: 34px;
-  margin: 4px 0 6px;
-  background: #ffffff !important;
-  border-width: 4px !important;
-  border-style: solid !important;
-  border-color: var(--schedule-accent, #4E71FF) !important;
-  display: flex;
-  align-items: stretch;
-  overflow: hidden;
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+  display: none !important;
 }
 
-.continuous-segment.is-start {
-  border-radius: 999px 0 0 999px;
-  border-right-width: 0 !important;
-  margin-right: -7px;
-}
-
-.continuous-segment.is-middle {
-  border-radius: 0;
-  border-left-width: 0 !important;
-  border-right-width: 0 !important;
-  margin-left: -7px;
-  margin-right: -7px;
-}
-
-.continuous-segment.is-end {
-  border-radius: 0 999px 999px 0;
-  border-left-width: 0 !important;
-  margin-left: -7px;
-}
-
-.continuous-segment.is-single {
-  border-radius: 999px;
-}
-
-.continuous-segment.is-completed {
-  opacity: 0.72;
-}
-
-.continuous-segment-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: #111827;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  text-align: left;
+/* 日期格背景：休假 / 返鄉 / 連續延續 */
+.week-day-cell.is-leave-day,
+.field-week-day-cell.is-leave-day,
+.month-day-cell.is-leave-day,
+.week-day-cell.is-return-day,
+.field-week-day-cell.is-return-day,
+.month-day-cell.is-return-day,
+.week-day-cell.is-continuation-day,
+.field-week-day-cell.is-continuation-day,
+.month-day-cell.is-continuation-day,
+.meeting-week-day-cell.is-continuation-day {
+  background: color-mix(in srgb, var(--day-accent, #BFDDF0) 16%, #ffffff) !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #BFDDF0) 48%, #ffffff) !important;
   cursor: pointer;
-  overflow: hidden;
 }
 
-.continuous-segment-main span:not(.continuous-segment-line) {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #334155;
-  font-size: 11px;
-  font-weight: 950;
+/* 返鄉背景略深一點 */
+.week-day-cell.is-return-day,
+.field-week-day-cell.is-return-day,
+.month-day-cell.is-return-day {
+  background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
 }
 
-.continuous-segment-main strong {
-  min-width: 0;
-  font-size: 12.5px;
-  font-weight: 950;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.continuous-segment-line {
-  display: block;
+/* 休 / 返 標記 */
+.leave-return-day-mark,
+.continuation-day-mark {
   width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--schedule-accent, #4E71FF);
-  opacity: 0.28;
-}
-
-.continuous-segment-complete {
-  flex: 0 0 auto;
   border: 0;
-  border-left: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #3155d4;
-  padding: 0 8px;
-  font-size: 11px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.continuous-segment-complete:hover {
-  background: #eef5ff;
-}
-
-/* 舊版底部跨列長條不再使用，避免出現在最底下 */
-.continuous-span-row,
-.month-continuous-bars {
-  display: none !important;
-}
-
-/* 格內長條不可撐壞欄位 */
-.week-day-cell,
-.field-week-day-cell,
-.meeting-week-day-cell,
-.month-day-cell {
-  overflow: visible;
-}
-
-@media (max-width: 768px) {
-  .continuous-segment-main span:not(.continuous-segment-line) {
-    display: none;
-  }
-
-  .continuous-segment-complete {
-    padding: 0 6px;
-    font-size: 10px;
-  }
-}
-/* FOR-e V002-1P-140 END - inline continuous segments */
-
-/* FOR-e V002-1P-141 START - span bars and personal birthday */
-/* V002-1P-141｜跨欄連續行程長條 */
-.continuous-span-row {
-  display: table-row !important;
-}
-
-.month-continuous-bars {
-  display: grid !important;
-  grid-template-columns: repeat(7, minmax(128px, 1fr));
-  gap: 8px;
-  margin: 4px 0 8px;
-}
-
-.continuous-span-row th,
-.continuous-span-row td {
-  padding-top: 3px !important;
-  padding-bottom: 5px !important;
-  background: #ffffff;
-  border-top: 0 !important;
-}
-
-.continuous-side-cell {
-  background: transparent !important;
-  border-right: 1px solid #e5e7eb;
-  min-height: 38px;
-}
-
-.continuous-empty-cell {
-  background: transparent !important;
-  border-left: 0 !important;
-  border-right: 0 !important;
-}
-
-.continuous-span-cell {
-  padding: 4px 6px !important;
-  background: transparent !important;
-}
-
-.continuous-schedule-bar {
-  min-height: 38px;
+  background: rgba(255, 255, 255, 0.72);
   border-radius: 999px;
-  background: #ffffff !important;
-  border-width: 4px !important;
-  border-style: solid !important;
-  border-color: var(--schedule-accent, #4E71FF) !important;
-  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.continuous-schedule-bar.is-completed {
-  opacity: 0.72;
-}
-
-.continuous-schedule-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: #111827;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 28px;
+  padding: 4px 8px;
+  margin: 3px 0 5px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: 6px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 950;
   text-align: left;
   cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
-.continuous-schedule-type {
+.leave-return-day-mark span,
+.continuation-day-mark span {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 0 8px;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
   border-radius: 999px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--day-accent, #BFDDF0);
+  color: #0f172a;
   font-size: 12px;
   font-weight: 950;
 }
 
-.continuous-schedule-main strong {
+.leave-return-day-mark strong,
+.continuation-day-mark strong {
   min-width: 0;
-  font-size: 13px;
-  font-weight: 950;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.continuous-schedule-date {
-  flex: 0 0 auto;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 850;
-  white-space: nowrap;
+.leave-return-day-mark.is-first-day {
+  width: auto;
+  padding: 3px 5px;
+  min-height: 26px;
 }
 
-.continuous-complete-btn {
-  flex: 0 0 auto;
-  border: 0;
-  border-left: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #3155d4;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
+.leave-return-day-mark.is-first-day span {
+  min-width: 24px;
+  height: 24px;
 }
 
-.continuous-complete-btn:hover {
-  background: #eef5ff;
+/* 延續行程標題 */
+.continuation-day-mark span {
+  background: color-mix(in srgb, var(--day-accent, #4E71FF) 75%, #ffffff);
 }
 
-/* V140 的每日線段停用，避免每天都有完成按鈕 */
-.continuous-segment {
-  display: none !important;
-}
-
-.login-personal-birthday-greeting {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 2px solid #f9a8d4;
-  background: #fff1f8;
-  color: #be185d;
-  text-align: left;
-}
-
-.login-personal-birthday-greeting strong {
-  font-size: 18px;
-  font-weight: 950;
-  line-height: 1.35;
-}
-
-@media (max-width: 768px) {
-  .continuous-schedule-main {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .continuous-schedule-date {
-    display: none;
-  }
-
-  .month-continuous-bars {
-    min-width: 980px;
-    grid-template-columns: repeat(7, 140px);
-  }
-}
-/* FOR-e V002-1P-141 END - span bars and personal birthday */
-
-/* FOR-e V002-1P-143 START - boundary and birthday prompt fix */
-/* V002-1P-143｜連續行程界線柔化 */
-
-/* 連續長條所在列：完全不顯示表格格線，避免看起來像一條獨立分隔線 */
-.continuous-span-row,
-.continuous-span-row > th,
-.continuous-span-row > td {
-  background: transparent !important;
-  border-top: 0 !important;
-  border-bottom: 0 !important;
-  border-left-color: transparent !important;
-  border-right-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.continuous-span-row > th,
-.continuous-span-row > td {
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
-}
-
-.continuous-side-cell {
-  background: transparent !important;
-  border: 0 !important;
-  opacity: 0 !important;
-  min-height: 20px !important;
-}
-
-.continuous-empty-cell {
-  background: transparent !important;
-  border: 0 !important;
-}
-
-.continuous-span-cell {
-  background: transparent !important;
-  border: 0 !important;
-  padding: 2px 8px !important;
-}
-
-/* 連續長條下一列不再出現明顯水平線 */
-.continuous-span-row + tr > th,
-.continuous-span-row + tr > td {
-  border-top-color: transparent !important;
-}
-
-/* 長條本體：改成柔和底色 + 左側色條，不再用厚重上下外框 */
-.continuous-schedule-bar {
-  min-height: 34px !important;
-  border-radius: 999px !important;
-  border-top: 0 !important;
-  border-right: 0 !important;
-  border-bottom: 0 !important;
-  border-left: 6px solid var(--schedule-accent, #4E71FF) !important;
-  background: color-mix(in srgb, var(--schedule-accent, #4E71FF) 10%, #ffffff) !important;
+/* 空白格可點擊提示 */
+.week-day-cell.is-continuation-day:hover,
+.field-week-day-cell.is-continuation-day:hover,
+.meeting-week-day-cell.is-continuation-day:hover,
+.month-day-cell.is-continuation-day:hover,
+.week-day-cell.is-leave-day:hover,
+.field-week-day-cell.is-leave-day:hover,
+.month-day-cell.is-leave-day:hover,
+.week-day-cell.is-return-day:hover,
+.field-week-day-cell.is-return-day:hover,
+.month-day-cell.is-return-day:hover {
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #4E71FF) 28%, #ffffff),
-    0 2px 8px rgba(15, 23, 42, 0.045) !important;
-  margin: 0 !important;
-  overflow: hidden !important;
+    inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #4E71FF) 62%, #ffffff),
+    0 4px 10px rgba(15, 23, 42, 0.08) !important;
 }
 
-.continuous-schedule-main {
-  padding-left: 12px !important;
-  padding-right: 10px !important;
-}
-
-.continuous-schedule-type {
-  background: rgba(255, 255, 255, 0.82) !important;
-  color: #334155 !important;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
-}
-
-.continuous-complete-btn {
-  background: rgba(255, 255, 255, 0.72) !important;
-  border-left: 1px solid rgba(148, 163, 184, 0.24) !important;
-  color: #3155d4 !important;
-}
-
-.continuous-complete-btn:hover {
-  background: #ffffff !important;
-}
-
-.continuous-schedule-bar.is-completed {
-  opacity: 0.78 !important;
-}
-
-/* 月曆格狀中的連續長條也套用柔和樣式 */
-.month-continuous-grid-item .continuous-schedule-bar {
-  min-height: 34px !important;
-}
-
-/* color-mix 備援：不支援時仍避免厚重上下框 */
+/* color-mix 備援 */
 @supports not (color: color-mix(in srgb, #000 50%, #fff)) {
-  .continuous-schedule-bar {
-    background: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045) !important;
+  .week-day-cell.is-leave-day,
+  .field-week-day-cell.is-leave-day,
+  .month-day-cell.is-leave-day,
+  .week-day-cell.is-return-day,
+  .field-week-day-cell.is-return-day,
+  .month-day-cell.is-return-day,
+  .week-day-cell.is-continuation-day,
+  .field-week-day-cell.is-continuation-day,
+  .month-day-cell.is-continuation-day,
+  .meeting-week-day-cell.is-continuation-day {
+    background: #f8fafc !important;
   }
 }
-/* FOR-e V002-1P-143 END - boundary and birthday prompt fix */
+/* FOR-e V002-1P-145 END - daily continuation marks */
