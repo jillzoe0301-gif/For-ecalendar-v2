@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-134'
+const SYSTEM_VERSION = 'V002-1P-118'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -398,7 +398,6 @@ let saving = false
 let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
-let overviewDisplayMonth = ''
 let overviewFilters = {
   viewMode: '全部行程',
   departments: [],
@@ -407,7 +406,6 @@ let overviewFilters = {
   sortDir: 'asc'
 }
 let fieldWeekOffset = 0
-let fieldDisplayMonth = ''
 let fieldCalendarViewMode = '週檢視'
 let fieldScheduleFilters = {
   departments: [],
@@ -416,7 +414,6 @@ let fieldScheduleFilters = {
   sortDir: 'asc'
 }
 let meetingWeekOffset = 0
-let meetingDisplayMonth = ''
 let meetingCalendarViewMode = '週檢視'
 let fieldDetailFilters = {
   staffId: '全部',
@@ -475,7 +472,6 @@ let serviceRecordFilters = {
   staffId: '全部',
   department: '全部',
   scheduleType: '全部',
-  period: '全部',
   keyword: '',
   startDate: '',
   endDate: ''
@@ -2481,50 +2477,6 @@ async function loadServiceRecords() {
   serviceRecordsLoading = false
 }
 
-
-const collapsibleFilterFormIds = [
-  'overviewFilterForm',
-  'fieldScheduleFilterForm',
-  'fieldDetailFilterForm',
-  'incidentFilterForm',
-  'statsFilterForm',
-  'serviceRecordFilterForm',
-  'usersFilterForm'
-]
-
-function installFilterPanelToggles() {
-  collapsibleFilterFormIds.forEach(formId => {
-    const form = document.getElementById(formId)
-    if (!form || form.dataset.filterToggleReady === '1') return
-
-    form.dataset.filterToggleReady = '1'
-
-    const storageKey = `for-e-filter-collapsed-${formId}`
-    const isCollapsed = localStorage.getItem(storageKey) === '1'
-    form.classList.toggle('is-filter-collapsed', isCollapsed)
-
-    const wrapper = document.createElement('div')
-    wrapper.className = 'filter-toggle-wrap'
-
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'filter-toggle-btn'
-    button.dataset.filterToggleForm = formId
-    button.textContent = isCollapsed ? '顯示篩選' : '隱藏篩選'
-
-    button.addEventListener('click', () => {
-      const nextCollapsed = !form.classList.contains('is-filter-collapsed')
-      form.classList.toggle('is-filter-collapsed', nextCollapsed)
-      localStorage.setItem(storageKey, nextCollapsed ? '1' : '0')
-      button.textContent = nextCollapsed ? '顯示篩選' : '隱藏篩選'
-    })
-
-    wrapper.appendChild(button)
-    form.parentNode.insertBefore(wrapper, form)
-  })
-}
-
-
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
   const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
@@ -2583,9 +2535,6 @@ function renderApp() {
       </nav>
     </section>
   `
-
-  installFilterPanelToggles()
-  bindPeriodDateRangeToggles()
 
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2690,7 +2639,6 @@ function renderApp() {
         staffId: '全部',
         department: '全部',
         scheduleType: '全部',
-        period: '全部',
         keyword: '',
         startDate: '',
         endDate: ''
@@ -2704,16 +2652,14 @@ function renderApp() {
     serviceRecordFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
-      const serviceRecordPeriod = form.get('period') || '全部'
       serviceRecordFilters = {
         status: form.get('status') || '全部',
         staffId: form.get('staffId') || '全部',
         department: form.get('department') || '全部',
         scheduleType: form.get('scheduleType') || '全部',
-        period: serviceRecordPeriod,
         keyword: form.get('keyword') || '',
-        startDate: serviceRecordPeriod === '自訂' ? (form.get('startDate') || '') : '',
-        endDate: serviceRecordPeriod === '自訂' ? (form.get('endDate') || '') : ''
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || ''
       }
       renderApp()
     })
@@ -2724,13 +2670,12 @@ function renderApp() {
     overviewFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
-      overviewDisplayMonth = v120NormalizeMonthValue(form.get('overviewMonth') || overviewDisplayMonth || v120CurrentMonthValue())
       overviewFilters = normalizeOverviewFilters({
         viewMode: form.get('viewMode') || '全部行程',
         departments: form.getAll('departments'),
         staffIds: form.getAll('staffIds'),
         sortBy: form.get('sortBy') || 'display_order',
-        sortDir: 'asc'
+        sortDir: form.get('sortDir') || 'asc'
       })
       saveOverviewFiltersPreference()
       renderApp()
@@ -2749,7 +2694,7 @@ function renderApp() {
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
   if (prevWeekBtn) {
     prevWeekBtn.addEventListener('click', () => {
-      getOverviewViewMode() === '月份顯示' ? overviewDisplayMonth = v120ShiftMonthValue(v120ActiveOverviewMonth(), -1) : overviewWeekOffset -= 1
+      overviewWeekOffset += getOverviewViewMode() === '月份顯示' ? -5 : -1
       renderApp()
     })
   }
@@ -2758,7 +2703,6 @@ function renderApp() {
   if (thisWeekBtn) {
     thisWeekBtn.addEventListener('click', () => {
       overviewWeekOffset = 0
-      overviewDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2766,7 +2710,7 @@ function renderApp() {
   const nextWeekBtn = document.querySelector('#nextWeekBtn')
   if (nextWeekBtn) {
     nextWeekBtn.addEventListener('click', () => {
-      getOverviewViewMode() === '月份顯示' ? overviewDisplayMonth = v120ShiftMonthValue(v120ActiveOverviewMonth(), 1) : overviewWeekOffset += 1
+      overviewWeekOffset += getOverviewViewMode() === '月份顯示' ? 5 : 1
       renderApp()
     })
   }
@@ -2791,12 +2735,11 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       fieldCalendarViewMode = form.get('fieldViewMode') || fieldCalendarViewMode || '週檢視'
-      fieldDisplayMonth = v120NormalizeMonthValue(form.get('fieldMonth') || fieldDisplayMonth || v120CurrentMonthValue())
       fieldScheduleFilters = normalizeFieldScheduleFilters({
         departments: form.getAll('fieldDepartments'),
         staffIds: form.getAll('fieldStaffIds'),
         sortBy: form.get('fieldSortBy') || 'display_order',
-        sortDir: 'asc'
+        sortDir: form.get('fieldSortDir') || 'asc'
       })
       saveFieldScheduleFiltersPreference()
       renderApp()
@@ -2815,7 +2758,7 @@ function renderApp() {
   const fieldPrevWeekBtn = document.querySelector('#fieldPrevWeekBtn')
   if (fieldPrevWeekBtn) {
     fieldPrevWeekBtn.addEventListener('click', () => {
-      fieldCalendarViewMode === '月份顯示' ? fieldDisplayMonth = v120ShiftMonthValue(v120ActiveFieldMonth(), -1) : fieldWeekOffset -= 1
+      fieldWeekOffset += fieldCalendarViewMode === '月份顯示' ? -5 : -1
       renderApp()
     })
   }
@@ -2824,7 +2767,6 @@ function renderApp() {
   if (fieldThisWeekBtn) {
     fieldThisWeekBtn.addEventListener('click', () => {
       fieldWeekOffset = 0
-      fieldDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2832,7 +2774,7 @@ function renderApp() {
   const fieldNextWeekBtn = document.querySelector('#fieldNextWeekBtn')
   if (fieldNextWeekBtn) {
     fieldNextWeekBtn.addEventListener('click', () => {
-      fieldCalendarViewMode === '月份顯示' ? fieldDisplayMonth = v120ShiftMonthValue(v120ActiveFieldMonth(), 1) : fieldWeekOffset += 1
+      fieldWeekOffset += fieldCalendarViewMode === '月份顯示' ? 5 : 1
       renderApp()
     })
   }
@@ -2856,18 +2798,10 @@ function renderApp() {
     })
   }
 
-  const meetingMonthInput = document.querySelector('#meetingMonthInput')
-  if (meetingMonthInput) {
-    meetingMonthInput.addEventListener('change', event => {
-      meetingDisplayMonth = v120NormalizeMonthValue(event.target.value || meetingDisplayMonth || v120CurrentMonthValue())
-      renderApp()
-    })
-  }
-
   const meetingPrevWeekBtn = document.querySelector('#meetingPrevWeekBtn')
   if (meetingPrevWeekBtn) {
     meetingPrevWeekBtn.addEventListener('click', () => {
-      meetingCalendarViewMode === '月份顯示' ? meetingDisplayMonth = v120ShiftMonthValue(v120ActiveMeetingMonth(), -1) : meetingWeekOffset -= 1
+      meetingWeekOffset += meetingCalendarViewMode === '月份顯示' ? -5 : -1
       renderApp()
     })
   }
@@ -2876,7 +2810,6 @@ function renderApp() {
   if (meetingThisWeekBtn) {
     meetingThisWeekBtn.addEventListener('click', () => {
       meetingWeekOffset = 0
-      meetingDisplayMonth = v120CurrentMonthValue()
       renderApp()
     })
   }
@@ -2884,7 +2817,7 @@ function renderApp() {
   const meetingNextWeekBtn = document.querySelector('#meetingNextWeekBtn')
   if (meetingNextWeekBtn) {
     meetingNextWeekBtn.addEventListener('click', () => {
-      meetingCalendarViewMode === '月份顯示' ? meetingDisplayMonth = v120ShiftMonthValue(v120ActiveMeetingMonth(), 1) : meetingWeekOffset += 1
+      meetingWeekOffset += meetingCalendarViewMode === '月份顯示' ? 5 : 1
       renderApp()
     })
   }
@@ -2954,11 +2887,10 @@ function renderApp() {
     statsFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
-      const statsPeriod = form.get('period') || '當月'
       statsFilters = {
-        period: statsPeriod,
-        startDate: statsPeriod === '自訂' ? (form.get('startDate') || '') : '',
-        endDate: statsPeriod === '自訂' ? (form.get('endDate') || '') : '',
+        period: form.get('period') || '當月',
+        startDate: form.get('startDate') || '',
+        endDate: form.get('endDate') || '',
         department: form.get('department') || '全部',
         staffId: form.get('staffId') || '全部',
         category: form.get('category') || '全部'
@@ -3029,10 +2961,10 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       userAccountFilters = {
-        keyword: '',
+        keyword: form.get('keyword') || '',
         department: form.get('department') || '全部',
         role: form.get('role') || '全部',
-        fieldStaff: '全部'
+        fieldStaff: form.get('fieldStaff') || '全部'
       }
       renderApp()
     })
@@ -3207,42 +3139,12 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       const nextColors = {}
-      const invalidLabels = []
-
       getScheduleColorDefinitions().forEach(item => {
-        const manualValue = String(form.get(`color_text_${item.key}`) || '').trim()
-        const pickerValue = form.get(`color_${item.key}`) || item.defaultColor
-        const normalizedManual = normalizeManualColorCode(manualValue)
-        const normalizedPicker = normalizeManualColorCode(pickerValue, item.defaultColor)
-
-        if (manualValue && !normalizedManual) {
-          invalidLabels.push(item.label)
-        }
-
-        nextColors[item.key] = normalizedManual || normalizedPicker || item.defaultColor
+        nextColors[item.key] = form.get(`color_${item.key}`) || item.defaultColor
       })
-
-      if (invalidLabels.length) {
-        alert(`以下色碼格式不正確，請輸入 # 加 6 碼，例如 #EEEEEE：\n${invalidLabels.join('、')}`)
-        return
-      }
-
       await saveScheduleColorSettings(nextColors)
       alert('顏色設定已儲存。')
       renderApp()
-    })
-
-    colorSettingsForm.querySelectorAll('[data-color-picker-key]').forEach(input => {
-      input.addEventListener('input', event => {
-        updateColorPreviewByKey(event.target.dataset.colorPickerKey, event.target.value)
-      })
-    })
-
-    colorSettingsForm.querySelectorAll('[data-color-code-key]').forEach(input => {
-      input.addEventListener('input', event => {
-        const normalized = normalizeManualColorCode(event.target.value)
-        if (normalized) updateColorPreviewByKey(event.target.dataset.colorCodeKey, normalized)
-      })
     })
   }
 
@@ -4137,21 +4039,14 @@ function renderFieldScheduleCalendar() {
     ${renderReadStatus()}
 
     <form id="fieldScheduleFilterForm" class="overview-filter-panel overview-filter-panel-compact field-filter-panel-compact">
-      <div class="calendar-filter-control-bar">
-        <label class="calendar-filter-control">
-          <span>檢視範圍</span>
-          <select name="fieldViewMode" id="fieldViewModeSelect" class="calendar-filter-select">
+      <div class="overview-filter-compact-row">
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">檢視範圍</span>
+          <select name="fieldViewMode" id="fieldViewModeSelect">
             ${getCalendarViewModeOptionsHtml(fieldCalendarViewMode)}
           </select>
         </label>
 
-        <label class="calendar-filter-control field-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
-          <span>顯示月份</span>
-          <input name="fieldMonth" class="calendar-filter-month" type="month" value="${escapeHtml(v120ActiveFieldMonth())}">
-        </label>
-      </div>
-
-      <div class="overview-filter-compact-row main-filter-row">
         <details class="compact-multi-select compact-filter-control">
           <summary>部門｜${escapeHtml(getFieldDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -4167,13 +4062,20 @@ function renderFieldScheduleCalendar() {
         </details>
 
         <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">排序（部門 / 姓名）</span>
+          <span class="compact-field-label">排序</span>
           <select name="fieldSortBy">
-            ${getStaffDepartmentNameSortOptions(fieldScheduleFilters.sortBy)}
+            ${getStaffSortOptions(fieldScheduleFilters.sortBy)}
           </select>
         </label>
 
-        <button type="submit" class="primary-btn">套用記住</button>
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">順序</span>
+          <select name="fieldSortDir">
+            ${getStaffSortDirOptions(fieldScheduleFilters.sortDir)}
+          </select>
+        </label>
+
+        <button type="submit" class="primary-btn">套用並記住</button>
         <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
       </div>
 
@@ -4182,9 +4084,8 @@ function renderFieldScheduleCalendar() {
       </div>
     </form>
 
-    ${isMonthView ? v121RenderFieldMonthView(staffRows, weekDates, todayKey) : `
     <div class="field-week-scroll">
-      <table class="field-week-table">
+      <table class="field-week-table ${isMonthView ? 'is-field-month' : ''}">
         <thead>
           <tr>
             <th class="field-staff-col">外務人員</th>
@@ -4221,7 +4122,6 @@ function renderFieldScheduleCalendar() {
         </tbody>
       </table>
     </div>
-    `}
 
     ${!staffRows.length ? '<div class="empty-state">目前沒有可顯示的外務人員。</div>' : ''}
   `
@@ -4484,9 +4384,6 @@ function renderMeetingRoomCalendar() {
             ${getCalendarViewModeOptionsHtml(meetingCalendarViewMode)}
           </select>
         </label>
-        <label class="calendar-view-select meeting-month-picker ${isMonthView ? '' : 'is-hidden-month-picker'}">
-          <input id="meetingMonthInput" type="month" value="${escapeHtml(v120ActiveMeetingMonth())}">
-        </label>
         <button class="secondary-btn" id="meetingPrevWeekBtn">${isMonthView ? '上一月' : '上一週'}</button>
         <button class="secondary-btn" id="meetingThisWeekBtn">${isMonthView ? '本月' : '本週'}</button>
         <button class="secondary-btn" id="meetingNextWeekBtn">${isMonthView ? '下一月' : '下一週'}</button>
@@ -4497,9 +4394,8 @@ function renderMeetingRoomCalendar() {
 
     ${renderReadStatus()}
 
-    ${isMonthView ? v121RenderMeetingMonthView(getManagedListOption('meetingRoomOptions', meetingRoomOptions), weekDates, todayKey) : `
     <div class="meeting-week-scroll">
-      <table class="meeting-week-table">
+      <table class="meeting-week-table ${isMonthView ? 'is-meeting-month' : ''}">
         <thead>
           <tr>
             <th class="meeting-room-col">會議室</th>
@@ -4530,7 +4426,6 @@ function renderMeetingRoomCalendar() {
         </tbody>
       </table>
     </div>
-    `}
   `
 }
 
@@ -6437,29 +6332,29 @@ function getStatsTypeByDepartmentGroups(rows) {
 }
 
 function renderStatsFilterForm() {
-  const periodOptions = getCommonPeriodOptions(statsFilters.period || '當月')
+  const periodOptions = ['當月', '當年', '自訂']
+    .map(item => `<option value="${item}" ${statsFilters.period === item ? 'selected' : ''}>${item}</option>`)
+    .join('')
+
   const departmentOptions = buildServiceRecordOptionList(getStatsDepartmentOptions(), statsFilters.department)
   const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
-  const isCustomPeriod = statsFilters.period === '自訂'
 
   return `
-    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter ${isCustomPeriod ? 'is-custom-period' : ''}" data-period-form>
+    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter">
       <label>
         期間
-        <select name="period" data-period-select>${periodOptions}</select>
+        <select name="period">${periodOptions}</select>
       </label>
 
-      <div class="period-date-range">
-        <label>
-          起日
-          <input name="startDate" type="date" value="${statsFilters.startDate}">
-        </label>
+      <label>
+        起日
+        <input name="startDate" type="date" value="${statsFilters.startDate}">
+      </label>
 
-        <label>
-          迄日
-          <input name="endDate" type="date" value="${statsFilters.endDate}">
-        </label>
-      </div>
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${statsFilters.endDate}">
+      </label>
 
       <label>
         部門
@@ -6476,7 +6371,7 @@ function renderStatsFilterForm() {
         <select name="category">${categoryOptions}</select>
       </label>
 
-      <button type="submit" class="primary-btn">統計</button>
+      <button type="submit" class="primary-btn">套用統計</button>
     </form>
   `
 }
@@ -7221,19 +7116,16 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 
 function getScheduleColorDefinitions() {
   return [
-    { key: '服務行程', label: '服務行程', defaultColor: '#EEEEEE' },
+    { key: '服務行程', label: '服務行程', defaultColor: '#ffffff' },
     { key: '一般記事', label: '一般記事', defaultColor: '#AEE2FF' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#CCD3CA' },
-    { key: '請假', label: '請假 / 休假', defaultColor: '#DDD6FE' },
-    { key: '返鄉', label: '返鄉', defaultColor: '#B0A1BA' },
-    { key: '活動', label: '活動', defaultColor: '#BFDBFE' },
-    { key: '外訓', label: '外訓', defaultColor: '#BBF7D0' },
+    { key: '請假 / 會議 / 活動 / 外訓', label: '請假 / 會議 / 活動 / 外訓', defaultColor: '#B5BAFF' },
     { key: '證件交付', label: '證件交付', defaultColor: '#EED3D9' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFDBB6' },
-    { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FFB199' },
+    { key: '異況追蹤', label: '異況追蹤', defaultColor: '#FF6A1C' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#DFD3C3' },
-    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#FFF7A8' },
-    { key: '提醒事項', label: '提醒事項', defaultColor: '#FFC4C4' }
+    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#FFF57E' },
+    { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8383' }
   ]
 }
 
@@ -7244,21 +7136,13 @@ function getScheduleColorSettings() {
       ? normalizeSettingValue(appSettings.schedule_colors)
       : null
 
-    const saved = remoteSaved || localSaved || {}
+    const saved = remoteSaved || localSaved
 
     if (saved['提醒事項'] === '#EED3D9') {
       saved['提醒事項'] = '#FF8383'
+      localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
+      if (remoteSaved) saveAppSetting('schedule_colors', saved)
     }
-
-    delete saved['請假 / 會議 / 活動 / 外訓']
-
-    const currentReturnHome = normalizeManualColorCode(saved['返鄉'])
-    if (!currentReturnHome || ['#FED7AA', '#FDBA74'].includes(currentReturnHome)) {
-      saved['返鄉'] = '#B0A1BA'
-    }
-
-    localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
-    if (remoteSaved) saveAppSetting('schedule_colors', saved)
 
     return {
       ...getDefaultScheduleColorMap(),
@@ -7290,19 +7174,9 @@ function getScheduleColorKey(row) {
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
-  const subtypeText = getScheduleSubtypeText(row)
-  if (subtypeText.includes('返鄉')) return '返鄉'
-  if (subtypeText.includes('請假') || subtypeText.includes('休假')) return '請假'
-  if (subtypeText.includes('外訓')) return '外訓'
-  if (subtypeText.includes('活動')) return '活動'
-
   const note = String(row.sub_type_note || '')
   if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
   if (String(row.schedule_type || '').includes('提醒')) return '提醒事項'
-
-  if (row.category === '請假 / 會議 / 活動 / 外訓') {
-    return row.sub_type || row.schedule_type || '服務行程'
-  }
 
   return row.category || row.schedule_type || '服務行程'
 }
@@ -7327,13 +7201,13 @@ function getScheduleColorInlineStyle(row) {
   const accentColor = typeof getScheduleCardAccentColor === 'function'
     ? getScheduleCardAccentColor(row)
     : (getScheduleColorKey(row) === '會議室預約' ? '#DFD3C3' : getScheduleColor(row))
-  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
+  return `background:#ffffff;border:3px solid ${accentColor};--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
-  const previewColor = normalizeManualColorCode(color, item.defaultColor) || item.defaultColor
+  const previewColor = item.key === '會議室預約' ? '#DFD3C3' : color
   return `
-    <div class="color-preview-card" data-color-preview-key="${escapeHtml(item.key)}" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
+    <div class="color-preview-card" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
       <strong>${escapeHtml(item.label)}</strong>
       <span>白底＋外框色</span>
     </div>
@@ -7604,14 +7478,14 @@ function renderColorSettingsPage() {
       </div>
 
       ${getScheduleColorDefinitions().map(item => {
-        const color = normalizeManualColorCode(settings[item.key], item.defaultColor) || item.defaultColor
+        const color = settings[item.key] || item.defaultColor
         return `
           <section class="color-setting-row color-setting-row-clean">
             <div class="color-item-name">${escapeHtml(item.label)}</div>
             <label class="color-picker-cell" title="${escapeHtml(item.label)}">
-              <input type="color" name="color_${item.key}" data-color-picker-key="${escapeHtml(item.key)}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
+              <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
             </label>
-            <input class="color-code-input" name="color_text_${item.key}" data-color-code-key="${escapeHtml(item.key)}" value="${escapeHtml(color)}" placeholder="#EEEEEE" maxlength="7" pattern="^#?[0-9A-Fa-f]{6}$" ${canEdit ? '' : 'readonly'}>
+            <input class="color-code-input" value="${escapeHtml(color)}" readonly>
             ${renderColorPreviewCard(item, color)}
           </section>
         `
@@ -7619,31 +7493,6 @@ function renderColorSettingsPage() {
     </form>
   `
 }
-
-
-function normalizeManualColorCode(value = '', fallback = '') {
-  const raw = String(value || '').trim()
-  if (!raw) return fallback || ''
-  const normalized = raw.startsWith('#') ? raw : `#${raw}`
-  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : ''
-}
-
-function updateColorPreviewByKey(key, color) {
-  const normalized = normalizeManualColorCode(color)
-  if (!normalized) return
-
-  const picker = document.querySelector(`[data-color-picker-key="${CSS.escape(key)}"]`)
-  const codeInput = document.querySelector(`[data-color-code-key="${CSS.escape(key)}"]`)
-  const preview = document.querySelector(`[data-color-preview-key="${CSS.escape(key)}"]`)
-
-  if (picker) picker.value = normalized
-  if (codeInput) codeInput.value = normalized
-  if (preview) {
-    preview.style.borderColor = normalized
-    preview.style.setProperty('--schedule-accent', normalized)
-  }
-}
-
 
 
 
@@ -10657,8 +10506,8 @@ function getDatesInCurrentMonth() {
 
 function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
   if (viewMode === '個人當天') return [getDateFromKey(todayString())].filter(Boolean)
-  if (viewMode === '個人當月') return v120MonthDates(v120ActiveOverviewMonth())
-  if (viewMode === '月份顯示') return v120MonthDates(v120ActiveOverviewMonth())
+  if (viewMode === '個人當月') return getDatesInCurrentMonth()
+  if (viewMode === '月份顯示') return getMonthDatesFromOffset(getOverviewMonthOffsetFromWeekOffset())
   if (viewMode === '個人當週') return getWeekDates(0)
   return getWeekDates(overviewWeekOffset)
 }
@@ -10666,8 +10515,8 @@ function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
 function getOverviewCalendarLabel(weekDates = [], viewMode = getOverviewViewMode()) {
   if (!weekDates.length) return ''
   if (viewMode === '個人當天') return `${toDateKey(weekDates[0])}`
-  if (viewMode === '個人當月') return `${v120ActiveOverviewMonth()}｜個人當月`
-  if (viewMode === '月份顯示') return `${v120ActiveOverviewMonth()}｜月份顯示`
+  if (viewMode === '個人當月') return `${toDateKey(weekDates[0]).slice(0, 7)}｜個人當月`
+  if (viewMode === '月份顯示') return `${toDateKey(weekDates[0]).slice(0, 7)}｜月份顯示`
   if (viewMode === '個人當週') return `個人當週｜${getWeekLabel(weekDates)}`
   return getWeekLabel(weekDates)
 }
@@ -10737,363 +10586,35 @@ function getMeetingMonthOffsetFromWeekOffset() {
 }
 
 function getFieldCalendarDates() {
-  if (fieldCalendarViewMode === '月份顯示') return v120MonthDates(v120ActiveFieldMonth())
+  if (fieldCalendarViewMode === '月份顯示') return getMonthDatesFromOffset(getFieldMonthOffsetFromWeekOffset())
   return getWeekDates(fieldWeekOffset)
 }
 
 function getMeetingCalendarDates() {
-  if (meetingCalendarViewMode === '月份顯示') return v120MonthDates(v120ActiveMeetingMonth())
+  if (meetingCalendarViewMode === '月份顯示') return getMonthDatesFromOffset(getMeetingMonthOffsetFromWeekOffset())
   return getWeekDates(meetingWeekOffset)
 }
 
 function getFieldCalendarLabel(dates = getFieldCalendarDates()) {
   if (!dates.length) return ''
-  if (fieldCalendarViewMode === '月份顯示') return `${v120ActiveFieldMonth()}｜月份顯示`
+  if (fieldCalendarViewMode === '月份顯示') return `${toDateKey(dates[0]).slice(0, 7)}｜月份顯示`
   return getWeekLabel(dates)
 }
 
 function getMeetingCalendarLabel(dates = getMeetingCalendarDates()) {
   if (!dates.length) return ''
-  if (meetingCalendarViewMode === '月份顯示') return `${v120ActiveMeetingMonth()}｜月份顯示`
+  if (meetingCalendarViewMode === '月份顯示') return `${toDateKey(dates[0]).slice(0, 7)}｜月份顯示`
   return getWeekLabel(dates)
 }
 
-
-function v120CurrentMonthValue() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function v120NormalizeMonthValue(value = '') {
-  const text = String(value || '').trim()
-  return /^\d{4}-\d{2}$/.test(text) ? text : v120CurrentMonthValue()
-}
-
-function v120ShiftMonthValue(value = '', delta = 0) {
-  const normalized = v120NormalizeMonthValue(value)
-  const [year, month] = normalized.split('-').map(Number)
-  const date = new Date(year, month - 1 + delta, 1)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
-
-function v120MonthDates(value = '') {
-  const normalized = v120NormalizeMonthValue(value)
-  const [year, month] = normalized.split('-').map(Number)
-  const first = new Date(year, month - 1, 1)
-  const dates = []
-  const cursor = new Date(first)
-  while (cursor.getMonth() === first.getMonth()) {
-    dates.push(new Date(cursor))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return dates
-}
-
-function v120ActiveOverviewMonth() {
-  return v120NormalizeMonthValue(overviewDisplayMonth || v120CurrentMonthValue())
-}
-
-function v120ActiveFieldMonth() {
-  return v120NormalizeMonthValue(fieldDisplayMonth || v120CurrentMonthValue())
-}
-
-function v120ActiveMeetingMonth() {
-  return v120NormalizeMonthValue(meetingDisplayMonth || v120CurrentMonthValue())
-}
-
-function v120MonthGridDates(monthDates = []) {
-  if (!monthDates.length) return []
-  const first = new Date(monthDates[0])
-  const start = new Date(first)
-  const leadingDays = first.getDay() === 0 ? 6 : first.getDay() - 1
-  start.setDate(start.getDate() - leadingDays)
-
-  const last = new Date(monthDates[monthDates.length - 1])
-  const end = new Date(last)
-  const trailingDays = last.getDay() === 0 ? 0 : 7 - last.getDay()
-  end.setDate(end.getDate() + trailingDays)
-
-  const dates = []
-  const cursor = new Date(start)
-  while (cursor <= end) {
-    dates.push(new Date(cursor))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return dates
-}
-
-function v120RenderMonthShell(title = '', monthDates = [], renderDayContent) {
-  if (!monthDates.length) return '<div class="empty-state">目前沒有可顯示的月份資料。</div>'
-  const monthKey = toDateKey(monthDates[0]).slice(0, 7)
-  const gridDates = v120MonthGridDates(monthDates)
-  const weekLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
-
-  return `
-    <section class="month-calendar-section">
-      ${title ? `<div class="month-calendar-section-title">${title}</div>` : ''}
-      <div class="month-calendar-head">
-        ${weekLabels.map(label => `<div>${label}</div>`).join('')}
-      </div>
-      <div class="month-calendar-grid">
-        ${gridDates.map(date => {
-          const key = toDateKey(date)
-          const inMonth = key.slice(0, 7) === monthKey
-          return renderDayContent(date, key, inMonth)
-        }).join('')}
-      </div>
-    </section>
-  `
-}
-
-function v120RenderOverviewMonthCalendars(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的人員。</div>'
-
-  return `
-    <div class="overview-month-calendar-wrap">
-      ${staffRows.map(staff => v120RenderMonthShell(
-        `<strong>${escapeHtml(staff.name || '-')}</strong><span>${escapeHtml(staff.department_name || '')}</span>`,
-        monthDates,
-        (date, key, inMonth) => {
-          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
-          const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
-          const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-          const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-          return `
-            <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-              <div class="month-day-header">
-                <strong>${Number(key.slice(8, 10))}</strong>
-                ${renderHolidayLabels(key)}
-              </div>
-              ${birthdayCard}
-              ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
-            </div>
-          `
-        }
-      )).join('')}
-    </div>
-  `
-}
-
-function v120RenderFieldMonthCalendars(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的外務人員。</div>'
-
-  return `
-    <div class="field-month-calendar-wrap">
-      ${staffRows.map(staff => v120RenderMonthShell(
-        `<strong>${escapeHtml(staff.name || '-')}</strong><span>${escapeHtml(staff.department_name || '')}</span>`,
-        monthDates,
-        (date, key, inMonth) => {
-          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
-          const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
-          const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-          return `
-            <div class="field-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-              <div class="month-day-header">
-                <strong>${Number(key.slice(8, 10))}</strong>
-                ${renderHolidayLabels(key)}
-              </div>
-              ${birthdayCard}
-              ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
-            </div>
-          `
-        }
-      )).join('')}
-    </div>
-  `
-}
-
-function v120RenderMeetingMonthCalendars(roomRows = [], monthDates = [], todayKey = todayString()) {
-  if (!roomRows.length) return '<div class="empty-state">目前沒有會議室資料。</div>'
-
-  return `
-    <div class="meeting-month-calendar-wrap">
-      ${roomRows.map(room => v120RenderMonthShell(
-        `<strong>${escapeHtml(room)}</strong>`,
-        monthDates,
-        (date, key, inMonth) => {
-          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
-          const dayRows = getMeetingSchedulesForRoomDate(room, key)
-          return `
-            <div class="meeting-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
-              <div class="month-day-header">
-                <strong>${Number(key.slice(8, 10))}</strong>
-                ${renderHolidayLabels(key)}
-              </div>
-              ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
-            </div>
-          `
-        }
-      )).join('')}
-    </div>
-  `
-}
-
-
-function v121RenderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的人員。</div>'
-
-  return `
-    <div class="week-overview-scroll month-multi-scroll">
-      <table class="week-overview-table is-overview-month is-month-sliding">
-        <thead>
-          <tr>
-            <th class="staff-col">人員</th>
-            ${monthDates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
-            }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${staffRows.map(staff => `
-            <tr>
-              <th class="staff-name-cell">
-                <strong>${escapeHtml(staff.name || '-')}</strong>
-                <span>${escapeHtml(staff.department_name || '')}</span>
-              </th>
-              ${monthDates.map(date => {
-                const key = toDateKey(date)
-                const dayRows = getSchedulesForStaffDate(staff.staff_id, key)
-                const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-                const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-                return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-                  ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
-                </td>`
-              }).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-function v121RenderOverviewMonthView(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (staffRows.length === 1) return v120RenderOverviewMonthCalendars(staffRows, monthDates, todayKey)
-  return v121RenderOverviewMonthSlidingTable(staffRows, monthDates, todayKey)
-}
-
-function v121RenderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (!staffRows.length) return '<div class="empty-state">請先選擇要顯示的外務人員。</div>'
-
-  return `
-    <div class="field-week-scroll month-multi-scroll">
-      <table class="field-week-table is-field-month is-month-sliding">
-        <thead>
-          <tr>
-            <th class="field-staff-col">外務人員</th>
-            ${monthDates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
-            }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${staffRows.map(staff => `
-            <tr>
-              <th class="field-staff-name-cell">
-                <strong>${escapeHtml(staff.name || '-')}</strong>
-                <span>${escapeHtml(staff.department_name || '')}</span>
-              </th>
-              ${monthDates.map(date => {
-                const key = toDateKey(date)
-                const dayRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
-                const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-                return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-                  ${birthdayCard}${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
-                </td>`
-              }).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-function v121RenderFieldMonthView(staffRows = [], monthDates = [], todayKey = todayString()) {
-  if (staffRows.length === 1) return v120RenderFieldMonthCalendars(staffRows, monthDates, todayKey)
-  return v121RenderFieldMonthSlidingTable(staffRows, monthDates, todayKey)
-}
-
-function v121RenderMeetingMonthView(roomRows = [], monthDates = [], todayKey = todayString()) {
-  if (roomRows.length === 1) return v120RenderMeetingMonthCalendars(roomRows, monthDates, todayKey)
-
-  return `
-    <div class="meeting-week-scroll month-multi-scroll">
-      <table class="meeting-week-table is-meeting-month is-month-sliding">
-        <thead>
-          <tr>
-            <th class="meeting-room-col">會議室</th>
-            ${monthDates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
-            }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${roomRows.map(room => `
-            <tr>
-              <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
-              ${monthDates.map(date => {
-                const key = toDateKey(date)
-                const dayRows = getMeetingSchedulesForRoomDate(room, key)
-                return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
-                  ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
-                </td>`
-              }).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-
-
-function getScheduleSubtypeText(row = {}) {
-  return [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
-}
-
 function isLeaveScheduleType(row = {}) {
-  const text = getScheduleSubtypeText(row)
+  const text = [row.category, row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
   return text.includes('請假') || text.includes('休假')
 }
 
 function isReturnHomeScheduleType(row = {}) {
-  const text = getScheduleSubtypeText(row)
+  const text = [row.category, row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
   return text.includes('返鄉')
-}
-
-function isTrainingScheduleType(row = {}) {
-  const text = getScheduleSubtypeText(row)
-  return text.includes('外訓')
-}
-
-function isActivityScheduleType(row = {}) {
-  const text = getScheduleSubtypeText(row)
-  return text.includes('活動')
-}
-
-function getConfiguredScheduleColorByKey(key, fallback = '#EEEEEE') {
-  const settings = getScheduleColorSettings()
-  return normalizeManualColorCode(settings[key], fallback) || fallback
 }
 
 function getLeaveProxyNameFromRow(row = {}) {
@@ -11111,112 +10632,11 @@ function renderLeaveProxyBadge(row = {}) {
   return `<span class="leave-proxy-badge">代理人：${escapeHtml(proxyName)}</span>`
 }
 
-
-function getScheduleTemplateByRow(row = {}) {
-  const type = row.schedule_type || row.sub_type || row.category || ''
-  return scheduleContentTemplates.find(item => item.type === type) || null
-}
-
-function parseDetailContentMap(description = '') {
-  const map = {}
-  String(description || '')
-    .split(/\n+/)
-    .map(line => line.trim())
-    .filter(Boolean)
-    .forEach(line => {
-      const match = line.match(/^([^：:]+)[：:]\s*(.*)$/)
-      if (match) map[match[1].trim()] = match[2].trim()
-    })
-  return map
-}
-
-function renderScheduleDetailTemplateContent(row = {}) {
-  const description = String(row.description || '').trim()
-  const template = getScheduleTemplateByRow(row)
-  const contentMap = parseDetailContentMap(description)
-
-  if (template) {
-    const templateRows = String(template.content || '')
-      .split(/\n+/)
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => {
-        const label = line.replace(/[：:]\s*$/, '').trim()
-        const value = contentMap[label] || ''
-        return `<div class="detail-template-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`
-      })
-      .join('')
-
-    return `
-      <div class="detail-template-box span-2">
-        <span>原類型內容格式</span>
-        <div class="detail-template-list">
-          ${templateRows || `<div class="detail-template-row"><span>內容</span><strong>${escapeHtml(description || '-')}</strong></div>`}
-        </div>
-      </div>
-    `
-  }
-
-  if (!description) {
-    return `<div class="span-2"><span>內容</span><strong>-</strong></div>`
-  }
-
-  const lines = description
-    .split(/\n+/)
-    .map(line => line.trim())
-    .filter(Boolean)
-
-  const lineRows = lines.map(line => {
-    const match = line.match(/^([^：:]+)[：:]\s*(.*)$/)
-    if (match) {
-      return `<div class="detail-template-row"><span>${escapeHtml(match[1].trim())}</span><strong>${escapeHtml(match[2].trim() || '-')}</strong></div>`
-    }
-    return `<div class="detail-template-row"><span>內容</span><strong>${escapeHtml(line)}</strong></div>`
-  }).join('')
-
-  return `
-    <div class="detail-template-box span-2">
-      <span>內容</span>
-      <div class="detail-template-list">
-        ${lineRows}
-      </div>
-    </div>
-  `
-}
-
-
 function getScheduleCardAccentColor(row = {}) {
-  if (isReturnHomeScheduleType(row)) return getConfiguredScheduleColorByKey('返鄉', '#B0A1BA')
-  if (isLeaveScheduleType(row)) return getConfiguredScheduleColorByKey('請假', '#DDD6FE')
-  if (isTrainingScheduleType(row)) return getConfiguredScheduleColorByKey('外訓', '#BBF7D0')
-  if (isActivityScheduleType(row)) return getConfiguredScheduleColorByKey('活動', '#BFDBFE')
-
+  if (isReturnHomeScheduleType(row)) return '#f97316'
+  if (isLeaveScheduleType(row)) return '#a855f7'
   const colorKey = getScheduleColorKey(row)
-  if (colorKey === '服務行程') {
-    const saved = normalizeManualColorCode(getScheduleColor(row))
-    return saved && saved !== '#FFFFFF' ? softenScheduleColor(saved) : '#EEEEEE'
-  }
-  if (colorKey === '會議室預約') return getConfiguredScheduleColorByKey('會議室預約', '#DFD3C3')
-
-  const rawColor = getScheduleColor(row)
-  return softenScheduleColor(rawColor)
-}
-
-function softenScheduleColor(color = '#c7d2fe') {
-  const hex = String(color || '').trim()
-  const match = hex.match(/^#?([0-9a-fA-F]{6})$/)
-  if (!match) return color || '#c7d2fe'
-
-  const raw = match[1]
-  const r = parseInt(raw.slice(0, 2), 16)
-  const g = parseInt(raw.slice(2, 4), 16)
-  const b = parseInt(raw.slice(4, 6), 16)
-  const mix = 0.42
-  const nr = Math.round(r + (255 - r) * mix)
-  const ng = Math.round(g + (255 - g) * mix)
-  const nb = Math.round(b + (255 - b) * mix)
-
-  return `#${[nr, ng, nb].map(value => value.toString(16).padStart(2, '0')).join('')}`
+  return colorKey === '會議室預約' ? '#DFD3C3' : getScheduleColor(row)
 }
 
 
@@ -11464,76 +10884,6 @@ function getStaffSortOptions(selected = 'display_order') {
   `).join('')
 }
 
-
-function getStaffDepartmentNameSortOptions(selected = 'department') {
-  const active = ['department', 'name'].includes(selected) ? selected : 'department'
-  const options = [
-    ['department', '部門'],
-    ['name', '姓名']
-  ]
-
-  return options.map(([value, label]) => `
-    <option value="${value}" ${active === value ? 'selected' : ''}>${label}</option>
-  `).join('')
-}
-
-function getCommonPeriodOptions(selected = '當月', includeAll = false) {
-  const options = includeAll ? ['全部', '當月', '當年', '自訂'] : ['當月', '當年', '自訂']
-  const active = options.includes(selected) ? selected : options[0]
-  return options.map(item => `<option value="${item}" ${active === item ? 'selected' : ''}>${item}</option>`).join('')
-}
-
-function getDateRangeByPeriod(period = '全部', startDate = '', endDate = '') {
-  const today = todayString()
-  if (period === '當月') {
-    return {
-      start: getMonthFirstDay(today),
-      end: getMonthLastDay(today)
-    }
-  }
-
-  if (period === '當年') {
-    return {
-      start: `${today.slice(0, 4)}-01-01`,
-      end: `${today.slice(0, 4)}-12-31`
-    }
-  }
-
-  if (period === '自訂') {
-    return {
-      start: startDate || '',
-      end: endDate || ''
-    }
-  }
-
-  return { start: '', end: '' }
-}
-
-function getServiceRecordDateRange() {
-  return getDateRangeByPeriod(
-    serviceRecordFilters.period || '全部',
-    serviceRecordFilters.startDate || '',
-    serviceRecordFilters.endDate || ''
-  )
-}
-
-function bindPeriodDateRangeToggles(root = document) {
-  root.querySelectorAll('form[data-period-form]').forEach(form => {
-    const select = form.querySelector('[data-period-select]')
-    if (!select || form.dataset.periodToggleReady === '1') return
-    form.dataset.periodToggleReady = '1'
-
-    const sync = () => {
-      const isCustom = select.value === '自訂'
-      form.classList.toggle('is-custom-period', isCustom)
-    }
-
-    select.addEventListener('change', sync)
-    sync()
-  })
-}
-
-
 function getStaffSortDirOptions(selected = 'asc') {
   const options = [
     ['asc', '小到大 / A-Z'],
@@ -11686,9 +11036,9 @@ function renderScheduleOverview() {
       </div>
       <div class="toolbar-actions">
         ${showWeekNav ? `
-          <button class="secondary-btn" id="prevWeekBtn">${viewMode === '月份顯示' ? '上一月' : '上一週'}</button>
-          <button class="secondary-btn" id="thisWeekBtn">${viewMode === '月份顯示' ? '本月' : '本週'}</button>
-          <button class="secondary-btn" id="nextWeekBtn">${viewMode === '月份顯示' ? '下一月' : '下一週'}</button>
+          <button class="secondary-btn" id="prevWeekBtn">上一週</button>
+          <button class="secondary-btn" id="thisWeekBtn">本週</button>
+          <button class="secondary-btn" id="nextWeekBtn">下一週</button>
         ` : ''}
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -11698,21 +11048,14 @@ function renderScheduleOverview() {
     ${renderReadStatus()}
 
     <form id="overviewFilterForm" class="overview-filter-panel overview-filter-panel-compact no-wrap-filter-panel">
-      <div class="calendar-filter-control-bar">
-        <label class="calendar-filter-control">
-          <span>檢視範圍</span>
-          <select name="viewMode" class="calendar-filter-select">
+      <div class="overview-filter-compact-row">
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">檢視範圍</span>
+          <select name="viewMode">
             ${getOverviewViewModeOptionsHtml()}
           </select>
         </label>
 
-        <label class="calendar-filter-control overview-month-picker ${['月份顯示', '個人當月'].includes(viewMode) ? '' : 'is-hidden-month-picker'}">
-          <span>顯示月份</span>
-          <input name="overviewMonth" class="calendar-filter-month" type="month" value="${escapeHtml(v120ActiveOverviewMonth())}">
-        </label>
-      </div>
-
-      <div class="overview-filter-compact-row main-filter-row">
         <details class="compact-multi-select compact-filter-control ${viewMode !== '全部行程' ? 'is-disabled-filter' : ''}">
           <summary>部門｜${escapeHtml(getOverviewDepartmentSelectedText())}</summary>
           <div class="compact-check-panel">
@@ -11728,13 +11071,20 @@ function renderScheduleOverview() {
         </details>
 
         <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">排序（部門 / 姓名）</span>
+          <span class="compact-field-label">排序</span>
           <select name="sortBy">
-            ${getStaffDepartmentNameSortOptions(overviewFilters.sortBy)}
+            ${getStaffSortOptions(overviewFilters.sortBy)}
           </select>
         </label>
 
-        <button type="submit" class="primary-btn">套用記住</button>
+        <label class="compact-sort-select compact-filter-control">
+          <span class="compact-field-label">順序</span>
+          <select name="sortDir">
+            ${getStaffSortDirOptions(overviewFilters.sortDir)}
+          </select>
+        </label>
+
+        <button type="submit" class="primary-btn">套用並記住</button>
         <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部</button>
       </div>
 
@@ -11744,7 +11094,7 @@ function renderScheduleOverview() {
       </div>
     </form>
 
-    ${['月份顯示', '個人當月'].includes(viewMode) ? v121RenderOverviewMonthView(staffRows, weekDates, todayKey) : `
+    ${viewMode === '個人當月' ? renderPersonalMonthOverview(staffRows[0], weekDates, todayKey) : `
       <div class="week-overview-scroll">
         <table class="week-overview-table ${tableClass}">
           <thead>
@@ -12308,9 +11658,8 @@ function matchesServiceRecordFilters(record, onlyMine = false) {
     if (!haystack.includes(keyword)) return false
   }
 
-  const range = getServiceRecordDateRange()
-  if (range.start && record.schedule_date < range.start) return false
-  if (range.end && record.schedule_date > range.end) return false
+  if (serviceRecordFilters.startDate && record.schedule_date < serviceRecordFilters.startDate) return false
+  if (serviceRecordFilters.endDate && record.schedule_date > serviceRecordFilters.endDate) return false
 
   return true
 }
@@ -12320,15 +11669,13 @@ function renderServiceRecordFilterForm(onlyMine = false) {
     .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
     .join('')
 
-  const periodOptions = getCommonPeriodOptions(serviceRecordFilters.period || '全部', true)
   const departmentOptions = buildServiceRecordOptionList(getServiceRecordDepartmentOptions(), serviceRecordFilters.department || '全部')
   const typeOptions = buildServiceRecordOptionList(getServiceRecordTypeOptions(), serviceRecordFilters.scheduleType || '全部')
-  const isCustomPeriod = serviceRecordFilters.period === '自訂'
 
   const staffOptions = onlyMine
     ? ''
     : `<label>
-        人員
+        翻譯 / 人員
         <select name="staffId">
           <option value="全部" ${serviceRecordFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>
           ${staffList.map(staff => `<option value="${staff.staff_id}" ${serviceRecordFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>`).join('')}
@@ -12343,7 +11690,7 @@ function renderServiceRecordFilterForm(onlyMine = false) {
       </label>`
 
   return `
-    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded ${isCustomPeriod ? 'is-custom-period' : ''}" data-period-form>
+    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded">
       <label>
         狀態
         <select name="status">${statusOptions}</select>
@@ -12353,26 +11700,19 @@ function renderServiceRecordFilterForm(onlyMine = false) {
       ${departmentField}
 
       <label>
-        類型
+        行程類型
         <select name="scheduleType">${typeOptions}</select>
       </label>
 
       <label>
-        期間
-        <select name="period" data-period-select>${periodOptions}</select>
+        起日
+        <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
       </label>
 
-      <div class="period-date-range">
-        <label>
-          起日
-          <input name="startDate" type="date" value="${serviceRecordFilters.startDate || ''}">
-        </label>
-
-        <label>
-          迄日
-          <input name="endDate" type="date" value="${serviceRecordFilters.endDate || ''}">
-        </label>
-      </div>
+      <label>
+        迄日
+        <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
+      </label>
 
       <label class="service-record-keyword-filter">
         關鍵字
@@ -12798,6 +12138,11 @@ function renderUsersPage() {
     ${canViewAllAccounts ? `
       <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
         <label>
+          關鍵字
+          <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
+        </label>
+
+        <label>
           部門
           <select name="department">${getUserAccountDepartmentOptions()}</select>
         </label>
@@ -12805,6 +12150,15 @@ function renderUsersPage() {
         <label>
           角色
           <select name="role">${getUserAccountRoleOptions()}</select>
+        </label>
+
+        <label>
+          是否外務人員
+          <select name="fieldStaff">
+            <option value="全部" ${userAccountFilters.fieldStaff === '全部' ? 'selected' : ''}>全部</option>
+            <option value="是" ${userAccountFilters.fieldStaff === '是' ? 'selected' : ''}>是</option>
+            <option value="否" ${userAccountFilters.fieldStaff === '否' ? 'selected' : ''}>否</option>
+          </select>
         </label>
 
         <button type="submit" class="primary-btn">篩選</button>
@@ -13228,8 +12582,6 @@ function openScheduleDetail(scheduleId) {
       ? '您可以管理此行程，包含修改內容與執行者。'
       : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。')
 
-  const proxyName = getLeaveProxyNameFromRow(row)
-
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
   modal.innerHTML = `
@@ -13239,23 +12591,22 @@ function openScheduleDetail(scheduleId) {
         <button class="icon-btn" id="closeDetailBtn" type="button">×</button>
       </div>
 
-      <div class="detail-grid detail-grid-polished">
+      <div class="detail-grid">
         <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
         <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
-        <div><span>時間</span><strong>${escapeHtml(getCardTimeText(row) || '-')}</strong></div>
+        <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
-        <div><span>附加 / 待辦</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
-        ${proxyName ? `<div class="detail-proxy-row"><span>請假代理人</span><strong>${escapeHtml(proxyName)}</strong></div>` : ''}
+        <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
-        ${isMeetingRoomSchedule(row) ? `<div class="span-2"><span>與會者 / 與會部門</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
+        ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
         <div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         <div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>
         <div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
-        ${renderScheduleDetailTemplateContent(row)}
+        <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
       </div>
@@ -18527,165 +17878,3 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 請假代理人顯示在請假卡片上
 */
 /* FOR-e V002-1P-118 END - month view holidays card borders */
-
-/* FOR-e V002-1P-119 START - calendar month proxy detail polish */
-/*
-  V002-1P-119｜月份顯示與行程詳情樣式加強
-  - 修正 / 強化行程總覽、外務行程表、會議室月份顯示
-  - 外務端午 / 國定假日背景改為外務配色
-  - 會議室行事曆卡片不顯示與會人員
-  - 請假、休假、返鄉外框顏色加強
-  - 行程卡片外框加粗為 4px
-  - 請假代理人標註並顯示在請假卡片及查看行程
-  - 點開查看行程時，內容依原行程類型設定模板呈現
-*/
-/* FOR-e V002-1P-119 END - calendar month proxy detail polish */
-
-/* FOR-e V002-1P-120 START - month calendar detail attendees */
-/*
-  V002-1P-120｜月份月曆、顯示月份與會議室與會者詳情
-  - 選擇人員後切月份顯示時，改成真正行事曆樣式
-  - 行程總覽、外務行程表、會議室都可選擇顯示月份
-  - 外務檢視範圍列同一排、不滑動、不縮減
-  - 會議室卡片不顯示與會人員，但點開查看會顯示與會者 / 與會部門
-  - 點開查看行程依行程類別 / 原內容模板顯示
-*/
-/* FOR-e V002-1P-120 END - month calendar detail attendees */
-
-/* FOR-e V002-1P-121 START - month view nav filter soft colors */
-/*
-  V002-1P-121｜月份檢視顯示規則、月份切換、篩選列與柔和配色
-  - 月份檢視：多人用橫向滑動表格，單人用真正月曆顯示
-  - 修正月份檢視上一月 / 本月 / 下一月按鈕無反應
-  - 外務行程表套用並記住與全部按鈕增加間距
-  - 行程總覽檢視範圍列固定同一排
-  - 行程卡片外框顏色柔和化，避免畫面太混亂
-*/
-/* FOR-e V002-1P-121 END - month view nav filter soft colors */
-
-/* FOR-e V002-1P-122 START - filter buttons field today manual color service border */
-/*
-  V002-1P-122｜篩選按鈕間距、外務今日色、手動色碼與服務行程外框
-  - 行程總覽「套用並記住 / 全部」按鈕分開
-  - 外務行程今日外框與日期背景改為 #FFC26F
-  - 顏色設定的色碼欄位可手動輸入 #RRGGBB
-  - 服務行程外框預設改為 #EEEEEE
-  - 行事曆上的行程卡片外框加粗
-*/
-/* FOR-e V002-1P-122 END - filter buttons field today manual color service border */
-
-/* FOR-e V002-1P-123 START - overview button spacing and 4px border */
-/*
-  V002-1P-123｜行程總覽按鈕間距與行程卡片外框 4px
-  - 行程總覽「套用並記住 / 全部」改成固定分開
-  - 行事曆行程卡片外框由 5px 改回 4px
-  - 保留柔和配色
-*/
-/* FOR-e V002-1P-123 END - overview button spacing and 4px border */
-
-/* FOR-e V002-1P-124 START - separate leave return activity training colors align filters */
-/*
-  V002-1P-124｜請假返鄉活動外訓獨立色碼與篩選對齊
-  - 顏色設定新增：請假 / 休假、返鄉、活動、外訓
-  - 請假、返鄉、活動、外訓卡片外框會套用各自後台色碼
-  - 修正請假判斷不再被大分類文字誤判全部都是請假
-  - 篩選項目與按鈕高度對齊
-*/
-/* FOR-e V002-1P-124 END - separate leave return activity training colors align filters */
-
-/* FOR-e V002-1P-125 START - filter alignment and color cleanup */
-/*
-  V002-1P-125｜篩選列底部對齊、按鈕統一與顏色項目清理
-  - 外務明細 / 異況追蹤 / 統計報表 / 服務紀錄單 / 人員帳號篩選列底部持平
-  - 篩選按鈕與欄位同高、同底線
-  - 外務明細篩選列收回框內
-  - 會議室週檢視下拉與按鈕同高對齊
-  - 移除顏色設定「請假 / 會議 / 活動 / 外訓」大項
-  - 返鄉色碼預設與舊預設遷移為 #B0A1BA
-*/
-/* FOR-e V002-1P-125 END - filter alignment and color cleanup */
-
-/* FOR-e V002-1P-126 START - fixed filter widths left aligned */
-/*
-  V002-1P-126｜篩選欄位固定大小、靠左對齊
-  - 全頁面篩選列改為固定欄寬
-  - 下拉選項文字過長時不撐大欄位，改以省略顯示
-  - 排版統一靠左、底部對齊
-  - 篩選框與按鈕不超出卡片與頁面
-*/
-/* FOR-e V002-1P-126 END - fixed filter widths left aligned */
-
-/* FOR-e V002-1P-127 START - simple single row filters */
-/*
-  V002-1P-127｜上方篩選列單行簡約版
-  - 桌機版各頁上方篩選列固定單行
-  - 欄位與按鈕底部對齊
-  - 選項文字過長不撐大欄位
-  - 避免超出卡片與頁面
-*/
-/* FOR-e V002-1P-127 END - simple single row filters */
-
-/* FOR-e V002-1P-128 START - desktop filter layout stable */
-/*
-  V002-1P-128｜電腦版篩選列穩定排版
-  - 修正篩選列跑出卡片、被遮住、跨行
-  - 桌機版固定一整列、欄位寬度自動壓縮但不被內容撐大
-  - 按鈕與欄位底部對齊、大小一致
-*/
-/* FOR-e V002-1P-128 END - desktop filter layout stable */
-
-/* FOR-e V002-1P-129 START - stable wrapped collapsible filters */
-/*
-  V002-1P-129｜穩定換列篩選列與可隱藏篩選區
-  - 篩選列由左開始、等距、齊高、齊平
-  - 一列放不下時自動換成第二列，不再超出或被遮住
-  - 篩選區新增顯示 / 隱藏按鈕
-*/
-/* FOR-e V002-1P-129 END - stable wrapped collapsible filters */
-
-/* FOR-e V002-1P-130 START - final grid filter layout */
-/*
-  V002-1P-130｜全頁篩選列 CSS Grid 最終穩定版
-  - 重新以 CSS Grid 規劃各頁篩選列
-  - 桌機版同一列，不堆疊、不遮擋、不超出
-  - 平板與手機才改兩欄 / 單欄
-*/
-/* FOR-e V002-1P-130 END - final grid filter layout */
-
-/* FOR-e V002-1P-131 START - filter auto grid stable final */
-/*
-  V002-1P-131｜篩選列 Auto Grid 穩定版
-  - 取消硬塞同一列造成壓縮、遮擋、超版
-  - 桌機版採 CSS Grid auto-fill，空間不足自然換第二列
-  - 欄位固定寬度、靠左、等距、齊高、齊平
-*/
-/* FOR-e V002-1P-131 END - filter auto grid stable final */
-
-/* FOR-e V002-1P-132 START - separate view month controls */
-/*
-  V002-1P-132｜檢視範圍與月份控制列分離
-  - 行程總覽 / 外務行程的檢視範圍與顯示月份改成獨立控制列
-  - 部門、人員、排序、順序與按鈕恢復原本選擇欄位樣式
-  - 避免檢視範圍與顯示月份擠壓主要篩選列
-*/
-/* FOR-e V002-1P-132 END - separate view month controls */
-
-/* FOR-e V002-1P-133 START - ordered filters and period ranges */
-/*
-  V002-1P-133｜依指定順序整理篩選欄位與期間展開
-  - 行程總覽：檢視範圍 > 顯示月份 > 部門 > 人員 > 排序（部門 / 姓名） > 套用記住 > 全部
-  - 外務行程：檢視範圍 > 顯示月份 > 部門 > 人員 > 排序（部門 / 姓名） > 套用記住 > 全部
-  - 異況追蹤：負責 / 協助人員 > 狀態 > 關鍵字 > 篩選
-  - 統計報表與服務紀錄單：自訂期間才展開起訖日
-  - 人員 / 帳號：部門 > 角色 > 篩選
-*/
-/* FOR-e V002-1P-133 END - ordered filters and period ranges */
-
-/* FOR-e V002-1P-134 START - clean old filter css */
-/*
-  V002-1P-134｜清除舊版篩選列 CSS 衝突
-  - 移除 V112 / V114 / V116 / V117 / V121～V133 的篩選列覆蓋規則
-  - 改用單一套 .filter-* 穩定排版
-  - 保留 V133 的欄位順序與期間自訂展開功能
-*/
-/* FOR-e V002-1P-134 END - clean old filter css */
