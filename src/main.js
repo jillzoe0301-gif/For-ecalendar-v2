@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-141'
+const SYSTEM_VERSION = 'V002-1P-143'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -11263,8 +11263,10 @@ function renderMeetingCalendarBody(roomRows = [], dates = [], todayKey = todaySt
 
 function getTodayBirthdayRows() {
   const today = todayString()
+  const currentStaffId = currentProfile?.staff_id || ''
   return staffList
     .filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .filter(staff => !currentStaffId || staff.staff_id !== currentStaffId)
     .filter(staff => isStaffBirthdayOnDate(staff, today))
 }
 
@@ -18439,3 +18441,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 生日本人登入當天會看到 Happy Birthday ~Have a nice day♥
 */
 /* FOR-e V002-1P-141 END - span bars and personal birthday */
+
+/* FOR-e V002-1P-143 START - boundary and birthday prompt fix */
+/*
+  V002-1P-143｜連續行程界線與自己生日提示修正
+  - 連續行程跨欄長條保留跨欄文字與單一已完成按鈕
+  - 弱化長條與表格之間的明顯界線
+  - 自己生日當天只顯示個人生日祝福，不再同時跳「今天有 1 位同仁生日」
+*/
+/* FOR-e V002-1P-143 END - boundary and birthday prompt fix */

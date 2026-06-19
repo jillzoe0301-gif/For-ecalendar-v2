@@ -14164,3 +14164,103 @@ body {
   }
 }
 /* FOR-e V002-1P-141 END - span bars and personal birthday */
+
+/* FOR-e V002-1P-143 START - boundary and birthday prompt fix */
+/* V002-1P-143｜連續行程界線柔化 */
+
+/* 連續長條所在列：完全不顯示表格格線，避免看起來像一條獨立分隔線 */
+.continuous-span-row,
+.continuous-span-row > th,
+.continuous-span-row > td {
+  background: transparent !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.continuous-span-row > th,
+.continuous-span-row > td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.continuous-side-cell {
+  background: transparent !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  min-height: 20px !important;
+}
+
+.continuous-empty-cell {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.continuous-span-cell {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 2px 8px !important;
+}
+
+/* 連續長條下一列不再出現明顯水平線 */
+.continuous-span-row + tr > th,
+.continuous-span-row + tr > td {
+  border-top-color: transparent !important;
+}
+
+/* 長條本體：改成柔和底色 + 左側色條，不再用厚重上下外框 */
+.continuous-schedule-bar {
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 6px solid var(--schedule-accent, #4E71FF) !important;
+  background: color-mix(in srgb, var(--schedule-accent, #4E71FF) 10%, #ffffff) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #4E71FF) 28%, #ffffff),
+    0 2px 8px rgba(15, 23, 42, 0.045) !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.continuous-schedule-main {
+  padding-left: 12px !important;
+  padding-right: 10px !important;
+}
+
+.continuous-schedule-type {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: #334155 !important;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.continuous-complete-btn {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-left: 1px solid rgba(148, 163, 184, 0.24) !important;
+  color: #3155d4 !important;
+}
+
+.continuous-complete-btn:hover {
+  background: #ffffff !important;
+}
+
+.continuous-schedule-bar.is-completed {
+  opacity: 0.78 !important;
+}
+
+/* 月曆格狀中的連續長條也套用柔和樣式 */
+.month-continuous-grid-item .continuous-schedule-bar {
+  min-height: 34px !important;
+}
+
+/* color-mix 備援：不支援時仍避免厚重上下框 */
+@supports not (color: color-mix(in srgb, #000 50%, #fff)) {
+  .continuous-schedule-bar {
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045) !important;
+  }
+}
+/* FOR-e V002-1P-143 END - boundary and birthday prompt fix */
