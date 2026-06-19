@@ -14428,3 +14428,98 @@ body {
   box-shadow: 0 7px 16px rgba(15, 23, 42, 0.10) !important;
 }
 /* FOR-e V002-1P-123 END - overview button spacing and 4px border */
+
+/* FOR-e V002-1P-124 START - separate leave return activity training colors align filters */
+/* 外務明細與篩選列：欄位與按鈕高度對齊 */
+.field-detail-filter {
+  align-items: end !important;
+  grid-template-columns: repeat(5, minmax(138px, 1fr)) minmax(260px, 1.3fr) 92px !important;
+  gap: 12px !important;
+}
+
+.field-detail-filter label {
+  display: grid !important;
+  align-content: end !important;
+  gap: 6px !important;
+  min-height: 68px !important;
+  margin: 0 !important;
+}
+
+.field-detail-filter input,
+.field-detail-filter select,
+.field-detail-filter button {
+  height: 44px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+}
+
+.field-detail-filter button {
+  align-self: end !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.page-toolbar .toolbar-actions {
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.page-toolbar .toolbar-actions button {
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 行程總覽篩選列按鈕：再拉開間距，避免視覺黏在一起 */
+@media (min-width: 981px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    column-gap: 18px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > button.primary-btn {
+    margin-right: 10px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > #resetOverviewFilterBtn {
+    margin-left: 10px !important;
+  }
+}
+
+/* 行事曆卡片外框固定 4px，顏色由後台設定控制 */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.schedule-card,
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style],
+.schedule-card[style] {
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #EEEEEE) !important;
+}
+
+@media (max-width: 980px) {
+  .field-detail-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .field-detail-filter {
+    grid-template-columns: 1fr !important;
+  }
+
+  .field-detail-filter label,
+  .field-detail-filter button,
+  .field-detail-location-filter {
+    grid-column: span 1 !important;
+    min-height: auto !important;
+  }
+}
+/* FOR-e V002-1P-124 END - separate leave return activity training colors align filters */
