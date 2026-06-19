@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-116'
+const SYSTEM_VERSION = 'V002-1P-117'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -953,6 +953,11 @@ function todayString() {
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 768px)').matches
+}
+
 
 function isDeletedSchedule(row) {
   if (!row) return true
@@ -8182,15 +8187,21 @@ function maybeOpenLoginDailyReminder(options = {}) {
   if (!currentProfile?.staff_id) return
 
   const force = options.force === true
+  const mobile = isMobileViewport()
   const key = `for-e-login-reminder-${currentProfile.staff_id}-${todayString()}`
 
   if (!force && sessionStorage.getItem(key) === 'shown') return
 
   const groups = getLoginDailyReminderRows()
-  const total = (groups.birthdayRows?.length || 0) + groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
+  const total =
+    (groups.birthdayRows?.length || 0) +
+    groups.todaySchedules.length +
+    groups.todayTodos.length +
+    groups.overdueTasks.length +
+    groups.reminderRows.length
 
-  if (!total) {
-    if (!force) sessionStorage.setItem(key, 'shown')
+  if (!total && !force && !mobile) {
+    sessionStorage.setItem(key, 'shown')
     return
   }
 
@@ -17721,3 +17732,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 按鈕寬度依文字內容固定，不再擠壓或重疊
 */
 /* FOR-e V002-1P-116 END - field filter one row button width */
+
+/* FOR-e V002-1P-117 START - mobile filter and daily reminder */
+/*
+  V002-1P-117｜手機篩選欄位與當日提醒修正
+  - 手機版行程總覽 / 外務行程篩選欄位改成 2 欄格狀，不再跑出版面
+  - 手機版按鈕寬度符合欄位，不再超出或重疊
+  - 手機版登入後今日提醒會正常跳出；即使當天沒有項目，也會顯示一次今日提醒摘要
+*/
+/* FOR-e V002-1P-117 END - mobile filter and daily reminder */

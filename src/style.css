@@ -13657,3 +13657,120 @@ body {
   }
 }
 /* FOR-e V002-1P-116 END - field filter one row button width */
+
+/* FOR-e V002-1P-117 START - mobile filter and daily reminder */
+/* 手機版：行程總覽 / 外務行程選擇欄位不跑版 */
+@media (max-width: 768px) {
+  #overviewFilterForm,
+  #fieldScheduleFilterForm {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > *,
+  #fieldScheduleFilterForm .overview-filter-compact-row > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: initial !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm .compact-filter-control,
+  #overviewFilterForm .compact-sort-select,
+  #overviewFilterForm .compact-multi-select,
+  #fieldScheduleFilterForm .compact-filter-control,
+  #fieldScheduleFilterForm .compact-sort-select,
+  #fieldScheduleFilterForm .compact-multi-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #overviewFilterForm select,
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm select,
+  #fieldScheduleFilterForm summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #overviewFilterForm button,
+  #fieldScheduleFilterForm button {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #overviewFilterForm .overview-filter-summary,
+  #fieldScheduleFilterForm .overview-filter-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+}
+
+/* 較窄手機：避免文字太擠，按鈕仍維持兩欄 */
+@media (max-width: 390px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  #overviewFilterForm button,
+  #fieldScheduleFilterForm button {
+    font-size: 12.5px !important;
+    padding: 0 8px !important;
+  }
+}
+
+/* 手機今日提醒彈窗避免被底部選單遮住 */
+@media (max-width: 768px) {
+  .login-reminder-modal {
+    max-height: calc(100dvh - 96px) !important;
+    overflow: hidden !important;
+  }
+
+  .login-reminder-body {
+    max-height: calc(100dvh - 320px) !important;
+    overflow-y: auto !important;
+    padding-right: 2px;
+  }
+
+  .login-reminder-actions {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    padding-top: 10px;
+  }
+}
+/* FOR-e V002-1P-117 END - mobile filter and daily reminder */
