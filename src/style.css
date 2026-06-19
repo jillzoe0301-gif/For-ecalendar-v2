@@ -14351,3 +14351,80 @@ body {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.055) !important;
 }
 /* FOR-e V002-1P-122 END - filter buttons field today manual color service border */
+
+/* FOR-e V002-1P-123 START - overview button spacing and 4px border */
+/* 行程總覽篩選列：按鈕強制分開，不再黏在一起 */
+@media (min-width: 981px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    display: grid !important;
+    grid-template-columns:
+      minmax(112px, 118px)
+      minmax(126px, 132px)
+      minmax(126px, 132px)
+      minmax(126px, 132px)
+      minmax(106px, 118px)
+      minmax(86px, 96px)
+      minmax(116px, max-content)
+      minmax(70px, max-content) !important;
+    column-gap: 16px !important;
+    row-gap: 0 !important;
+    align-items: end !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > * {
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > button.primary-btn {
+    grid-column: 7 !important;
+    width: 116px !important;
+    min-width: 116px !important;
+    margin: 0 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > #resetOverviewFilterBtn {
+    grid-column: 8 !important;
+    width: 70px !important;
+    min-width: 70px !important;
+    margin-left: 4px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > button {
+    height: 44px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* 行事曆行程卡片外框固定 4px，保留柔和配色 */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style],
+.schedule-card,
+.schedule-card[style] {
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #EEEEEE) !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.045) !important;
+}
+
+.week-schedule-card:hover,
+.field-week-schedule-card:hover,
+.meeting-room-card:hover,
+.schedule-card:hover {
+  box-shadow: 0 7px 16px rgba(15, 23, 42, 0.10) !important;
+}
+/* FOR-e V002-1P-123 END - overview button spacing and 4px border */

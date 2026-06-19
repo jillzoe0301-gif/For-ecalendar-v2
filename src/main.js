@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-122'
+const SYSTEM_VERSION = 'V002-1P-123'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7259,7 +7259,7 @@ function getScheduleColorInlineStyle(row) {
   const accentColor = typeof getScheduleCardAccentColor === 'function'
     ? getScheduleCardAccentColor(row)
     : (getScheduleColorKey(row) === '會議室預約' ? '#DFD3C3' : getScheduleColor(row))
-  return `background:#ffffff;border:5px solid ${accentColor};--schedule-accent:${accentColor};`
+  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
@@ -18423,3 +18423,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行事曆上的行程卡片外框加粗
 */
 /* FOR-e V002-1P-122 END - filter buttons field today manual color service border */
+
+/* FOR-e V002-1P-123 START - overview button spacing and 4px border */
+/*
+  V002-1P-123｜行程總覽按鈕間距與行程卡片外框 4px
+  - 行程總覽「套用並記住 / 全部」改成固定分開
+  - 行事曆行程卡片外框由 5px 改回 4px
+  - 保留柔和配色
+*/
+/* FOR-e V002-1P-123 END - overview button spacing and 4px border */
