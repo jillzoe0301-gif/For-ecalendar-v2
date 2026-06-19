@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-147'
+const SYSTEM_VERSION = 'V002-1P-148'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1020,6 +1020,7 @@ function isNoCompletionControlSchedule(row) {
   if (!row) return false
 
   if (isMeetingRoomSchedule(row)) return true
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return true
   if (row.category === '請假 / 會議 / 活動 / 外訓') return true
 
   const noCompletionTypes = [
@@ -1114,6 +1115,7 @@ function isPersonalCalendarForMe(row = {}) {
 function isActionReminderSchedule(row = {}) {
   if (!row) return false
   if (isNoCompletionControlSchedule(row)) return false
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
   if (isLeaveOrReturnSchedule(row)) return false
   if (['請假 / 會議 / 活動 / 外訓'].includes(row.category)) return false
   return true
@@ -4112,6 +4114,15 @@ function isFieldScheduleRow(row) {
   )
 }
 
+
+function isFieldDayReminderSchedule(row = {}) {
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  return /外務日|請勿安排其他行程|請勿安排|勿安排其他行程/.test(text)
+}
+
+
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
@@ -4133,7 +4144,7 @@ function renderFieldScheduleCard(row) {
       <strong>${escapeHtml(isMeetingRoomSchedule(row) ? '會議室預約' : (row.schedule_type || row.category || '外務'))}｜${escapeHtml(row.title || '-')}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
-      <span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
+      ${isNoCompletionControlSchedule(row) ? '' : `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -4252,6 +4263,7 @@ function getFieldDetailRows() {
   return schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isFieldScheduleRow(row))
+    .filter(row => !isFieldDayReminderSchedule(row))
     .filter(row => {
       if (fieldDetailFilters.status !== '全部' && row.status !== fieldDetailFilters.status) return false
       if (fieldDetailFilters.startDate && row.start_date < fieldDetailFilters.startDate) return false
@@ -7175,6 +7187,7 @@ function getScheduleColorDefinitions() {
     { key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
     { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
+    { key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
@@ -7236,6 +7249,7 @@ function resetScheduleColorSettings() {
 function getScheduleColorKey(row) {
   if (!row) return '服務行程'
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
@@ -10984,17 +10998,30 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '') {
 }
 
 function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview') {
-  const continuationRows = getContinuationRowsForDate(rows, dateKey)
-    .filter(row => !isLeaveOrReturnSchedule(row))
+  const targetRows = rows.filter(row => isContinuousDateSchedule(row) && !isLeaveOrReturnSchedule(row))
+  const activeIndexes = targetRows
+    .map((row, index) => (row.start_date < dateKey && row.end_date >= dateKey ? index : -1))
+    .filter(index => index >= 0)
 
-  if (!continuationRows.length) return ''
+  if (!activeIndexes.length) return ''
 
-  return continuationRows.map(row => `
-    <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
-      <span>${escapeHtml(getContinuationInitial(row))}</span>
-      <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
-    </button>
-  `).join('')
+  const maxActiveIndex = Math.max(...activeIndexes)
+
+  return targetRows
+    .map((row, index) => {
+      const isActive = row.start_date < dateKey && row.end_date >= dateKey
+      if (!isActive) {
+        return index < maxActiveIndex ? '<div class="continuation-day-placeholder" aria-hidden="true"></div>' : ''
+      }
+
+      return `
+        <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
+          <span>${escapeHtml(getContinuationInitial(row))}</span>
+          <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
+        </button>
+      `
+    })
+    .join('')
 }
 
 
@@ -11706,7 +11733,7 @@ function renderWeekScheduleCard(row) {
       ${renderCardTime(row, 'week-card-time')}
       <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      <span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>
+      ${isNoCompletionControlSchedule(row) ? '' : `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
       ${row.sub_type ? `<span class="week-card-extra">附加：${escapeHtml(row.sub_type)}</span>` : ''}
     </button>
   `
@@ -13256,7 +13283,7 @@ function openScheduleDetail(scheduleId) {
         <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
         ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
-        <div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>
+        ${isNoCompletionControlSchedule(row) ? '' : `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>`}
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         <div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>
@@ -18519,13 +18546,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-144 END - cleanup obsolete safe blocks */
 
-/* FOR-e V002-1P-147 START - continuation strips and creator cleanup */
+/* FOR-e V002-1P-148 START - field day creator continuation cleanup */
 /*
-  V002-1P-147｜連續延續細條與指派者行程移除
-  - 有指定執行者 / 參與人的行程，只會出現在執行者 / 參與者個人行程，不因建立者是自己而顯示
-  - 已建立的休假 / 返鄉 / 外訓 / 活動等，也會從非執行者的指派者個人行程移除
-  - 請假 / 休假 / 返鄉 / 會議 / 活動 / 外訓等不控管完成行程，不出現在待辦與提醒通知
-  - 連續行程第一天不顯示單字標記，其他天只讓細條依類別顏色顯示，不再整格反色
-  - 清除 V145 / V146 舊樣式區塊，改用單一 V147 樣式
+  V002-1P-148｜外務日提醒與連續延續列對齊
+  - 外務日 / 請勿安排其他行程視為提醒，不登記外務明細、不進指派任務、不算任務
+  - 外務日使用 #F48F68 顯示
+  - 相同連續行程延續標記維持同一排
+  - 幫別人安排請假 / 休假 / 返鄉 / 活動 / 外訓等，不顯示指派者，不上指派者行事曆與待辦
+  - 清除 V147 舊樣式，改用單一 V148 樣式
 */
-/* FOR-e V002-1P-147 END - continuation strips and creator cleanup */
+/* FOR-e V002-1P-148 END - field day creator continuation cleanup */
