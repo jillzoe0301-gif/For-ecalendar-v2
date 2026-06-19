@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-133'
+const SYSTEM_VERSION = 'V002-1P-134'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -472,10 +472,10 @@ let statsFilters = {
 
 let serviceRecordFilters = {
   status: '全部',
-  period: '全部',
   staffId: '全部',
   department: '全部',
   scheduleType: '全部',
+  period: '全部',
   keyword: '',
   startDate: '',
   endDate: ''
@@ -2585,6 +2585,7 @@ function renderApp() {
   `
 
   installFilterPanelToggles()
+  bindPeriodDateRangeToggles()
 
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2686,10 +2687,10 @@ function renderApp() {
     resetServiceRecordFilterBtn.addEventListener('click', () => {
       serviceRecordFilters = {
         status: '全部',
-        period: '全部',
         staffId: '全部',
         department: '全部',
         scheduleType: '全部',
+        period: '全部',
         keyword: '',
         startDate: '',
         endDate: ''
@@ -2703,26 +2704,16 @@ function renderApp() {
     serviceRecordFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
+      const serviceRecordPeriod = form.get('period') || '全部'
       serviceRecordFilters = {
         status: form.get('status') || '全部',
-        period: form.get('period') || '全部',
         staffId: form.get('staffId') || '全部',
         department: form.get('department') || '全部',
         scheduleType: form.get('scheduleType') || '全部',
+        period: serviceRecordPeriod,
         keyword: form.get('keyword') || '',
-        startDate: form.get('startDate') || '',
-        endDate: form.get('endDate') || ''
-      }
-      renderApp()
-    })
-  }
-
-  const serviceRecordPeriodSelect = document.querySelector('#serviceRecordFilterForm [data-period-toggle="serviceRecord"]')
-  if (serviceRecordPeriodSelect) {
-    serviceRecordPeriodSelect.addEventListener('change', event => {
-      serviceRecordFilters = {
-        ...serviceRecordFilters,
-        period: event.target.value || '全部'
+        startDate: serviceRecordPeriod === '自訂' ? (form.get('startDate') || '') : '',
+        endDate: serviceRecordPeriod === '自訂' ? (form.get('endDate') || '') : ''
       }
       renderApp()
     })
@@ -2739,7 +2730,7 @@ function renderApp() {
         departments: form.getAll('departments'),
         staffIds: form.getAll('staffIds'),
         sortBy: form.get('sortBy') || 'display_order',
-        sortDir: form.get('sortDir') || 'asc'
+        sortDir: 'asc'
       })
       saveOverviewFiltersPreference()
       renderApp()
@@ -2805,7 +2796,7 @@ function renderApp() {
         departments: form.getAll('fieldDepartments'),
         staffIds: form.getAll('fieldStaffIds'),
         sortBy: form.get('fieldSortBy') || 'display_order',
-        sortDir: form.get('fieldSortDir') || 'asc'
+        sortDir: 'asc'
       })
       saveFieldScheduleFiltersPreference()
       renderApp()
@@ -2963,24 +2954,14 @@ function renderApp() {
     statsFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
+      const statsPeriod = form.get('period') || '當月'
       statsFilters = {
-        period: form.get('period') || '當月',
-        startDate: form.get('startDate') || '',
-        endDate: form.get('endDate') || '',
+        period: statsPeriod,
+        startDate: statsPeriod === '自訂' ? (form.get('startDate') || '') : '',
+        endDate: statsPeriod === '自訂' ? (form.get('endDate') || '') : '',
         department: form.get('department') || '全部',
         staffId: form.get('staffId') || '全部',
         category: form.get('category') || '全部'
-      }
-      renderApp()
-    })
-  }
-
-  const statsPeriodSelect = document.querySelector('#statsFilterForm [data-period-toggle="stats"]')
-  if (statsPeriodSelect) {
-    statsPeriodSelect.addEventListener('change', event => {
-      statsFilters = {
-        ...statsFilters,
-        period: event.target.value || '當月'
       }
       renderApp()
     })
@@ -4188,11 +4169,11 @@ function renderFieldScheduleCalendar() {
         <label class="compact-sort-select compact-filter-control">
           <span class="compact-field-label">排序（部門 / 姓名）</span>
           <select name="fieldSortBy">
-            ${getStaffSortSimpleOptions(fieldScheduleFilters.sortBy)}
+            ${getStaffDepartmentNameSortOptions(fieldScheduleFilters.sortBy)}
           </select>
         </label>
 
-        <button type="submit" class="primary-btn">套用並記住</button>
+        <button type="submit" class="primary-btn">套用記住</button>
         <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
       </div>
 
@@ -6456,34 +6437,29 @@ function getStatsTypeByDepartmentGroups(rows) {
 }
 
 function renderStatsFilterForm() {
-  const periodOptions = ['當月', '當年', '自訂']
-    .map(item => `<option value="${item}" ${statsFilters.period === item ? 'selected' : ''}>${item}</option>`)
-    .join('')
-
+  const periodOptions = getCommonPeriodOptions(statsFilters.period || '當月')
   const departmentOptions = buildServiceRecordOptionList(getStatsDepartmentOptions(), statsFilters.department)
   const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
-  const showCustomRange = statsFilters.period === '自訂'
+  const isCustomPeriod = statsFilters.period === '自訂'
 
   return `
-    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter ordered-filter-form">
+    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter ${isCustomPeriod ? 'is-custom-period' : ''}" data-period-form>
       <label>
         期間
-        <select name="period" data-period-toggle="stats">${periodOptions}</select>
+        <select name="period" data-period-select>${periodOptions}</select>
       </label>
 
-      ${showCustomRange ? `
-        <div class="period-date-row stats-date-row">
-          <label>
-            起日
-            <input name="startDate" type="date" value="${statsFilters.startDate}">
-          </label>
+      <div class="period-date-range">
+        <label>
+          起日
+          <input name="startDate" type="date" value="${statsFilters.startDate}">
+        </label>
 
-          <label>
-            迄日
-            <input name="endDate" type="date" value="${statsFilters.endDate}">
-          </label>
-        </div>
-      ` : ''}
+        <label>
+          迄日
+          <input name="endDate" type="date" value="${statsFilters.endDate}">
+        </label>
+      </div>
 
       <label>
         部門
@@ -6500,7 +6476,7 @@ function renderStatsFilterForm() {
         <select name="category">${categoryOptions}</select>
       </label>
 
-      <button type="submit" class="primary-btn">套用統計</button>
+      <button type="submit" class="primary-btn">統計</button>
     </form>
   `
 }
@@ -11489,28 +11465,26 @@ function getStaffSortOptions(selected = 'display_order') {
 }
 
 
-function getStaffSortSimpleOptions(selected = 'department') {
-  const normalized = selected === 'name' ? 'name' : 'department'
+function getStaffDepartmentNameSortOptions(selected = 'department') {
+  const active = ['department', 'name'].includes(selected) ? selected : 'department'
   const options = [
     ['department', '部門'],
     ['name', '姓名']
   ]
+
   return options.map(([value, label]) => `
-    <option value="${value}" ${normalized === value ? 'selected' : ''}>${label}</option>
+    <option value="${value}" ${active === value ? 'selected' : ''}>${label}</option>
   `).join('')
 }
 
-function getServiceRecordPeriodOptions(selected = '全部') {
-  const normalized = ['全部', '當月', '當年', '自訂'].includes(selected) ? selected : '全部'
-  return ['全部', '當月', '當年', '自訂']
-    .map(item => `<option value="${item}" ${normalized === item ? 'selected' : ''}>${item}</option>`)
-    .join('')
+function getCommonPeriodOptions(selected = '當月', includeAll = false) {
+  const options = includeAll ? ['全部', '當月', '當年', '自訂'] : ['當月', '當年', '自訂']
+  const active = options.includes(selected) ? selected : options[0]
+  return options.map(item => `<option value="${item}" ${active === item ? 'selected' : ''}>${item}</option>`).join('')
 }
 
-function getServiceRecordDateRange() {
+function getDateRangeByPeriod(period = '全部', startDate = '', endDate = '') {
   const today = todayString()
-  const period = serviceRecordFilters.period || '全部'
-
   if (period === '當月') {
     return {
       start: getMonthFirstDay(today),
@@ -11527,12 +11501,36 @@ function getServiceRecordDateRange() {
 
   if (period === '自訂') {
     return {
-      start: serviceRecordFilters.startDate || '',
-      end: serviceRecordFilters.endDate || ''
+      start: startDate || '',
+      end: endDate || ''
     }
   }
 
   return { start: '', end: '' }
+}
+
+function getServiceRecordDateRange() {
+  return getDateRangeByPeriod(
+    serviceRecordFilters.period || '全部',
+    serviceRecordFilters.startDate || '',
+    serviceRecordFilters.endDate || ''
+  )
+}
+
+function bindPeriodDateRangeToggles(root = document) {
+  root.querySelectorAll('form[data-period-form]').forEach(form => {
+    const select = form.querySelector('[data-period-select]')
+    if (!select || form.dataset.periodToggleReady === '1') return
+    form.dataset.periodToggleReady = '1'
+
+    const sync = () => {
+      const isCustom = select.value === '自訂'
+      form.classList.toggle('is-custom-period', isCustom)
+    }
+
+    select.addEventListener('change', sync)
+    sync()
+  })
 }
 
 
@@ -11732,11 +11730,11 @@ function renderScheduleOverview() {
         <label class="compact-sort-select compact-filter-control">
           <span class="compact-field-label">排序（部門 / 姓名）</span>
           <select name="sortBy">
-            ${getStaffSortSimpleOptions(overviewFilters.sortBy)}
+            ${getStaffDepartmentNameSortOptions(overviewFilters.sortBy)}
           </select>
         </label>
 
-        <button type="submit" class="primary-btn">套用並記住</button>
+        <button type="submit" class="primary-btn">套用記住</button>
         <button type="button" class="secondary-btn" id="resetOverviewFilterBtn">全部</button>
       </div>
 
@@ -12310,9 +12308,9 @@ function matchesServiceRecordFilters(record, onlyMine = false) {
     if (!haystack.includes(keyword)) return false
   }
 
-  const periodRange = getServiceRecordDateRange()
-  if (periodRange.start && record.schedule_date < periodRange.start) return false
-  if (periodRange.end && record.schedule_date > periodRange.end) return false
+  const range = getServiceRecordDateRange()
+  if (range.start && record.schedule_date < range.start) return false
+  if (range.end && record.schedule_date > range.end) return false
 
   return true
 }
@@ -12322,10 +12320,10 @@ function renderServiceRecordFilterForm(onlyMine = false) {
     .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
     .join('')
 
-  const periodOptions = getServiceRecordPeriodOptions(serviceRecordFilters.period || '全部')
-  const showCustomRange = (serviceRecordFilters.period || '全部') === '自訂'
+  const periodOptions = getCommonPeriodOptions(serviceRecordFilters.period || '全部', true)
   const departmentOptions = buildServiceRecordOptionList(getServiceRecordDepartmentOptions(), serviceRecordFilters.department || '全部')
   const typeOptions = buildServiceRecordOptionList(getServiceRecordTypeOptions(), serviceRecordFilters.scheduleType || '全部')
+  const isCustomPeriod = serviceRecordFilters.period === '自訂'
 
   const staffOptions = onlyMine
     ? ''
@@ -12345,7 +12343,7 @@ function renderServiceRecordFilterForm(onlyMine = false) {
       </label>`
 
   return `
-    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded ordered-filter-form">
+    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded ${isCustomPeriod ? 'is-custom-period' : ''}" data-period-form>
       <label>
         狀態
         <select name="status">${statusOptions}</select>
@@ -12361,22 +12359,20 @@ function renderServiceRecordFilterForm(onlyMine = false) {
 
       <label>
         期間
-        <select name="period" data-period-toggle="serviceRecord">${periodOptions}</select>
+        <select name="period" data-period-select>${periodOptions}</select>
       </label>
 
-      ${showCustomRange ? `
-        <div class="period-date-row service-record-date-row">
-          <label>
-            起日
-            <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
-          </label>
+      <div class="period-date-range">
+        <label>
+          起日
+          <input name="startDate" type="date" value="${serviceRecordFilters.startDate || ''}">
+        </label>
 
-          <label>
-            迄日
-            <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
-          </label>
-        </div>
-      ` : ''}
+        <label>
+          迄日
+          <input name="endDate" type="date" value="${serviceRecordFilters.endDate || ''}">
+        </label>
+      </div>
 
       <label class="service-record-keyword-filter">
         關鍵字
@@ -12800,7 +12796,7 @@ function renderUsersPage() {
     ${renderAppSettingSyncNotice()}
 
     ${canViewAllAccounts ? `
-      <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff ordered-filter-form">
+      <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
         <label>
           部門
           <select name="department">${getUserAccountDepartmentOptions()}</select>
@@ -18674,12 +18670,22 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-132 END - separate view month controls */
 
-/* FOR-e V002-1P-133 START - ordered filter forms */
+/* FOR-e V002-1P-133 START - ordered filters and period ranges */
 /*
-  V002-1P-133｜指定順序篩選列與期間條件
-  - 行程總覽：檢視範圍、顯示月份、部門、人員、排序、套用記住、全部
-  - 外務行程：檢視範圍、顯示月份、部門、人員、排序、套用記住、全部
-  - 統計報表與服務紀錄單：期間選自訂後才展開起迄日
-  - 人員帳號：只保留部門、角色、篩選
+  V002-1P-133｜依指定順序整理篩選欄位與期間展開
+  - 行程總覽：檢視範圍 > 顯示月份 > 部門 > 人員 > 排序（部門 / 姓名） > 套用記住 > 全部
+  - 外務行程：檢視範圍 > 顯示月份 > 部門 > 人員 > 排序（部門 / 姓名） > 套用記住 > 全部
+  - 異況追蹤：負責 / 協助人員 > 狀態 > 關鍵字 > 篩選
+  - 統計報表與服務紀錄單：自訂期間才展開起訖日
+  - 人員 / 帳號：部門 > 角色 > 篩選
 */
-/* FOR-e V002-1P-133 END - ordered filter forms */
+/* FOR-e V002-1P-133 END - ordered filters and period ranges */
+
+/* FOR-e V002-1P-134 START - clean old filter css */
+/*
+  V002-1P-134｜清除舊版篩選列 CSS 衝突
+  - 移除 V112 / V114 / V116 / V117 / V121～V133 的篩選列覆蓋規則
+  - 改用單一套 .filter-* 穩定排版
+  - 保留 V133 的欄位順序與期間自訂展開功能
+*/
+/* FOR-e V002-1P-134 END - clean old filter css */
