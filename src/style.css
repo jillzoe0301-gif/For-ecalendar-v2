@@ -13221,3 +13221,312 @@ body {
   opacity: 0.72;
 }
 /* FOR-e V002-1P-110 END - overview personal periods auto close */
+
+/* FOR-e V002-1P-135 START - selective fixes from v110 */
+/* V002-1P-135｜精選功能樣式 */
+
+/* 行程總覽月份列，不干擾原篩選欄位 */
+.overview-month-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.overview-month-row label {
+  display: grid;
+  gap: 5px;
+  width: 170px;
+  font-size: 12px;
+  font-weight: 850;
+  color: #1f2937;
+}
+
+.overview-month-row input[type="month"] {
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid #cbd5e1;
+  padding: 0 12px;
+  font-weight: 900;
+  color: #1e3a8a;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+#resetOverviewFilterBtn.overview-reset-btn-small {
+  width: 64px !important;
+  min-width: 64px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+/* 個人當月：行事曆呈現 */
+.personal-month-calendar {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.personal-month-calendar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px;
+  text-align: left;
+}
+
+.personal-month-calendar-title strong {
+  font-size: 18px;
+  font-weight: 950;
+  color: #111827;
+}
+
+.personal-month-calendar-title span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.personal-month-calendar-head,
+.personal-month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.personal-month-calendar-head {
+  margin-bottom: 8px;
+}
+
+.personal-month-calendar-head > div {
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 950;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+.month-day-cell {
+  min-height: 148px;
+  height: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: left !important;
+}
+
+.month-day-cell.is-outside-month {
+  background: #f8fafc;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.month-day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.month-day-header strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.month-day-cell.is-today .month-day-header strong {
+  background: #5170ff;
+  color: #ffffff;
+}
+
+.month-day-cell.is-holiday,
+.month-day-cell.is-personal-leave-day {
+  background: #eef5ff !important;
+}
+
+/* 多人月份檢視：橫向拉動 */
+.week-overview-table.is-overview-month,
+.week-overview-table.is-personal-month {
+  min-width: 3600px;
+}
+
+.week-overview-table.is-overview-month .week-day-cell,
+.week-overview-table.is-personal-month .week-day-cell {
+  min-width: 112px;
+  min-height: 132px;
+  height: auto;
+}
+
+.week-overview-table.is-overview-month thead th:not(.staff-col),
+.week-overview-table.is-personal-month thead th:not(.staff-col) {
+  min-width: 112px;
+}
+
+/* 今日生日提醒 */
+.login-birthday-reminder {
+  margin-bottom: 10px;
+}
+
+.login-birthday-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid #f9a8d4;
+  background: #fff1f8;
+  color: #be185d;
+  border-radius: 16px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.login-birthday-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  object-fit: contain;
+}
+
+.login-birthday-card strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 950;
+  text-align: left;
+}
+
+/* 外務行事曆：端午/假日淡橘 */
+.field-week-table thead th.is-holiday,
+.field-week-day-cell.is-holiday,
+.field-week-day-cell.is-holiday.is-today,
+.field-week-table thead th.is-holiday.is-today {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+}
+
+.field-week-table thead th.is-holiday strong {
+  color: #c2410c !important;
+}
+
+/* 外務行程當日框框與日期色 #FAAB78 */
+.field-week-table thead th.is-today,
+.field-week-day-cell.is-today {
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+}
+
+.field-week-table thead th.is-today strong {
+  background: #FAAB78 !important;
+  color: #111827 !important;
+}
+
+/* 色碼可手動輸入 */
+.color-code-input {
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0 10px;
+  font-weight: 900;
+  color: #334155;
+  background: #ffffff;
+  text-transform: uppercase;
+}
+
+.color-code-input:focus {
+  outline: 2px solid rgba(81, 112, 255, 0.18);
+  border-color: #5170ff;
+}
+
+/* 新增外務：外務人員下拉，不佔版面 */
+.field-staff-dropdown-box {
+  display: grid;
+  gap: 8px;
+}
+
+.field-staff-dropdown {
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: visible;
+}
+
+.field-staff-dropdown summary {
+  min-height: 44px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-weight: 900;
+  color: #1e3a8a;
+  list-style: none;
+}
+
+.field-staff-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.field-staff-dropdown-panel {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid #e5e7eb;
+}
+
+.field-staff-check-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-height: 32px;
+  padding: 6px 4px;
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+.field-staff-check-row input {
+  flex: 0 0 auto;
+}
+
+.field-staff-check-row span {
+  flex: 1 1 auto;
+  text-align: left !important;
+  font-weight: 850;
+}
+
+/* 篩選選單裡的人名不顯示部門後保持靠左 */
+.compact-check-option,
+.compact-check-option span {
+  text-align: left !important;
+}
+
+@media (max-width: 768px) {
+  .personal-month-calendar {
+    overflow-x: auto;
+  }
+
+  .personal-month-calendar-head,
+  .personal-month-calendar-grid {
+    min-width: 980px;
+    grid-template-columns: repeat(7, 140px);
+  }
+
+  .month-day-cell {
+    min-height: 140px;
+  }
+}
+/* FOR-e V002-1P-135 END - selective fixes from v110 */
