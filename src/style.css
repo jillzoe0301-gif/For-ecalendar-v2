@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-150 START - field leave search cleanup */
-/* V002-1P-150｜外務休假第一天、附加重複與搜尋修正 */
+/* FOR-e V002-1P-151 START - visibility fieldday extra fix */
+/* V002-1P-151｜搜尋、外務日背景與延續標記 */
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -13770,11 +13770,19 @@ body {
   display: none !important;
 }
 
-/* 外務日提醒：明確以 #F48F68 呈現 */
+/* 外務日提醒：卡片與日期格都用 #F48F68 系列 */
 .week-schedule-card[style*="#F48F68"],
 .field-week-schedule-card[style*="#F48F68"],
 .schedule-card[style*="#F48F68"] {
   border-color: #F48F68 !important;
+}
+
+.week-day-cell.is-field-day,
+.field-week-day-cell.is-field-day,
+.month-day-cell.is-field-day {
+  background: color-mix(in srgb, #F48F68 14%, #ffffff) !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #F48F68 44%, #ffffff) !important;
+  cursor: pointer;
 }
 
 /* 請假 / 休假 / 返鄉：包含連續日期的每一天，都整格反背景色 */
@@ -13808,8 +13816,11 @@ body {
 .week-day-cell.has-continuation-mark:hover,
 .field-week-day-cell.has-continuation-mark:hover,
 .month-day-cell.has-continuation-mark:hover,
-.meeting-week-day-cell.has-continuation-mark:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 42%, #ffffff) !important;
+.meeting-week-day-cell.has-continuation-mark:hover,
+.week-day-cell.is-field-day:hover,
+.field-week-day-cell.is-field-day:hover,
+.month-day-cell.is-field-day:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #F48F68) 48%, #ffffff) !important;
 }
 
 /* 細條標記：依該項目顏色反色 */
@@ -13858,7 +13869,7 @@ body {
   white-space: nowrap;
 }
 
-/* 讓相同連續行程在同一排：沒有作用中的項目前方用透明保留高度 */
+/* 讓相同連續行程在同一排 */
 .continuation-day-placeholder {
   min-height: 28px;
   margin: 3px 0 5px;
@@ -13866,20 +13877,11 @@ body {
   pointer-events: none;
 }
 
-/* 單日休假 / 返鄉仍可保留簡短休/返標籤 */
-.leave-return-day-mark.is-first-day {
-  width: auto;
-  padding: 3px 7px;
-  min-height: 26px;
-}
-
-.leave-return-day-mark.is-first-day span {
-  min-width: 24px;
-  height: 24px;
-}
-
 /* color-mix 備援 */
 @supports not (color: color-mix(in srgb, #000 50%, #fff)) {
+  .week-day-cell.is-field-day,
+  .field-week-day-cell.is-field-day,
+  .month-day-cell.is-field-day,
   .week-day-cell.is-leave-day,
   .field-week-day-cell.is-leave-day,
   .month-day-cell.is-leave-day,
@@ -13894,4 +13896,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-150 END - field leave search cleanup */
+/* FOR-e V002-1P-151 END - visibility fieldday extra fix */

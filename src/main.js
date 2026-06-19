@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-150'
+const SYSTEM_VERSION = 'V002-1P-151'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1112,6 +1112,7 @@ function shouldHideFromCreatorCalendar(row = {}, staffId = '') {
   if (!row || !staffId) return false
   if (row.creator_staff_id !== staffId) return false
   if (!hasOtherActiveAssignee(row, staffId)) return false
+  if (getActiveAssigneeIds(row).includes(staffId)) return false
 
   const key = getScheduleColorKey(row)
   if (['請假', '返鄉', '活動', '外訓', '會議'].includes(key)) return true
@@ -1126,7 +1127,6 @@ function scheduleBelongsToStaff(row = {}, staffId = '') {
   if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, staffId)
 
   if (hasActiveAssignees(row)) {
-    if (shouldHideFromCreatorCalendar(row, staffId)) return false
     return getActiveAssigneeIds(row).includes(staffId)
   }
 
@@ -4470,19 +4470,27 @@ function getScheduleDisplayType(row = {}) {
 
 
 function getDisplaySubTypeExtra(row = {}) {
+  const normalize = value => String(value || '')
+    .replace(/\s+/g, '')
+    .replace(/[｜|／/()（）\-\_]/g, '')
+    .toLowerCase()
+
   const extra = String(row.sub_type || '').trim()
   if (!extra) return ''
 
-  const normalize = value => String(value || '').trim().replace(/\s+/g, '')
+  if (isFieldDayReminderSchedule(row)) return ''
+
   const normalizedExtra = normalize(extra)
-  const duplicates = [
+  const duplicateTargets = [
     row.title,
     row.schedule_type,
     row.category,
     getScheduleDisplayType(row)
   ].map(normalize).filter(Boolean)
 
-  if (duplicates.includes(normalizedExtra)) return ''
+  if (duplicateTargets.includes(normalizedExtra)) return ''
+  if (duplicateTargets.some(target => target && (target.includes(normalizedExtra) || normalizedExtra.includes(target)))) return ''
+
   return extra
 }
 
@@ -10982,6 +10990,19 @@ function getStaffLeaveReturnRowsForDate(staffId = '', dateKey = '') {
     })
 }
 
+
+function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
+  if (!staffId || !dateKey) return []
+
+  return schedules
+    .filter(isVisibleSchedule)
+    .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+    .filter(row => scheduleMatchesDateByMode(row, dateKey))
+    .filter(row => scheduleBelongsToStaff(row, staffId))
+    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+}
+
+
 function filterDailyCardsForDate(rows = [], dateKey = '') {
   return rows.filter(row => {
     if (!isContinuousDateSchedule(row)) return true
@@ -10995,15 +11016,18 @@ function getContinuationRowsForDate(rows = [], dateKey = '') {
 
 function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   const leaveRows = getStaffLeaveReturnRowsForDate(staffId, dateKey)
+  const fieldDayRows = getStaffFieldDayRowsForDate(staffId, dateKey)
   const leaveRow = leaveRows[0] || null
+  const fieldDayRow = fieldDayRows[0] || null
   const continuationRow = continuationRows[0] || null
-  const row = leaveRow || continuationRow
+  const row = leaveRow || fieldDayRow || continuationRow
 
   if (!row) {
     return {
       className: '',
       attrs: '',
       leaveRows: [],
+      fieldDayRows: [],
       continuationRows
     }
   }
@@ -11011,12 +11035,13 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   const color = getScheduleColor(row)
   const className = leaveRow
     ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
-    : 'has-continuation-mark'
+    : (fieldDayRow ? 'is-field-day' : 'has-continuation-mark')
 
   return {
     className,
     attrs: `style="--day-accent:${color}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}"`,
     leaveRows,
+    fieldDayRows,
     continuationRows
   }
 }
@@ -11036,18 +11061,17 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '') {
   if (!rows.length) return ''
   const row = rows[0]
   const isFirstDay = row.start_date === dateKey
-  const isContinuous = isContinuousDateSchedule(row)
 
-  // 連續休假 / 返鄉第一天已顯示完整卡片，不再另外顯示單一「休 / 返」字。
-  if (isFirstDay && isContinuous) return ''
+  // 第一天已顯示完整卡片，不再另外顯示單一「休 / 返」字。
+  if (isFirstDay) return ''
 
   const title = row.title || row.sub_type || getScheduleDisplayType(row) || '休假'
   const label = isReturnHomeSchedule(row) ? '返' : '休'
 
   return `
-    <button type="button" class="leave-return-day-mark ${isFirstDay ? 'is-first-day' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="leave-return-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
       <span>${label}</span>
-      ${isFirstDay ? '' : `<strong>${escapeHtml(title)}</strong>`}
+      <strong>${escapeHtml(title)}</strong>
     </button>
   `
 }
@@ -18637,14 +18661,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-144 END - cleanup obsolete safe blocks */
 
-/* FOR-e V002-1P-150 START - field leave search cleanup */
+/* FOR-e V002-1P-151 START - visibility fieldday extra fix */
 /*
-  V002-1P-150｜外務休假第一天、附加重複與搜尋修正
-  - 外務行事曆請假 / 休假 / 返鄉第一天顯示完整行程內容
-  - 連續請假 / 返鄉每一天維持整格背景色
-  - 附加與標題相同時不重複顯示
-  - 人員帳號移除手動輸入部門 / 手動輸入職務欄位
-  - 執行者 / 參與者 / 部門複選清單加入搜尋
-  - 清除 V149 舊樣式，改成單一 V150 樣式
+  V002-1P-151｜執行者顯示、休字與外務日背景修正
+  - 建立者若也被選為執行者會正常顯示；建立者未被選為執行者則不顯示
+  - 單日請假 / 休假 / 返鄉第一天不再額外顯示單一「休 / 返」字
+  - 外務日 / 請勿安排其他行程當天背景改為淡橘色
+  - 附加內容與標題 / 類型重複時不再顯示
+  - 移除 V150 舊樣式區塊，改為單一 V151 樣式
 */
-/* FOR-e V002-1P-150 END - field leave search cleanup */
+/* FOR-e V002-1P-151 END - visibility fieldday extra fix */
