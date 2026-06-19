@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-132'
+const SYSTEM_VERSION = 'V002-1P-133'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -472,6 +472,7 @@ let statsFilters = {
 
 let serviceRecordFilters = {
   status: '全部',
+  period: '全部',
   staffId: '全部',
   department: '全部',
   scheduleType: '全部',
@@ -2685,6 +2686,7 @@ function renderApp() {
     resetServiceRecordFilterBtn.addEventListener('click', () => {
       serviceRecordFilters = {
         status: '全部',
+        period: '全部',
         staffId: '全部',
         department: '全部',
         scheduleType: '全部',
@@ -2703,12 +2705,24 @@ function renderApp() {
       const form = new FormData(event.target)
       serviceRecordFilters = {
         status: form.get('status') || '全部',
+        period: form.get('period') || '全部',
         staffId: form.get('staffId') || '全部',
         department: form.get('department') || '全部',
         scheduleType: form.get('scheduleType') || '全部',
         keyword: form.get('keyword') || '',
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
+      }
+      renderApp()
+    })
+  }
+
+  const serviceRecordPeriodSelect = document.querySelector('#serviceRecordFilterForm [data-period-toggle="serviceRecord"]')
+  if (serviceRecordPeriodSelect) {
+    serviceRecordPeriodSelect.addEventListener('change', event => {
+      serviceRecordFilters = {
+        ...serviceRecordFilters,
+        period: event.target.value || '全部'
       }
       renderApp()
     })
@@ -2961,6 +2975,17 @@ function renderApp() {
     })
   }
 
+  const statsPeriodSelect = document.querySelector('#statsFilterForm [data-period-toggle="stats"]')
+  if (statsPeriodSelect) {
+    statsPeriodSelect.addEventListener('change', event => {
+      statsFilters = {
+        ...statsFilters,
+        period: event.target.value || '當月'
+      }
+      renderApp()
+    })
+  }
+
   const resetStatsFilterBtn = document.querySelector('#resetStatsFilterBtn')
   if (resetStatsFilterBtn) {
     resetStatsFilterBtn.addEventListener('click', () => {
@@ -3023,10 +3048,10 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       userAccountFilters = {
-        keyword: form.get('keyword') || '',
+        keyword: '',
         department: form.get('department') || '全部',
         role: form.get('role') || '全部',
-        fieldStaff: form.get('fieldStaff') || '全部'
+        fieldStaff: '全部'
       }
       renderApp()
     })
@@ -4161,16 +4186,9 @@ function renderFieldScheduleCalendar() {
         </details>
 
         <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">排序</span>
+          <span class="compact-field-label">排序（部門 / 姓名）</span>
           <select name="fieldSortBy">
-            ${getStaffSortOptions(fieldScheduleFilters.sortBy)}
-          </select>
-        </label>
-
-        <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">順序</span>
-          <select name="fieldSortDir">
-            ${getStaffSortDirOptions(fieldScheduleFilters.sortDir)}
+            ${getStaffSortSimpleOptions(fieldScheduleFilters.sortBy)}
           </select>
         </label>
 
@@ -6444,23 +6462,28 @@ function renderStatsFilterForm() {
 
   const departmentOptions = buildServiceRecordOptionList(getStatsDepartmentOptions(), statsFilters.department)
   const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
+  const showCustomRange = statsFilters.period === '自訂'
 
   return `
-    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter">
+    <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter ordered-filter-form">
       <label>
         期間
-        <select name="period">${periodOptions}</select>
+        <select name="period" data-period-toggle="stats">${periodOptions}</select>
       </label>
 
-      <label>
-        起日
-        <input name="startDate" type="date" value="${statsFilters.startDate}">
-      </label>
+      ${showCustomRange ? `
+        <div class="period-date-row stats-date-row">
+          <label>
+            起日
+            <input name="startDate" type="date" value="${statsFilters.startDate}">
+          </label>
 
-      <label>
-        迄日
-        <input name="endDate" type="date" value="${statsFilters.endDate}">
-      </label>
+          <label>
+            迄日
+            <input name="endDate" type="date" value="${statsFilters.endDate}">
+          </label>
+        </div>
+      ` : ''}
 
       <label>
         部門
@@ -11465,6 +11488,54 @@ function getStaffSortOptions(selected = 'display_order') {
   `).join('')
 }
 
+
+function getStaffSortSimpleOptions(selected = 'department') {
+  const normalized = selected === 'name' ? 'name' : 'department'
+  const options = [
+    ['department', '部門'],
+    ['name', '姓名']
+  ]
+  return options.map(([value, label]) => `
+    <option value="${value}" ${normalized === value ? 'selected' : ''}>${label}</option>
+  `).join('')
+}
+
+function getServiceRecordPeriodOptions(selected = '全部') {
+  const normalized = ['全部', '當月', '當年', '自訂'].includes(selected) ? selected : '全部'
+  return ['全部', '當月', '當年', '自訂']
+    .map(item => `<option value="${item}" ${normalized === item ? 'selected' : ''}>${item}</option>`)
+    .join('')
+}
+
+function getServiceRecordDateRange() {
+  const today = todayString()
+  const period = serviceRecordFilters.period || '全部'
+
+  if (period === '當月') {
+    return {
+      start: getMonthFirstDay(today),
+      end: getMonthLastDay(today)
+    }
+  }
+
+  if (period === '當年') {
+    return {
+      start: `${today.slice(0, 4)}-01-01`,
+      end: `${today.slice(0, 4)}-12-31`
+    }
+  }
+
+  if (period === '自訂') {
+    return {
+      start: serviceRecordFilters.startDate || '',
+      end: serviceRecordFilters.endDate || ''
+    }
+  }
+
+  return { start: '', end: '' }
+}
+
+
 function getStaffSortDirOptions(selected = 'asc') {
   const options = [
     ['asc', '小到大 / A-Z'],
@@ -11659,16 +11730,9 @@ function renderScheduleOverview() {
         </details>
 
         <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">排序</span>
+          <span class="compact-field-label">排序（部門 / 姓名）</span>
           <select name="sortBy">
-            ${getStaffSortOptions(overviewFilters.sortBy)}
-          </select>
-        </label>
-
-        <label class="compact-sort-select compact-filter-control">
-          <span class="compact-field-label">順序</span>
-          <select name="sortDir">
-            ${getStaffSortDirOptions(overviewFilters.sortDir)}
+            ${getStaffSortSimpleOptions(overviewFilters.sortBy)}
           </select>
         </label>
 
@@ -12246,8 +12310,9 @@ function matchesServiceRecordFilters(record, onlyMine = false) {
     if (!haystack.includes(keyword)) return false
   }
 
-  if (serviceRecordFilters.startDate && record.schedule_date < serviceRecordFilters.startDate) return false
-  if (serviceRecordFilters.endDate && record.schedule_date > serviceRecordFilters.endDate) return false
+  const periodRange = getServiceRecordDateRange()
+  if (periodRange.start && record.schedule_date < periodRange.start) return false
+  if (periodRange.end && record.schedule_date > periodRange.end) return false
 
   return true
 }
@@ -12257,13 +12322,15 @@ function renderServiceRecordFilterForm(onlyMine = false) {
     .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
     .join('')
 
+  const periodOptions = getServiceRecordPeriodOptions(serviceRecordFilters.period || '全部')
+  const showCustomRange = (serviceRecordFilters.period || '全部') === '自訂'
   const departmentOptions = buildServiceRecordOptionList(getServiceRecordDepartmentOptions(), serviceRecordFilters.department || '全部')
   const typeOptions = buildServiceRecordOptionList(getServiceRecordTypeOptions(), serviceRecordFilters.scheduleType || '全部')
 
   const staffOptions = onlyMine
     ? ''
     : `<label>
-        翻譯 / 人員
+        人員
         <select name="staffId">
           <option value="全部" ${serviceRecordFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>
           ${staffList.map(staff => `<option value="${staff.staff_id}" ${serviceRecordFilters.staffId === staff.staff_id ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>`).join('')}
@@ -12278,7 +12345,7 @@ function renderServiceRecordFilterForm(onlyMine = false) {
       </label>`
 
   return `
-    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded">
+    <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded ordered-filter-form">
       <label>
         狀態
         <select name="status">${statusOptions}</select>
@@ -12288,19 +12355,28 @@ function renderServiceRecordFilterForm(onlyMine = false) {
       ${departmentField}
 
       <label>
-        行程類型
+        類型
         <select name="scheduleType">${typeOptions}</select>
       </label>
 
       <label>
-        起日
-        <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
+        期間
+        <select name="period" data-period-toggle="serviceRecord">${periodOptions}</select>
       </label>
 
-      <label>
-        迄日
-        <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
-      </label>
+      ${showCustomRange ? `
+        <div class="period-date-row service-record-date-row">
+          <label>
+            起日
+            <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
+          </label>
+
+          <label>
+            迄日
+            <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
+          </label>
+        </div>
+      ` : ''}
 
       <label class="service-record-keyword-filter">
         關鍵字
@@ -12724,12 +12800,7 @@ function renderUsersPage() {
     ${renderAppSettingSyncNotice()}
 
     ${canViewAllAccounts ? `
-      <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff">
-        <label>
-          關鍵字
-          <input name="keyword" value="${escapeHtml(userAccountFilters.keyword)}" placeholder="搜尋姓名、部門、職務、角色">
-        </label>
-
+      <form id="usersFilterForm" class="users-filter-panel users-filter-panel-field-staff ordered-filter-form">
         <label>
           部門
           <select name="department">${getUserAccountDepartmentOptions()}</select>
@@ -12738,15 +12809,6 @@ function renderUsersPage() {
         <label>
           角色
           <select name="role">${getUserAccountRoleOptions()}</select>
-        </label>
-
-        <label>
-          是否外務人員
-          <select name="fieldStaff">
-            <option value="全部" ${userAccountFilters.fieldStaff === '全部' ? 'selected' : ''}>全部</option>
-            <option value="是" ${userAccountFilters.fieldStaff === '是' ? 'selected' : ''}>是</option>
-            <option value="否" ${userAccountFilters.fieldStaff === '否' ? 'selected' : ''}>否</option>
-          </select>
         </label>
 
         <button type="submit" class="primary-btn">篩選</button>
@@ -18611,3 +18673,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 避免檢視範圍與顯示月份擠壓主要篩選列
 */
 /* FOR-e V002-1P-132 END - separate view month controls */
+
+/* FOR-e V002-1P-133 START - ordered filter forms */
+/*
+  V002-1P-133｜指定順序篩選列與期間條件
+  - 行程總覽：檢視範圍、顯示月份、部門、人員、排序、套用記住、全部
+  - 外務行程：檢視範圍、顯示月份、部門、人員、排序、套用記住、全部
+  - 統計報表與服務紀錄單：期間選自訂後才展開起迄日
+  - 人員帳號：只保留部門、角色、篩選
+*/
+/* FOR-e V002-1P-133 END - ordered filter forms */
