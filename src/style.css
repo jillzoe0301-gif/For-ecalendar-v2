@@ -13530,3 +13530,126 @@ body {
   }
 }
 /* FOR-e V002-1P-135 END - selective fixes from v110 */
+
+/* FOR-e V002-1P-136 START - month controls outside filters and 4px borders */
+/* V002-1P-136｜月份控制移出篩選列 */
+.toolbar-month-control {
+  display: inline-grid;
+  grid-template-rows: 14px 42px;
+  gap: 3px;
+  align-items: end;
+  min-width: 132px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 900;
+  color: #64748b;
+  text-align: left;
+}
+
+.toolbar-month-control select,
+.toolbar-month-control input[type="month"] {
+  height: 42px;
+  min-height: 42px;
+  border-radius: 13px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e3a8a;
+  font-size: 12.5px;
+  font-weight: 900;
+  box-sizing: border-box;
+  padding: 0 10px;
+}
+
+.toolbar-view-control {
+  min-width: 112px;
+}
+
+.toolbar-view-control select {
+  width: 112px;
+}
+
+/* V135 原本篩選列內月份欄已移除，避免留下空白 */
+.overview-month-row {
+  display: none !important;
+}
+
+/* 多人月份檢視：外務與會議室也可橫向拉動 */
+.field-week-table.is-field-month,
+.meeting-week-table.is-meeting-month {
+  min-width: 3600px;
+}
+
+.field-week-table.is-field-month .field-week-day-cell,
+.meeting-week-table.is-meeting-month .meeting-week-day-cell {
+  min-width: 112px;
+  min-height: 132px;
+  height: auto;
+}
+
+.field-week-table.is-field-month thead th:not(.field-staff-col),
+.meeting-week-table.is-meeting-month thead th:not(.meeting-room-col) {
+  min-width: 112px;
+}
+
+/* 行程表卡片外框固定 4px */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.schedule-card,
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style],
+.schedule-card[style] {
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #c7d2fe) !important;
+}
+
+/* 外務當日框線與日期色 */
+.field-week-table thead th.is-today,
+.field-week-day-cell.is-today,
+.field-personal-month-calendar .month-day-cell.is-today {
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+}
+
+.field-week-table thead th.is-today strong,
+.field-personal-month-calendar .month-day-cell.is-today .month-day-header strong {
+  background: #FAAB78 !important;
+  color: #111827 !important;
+}
+
+/* 外務假日 / 端午淡橘背景，當日仍保留 #FAAB78 邊框 */
+.field-week-table thead th.is-holiday,
+.field-week-day-cell.is-holiday,
+.field-personal-month-calendar .month-day-cell.is-holiday {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+}
+
+.field-week-table thead th.is-today.is-holiday,
+.field-week-day-cell.is-today.is-holiday,
+.field-personal-month-calendar .month-day-cell.is-today.is-holiday {
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+}
+
+/* 篩選列維持原本樣式，僅讓全部按鈕小一點 */
+#resetOverviewFilterBtn.overview-reset-btn-small {
+  width: 64px !important;
+  min-width: 64px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+@media (max-width: 768px) {
+  .toolbar-month-control {
+    min-width: 120px;
+  }
+
+  .toolbar-month-control input[type="month"],
+  .toolbar-month-control select {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1P-136 END - month controls outside filters and 4px borders */
