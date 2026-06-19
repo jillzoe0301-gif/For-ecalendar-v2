@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-128'
+const SYSTEM_VERSION = 'V002-1P-129'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2480,6 +2480,50 @@ async function loadServiceRecords() {
   serviceRecordsLoading = false
 }
 
+
+const collapsibleFilterFormIds = [
+  'overviewFilterForm',
+  'fieldScheduleFilterForm',
+  'fieldDetailFilterForm',
+  'incidentFilterForm',
+  'statsFilterForm',
+  'serviceRecordFilterForm',
+  'usersFilterForm'
+]
+
+function installFilterPanelToggles() {
+  collapsibleFilterFormIds.forEach(formId => {
+    const form = document.getElementById(formId)
+    if (!form || form.dataset.filterToggleReady === '1') return
+
+    form.dataset.filterToggleReady = '1'
+
+    const storageKey = `for-e-filter-collapsed-${formId}`
+    const isCollapsed = localStorage.getItem(storageKey) === '1'
+    form.classList.toggle('is-filter-collapsed', isCollapsed)
+
+    const wrapper = document.createElement('div')
+    wrapper.className = 'filter-toggle-wrap'
+
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'filter-toggle-btn'
+    button.dataset.filterToggleForm = formId
+    button.textContent = isCollapsed ? '顯示篩選' : '隱藏篩選'
+
+    button.addEventListener('click', () => {
+      const nextCollapsed = !form.classList.contains('is-filter-collapsed')
+      form.classList.toggle('is-filter-collapsed', nextCollapsed)
+      localStorage.setItem(storageKey, nextCollapsed ? '1' : '0')
+      button.textContent = nextCollapsed ? '顯示篩選' : '隱藏篩選'
+    })
+
+    wrapper.appendChild(button)
+    form.parentNode.insertBefore(wrapper, form)
+  })
+}
+
+
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
   const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
@@ -2538,6 +2582,8 @@ function renderApp() {
       </nav>
     </section>
   `
+
+  installFilterPanelToggles()
 
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -18525,3 +18571,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 按鈕與欄位底部對齊、大小一致
 */
 /* FOR-e V002-1P-128 END - desktop filter layout stable */
+
+/* FOR-e V002-1P-129 START - stable wrapped collapsible filters */
+/*
+  V002-1P-129｜穩定換列篩選列與可隱藏篩選區
+  - 篩選列由左開始、等距、齊高、齊平
+  - 一列放不下時自動換成第二列，不再超出或被遮住
+  - 篩選區新增顯示 / 隱藏按鈕
+*/
+/* FOR-e V002-1P-129 END - stable wrapped collapsible filters */
