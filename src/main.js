@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-148'
+const SYSTEM_VERSION = 'V002-1P-149'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1086,30 +1086,56 @@ function isActivePersonalSchedule(row) {
 
 function isMine(row) {
   const myStaffId = currentProfile?.staff_id
-  if (!myStaffId || !row) return false
-
-  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, myStaffId)
-
-  if (hasActiveAssignees(row)) {
-    return isAssignedToCurrentUser(row)
-  }
-
-  return row.creator_staff_id === myStaffId
+  return scheduleBelongsToStaff(row, myStaffId)
 }
 
 
 function isAssignedToCurrentUser(row = {}) {
-  const myStaffId = currentProfile?.staff_id
-  if (!myStaffId) return false
-  return (row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)
+  return scheduleBelongsToStaff(row, currentProfile?.staff_id)
+}
+
+function getActiveAssigneeIds(row = {}) {
+  return (row.schedule_assignees || [])
+    .filter(item => !item.deleted_at && item.staff_id)
+    .map(item => item.staff_id)
 }
 
 function hasActiveAssignees(row = {}) {
-  return (row.schedule_assignees || []).some(item => !item.deleted_at)
+  return getActiveAssigneeIds(row).length > 0
 }
 
+function hasOtherActiveAssignee(row = {}, staffId = '') {
+  return getActiveAssigneeIds(row).some(id => id !== staffId)
+}
+
+function shouldHideFromCreatorCalendar(row = {}, staffId = '') {
+  if (!row || !staffId) return false
+  if (row.creator_staff_id !== staffId) return false
+  if (!hasOtherActiveAssignee(row, staffId)) return false
+
+  const key = getScheduleColorKey(row)
+  if (['請假', '返鄉', '活動', '外訓', '會議'].includes(key)) return true
+  if (row.category === '請假 / 會議 / 活動 / 外訓') return true
+
+  return false
+}
+
+function scheduleBelongsToStaff(row = {}, staffId = '') {
+  if (!row || !staffId) return false
+
+  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, staffId)
+
+  if (hasActiveAssignees(row)) {
+    if (shouldHideFromCreatorCalendar(row, staffId)) return false
+    return getActiveAssigneeIds(row).includes(staffId)
+  }
+
+  return row.creator_staff_id === staffId
+}
+
+
 function isPersonalCalendarForMe(row = {}) {
-  return isMine(row)
+  return scheduleBelongsToStaff(row, currentProfile?.staff_id)
 }
 
 function isActionReminderSchedule(row = {}) {
@@ -7255,18 +7281,17 @@ function getScheduleColorKey(row) {
 
   const subtypeText = getScheduleSubtypeText(row)
   const normalizedText = subtypeText.replace(/\s+/g, '').replace(/[／/]/g, '')
-  const leaveKeywords = ['請假', '休假', '特休', '病假', '事假', '公假', '婚假', '喪假', '產假', '補休', '調休', '休息', '休息日']
   const trainingKeywords = ['外訓', '外部訓練', '教育訓練', '教育訓練內容', '訓練', '培訓', '研習', '講習', '課程', '受訓', '上課', '上線教育訓練']
+  const leaveKeywords = ['請假', '休假', '特休', '病假', '事假', '公假', '婚假', '喪假', '產假', '補休', '調休', '休息日']
   const meetingKeywords = ['會議']
   const activityKeywords = ['活動']
 
   if (subtypeText.includes('返鄉')) return '返鄉'
-  if (leaveKeywords.some(keyword => subtypeText.includes(keyword))) return '請假'
 
-  // 外訓資料有些寫成「教育訓練、受訓、研習、講習、課程」，
-  // 先判斷外訓，避免被活動或其他文字誤分到別的色系。
+  // 外訓資料常會在說明內出現「休息」等字，先判斷外訓，避免被誤歸類為休假。
   if (trainingKeywords.some(keyword => subtypeText.includes(keyword) || normalizedText.includes(keyword.replace(/\s+/g, '').replace(/[／/]/g, '')))) return '外訓'
 
+  if (leaveKeywords.some(keyword => subtypeText.includes(keyword))) return '請假'
   if (meetingKeywords.some(keyword => subtypeText.includes(keyword))) return '會議'
   if (activityKeywords.some(keyword => subtypeText.includes(keyword))) return '活動'
 
@@ -10239,6 +10264,7 @@ function getAssignedTrackingRows() {
   return schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => !isNoCompletionControlSchedule(row))
+    .filter(row => !isFieldDayReminderSchedule(row))
     .filter(row => row.creator_staff_id === myStaffId)
     .filter(row => {
       const assigneeIds = getAssigneeIds(row)
@@ -10906,9 +10932,7 @@ function isReturnHomeSchedule(row = {}) {
 }
 
 function isStaffAssignedToSchedule(row = {}, staffId = '') {
-  if (!staffId) return false
-  if (row.creator_staff_id === staffId) return true
-  return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+  return scheduleBelongsToStaff(row, staffId)
 }
 
 function getStaffLeaveReturnRowsForDate(staffId = '', dateKey = '') {
@@ -11035,10 +11059,7 @@ function getOverviewContinuousSchedulesForStaff(staffId, dates = []) {
     if (!isVisibleSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return false
     if (row.start_date > lastKey || row.end_date < firstKey) return false
-
-    const assigned = (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
-    if (assigned) return true
-    return meetingScheduleVisibleForStaff(row, staffId)
+    return scheduleBelongsToStaff(row, staffId)
   }))
 }
 
@@ -11720,9 +11741,7 @@ function getSchedulesForStaffDate(staffId, dateKey) {
   return schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
-    const assigned = (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
-    if (assigned) return true
-    return meetingScheduleVisibleForStaff(row, staffId)
+    return scheduleBelongsToStaff(row, staffId)
   })
 }
 
@@ -18546,13 +18565,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-144 END - cleanup obsolete safe blocks */
 
-/* FOR-e V002-1P-148 START - field day creator continuation cleanup */
+/* FOR-e V002-1P-149 START - fieldday creator continuation final */
 /*
-  V002-1P-148｜外務日提醒與連續延續列對齊
-  - 外務日 / 請勿安排其他行程視為提醒，不登記外務明細、不進指派任務、不算任務
-  - 外務日使用 #F48F68 顯示
-  - 相同連續行程延續標記維持同一排
-  - 幫別人安排請假 / 休假 / 返鄉 / 活動 / 外訓等，不顯示指派者，不上指派者行事曆與待辦
-  - 清除 V147 舊樣式，改用單一 V148 樣式
+  V002-1P-149｜外務日與指派者顯示最終修正
+  - 外務日 / 請勿安排其他行程為提醒，不進外務明細、不進指派任務、不算任務
+  - 外務日使用 #F48F68
+  - 幫別人安排請假 / 休假 / 返鄉 / 活動 / 外訓時，不出現在指派者行事曆與待辦，也不顯示指派者
+  - 相同連續行程延續日維持同一排，第一天不多顯示單字
+  - 外訓優先於休假判斷，避免外訓內容有休息字樣被誤標為休
+  - 清除 V147 / V148 舊樣式，保留單一 V149 樣式
 */
-/* FOR-e V002-1P-148 END - field day creator continuation cleanup */
+/* FOR-e V002-1P-149 END - fieldday creator continuation final */

@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-148 START - field day creator continuation cleanup */
-/* V002-1P-148｜外務日提醒、連續延續細條與指派者清理 */
+/* FOR-e V002-1P-149 START - fieldday creator continuation final */
+/* V002-1P-149｜外務日提醒、連續延續細條與指派者修正 */
 
 /* 舊版跨欄 / 每日線段長條全部停用 */
 .continuous-span-row,
@@ -13866,4 +13866,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-148 END - field day creator continuation cleanup */
+/* FOR-e V002-1P-149 END - fieldday creator continuation final */
