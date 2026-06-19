@@ -13876,3 +13876,134 @@ body {
   }
 }
 /* FOR-e V002-1P-139 END - continuous schedule bars */
+
+/* FOR-e V002-1P-140 START - inline continuous segments */
+/* V002-1P-140｜格內連續行程線段 */
+.continuous-segment {
+  min-height: 34px;
+  margin: 4px 0 6px;
+  background: #ffffff !important;
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #4E71FF) !important;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+
+.continuous-segment.is-start {
+  border-radius: 999px 0 0 999px;
+  border-right-width: 0 !important;
+  margin-right: -7px;
+}
+
+.continuous-segment.is-middle {
+  border-radius: 0;
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+  margin-left: -7px;
+  margin-right: -7px;
+}
+
+.continuous-segment.is-end {
+  border-radius: 0 999px 999px 0;
+  border-left-width: 0 !important;
+  margin-left: -7px;
+}
+
+.continuous-segment.is-single {
+  border-radius: 999px;
+}
+
+.continuous-segment.is-completed {
+  opacity: 0.72;
+}
+
+.continuous-segment-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.continuous-segment-main span:not(.continuous-segment-line) {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.continuous-segment-main strong {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continuous-segment-line {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--schedule-accent, #4E71FF);
+  opacity: 0.28;
+}
+
+.continuous-segment-complete {
+  flex: 0 0 auto;
+  border: 0;
+  border-left: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #3155d4;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.continuous-segment-complete:hover {
+  background: #eef5ff;
+}
+
+/* 舊版底部跨列長條不再使用，避免出現在最底下 */
+.continuous-span-row,
+.month-continuous-bars {
+  display: none !important;
+}
+
+/* 格內長條不可撐壞欄位 */
+.week-day-cell,
+.field-week-day-cell,
+.meeting-week-day-cell,
+.month-day-cell {
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .continuous-segment-main span:not(.continuous-segment-line) {
+    display: none;
+  }
+
+  .continuous-segment-complete {
+    padding: 0 6px;
+    font-size: 10px;
+  }
+}
+/* FOR-e V002-1P-140 END - inline continuous segments */
