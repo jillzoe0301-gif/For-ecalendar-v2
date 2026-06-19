@@ -13653,3 +13653,64 @@ body {
   }
 }
 /* FOR-e V002-1P-136 END - month controls outside filters and 4px borders */
+
+/* FOR-e V002-1P-137 START - palette and overview filter polish */
+/* V002-1P-137｜配色更新與行程總覽篩選微調 */
+
+/* 行程總覽篩選列：部門窄一點、套用與全部同排 */
+@media (min-width: 920px) {
+  #overviewFilterForm .overview-filter-compact-row {
+    grid-template-columns: 150px 150px 180px 140px 140px 80px 64px !important;
+    align-items: end !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > details:nth-of-type(1) {
+    width: 150px !important;
+    max-width: 150px !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > details:nth-of-type(2) {
+    width: 180px !important;
+    max-width: 180px !important;
+  }
+
+  #overviewFilterForm .overview-apply-btn {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  #overviewFilterForm #resetOverviewFilterBtn.overview-reset-btn-small {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+
+/* 確保新色票以外框呈現，並維持 4px */
+.schedule-card[style],
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #4E71FF) !important;
+  background: #ffffff !important;
+}
+
+/* 顏色設定手動色碼欄位維持可編輯樣式 */
+.color-code-input {
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0 10px;
+  font-weight: 900;
+  color: #334155;
+  background: #ffffff;
+  text-transform: uppercase;
+}
+/* FOR-e V002-1P-137 END - palette and overview filter polish */
