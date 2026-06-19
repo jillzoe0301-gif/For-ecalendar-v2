@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-121'
+const SYSTEM_VERSION = 'V002-1P-122'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -3155,12 +3155,42 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       const nextColors = {}
+      const invalidLabels = []
+
       getScheduleColorDefinitions().forEach(item => {
-        nextColors[item.key] = form.get(`color_${item.key}`) || item.defaultColor
+        const manualValue = String(form.get(`color_text_${item.key}`) || '').trim()
+        const pickerValue = form.get(`color_${item.key}`) || item.defaultColor
+        const normalizedManual = normalizeManualColorCode(manualValue)
+        const normalizedPicker = normalizeManualColorCode(pickerValue, item.defaultColor)
+
+        if (manualValue && !normalizedManual) {
+          invalidLabels.push(item.label)
+        }
+
+        nextColors[item.key] = normalizedManual || normalizedPicker || item.defaultColor
       })
+
+      if (invalidLabels.length) {
+        alert(`以下色碼格式不正確，請輸入 # 加 6 碼，例如 #EEEEEE：\n${invalidLabels.join('、')}`)
+        return
+      }
+
       await saveScheduleColorSettings(nextColors)
       alert('顏色設定已儲存。')
       renderApp()
+    })
+
+    colorSettingsForm.querySelectorAll('[data-color-picker-key]').forEach(input => {
+      input.addEventListener('input', event => {
+        updateColorPreviewByKey(event.target.dataset.colorPickerKey, event.target.value)
+      })
+    })
+
+    colorSettingsForm.querySelectorAll('[data-color-code-key]').forEach(input => {
+      input.addEventListener('input', event => {
+        const normalized = normalizeManualColorCode(event.target.value)
+        if (normalized) updateColorPreviewByKey(event.target.dataset.colorCodeKey, normalized)
+      })
     })
   }
 
@@ -7144,7 +7174,7 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 
 function getScheduleColorDefinitions() {
   return [
-    { key: '服務行程', label: '服務行程', defaultColor: '#ffffff' },
+    { key: '服務行程', label: '服務行程', defaultColor: '#EEEEEE' },
     { key: '一般記事', label: '一般記事', defaultColor: '#AEE2FF' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#CCD3CA' },
     { key: '請假 / 會議 / 活動 / 外訓', label: '請假 / 會議 / 活動 / 外訓', defaultColor: '#B5BAFF' },
@@ -7229,13 +7259,13 @@ function getScheduleColorInlineStyle(row) {
   const accentColor = typeof getScheduleCardAccentColor === 'function'
     ? getScheduleCardAccentColor(row)
     : (getScheduleColorKey(row) === '會議室預約' ? '#DFD3C3' : getScheduleColor(row))
-  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
+  return `background:#ffffff;border:5px solid ${accentColor};--schedule-accent:${accentColor};`
 }
 
 function renderColorPreviewCard(item, color) {
-  const previewColor = item.key === '會議室預約' ? '#DFD3C3' : color
+  const previewColor = normalizeManualColorCode(color, item.defaultColor) || item.defaultColor
   return `
-    <div class="color-preview-card" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
+    <div class="color-preview-card" data-color-preview-key="${escapeHtml(item.key)}" style="background:#ffffff;border:2px solid ${previewColor};--schedule-accent:${previewColor};">
       <strong>${escapeHtml(item.label)}</strong>
       <span>白底＋外框色</span>
     </div>
@@ -7506,14 +7536,14 @@ function renderColorSettingsPage() {
       </div>
 
       ${getScheduleColorDefinitions().map(item => {
-        const color = settings[item.key] || item.defaultColor
+        const color = normalizeManualColorCode(settings[item.key], item.defaultColor) || item.defaultColor
         return `
           <section class="color-setting-row color-setting-row-clean">
             <div class="color-item-name">${escapeHtml(item.label)}</div>
             <label class="color-picker-cell" title="${escapeHtml(item.label)}">
-              <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
+              <input type="color" name="color_${item.key}" data-color-picker-key="${escapeHtml(item.key)}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
             </label>
-            <input class="color-code-input" value="${escapeHtml(color)}" readonly>
+            <input class="color-code-input" name="color_text_${item.key}" data-color-code-key="${escapeHtml(item.key)}" value="${escapeHtml(color)}" placeholder="#EEEEEE" maxlength="7" pattern="^#?[0-9A-Fa-f]{6}$" ${canEdit ? '' : 'readonly'}>
             ${renderColorPreviewCard(item, color)}
           </section>
         `
@@ -7521,6 +7551,31 @@ function renderColorSettingsPage() {
     </form>
   `
 }
+
+
+function normalizeManualColorCode(value = '', fallback = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return fallback || ''
+  const normalized = raw.startsWith('#') ? raw : `#${raw}`
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : ''
+}
+
+function updateColorPreviewByKey(key, color) {
+  const normalized = normalizeManualColorCode(color)
+  if (!normalized) return
+
+  const picker = document.querySelector(`[data-color-picker-key="${CSS.escape(key)}"]`)
+  const codeInput = document.querySelector(`[data-color-code-key="${CSS.escape(key)}"]`)
+  const preview = document.querySelector(`[data-color-preview-key="${CSS.escape(key)}"]`)
+
+  if (picker) picker.value = normalized
+  if (codeInput) codeInput.value = normalized
+  if (preview) {
+    preview.style.borderColor = normalized
+    preview.style.setProperty('--schedule-accent', normalized)
+  }
+}
+
 
 
 
@@ -11046,8 +11101,14 @@ function renderScheduleDetailTemplateContent(row = {}) {
 function getScheduleCardAccentColor(row = {}) {
   if (isReturnHomeScheduleType(row)) return '#fdba74'
   if (isLeaveScheduleType(row)) return '#c4b5fd'
+
   const colorKey = getScheduleColorKey(row)
+  if (colorKey === '服務行程') {
+    const saved = normalizeManualColorCode(getScheduleColor(row))
+    return saved && saved !== '#FFFFFF' ? softenScheduleColor(saved) : '#EEEEEE'
+  }
   if (colorKey === '會議室預約') return '#cdb9a5'
+
   const rawColor = getScheduleColor(row)
   return softenScheduleColor(rawColor)
 }
@@ -18351,3 +18412,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行程卡片外框顏色柔和化，避免畫面太混亂
 */
 /* FOR-e V002-1P-121 END - month view nav filter soft colors */
+
+/* FOR-e V002-1P-122 START - filter buttons field today manual color service border */
+/*
+  V002-1P-122｜篩選按鈕間距、外務今日色、手動色碼與服務行程外框
+  - 行程總覽「套用並記住 / 全部」按鈕分開
+  - 外務行程今日外框與日期背景改為 #FFC26F
+  - 顏色設定的色碼欄位可手動輸入 #RRGGBB
+  - 服務行程外框預設改為 #EEEEEE
+  - 行事曆上的行程卡片外框加粗
+*/
+/* FOR-e V002-1P-122 END - filter buttons field today manual color service border */
