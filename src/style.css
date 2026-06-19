@@ -13714,3 +13714,19 @@ body {
   text-transform: uppercase;
 }
 /* FOR-e V002-1P-137 END - palette and overview filter polish */
+
+/* FOR-e V002-1P-138 START - training leave tracking color fix */
+/* V002-1P-138｜色碼微調備註
+   新色票由 src/main.js 的 getScheduleColorDefinitions 控制。
+   此處保留卡片外框 4px，避免被舊樣式覆蓋。
+*/
+.schedule-card[style],
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--schedule-accent, #4E71FF) !important;
+  background: #ffffff !important;
+}
+/* FOR-e V002-1P-138 END - training leave tracking color fix */

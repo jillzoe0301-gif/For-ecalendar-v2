@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-137'
+const SYSTEM_VERSION = 'V002-1P-138'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7098,7 +7098,7 @@ function getScheduleColorDefinitions() {
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
     { key: '一般記事', label: '一般記事', defaultColor: '#BFC9D1' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#FFD65A' },
-    { key: '請假', label: '請假 / 休假', defaultColor: '#FFDCDC' },
+    { key: '請假', label: '請假 / 休假', defaultColor: '#FFB6C1' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
     { key: '活動', label: '活動', defaultColor: '#FF937E' },
@@ -7107,13 +7107,13 @@ function getScheduleColorDefinitions() {
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
-    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#C6EBC5' },
+    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' }
   ]
 }
 
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1P-137'
+const scheduleColorPaletteVersion = 'V002-1P-138'
 
 function getScheduleColorSettings() {
   try {
@@ -7170,12 +7170,21 @@ function getScheduleColorKey(row) {
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
   const subtypeText = getScheduleSubtypeText(row)
+  const normalizedText = subtypeText.replace(/\s+/g, '').replace(/[／/]/g, '')
   const leaveKeywords = ['請假', '休假', '特休', '病假', '事假', '公假', '婚假', '喪假', '產假', '補休', '調休', '休息', '休息日']
+  const trainingKeywords = ['外訓', '外部訓練', '教育訓練', '教育訓練內容', '訓練', '培訓', '研習', '講習', '課程', '受訓', '上課', '上線教育訓練']
+  const meetingKeywords = ['會議']
+  const activityKeywords = ['活動']
+
   if (subtypeText.includes('返鄉')) return '返鄉'
   if (leaveKeywords.some(keyword => subtypeText.includes(keyword))) return '請假'
-  if (subtypeText.includes('會議')) return '會議'
-  if (subtypeText.includes('活動')) return '活動'
-  if (subtypeText.includes('外訓') || subtypeText.includes('教育訓練') || subtypeText.includes('訓練')) return '外訓'
+
+  // 外訓資料有些寫成「教育訓練、受訓、研習、講習、課程」，
+  // 先判斷外訓，避免被活動或其他文字誤分到別的色系。
+  if (trainingKeywords.some(keyword => subtypeText.includes(keyword) || normalizedText.includes(keyword.replace(/\s+/g, '').replace(/[／/]/g, '')))) return '外訓'
+
+  if (meetingKeywords.some(keyword => subtypeText.includes(keyword))) return '會議'
+  if (activityKeywords.some(keyword => subtypeText.includes(keyword))) return '活動'
 
   const note = String(row.sub_type_note || '')
   if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
@@ -18108,3 +18117,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行程總覽部門欄位縮窄，套用並記住改為套用，全部按鈕同排小尺寸
 */
 /* FOR-e V002-1P-137 END - palette and overview filter polish */
+
+/* FOR-e V002-1P-138 START - training leave tracking color fix */
+/*
+  V002-1P-138｜外訓判斷與請假 / 追蹤事項色碼修正
+  - 請假 / 休假色碼改為 #FFB6C1
+  - 追蹤事項色碼改為 #9ED3DC
+  - 強化外訓判斷：外訓、教育訓練、受訓、研習、講習、課程、培訓等都套用外訓色
+  - 更新色票版本，避免舊 app_settings / localStorage 顏色覆蓋新色碼
+*/
+/* FOR-e V002-1P-138 END - training leave tracking color fix */
