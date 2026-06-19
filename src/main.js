@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-140'
+const SYSTEM_VERSION = 'V002-1P-141'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -8017,6 +8017,7 @@ function exportCurrentPageCsv(filterOptions = null) {
 function getLoginDailyReminderRows() {
   const today = todayString()
   const birthdayRows = getTodayBirthdayRows()
+  const personalBirthday = isCurrentUserBirthdayToday()
   const activeTodayRows = schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMine(row))
@@ -8041,6 +8042,7 @@ function getLoginDailyReminderRows() {
     .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
 
   return {
+    personalBirthday,
     birthdayRows,
     todaySchedules,
     todayTodos,
@@ -8238,7 +8240,7 @@ function maybeOpenLoginDailyReminder(options = {}) {
   if (!force && sessionStorage.getItem(key) === 'shown') return
 
   const groups = getLoginDailyReminderRows()
-  const total = (groups.birthdayRows?.length || 0) + groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
+  const total = (groups.personalBirthday ? 1 : 0) + (groups.birthdayRows?.length || 0) + groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
 
   if (!total) {
     if (!force) sessionStorage.setItem(key, 'shown')
@@ -8270,13 +8272,14 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
       </div>
 
       <div class="login-reminder-summary">
-        <div><strong>${groups.birthdayRows?.length || 0}</strong><span>生日</span></div>
+        <div><strong>${(groups.birthdayRows?.length || 0) + (groups.personalBirthday ? 1 : 0)}</strong><span>生日</span></div>
         <div><strong>${groups.todayTodos.length}</strong><span>今日待辦</span></div>
         <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
-        <div><strong>${(groups.birthdayRows?.length || 0) + groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
+        <div><strong>${(groups.birthdayRows?.length || 0) + (groups.personalBirthday ? 1 : 0) + groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
       </div>
 
       <div class="login-reminder-body">
+        ${renderLoginPersonalBirthdayGreeting(groups.personalBirthday)}
         ${renderLoginBirthdayReminderSection(groups.birthdayRows || [])}
         ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有待處理待辦。')}
         ${renderLoginReminderSection('待確認 / 待通知提醒', groups.reminderRows, '目前沒有待確認 / 待通知提醒。')}
@@ -10616,7 +10619,6 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
   const monthKey = toDateKey(monthDates[0]).slice(0, 7)
   const gridDates = getMonthCalendarGridDates(monthDates)
   const weekLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
-  const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, gridDates)
 
   return `
     <div class="personal-month-calendar">
@@ -10628,31 +10630,37 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
         ${weekLabels.map(label => `<div>${label}</div>`).join('')}
       </div>
 
-      <div class="personal-month-calendar-grid">
-        ${gridDates.map(date => {
-          const key = toDateKey(date)
-          const inMonth = key.slice(0, 7) === monthKey
-          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+      ${chunkDatesByWeek(gridDates).map(weekDates => {
+        const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, weekDates)
+        return `
+          <div class="personal-month-week-block">
+            <div class="personal-month-calendar-grid">
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const inMonth = key.slice(0, 7) === monthKey
+                if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
 
-          const dayRows = filterDailyCardsWithoutContinuous(getSchedulesForStaffDate(staff.staff_id, key))
-          const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-          const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-          const holiday = isTaiwanHoliday(date)
-          const continuousSegments = renderContinuousSegments(continuousRows, key, gridDates, 'overview')
+                const dayRows = filterDailyCardsWithoutContinuous(getSchedulesForStaffDate(staff.staff_id, key))
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+                const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                const holiday = isTaiwanHoliday(date)
 
-          return `
-            <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${holiday ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-              <div class="month-day-header">
-                <strong>${Number(key.slice(8, 10))}</strong>
-                ${renderHolidayLabels(key)}
-              </div>
-              ${birthdayCard}
-              ${continuousSegments}
-              ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="week-empty">—</span>')}
+                return `
+                  <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${holiday ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
+                    <div class="month-day-header">
+                      <strong>${Number(key.slice(8, 10))}</strong>
+                      ${renderHolidayLabels(key)}
+                    </div>
+                    ${birthdayCard}
+                    ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
+                  </div>
+                `
+              }).join('')}
             </div>
-          `
-        }).join('')}
-      </div>
+            ${renderMonthContinuousBarsForWeek(continuousRows, weekDates, 'overview')}
+          </div>
+        `
+      }).join('')}
     </div>
   `
 }
@@ -10681,6 +10689,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
           ${staffRows.map(staff => {
             const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, monthDates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, monthDates, 'staff-name-cell', 'overview')}
               <tr>
                 <th class="staff-name-cell">
                   <strong>${escapeHtml(staff.name)}</strong>
@@ -10691,11 +10700,8 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                   const dayRows = filterDailyCardsWithoutContinuous(getSchedulesForStaffDate(staff.staff_id, key))
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, monthDates, 'overview')
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-                    ${birthdayCard}
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="week-empty">—</span>')}
+                    ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -10734,6 +10740,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
           ${staffRows.map(staff => {
             const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, weekDates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, weekDates, 'staff-name-cell', 'overview')}
               <tr>
                 <th class="staff-name-cell">
                   <strong>${escapeHtml(staff.name)}</strong>
@@ -10744,11 +10751,8 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                   const dayRows = filterDailyCardsWithoutContinuous(getSchedulesForStaffDate(staff.staff_id, key))
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, weekDates, 'overview')
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''}" data-week-date="${key}" data-staff-id="${staff.staff_id}">
-                    ${birthdayCard}
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="week-empty">—</span>')}
+                    ${birthdayCard}${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard ? '' : '<span class="week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -10917,13 +10921,7 @@ function renderContinuousScheduleSegment(row, dateKey = '', dateKeys = [], varia
 }
 
 function renderContinuousSegments(rows = [], dateKey = '', dates = [], variant = 'overview') {
-  const dateKeys = getDateKeysFromDates(dates)
-  if (!rows.length || !dateKey || !dateKeys.length) return ''
-
-  return rows
-    .map(row => renderContinuousScheduleSegment(row, dateKey, dateKeys, variant))
-    .filter(Boolean)
-    .join('')
+  return ''
 }
 
 function renderContinuousScheduleSpanRows(rows = [], dates = [], sideCellClass = 'staff-name-cell', variant = 'overview') {
@@ -11038,7 +11036,6 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
   const monthKey = toDateKey(monthDates[0]).slice(0, 7)
   const gridDates = getMonthCalendarGridDates(monthDates)
   const weekLabels = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
-  const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, gridDates)
 
   return `
     <div class="personal-month-calendar field-personal-month-calendar">
@@ -11049,29 +11046,35 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
       <div class="personal-month-calendar-head">
         ${weekLabels.map(label => `<div>${label}</div>`).join('')}
       </div>
-      <div class="personal-month-calendar-grid">
-        ${gridDates.map(date => {
-          const key = toDateKey(date)
-          const inMonth = key.slice(0, 7) === monthKey
-          if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
+      ${chunkDatesByWeek(gridDates).map(weekDates => {
+        const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, weekDates)
+        return `
+          <div class="personal-month-week-block">
+            <div class="personal-month-calendar-grid">
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const inMonth = key.slice(0, 7) === monthKey
+                if (!inMonth) return `<div class="month-day-cell is-outside-month"></div>`
 
-          const dayRows = filterDailyCardsWithoutContinuous(getFieldSchedulesForStaffDate(staff.staff_id, key))
-          const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-          const continuousSegments = renderContinuousSegments(continuousRows, key, gridDates, 'field')
+                const dayRows = filterDailyCardsWithoutContinuous(getFieldSchedulesForStaffDate(staff.staff_id, key))
+                const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
 
-          return `
-            <div class="field-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-              <div class="month-day-header">
-                <strong>${Number(key.slice(8, 10))}</strong>
-                ${renderHolidayLabels(key)}
-              </div>
-              ${birthdayCard}
-              ${continuousSegments}
-              ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="field-week-empty">—</span>')}
+                return `
+                  <div class="field-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
+                    <div class="month-day-header">
+                      <strong>${Number(key.slice(8, 10))}</strong>
+                      ${renderHolidayLabels(key)}
+                    </div>
+                    ${birthdayCard}
+                    ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
+                  </div>
+                `
+              }).join('')}
             </div>
-          `
-        }).join('')}
-      </div>
+            ${renderMonthContinuousBarsForWeek(continuousRows, weekDates, 'field')}
+          </div>
+        `
+      }).join('')}
     </div>
   `
 }
@@ -11100,6 +11103,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
           ${staffRows.map(staff => {
             const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, monthDates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, monthDates, 'field-staff-name-cell', 'field')}
               <tr>
                 <th class="field-staff-name-cell">
                   <strong>${escapeHtml(staff.name)}</strong>
@@ -11109,11 +11113,8 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsWithoutContinuous(getFieldSchedulesForStaffDate(staff.staff_id, key))
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, monthDates, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-                    ${birthdayCard}
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="field-week-empty">—</span>')}
+                    ${birthdayCard}${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -11152,6 +11153,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
           ${staffRows.map(staff => {
             const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, dates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, dates, 'field-staff-name-cell', 'field')}
               <tr>
                 <th class="field-staff-name-cell">
                   <strong>${escapeHtml(staff.name)}</strong>
@@ -11161,11 +11163,8 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsWithoutContinuous(getFieldSchedulesForStaffDate(staff.staff_id, key))
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, dates, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-field-date="${key}" data-staff-id="${staff.staff_id}">
-                    ${birthdayCard}
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || continuousSegments ? '' : '<span class="field-week-empty">—</span>')}
+                    ${birthdayCard}${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard ? '' : '<span class="field-week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -11199,15 +11198,14 @@ function renderMeetingMonthTable(roomRows = [], monthDates = [], todayKey = toda
           ${roomRows.map(room => {
             const continuousRows = getMeetingContinuousSchedulesForRoom(room, monthDates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, monthDates, 'meeting-room-name-cell', 'meeting')}
               <tr>
                 <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
                 ${monthDates.map(date => {
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsWithoutContinuous(getMeetingSchedulesForRoomDate(room, key))
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, monthDates, 'meeting')
                   return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : (continuousSegments ? '' : '<span class="meeting-week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
                   </td>`
                 }).join('')}
               </tr>
@@ -11243,15 +11241,14 @@ function renderMeetingCalendarBody(roomRows = [], dates = [], todayKey = todaySt
           ${roomRows.map(room => {
             const continuousRows = getMeetingContinuousSchedulesForRoom(room, dates)
             return `
+              ${renderContinuousScheduleSpanRows(continuousRows, dates, 'meeting-room-name-cell', 'meeting')}
               <tr>
                 <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
                 ${dates.map(date => {
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsWithoutContinuous(getMeetingSchedulesForRoomDate(room, key))
-                  const continuousSegments = renderContinuousSegments(continuousRows, key, dates, 'meeting')
                   return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}">
-                    ${continuousSegments}
-                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : (continuousSegments ? '' : '<span class="meeting-week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : '<span class="meeting-week-empty">—</span>'}
                   </td>`
                 }).join('')}
               </tr>
@@ -11285,6 +11282,30 @@ function renderLoginBirthdayReminderSection(rows = []) {
     </section>
   `
 }
+
+
+function getCurrentBirthdayStaffRow() {
+  return staffList.find(staff => staff.staff_id === currentProfile?.staff_id)
+    || allStaffList.find(staff => staff.staff_id === currentProfile?.staff_id)
+    || currentProfile
+    || {}
+}
+
+function isCurrentUserBirthdayToday() {
+  return isStaffBirthdayOnDate(getCurrentBirthdayStaffRow(), todayString())
+}
+
+function renderLoginPersonalBirthdayGreeting(isBirthday = false) {
+  if (!isBirthday) return ''
+
+  return `
+    <section class="login-personal-birthday-greeting">
+      <img src="/icons/cake.png" alt="" class="login-birthday-icon">
+      <strong>Happy Birthday ~Have a nice day♥</strong>
+    </section>
+  `
+}
+
 
 function normalizeManualColorCode(value = '', fallback = '') {
   const raw = String(value || '').trim()
@@ -18409,3 +18430,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 請假 / 休假色碼改為 #BFDDF0
 */
 /* FOR-e V002-1P-140 END - inline continuous segments */
+
+/* FOR-e V002-1P-141 START - span bars and personal birthday */
+/*
+  V002-1P-141｜跨欄連續行程長條與生日本人祝福
+  - 連續日期行程恢復跨欄長條，文字可跨欄顯示，完成按鈕只保留一個
+  - 定期 / 週期 / 每週 / 每月 / 例會等行程仍排除長條顯示
+  - 生日本人登入當天會看到 Happy Birthday ~Have a nice day♥
+*/
+/* FOR-e V002-1P-141 END - span bars and personal birthday */
