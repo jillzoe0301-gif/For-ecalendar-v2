@@ -15329,3 +15329,325 @@ body {
   }
 }
 /* FOR-e V002-1P-127 END - simple single row filters */
+
+/* FOR-e V002-1P-128 START - desktop filter layout stable */
+/* 電腦版篩選列穩定排版：固定一列、簡約、不卡版 */
+@media (min-width: 1180px) {
+  #overviewFilterForm,
+  #fieldScheduleFilterForm,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    align-items: end !important;
+    justify-content: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+    padding-right: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* 行程總覽：檢視 / 月份 / 部門 / 人員 / 排序 / 順序 / 套用 / 全部 */
+  #overviewFilterForm .overview-filter-compact-row {
+    grid-template-columns:
+      minmax(104px, 0.7fr)
+      minmax(126px, 0.85fr)
+      minmax(118px, 0.8fr)
+      minmax(118px, 0.8fr)
+      minmax(98px, 0.65fr)
+      minmax(98px, 0.65fr)
+      108px
+      64px !important;
+  }
+
+  /* 外務行程：檢視 / 月份 / 部門 / 外務人員 / 排序 / 順序 / 套用 / 全部 */
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    grid-template-columns:
+      minmax(104px, 0.68fr)
+      minmax(126px, 0.8fr)
+      minmax(118px, 0.78fr)
+      minmax(130px, 0.85fr)
+      minmax(98px, 0.62fr)
+      minmax(98px, 0.62fr)
+      108px
+      64px !important;
+  }
+
+  /* 外務明細：起日 / 迄日 / 外務人員 / 目的 / 狀態 / 關鍵字 / 篩選 */
+  #fieldDetailFilterForm.field-detail-filter {
+    grid-template-columns:
+      minmax(112px, 0.7fr)
+      minmax(112px, 0.7fr)
+      minmax(138px, 0.85fr)
+      minmax(98px, 0.58fr)
+      minmax(98px, 0.58fr)
+      minmax(180px, 1.05fr)
+      88px !important;
+  }
+
+  /* 異況追蹤：人員 / 狀態 / 關鍵字 / 篩選 */
+  #incidentFilterForm.incident-filter {
+    grid-template-columns:
+      minmax(160px, 0.9fr)
+      minmax(108px, 0.55fr)
+      minmax(220px, 1.35fr)
+      88px !important;
+  }
+
+  /* 統計報表：期間 / 起日 / 迄日 / 部門 / 人員 / 行程類型 / 套用 */
+  #statsFilterForm.clean-stats-filter {
+    grid-template-columns:
+      minmax(88px, 0.45fr)
+      minmax(112px, 0.65fr)
+      minmax(112px, 0.65fr)
+      minmax(118px, 0.7fr)
+      minmax(132px, 0.78fr)
+      minmax(118px, 0.7fr)
+      112px !important;
+  }
+
+  /* 服務紀錄單：狀態 / 人員 / 部門 / 類型 / 起日 / 迄日 / 關鍵字 / 篩選 */
+  #serviceRecordFilterForm.service-record-filter-upgraded {
+    grid-template-columns:
+      minmax(92px, 0.45fr)
+      minmax(132px, 0.72fr)
+      minmax(112px, 0.6fr)
+      minmax(120px, 0.65fr)
+      minmax(112px, 0.6fr)
+      minmax(112px, 0.6fr)
+      minmax(170px, 1fr)
+      88px !important;
+  }
+
+  /* 人員 / 帳號：關鍵字 / 部門 / 角色 / 是否外務 / 篩選 */
+  #usersFilterForm.users-filter-panel {
+    grid-template-columns:
+      minmax(220px, 1.1fr)
+      minmax(138px, 0.72fr)
+      minmax(150px, 0.78fr)
+      minmax(128px, 0.68fr)
+      88px !important;
+  }
+
+  /* 欄位容器：不因文字撐開 */
+  #overviewFilterForm .overview-filter-compact-row > label,
+  #overviewFilterForm .overview-filter-compact-row > details,
+  #fieldScheduleFilterForm .overview-filter-compact-row > label,
+  #fieldScheduleFilterForm .overview-filter-compact-row > details,
+  #fieldDetailFilterForm > label,
+  #incidentFilterForm > label,
+  #statsFilterForm > label,
+  #serviceRecordFilterForm > label,
+  #usersFilterForm > label {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: grid !important;
+    gap: 5px !important;
+    align-content: end !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+  }
+
+  #overviewFilterForm .is-hidden-month-picker,
+  #fieldScheduleFilterForm .is-hidden-month-picker,
+  .meeting-month-picker.is-hidden-month-picker {
+    display: none !important;
+  }
+
+  /* 欄位標題縮小並靠左 */
+  #overviewFilterForm .compact-field-label,
+  #fieldScheduleFilterForm .compact-field-label,
+  #fieldDetailFilterForm label,
+  #incidentFilterForm label,
+  #statsFilterForm label,
+  #serviceRecordFilterForm label,
+  #usersFilterForm label {
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+    color: #1f2937 !important;
+    text-align: left !important;
+  }
+
+  /* 輸入框與下拉固定高度，不被內容撐開 */
+  #overviewFilterForm input,
+  #overviewFilterForm select,
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm input,
+  #fieldScheduleFilterForm select,
+  #fieldScheduleFilterForm summary,
+  #fieldDetailFilterForm input,
+  #fieldDetailFilterForm select,
+  #incidentFilterForm input,
+  #incidentFilterForm select,
+  #statsFilterForm input,
+  #statsFilterForm select,
+  #serviceRecordFilterForm input,
+  #serviceRecordFilterForm select,
+  #usersFilterForm input,
+  #usersFilterForm select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    line-height: 1.2 !important;
+    padding-left: 10px !important;
+    padding-right: 28px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #overviewFilterForm summary,
+  #fieldScheduleFilterForm summary {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  /* 按鈕固定大小，不被遮住 */
+  #overviewFilterForm button,
+  #fieldScheduleFilterForm button,
+  #fieldDetailFilterForm button,
+  #incidentFilterForm button,
+  #statsFilterForm button,
+  #serviceRecordFilterForm button,
+  #usersFilterForm button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    align-self: end !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    border-radius: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    font-size: 12.5px !important;
+    line-height: 1 !important;
+  }
+
+  /* 套用與全部保持固定間距 */
+  #overviewFilterForm button.primary-btn,
+  #fieldScheduleFilterForm button.primary-btn {
+    margin-left: 4px !important;
+  }
+
+  #overviewFilterForm #resetOverviewFilterBtn,
+  #fieldScheduleFilterForm #resetFieldScheduleFilterBtn {
+    margin-left: 2px !important;
+  }
+
+  /* 篩選摘要不撐破 */
+  #overviewFilterForm .overview-filter-summary,
+  #fieldScheduleFilterForm .overview-filter-summary,
+  .compact-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+  }
+
+  /* 會議室上方工具列同一列、不跨行、不遮住 */
+  .page-toolbar .toolbar-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .page-toolbar .toolbar-actions > *,
+  .calendar-view-select {
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+    margin: 0 !important;
+  }
+
+  .page-toolbar .toolbar-actions button,
+  .calendar-view-select select,
+  .calendar-view-select input[type="month"] {
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    font-size: 12.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .calendar-view-select select {
+    width: 112px !important;
+    min-width: 112px !important;
+  }
+
+  .calendar-view-select input[type="month"] {
+    width: 136px !important;
+    min-width: 136px !important;
+  }
+}
+
+/* 中小螢幕才換行，避免爆版 */
+@media (max-width: 1179px) {
+  #overviewFilterForm .overview-filter-compact-row,
+  #fieldScheduleFilterForm .overview-filter-compact-row,
+  #fieldDetailFilterForm,
+  #incidentFilterForm,
+  #statsFilterForm,
+  #serviceRecordFilterForm,
+  #usersFilterForm {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > *,
+  #fieldScheduleFilterForm .overview-filter-compact-row > *,
+  #fieldDetailFilterForm > *,
+  #incidentFilterForm > *,
+  #statsFilterForm > *,
+  #serviceRecordFilterForm > *,
+  #usersFilterForm > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+/* FOR-e V002-1P-128 END - desktop filter layout stable */

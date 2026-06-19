@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-127'
+const SYSTEM_VERSION = 'V002-1P-128'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -18516,3 +18516,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 避免超出卡片與頁面
 */
 /* FOR-e V002-1P-127 END - simple single row filters */
+
+/* FOR-e V002-1P-128 START - desktop filter layout stable */
+/*
+  V002-1P-128｜電腦版篩選列穩定排版
+  - 修正篩選列跑出卡片、被遮住、跨行
+  - 桌機版固定一整列、欄位寬度自動壓縮但不被內容撐大
+  - 按鈕與欄位底部對齊、大小一致
+*/
+/* FOR-e V002-1P-128 END - desktop filter layout stable */
