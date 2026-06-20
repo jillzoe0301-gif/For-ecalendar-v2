@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-164'
+const SYSTEM_VERSION = 'V002-1P-165'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -19702,3 +19702,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 修改服務行程後，會補建立缺少的個別服務紀錄單
 */
 /* FOR-e V002-1P-164 END - line dropdown incident pink stats */
+
+/* FOR-e V002-1P-165 START - incident line ui polish */
+/*
+  V002-1P-165｜異況日期、完成按鈕與 LINE 勾選列微調
+  - 異況追蹤左側日期區移除底色
+  - 異況追蹤「已完成」按鈕恢復藍色
+  - 異況追蹤篩選列調整為比 #FFD3D5 更淡的粉色
+  - LINE 下拉選單勾選框固定在最左邊，與文字同一排，大小與文字一致
+*/
+/* FOR-e V002-1P-165 END - incident line ui polish */

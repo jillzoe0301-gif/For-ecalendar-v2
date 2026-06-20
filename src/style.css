@@ -14297,3 +14297,119 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-164 END - line dropdown incident pink stats */
+
+/* FOR-e V002-1P-165 START - incident line ui polish */
+/* V002-1P-165｜異況日期、完成按鈕與 LINE 勾選列微調 */
+
+/* 圖一：異況追蹤左側日期不需要底色 */
+.incident-row .incident-date {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #9f174f !important;
+}
+
+.incident-row .incident-date span,
+.incident-row .incident-date small {
+  color: #9f174f !important;
+}
+
+.incident-row .incident-date strong {
+  color: #9f174f !important;
+}
+
+/* 圖一：「已完成」按鈕恢復藍色；下次追蹤仍保留粉色 */
+.incident-actions button[data-incident-complete],
+.incident-actions .small-btn[data-incident-complete] {
+  background: #5170ff !important;
+  border-color: #5170ff !important;
+  color: #ffffff !important;
+}
+
+.incident-actions button[data-incident-complete]:hover,
+.incident-actions .small-btn[data-incident-complete]:hover {
+  background: #3155d4 !important;
+  border-color: #3155d4 !important;
+}
+
+/* 圖二：異況追蹤篩選列，比 #FFD3D5 再淡一階 */
+#incidentFilterForm,
+.incident-filter-panel,
+.incident-filter-card {
+  background: #fff0f2 !important;
+  border-color: #FFD3D5 !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 211, 213, 0.45) !important;
+}
+
+#incidentFilterForm label,
+.incident-filter-panel label,
+.incident-filter-card label {
+  color: #9f174f !important;
+}
+
+#incidentFilterForm input,
+#incidentFilterForm select,
+.incident-filter-panel input,
+.incident-filter-panel select,
+.incident-filter-card input,
+.incident-filter-card select {
+  background: #ffffff !important;
+  border-color: #FFD3D5 !important;
+}
+
+#incidentFilterForm input:focus,
+#incidentFilterForm select:focus,
+.incident-filter-panel input:focus,
+.incident-filter-panel select:focus,
+.incident-filter-card input:focus,
+.incident-filter-card select:focus {
+  outline: 2px solid rgba(255, 98, 187, 0.18) !important;
+  border-color: #FF85BB !important;
+}
+
+/* 圖三：LINE 下拉選單勾選框靠最左，與文字同一排，大小與字體一致 */
+.line-select-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  align-items: stretch !important;
+}
+
+.line-select-row {
+  display: grid !important;
+  grid-template-columns: 1.05em minmax(0, 1fr) !important;
+  align-items: center !important;
+  justify-content: start !important;
+  justify-items: start !important;
+  column-gap: 8px !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+
+.line-select-row input[type="checkbox"] {
+  grid-column: 1 !important;
+  justify-self: start !important;
+  align-self: center !important;
+  width: 1.05em !important;
+  height: 1.05em !important;
+  min-width: 1.05em !important;
+  min-height: 1.05em !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  accent-color: #5170ff;
+}
+
+.line-select-row > span {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  display: block !important;
+  text-align: left !important;
+}
+
+.line-select-row strong,
+.line-select-row small {
+  text-align: left !important;
+  max-width: 100% !important;
+}
+/* FOR-e V002-1P-165 END - incident line ui polish */
