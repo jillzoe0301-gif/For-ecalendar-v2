@@ -14665,3 +14665,15 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-171 END - overview quick groups cleanup */
+
+/* FOR-e V002-1P-172 START - quick group buttons fix */
+/* V002-1P-172｜快速人員群組按鈕 */
+.overview-group-chip {
+  cursor: pointer;
+}
+
+.overview-group-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+/* FOR-e V002-1P-172 END - quick group buttons fix */

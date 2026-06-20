@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-171'
+const SYSTEM_VERSION = 'V002-1P-172'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -2801,6 +2801,23 @@ function renderApp() {
       saveOverviewFiltersPreference()
       renderApp()
     })
+  }
+
+  document.querySelectorAll('[data-overview-group-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const groupId = btn.dataset.overviewGroupId || 'all'
+      overviewQuickGroups = normalizeOverviewQuickGroups({
+        ...overviewQuickGroups,
+        activeId: groupId
+      })
+      saveOverviewQuickGroupsPreference()
+      renderApp()
+    })
+  })
+
+  const openOverviewQuickGroupManagerBtn = document.querySelector('#openOverviewQuickGroupManagerBtn')
+  if (openOverviewQuickGroupManagerBtn) {
+    openOverviewQuickGroupManagerBtn.addEventListener('click', () => openOverviewQuickGroupManagerModal())
   }
 
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
@@ -20010,14 +20027,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-171 START - overview quick groups cleanup */
+/* FOR-e V002-1P-172 START - quick group buttons fix */
 /*
-  V002-1P-171｜行程總覽快速人員群組與清理
-  - 在篩選列下方、行事曆上方新增獨立快速人員群組切換列，不放進原本篩選列，不覆蓋任何欄位
-  - 支援建立、修改、刪除群組，以及快速套用群組查看行程
-  - 內建「全部」與「外務人員」快速群組
-  - 保留原本檢視範圍、部門、人員、排序、順序條件，群組只是額外快速人選條件
-  - 清除 V169 舊自訂行事曆人選 localStorage 設定，避免舊資料影響後續狀態
-  - 外務人員「外」徽章顏色改為 #FFAE6E
+  V002-1P-172｜快速人員群組按鈕事件修正
+  - 修正行程總覽快速人員群組按鈕無反應
+  - 點「全部」會立即切回全部人員
+  - 點「外務人員」會立即套用外務人員群組
+  - 點「＋ 管理群組」會開啟群組管理視窗
+  - 不調整原本篩選列版面，不新增覆蓋欄位
 */
-/* FOR-e V002-1P-171 END - overview quick groups cleanup */
+/* FOR-e V002-1P-172 END - quick group buttons fix */
