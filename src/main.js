@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-162'
+const SYSTEM_VERSION = 'V002-1P-163'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -19617,3 +19617,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 異況通知行政介面改為紅色 / 粉色系
 */
 /* FOR-e V002-1P-162 END - line selection incident pink */
+
+/* FOR-e V002-1P-163 START - style css build hotfix */
+/*
+  V002-1P-163｜style.css 建置修正
+  - 確認更新檔包含 src/style.css，修正 Vercel 找不到 ./style.css 的部署問題。
+  - 功能內容沿用 V002-1P-162。
+*/
+/* FOR-e V002-1P-163 END - style css build hotfix */
