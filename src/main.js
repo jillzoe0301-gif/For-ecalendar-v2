@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-160'
+const SYSTEM_VERSION = 'V002-1P-161'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4176,12 +4176,12 @@ function isFieldDayReminderSchedule(row = {}) {
 
 
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
-  return schedules.filter(row => {
+  return uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!(isFieldScheduleRow(row) || isLeaveOrReturnSchedule(row))) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
-  })
+  })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
 function renderFieldScheduleCard(row) {
@@ -4571,12 +4571,12 @@ function getDisplaySubTypeExtra(row = {}) {
 
 
 function getMeetingSchedulesForRoomDate(room, dateKey) {
-  return schedules
+  return uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMeetingRoomSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
     .filter(row => row.location_name === room || row.sub_type === room)
-    .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  ).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
 function renderMeetingRoomCard(row) {
@@ -8406,13 +8406,13 @@ function getLoginDailyReminderRows() {
   const today = todayString()
   const birthdayRows = getTodayBirthdayRows()
   const personalBirthday = isCurrentUserBirthdayToday()
-  const activeTodayRows = schedules
+  const activeTodayRows = uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => scheduleMatchesDateByMode(row, today))
-    .filter(row => isActionReminderSchedule(row))
+    .filter(row => isActionReminderSchedule(row)))
 
   const todoCategories = ['一般記事', '待辦事項', '證件交付']
 
@@ -11349,7 +11349,7 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '') {
 }
 
 function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview') {
-  const targetRows = rows.filter(row => isContinuousDateSchedule(row) && !isLeaveOrReturnSchedule(row))
+  const targetRows = uniqueScheduleRows(rows).filter(row => isContinuousDateSchedule(row) && !isLeaveOrReturnSchedule(row))
   const activeIndexes = targetRows
     .map((row, index) => (row.start_date < dateKey && row.end_date >= dateKey ? index : -1))
     .filter(index => index >= 0)
@@ -11953,24 +11953,26 @@ function initSearchableChoicePanels(root = document) {
   root.querySelectorAll(panelSelectors.join(',')).forEach(panel => {
     if (panel.dataset.searchReady === '1') return
 
-    const labels = [...panel.querySelectorAll('label')]
-    if (labels.length < 4) return
+    const items = [...panel.querySelectorAll('label, .check-row, .compact-check-option, .department-assignee-row, .field-staff-check-row')]
+      .filter(item => !item.classList.contains('choice-search-input'))
+
+    if (!items.length) return
 
     panel.dataset.searchReady = '1'
 
     const input = document.createElement('input')
     input.type = 'search'
     input.className = 'choice-search-input'
-    input.placeholder = '搜尋人員 / 部門'
+    input.placeholder = '搜尋人員 / 部門 / 職務'
     input.autocomplete = 'off'
 
     input.addEventListener('click', event => event.stopPropagation())
     input.addEventListener('keydown', event => event.stopPropagation())
     input.addEventListener('input', () => {
       const keyword = input.value.trim().toLowerCase()
-      labels.forEach(label => {
-        const text = label.textContent.trim().toLowerCase()
-        label.classList.toggle('is-filter-hidden', Boolean(keyword) && !text.includes(keyword))
+      items.forEach(item => {
+        const text = item.textContent.trim().toLowerCase()
+        item.classList.toggle('is-filter-hidden', Boolean(keyword) && !text.includes(keyword))
       })
     })
 
@@ -12103,11 +12105,11 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
 
 
 function getSchedulesForStaffDate(staffId, dateKey) {
-  return schedules.filter(row => {
+  return uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
-  })
+  })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
 function renderWeekScheduleCard(row) {
@@ -12215,11 +12217,12 @@ function renderReadStatus() {
 }
 
 function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
-  if (!rows.length) return `<div class="empty-state">${emptyText}</div>`
+  const displayRows = uniqueScheduleRows(rows)
+  if (!displayRows.length) return `<div class="empty-state">${emptyText}</div>`
 
   return `
     <div class="schedule-list">
-      ${rows.map(row => {
+      ${displayRows.map(row => {
         const contentPreview = getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
         const extra = getDisplaySubTypeExtra(row)
@@ -13639,6 +13642,7 @@ function openScheduleDetail(scheduleId) {
   if (!row) return
 
   const noCompletionControl = isNoCompletionControlSchedule(row)
+  const showCustomerDetail = row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
   const permissionNote = noCompletionControl
     ? '此類行程只顯示在行事曆，不控管是否已完成。'
     : (canModifySchedule(row)
@@ -13666,7 +13670,7 @@ function openScheduleDetail(scheduleId) {
         ${isNoCompletionControlSchedule(row) ? '' : `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>`}
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
-        <div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>
+        ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         <div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
@@ -19477,12 +19481,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-160 START - incident cascade cancel */
+/* FOR-e V002-1P-161 START - restore continuation search service form */
 /*
-  V002-1P-160｜異況刪除 / 取消連動延伸行程
-  - 主異況取消時，會一併取消由該異況延伸建立的追蹤行程
-  - 主異況取消時，會一併取消由該異況通知行政建立的行政待辦
-  - 延伸行程判斷來源包含：來源異況：主異況ID、來源行程：主異況ID
-  - 只在主異況取消時連動，單獨取消延伸行程不會反向影響主異況
+  V002-1P-161｜恢復連續 / 通知樣式、去重與搜尋修正
+  - 恢復連續行程與通知待辦的細條卡片顏色和樣式
+  - 同一個行程同一個人只顯示一筆，避免 schedule_assignees 重複造成重複卡片
+  - 執行者 / 參與者 / 部門搜尋改為即時篩選，並恢復搜尋結果隱藏樣式
+  - 服務行程修改表單恢復「區域 / 客戶名稱 / 標題」共同欄位與隱藏單獨標題欄
+  - 查看行程時若區域 / 客戶與標題相同，不再重複顯示
+  - 重新整合 V157 / V159 相關樣式，避免後續舊 CSS 覆蓋
 */
-/* FOR-e V002-1P-160 END - incident cascade cancel */
+/* FOR-e V002-1P-161 END - restore continuation search service form */
