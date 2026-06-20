@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-155'
+const SYSTEM_VERSION = 'V002-1P-156'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -3936,6 +3936,12 @@ function scheduleMatchesDateByMode(row, dateKey) {
   if (!row?.start_date || !dateKey) return false
 
   const startDate = row.start_date
+
+  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) {
+    const maintenanceEndDate = (row.end_date && row.end_date >= startDate) ? row.end_date : startDate
+    return dateKey >= startDate && dateKey <= maintenanceEndDate
+  }
+
   const mode = getScheduleModeFromNote(row)
   const endDate = mode === '單日'
     ? startDate
@@ -7319,7 +7325,7 @@ function getScheduleColorDefinitions() {
     { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
     { key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
-    { key: '公務車保養', label: '公務車保養', defaultColor: '#DCDCDC' },
+    { key: '公務車保養', label: '公務車保養', defaultColor: '#EBD6FB' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
@@ -7328,7 +7334,7 @@ function getScheduleColorDefinitions() {
 }
 
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1P-153'
+const scheduleColorPaletteVersion = 'V002-1P-156'
 
 function getScheduleColorSettings() {
   try {
@@ -10996,6 +11002,8 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
 function isContinuousDateSchedule(row = {}) {
   if (!row?.start_date || !row?.end_date) return false
   if (row.end_date <= row.start_date) return false
+
+  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return true
 
   const mode = getScheduleModeFromNote(row)
   const text = [row.category, row.schedule_type, row.sub_type, row.title, row.sub_type_note]
@@ -16001,7 +16009,9 @@ function staffSelectOptionsHtmlSelected(selectedStaffId = '') {
 
 
 function getSupervisorRows() {
-  const rows = staffList
+  const supervisorTitles = ['營運經理', '副總經理', '總經理', '執行長', '副主任', '主任', '副理', '經理', '主管', '組長', '協理', '秘書']
+
+  return staffList
     .filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用')
     .filter(staff => {
       const positionText = [
@@ -16010,15 +16020,13 @@ function getSupervisorRows() {
         staff.title,
         staff.role
       ].filter(Boolean).join('｜')
-      return positionText.includes('主管')
+      return supervisorTitles.some(title => positionText.includes(title))
     })
     .sort((a, b) => {
       const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
       if (deptCompare !== 0) return deptCompare
       return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
     })
-
-  return rows
 }
 
 function supervisorSelectOptionsHtml(selectedStaffId = '') {
@@ -17191,6 +17199,17 @@ async function saveSchedule(event, modal) {
       `通知車子保養者：${maintenanceNotifyName || '-'}`,
       `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
+    ]
+    subTypeNoteParts = [
+      buildRepeatNote({
+        get: name => {
+          if (name === 'repeat_mode') return maintenanceStartDate === maintenanceReturnDate ? '單日' : '連續日期'
+          if (name === 'start_date') return maintenanceStartDate
+          if (name === 'end_date') return maintenanceReturnDate
+          return ''
+        },
+        getAll: () => []
+      })
     ]
     subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
     if (maintenanceNotifyName) subTypeNoteParts.push(`通知車子保養者：${maintenanceNotifyName}`)
@@ -19100,12 +19119,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-155 START - supervisor dropdown fix */
+/* FOR-e V002-1P-156 START - vehicle period supervisor color */
 /*
-  V002-1P-155｜通知主管下拉與公務車保養儲存錯誤修正
-  - 通知主管欄位改為：所有啟用人員中，職位 / 職稱 / title / role 含「主管」者都會出現
-  - 不再受可指派人員範圍限制
-  - 修正新增公務車保養時 maintenanceSupervisorName is not defined 的錯誤
-  - 公務車保養內容會寫入「通知主管」
+  V002-1P-156｜公務車保養期間顯示、主管職務清單與色碼調整
+  - 公務車保養起訖日期間都會出現在行程表上
+  - 舊資料即使沒有連續日期備註，也會依 start_date / end_date 顯示整段保養期間
+  - 新增公務車保養時會寫入正確的單日 / 連續日期模式
+  - 通知主管下拉改為包含職務：營運經理、經理、副理、主任、主管、副主任、組長、總經理、副總經理、協理、執行長、秘書
+  - 公務車保養色碼改為 #EBD6FB
+  - 公務車保養連續延續細條背景改為比 #EBD6FB 更淡
 */
-/* FOR-e V002-1P-155 END - supervisor dropdown fix */
+/* FOR-e V002-1P-156 END - vehicle period supervisor color */

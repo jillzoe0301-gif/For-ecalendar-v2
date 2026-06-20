@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-154 START - background supervisor end unspecified */
-/* V002-1P-154｜搜尋、公務車保養、外務背景與延續標記 */
+/* FOR-e V002-1P-156 START - vehicle period supervisor color */
+/* V002-1P-156｜搜尋、公務車保養、外務背景與延續標記 */
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -13800,11 +13800,11 @@ body {
   display: none !important;
 }
 
-/* 公務車保養外框 #DCDCDC */
-.schedule-card[style*="#DCDCDC"],
-.week-schedule-card[style*="#DCDCDC"],
-.field-week-schedule-card[style*="#DCDCDC"] {
-  border-color: #DCDCDC !important;
+/* 公務車保養外框 #EBD6FB */
+.schedule-card[style*="#EBD6FB"],
+.week-schedule-card[style*="#EBD6FB"],
+.field-week-schedule-card[style*="#EBD6FB"] {
+  border-color: #EBD6FB !important;
 }
 
 /* 舊版跨欄 / 每日線段長條全部停用 */
@@ -13883,6 +13883,17 @@ body {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 38%, #ffffff) !important;
 }
 
+/* 公務車保養連續延續細條：背景比 #EBD6FB 更淡 */
+.continuation-day-mark[style*="#EBD6FB"] {
+  background: #F9F2FE !important;
+  border-left-color: #EBD6FB !important;
+  box-shadow: inset 0 0 0 1px #F0E0FC !important;
+}
+
+.continuation-day-mark[style*="#EBD6FB"] span {
+  background: #EBD6FB !important;
+}
+
 .leave-return-day-mark span,
 .continuation-day-mark span {
   flex: 0 0 auto;
@@ -13932,4 +13943,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-154 END - background supervisor end unspecified */
+/* FOR-e V002-1P-156 END - vehicle period supervisor color */
