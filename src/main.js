@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-175'
+const SYSTEM_VERSION = 'V002-1P-177'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -5173,9 +5173,6 @@ async function saveMeetingRoomSchedule(event, modal) {
       .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
-    const editScope = getScheduleEditScopeValue(form, originalRow)
-    const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || startDate)
-
     if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
       alert('結束時間必須晚於開始時間。')
       saving = false
@@ -5521,7 +5518,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: `V002-1P-176 修改會議室預約｜範圍：${editScope}`
+      note: `V002-1P-177 修改會議室預約與會人員｜範圍：${editScope}`
     })
 
     modal.remove()
@@ -16069,9 +16066,29 @@ function buildMeetingAssigneeRows(scheduleId, staffIds = [], reserverStaff = {},
 
 async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverStaff = {}, options = {}) {
   const ids = [...new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))]
-  if (!scheduleId || !ids.length) return { error: null }
+  if (!scheduleId) return { error: new Error('找不到會議室預約 ID，無法同步與會人員。') }
 
-  const skipRpc = options.skipRpc === true
+  const replaceExisting = options.replaceExisting === true
+  const skipRpc = options.skipRpc === true || replaceExisting
+
+  // 修改會議室時必須「先清掉舊與會人員，再寫入新名單」。
+  // 舊 RPC 在部分環境只會新增 / 覆蓋，減少人員時可能不會移除舊資料，
+  // 造成畫面看起來已取消勾選，但重新整理後舊與會人員又回來。
+  if (replaceExisting) {
+    const { error: deleteError } = await supabase
+      .from('schedule_assignees')
+      .delete()
+      .eq('schedule_id', scheduleId)
+
+    if (deleteError) {
+      console.warn('清除舊與會人員失敗，已停止寫入避免新舊名單混在一起。', deleteError)
+      return { error: deleteError }
+    }
+
+    if (!ids.length) return { error: null, assigneeType: 'replace-empty' }
+  }
+
+  if (!ids.length) return { error: null }
 
   if (!skipRpc) {
     try {
@@ -16080,21 +16097,10 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
         staff_ids_value: ids
       })
 
-      if (!error) return { error: null }
+      if (!error) return { error: null, assigneeType: 'rpc' }
       console.warn('會議室 RPC 同步與會人員失敗，改用安全寫入。', error)
     } catch (err) {
       console.warn('會議室 RPC 同步與會人員例外，改用安全寫入。', err)
-    }
-  }
-
-  if (options.replaceExisting === true) {
-    const { error: deleteError } = await supabase
-      .from('schedule_assignees')
-      .delete()
-      .eq('schedule_id', scheduleId)
-
-    if (deleteError) {
-      console.warn('清除舊與會人員失敗，將嘗試直接寫入。', deleteError)
     }
   }
 
