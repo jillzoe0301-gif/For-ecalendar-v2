@@ -14720,3 +14720,27 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-173 END - quick group staff list fix */
 
+
+/* FOR-e V002-1P-174 START - quick group staff source fallback */
+/* V002-1P-174｜快速群組管理人員來源保底修正 */
+.overview-group-staff-empty {
+  display: grid !important;
+  justify-items: start;
+  gap: 8px;
+  text-align: left;
+  padding: 14px;
+}
+
+.overview-group-staff-empty strong {
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.overview-group-staff-empty span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+/* FOR-e V002-1P-174 END - quick group staff source fallback */

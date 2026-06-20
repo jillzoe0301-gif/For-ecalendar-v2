@@ -12194,18 +12194,60 @@ function renderOverviewQuickGroupBar(viewMode = getOverviewViewMode()) {
   `
 }
 
+function isOverviewGroupSelectableStaff(staff = {}) {
+  if (!staff) return false
+  if (staff.deleted_at || staff.deletedAt || staff.is_deleted === true) return false
+
+  const statusText = String(staff.status || staff.staff_status || '').trim().toLowerCase()
+  if (!statusText) return true
+
+  return !['停用', '離職', '刪除', '已刪除', 'inactive', 'disabled', 'deleted', 'left'].some(keyword => statusText.includes(keyword))
+}
+
+function findOverviewStaffSourceById(staffId = '') {
+  const id = normalizeStaffId(staffId)
+  if (!id) return null
+  return [...(allStaffList || []), ...(staffList || [])]
+    .find(staff => normalizeStaffId(staff.staff_id) === id) || null
+}
+
 function normalizeOverviewGroupStaffRow(staff = {}) {
-  const staffId = normalizeStaffId(staff.staff_id || staff.staffId || staff.id || staff.profile_id || staff.email)
+  const staffId = normalizeStaffId(
+    staff.staff_id ||
+    staff.staffId ||
+    staff.staff_uuid ||
+    staff.profile_staff_id ||
+    staff.profile_id ||
+    staff.id ||
+    staff.email
+  )
   if (!staffId) return null
 
+  const matchedStaff = findOverviewStaffSourceById(staffId)
+
   return {
+    ...(matchedStaff || {}),
     ...staff,
     staff_id: staffId,
-    name: staff.name || staff.full_name || staff.display_name || staff.email || '-',
-    department_name: staff.department_name || staff.department || staff.dept_name || '',
-    position: staff.position || staff.position_name || staff.job_title || '',
-    position_name: staff.position_name || staff.position || staff.job_title || '',
-    display_order: staff.display_order
+    name: staff.name || staff.staff_name || staff.full_name || staff.display_name || matchedStaff?.name || staff.email || '-',
+    department_name: staff.department_name || staff.department || staff.dept_name || matchedStaff?.department_name || '',
+    position: staff.position || staff.position_name || staff.job_title || matchedStaff?.position || matchedStaff?.position_name || '',
+    position_name: staff.position_name || staff.position || staff.job_title || matchedStaff?.position_name || matchedStaff?.position || '',
+    display_order: staff.display_order ?? matchedStaff?.display_order ?? 999999,
+    status: staff.status || matchedStaff?.status || ''
+  }
+}
+
+function mergeOverviewGroupStaffRow(base = {}, next = {}) {
+  return {
+    ...base,
+    ...next,
+    name: base.name && base.name !== '-' ? base.name : next.name,
+    department_name: base.department_name || next.department_name || '',
+    position: base.position || next.position || next.position_name || '',
+    position_name: base.position_name || next.position_name || next.position || '',
+    display_order: Number.isFinite(Number(base.display_order)) ? base.display_order : next.display_order,
+    status: base.status || next.status || ''
   }
 }
 
@@ -12214,26 +12256,82 @@ function addOverviewGroupStaffSource(map, rows = []) {
 
   rows.forEach(row => {
     const staff = normalizeOverviewGroupStaffRow(row)
-    if (!staff || map.has(staff.staff_id)) return
-    if (staff.deleted_at) return
-    if ((staff.status || '啟用') !== '啟用') return
-    map.set(staff.staff_id, staff)
+    if (!staff || !isOverviewGroupSelectableStaff(staff)) return
+
+    const current = map.get(staff.staff_id)
+    map.set(staff.staff_id, current ? mergeOverviewGroupStaffRow(current, staff) : staff)
   })
+}
+
+function safeOverviewGroupStaffRows(getter) {
+  try {
+    const rows = typeof getter === 'function' ? getter() : getter
+    return Array.isArray(rows) ? rows : []
+  } catch (err) {
+    console.warn('快速人員群組讀取人員來源失敗', err)
+    return []
+  }
+}
+
+function getOverviewGroupStaffRowsFromSchedules() {
+  return (schedules || []).flatMap(row => {
+    return (row.schedule_assignees || [])
+      .filter(item => item && !item.deleted_at && normalizeStaffId(item.staff_id))
+      .map(item => {
+        const matchedStaff = findOverviewStaffSourceById(item.staff_id)
+        return {
+          ...(matchedStaff || {}),
+          ...item,
+          staff_id: item.staff_id,
+          name: item.staff_name || item.name || matchedStaff?.name || '-',
+          department_name: item.department_name || matchedStaff?.department_name || '',
+          position: item.position || item.position_name || matchedStaff?.position || matchedStaff?.position_name || ''
+        }
+      })
+  })
+}
+
+function getOverviewGroupStaffRowsFromProfiles() {
+  return (userProfileList || [])
+    .map(profile => {
+      const staffId = normalizeStaffId(getProfileStaffId(profile) || profile.staff_id || profile.staffId || profile.email)
+      if (!staffId) return null
+
+      const matchedStaff = findOverviewStaffSourceById(staffId)
+      return {
+        ...(matchedStaff || {}),
+        ...profile,
+        staff_id: staffId,
+        name: matchedStaff?.name || profile.name || profile.full_name || profile.display_name || profile.email || '-',
+        department_name: matchedStaff?.department_name || profile.department_name || profile.department || '',
+        position: matchedStaff?.position || matchedStaff?.position_name || profile.position || profile.position_name || profile.role || ''
+      }
+    })
+    .filter(Boolean)
 }
 
 function getOverviewGroupStaffRowsFromDom() {
   if (typeof document === 'undefined') return []
 
-  return Array.from(document.querySelectorAll('input[name="staffIds"], select[name="staffId"] option, select[name="fieldStaffIds"] option'))
+  const selectors = [
+    'input[name="staffIds"]',
+    'input[name="assigneeStaffIds"]',
+    'input[name="fieldStaffIds"]',
+    'select[name="staffId"] option',
+    'select[name="fieldStaffIds"] option'
+  ]
+
+  return Array.from(document.querySelectorAll(selectors.join(',')))
     .map(input => {
       const value = normalizeStaffId(input.value)
       if (!value || value === '全部') return null
-      const text = String(input.textContent || input.getAttribute('title') || '').trim()
-      const matchedStaff = staffList.find(staff => normalizeStaffId(staff.staff_id) === value)
-        || allStaffList.find(staff => normalizeStaffId(staff.staff_id) === value)
+
+      const matchedStaff = findOverviewStaffSourceById(value)
       if (matchedStaff) return matchedStaff
 
-      const [name = text || '-', departmentName = '', position = ''] = text.split('｜').map(item => item.trim())
+      const labelText = String(input.closest('label')?.textContent || input.textContent || input.getAttribute('title') || '').trim()
+      const cleanText = labelText.replace(/\s+/g, ' ')
+      const [name = cleanText || '-', departmentName = '', position = ''] = cleanText.split('｜').map(item => item.trim())
       return {
         staff_id: value,
         name,
@@ -12247,14 +12345,26 @@ function getOverviewGroupStaffRowsFromDom() {
 function getOverviewQuickGroupManageStaffRows() {
   const sourceMap = new Map()
 
-  addOverviewGroupStaffSource(sourceMap, staffList)
-  addOverviewGroupStaffSource(sourceMap, allStaffList)
-  addOverviewGroupStaffSource(sourceMap, getOverviewBaseStaffRows())
-  addOverviewGroupStaffSource(sourceMap, getOverviewGroupStaffRowsFromDom())
-  addOverviewGroupStaffSource(sourceMap, userProfileList)
-  if (currentProfile?.staff_id) addOverviewGroupStaffSource(sourceMap, [currentProfile])
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getUserManageRows()))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => staffList))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => allStaffList))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getOverviewBaseStaffRows()))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getOverviewGroupStaffRowsFromSchedules()))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getOverviewGroupStaffRowsFromDom()))
+  addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getOverviewGroupStaffRowsFromProfiles()))
+  if (currentProfile?.staff_id || currentProfile?.email) addOverviewGroupStaffSource(sourceMap, [currentProfile])
 
   return sortStaffRowsByFilter([...sourceMap.values()], { sortBy: 'display_order', sortDir: 'asc' })
+}
+
+function renderOverviewGroupStaffEmptyState() {
+  return `
+    <div class="empty-state overview-group-staff-empty">
+      <strong>目前沒有可選人員。</strong>
+      <span>已改為讀取全部人員、行程指派人員與登入帳號來源。若仍為空，請先重新載入人員資料。</span>
+      <button type="button" class="small-secondary-btn" id="reloadOverviewGroupStaffBtn">重新載入人員</button>
+    </div>
+  `
 }
 
 function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
@@ -12299,7 +12409,7 @@ function openOverviewQuickGroupManagerModal(editGroupId = '') {
         <div class="span-2">
           <div class="field-title">選擇群組人員</div>
           <div class="checkbox-list compact-check-panel overview-group-modal-list">
-            ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('') || '<div class="empty-state">目前沒有可選人員。請先確認人員 / 帳號已有啟用人員資料。</div>'}
+            ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('') || renderOverviewGroupStaffEmptyState()}
           </div>
           <p class="field-hint">群組只用來快速切換行程總覽人員，不會影響原本部門、人員、排序篩選欄位。</p>
         </div>
@@ -12338,6 +12448,21 @@ function openOverviewQuickGroupManagerModal(editGroupId = '') {
   const close = () => modal.remove()
   modal.querySelector('#closeOverviewGroupModalBtn').addEventListener('click', close)
   modal.querySelector('#cancelOverviewGroupModalBtn').addEventListener('click', close)
+
+  const reloadStaffBtn = modal.querySelector('#reloadOverviewGroupStaffBtn')
+  if (reloadStaffBtn) {
+    reloadStaffBtn.addEventListener('click', async () => {
+      reloadStaffBtn.disabled = true
+      reloadStaffBtn.textContent = '重新載入中...'
+      try {
+        await Promise.all([loadStaff(), loadUserProfiles()])
+      } catch (err) {
+        console.error('重新載入快速群組人員失敗', err)
+      }
+      modal.remove()
+      openOverviewQuickGroupManagerModal(editGroupId)
+    })
+  }
 
   modal.querySelector('#overviewQuickGroupForm').addEventListener('submit', event => {
     event.preventDefault()
