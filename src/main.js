@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-170'
+const SYSTEM_VERSION = 'V002-1P-171'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -407,6 +407,11 @@ let overviewFilters = {
   staffIds: [],
   sortBy: 'display_order',
   sortDir: 'asc'
+}
+
+let overviewQuickGroups = {
+  activeId: 'all',
+  groups: []
 }
 let fieldWeekOffset = 0
 let fieldDisplayMonth = ''
@@ -12062,11 +12067,262 @@ function getOverviewFilterStorageKey() {
 
 function loadOverviewFiltersPreference() {
   overviewFilters = loadFilterPreference(overviewFiltersStorageKey, normalizeOverviewFilters, overviewFilters)
+  loadOverviewQuickGroupsPreference()
 }
 
 function saveOverviewFiltersPreference() {
   overviewFilters = saveFilterPreference(overviewFiltersStorageKey, overviewFilters, normalizeOverviewFilters)
+  saveOverviewQuickGroupsPreference()
 }
+
+
+const overviewQuickGroupsStorageKey = 'for-e-overview-quick-groups-v002'
+const legacyOverviewCustomGroupStorageKey = 'for-e-overview-custom-group-v002'
+
+function normalizeOverviewQuickGroups(value = {}) {
+  const rawGroups = Array.isArray(value.groups) ? value.groups : []
+  const groups = rawGroups
+    .map(group => ({
+      id: String(group.id || '').trim() || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: String(group.name || '').trim(),
+      staffIds: normalizeOverviewFilterList(group.staffIds || group.staffId || [])
+    }))
+    .filter(group => group.name)
+
+  const activeId = String(value.activeId || 'all').trim() || 'all'
+  const validIds = new Set(['all', 'field-workers', ...groups.map(group => group.id)])
+
+  return {
+    activeId: validIds.has(activeId) ? activeId : 'all',
+    groups
+  }
+}
+
+function cleanupLegacyOverviewCustomGroupStorage() {
+  getFilterStorageKeys(legacyOverviewCustomGroupStorageKey).forEach(key => {
+    try {
+      localStorage.removeItem(key)
+    } catch (err) {
+      console.warn('清除舊自訂行事曆人選設定失敗', key, err)
+    }
+  })
+}
+
+function loadOverviewQuickGroupsPreference() {
+  cleanupLegacyOverviewCustomGroupStorage()
+  overviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, overviewQuickGroups)
+}
+
+function saveOverviewQuickGroupsPreference() {
+  overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, overviewQuickGroups, normalizeOverviewQuickGroups)
+}
+
+function getOverviewBuiltInQuickGroups() {
+  return [
+    { id: 'all', name: '全部', builtIn: true, staffIds: [] },
+    { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) }
+  ]
+}
+
+function getOverviewQuickGroupRows() {
+  return [
+    ...getOverviewBuiltInQuickGroups(),
+    ...(overviewQuickGroups.groups || [])
+  ]
+}
+
+function getOverviewQuickGroupById(groupId = '') {
+  return getOverviewQuickGroupRows().find(group => group.id === groupId) || getOverviewQuickGroupRows()[0]
+}
+
+function getOverviewActiveQuickGroup() {
+  return getOverviewQuickGroupById(overviewQuickGroups.activeId || 'all')
+}
+
+function getOverviewActiveQuickGroupStaffIds() {
+  const group = getOverviewActiveQuickGroup()
+  if (!group || group.id === 'all') return []
+  return normalizeOverviewFilterList(group.staffIds)
+}
+
+function getOverviewQuickGroupSelectedText() {
+  const group = getOverviewActiveQuickGroup()
+  if (!group || group.id === 'all') return '全部'
+  const count = getOverviewActiveQuickGroupStaffIds().length
+  return `${group.name}${count ? `｜${count}人` : ''}`
+}
+
+function renderOverviewQuickGroupBar(viewMode = getOverviewViewMode()) {
+  if (viewMode.startsWith('個人')) return ''
+
+  const groups = getOverviewQuickGroupRows()
+  const activeId = overviewQuickGroups.activeId || 'all'
+
+  return `
+    <section class="overview-quick-group-bar" aria-label="快速人員群組">
+      <div class="overview-quick-group-title">
+        <strong>快速人員群組</strong>
+        <span>目前：${escapeHtml(getOverviewQuickGroupSelectedText())}</span>
+      </div>
+
+      <div class="overview-quick-group-chips">
+        ${groups.map(group => `
+          <button type="button" class="overview-group-chip ${group.id === activeId ? 'is-active' : ''}" data-overview-group-id="${escapeHtml(group.id)}">
+            ${escapeHtml(group.name)}
+          </button>
+        `).join('')}
+        <button type="button" class="overview-group-chip is-manage" id="openOverviewQuickGroupManagerBtn">＋ 管理群組</button>
+      </div>
+    </section>
+  `
+}
+
+function openOverviewQuickGroupManagerModal(editGroupId = '') {
+  const savedGroups = overviewQuickGroups.groups || []
+  const editGroup = savedGroups.find(group => group.id === editGroupId) || null
+  const selectedIds = new Set(editGroup ? editGroup.staffIds : [])
+  const rows = getOverviewBaseStaffRows()
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel overview-group-modal">
+      <div class="modal-header">
+        <h3>${editGroup ? '修改人員群組' : '管理快速人員群組'}</h3>
+        <button class="icon-btn" id="closeOverviewGroupModalBtn" type="button">×</button>
+      </div>
+
+      <form id="overviewQuickGroupForm" class="form-grid">
+        <input type="hidden" name="groupId" value="${escapeHtml(editGroup?.id || '')}">
+
+        <label class="span-2">
+          群組名稱
+          <input name="groupName" value="${escapeHtml(editGroup?.name || '')}" placeholder="例如：營運處常用、陳恩文小組">
+        </label>
+
+        <div class="span-2">
+          <div class="field-title">選擇群組人員</div>
+          <div class="checkbox-list compact-check-panel overview-group-modal-list">
+            ${rows.map(staff => `
+              <label class="check-row">
+                <input type="checkbox" name="groupStaffIds" value="${escapeHtml(staff.staff_id)}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
+                <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || '')}</span>
+              </label>
+            `).join('') || '<div class="empty-state">目前沒有可選人員。</div>'}
+          </div>
+          <p class="field-hint">群組只用來快速切換行程總覽人員，不會影響原本部門、人員、排序篩選欄位。</p>
+        </div>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelOverviewGroupModalBtn">取消</button>
+          <button type="submit" class="primary-btn">${editGroup ? '儲存修改' : '新增群組'}</button>
+        </div>
+      </form>
+
+      <section class="overview-group-saved-list">
+        <div class="section-title-row">
+          <h4>已建立群組</h4>
+          <span>${savedGroups.length} 組</span>
+        </div>
+        ${savedGroups.length ? savedGroups.map(group => `
+          <div class="overview-group-saved-row">
+            <div>
+              <strong>${escapeHtml(group.name)}</strong>
+              <span>${group.staffIds.length} 人</span>
+            </div>
+            <div>
+              <button type="button" class="small-secondary-btn" data-apply-overview-group="${escapeHtml(group.id)}">套用</button>
+              <button type="button" class="small-secondary-btn" data-edit-overview-group="${escapeHtml(group.id)}">修改</button>
+              <button type="button" class="danger-btn" data-delete-overview-group="${escapeHtml(group.id)}">刪除</button>
+            </div>
+          </div>
+        `).join('') : '<div class="empty-state">尚未建立群組。</div>'}
+      </section>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  initSearchableChoicePanels(modal)
+
+  const close = () => modal.remove()
+  modal.querySelector('#closeOverviewGroupModalBtn').addEventListener('click', close)
+  modal.querySelector('#cancelOverviewGroupModalBtn').addEventListener('click', close)
+
+  modal.querySelector('#overviewQuickGroupForm').addEventListener('submit', event => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const groupId = String(form.get('groupId') || '').trim()
+    const groupName = String(form.get('groupName') || '').trim()
+    const staffIds = normalizeOverviewFilterList(form.getAll('groupStaffIds'))
+
+    if (!groupName) {
+      alert('請輸入群組名稱。')
+      return
+    }
+
+    if (!staffIds.length) {
+      alert('請至少選擇一位人員。')
+      return
+    }
+
+    const groups = [...(overviewQuickGroups.groups || [])]
+    const nextGroup = {
+      id: groupId || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: groupName,
+      staffIds
+    }
+
+    const foundIndex = groups.findIndex(group => group.id === nextGroup.id)
+    if (foundIndex >= 0) groups[foundIndex] = nextGroup
+    else groups.push(nextGroup)
+
+    overviewQuickGroups = normalizeOverviewQuickGroups({
+      ...overviewQuickGroups,
+      activeId: nextGroup.id,
+      groups
+    })
+
+    saveOverviewQuickGroupsPreference()
+    modal.remove()
+    renderApp()
+  })
+
+  modal.querySelectorAll('[data-apply-overview-group]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: btn.dataset.applyOverviewGroup })
+      saveOverviewQuickGroupsPreference()
+      modal.remove()
+      renderApp()
+    })
+  })
+
+  modal.querySelectorAll('[data-edit-overview-group]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.remove()
+      openOverviewQuickGroupManagerModal(btn.dataset.editOverviewGroup)
+    })
+  })
+
+  modal.querySelectorAll('[data-delete-overview-group]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const groupId = btn.dataset.deleteOverviewGroup
+      const group = (overviewQuickGroups.groups || []).find(item => item.id === groupId)
+      if (!group) return
+      if (!confirm(`確定要刪除「${group.name}」群組嗎？`)) return
+
+      const groups = (overviewQuickGroups.groups || []).filter(item => item.id !== groupId)
+      overviewQuickGroups = normalizeOverviewQuickGroups({
+        activeId: overviewQuickGroups.activeId === groupId ? 'all' : overviewQuickGroups.activeId,
+        groups
+      })
+
+      saveOverviewQuickGroupsPreference()
+      modal.remove()
+      renderApp()
+    })
+  })
+}
+
 
 function isOverviewDepartmentSelected(name) {
   return normalizeOverviewFilterList(overviewFilters.departments).includes(name)
@@ -12114,7 +12370,9 @@ function getOverviewFilterSummary() {
 
   const deptText = departments.length ? departments.join('、') : '全部部門'
   const staffText = staffNames.length ? staffNames.join('、') : '全部人員'
-  return `${viewMode}｜${deptText}｜${staffText}`
+  const group = getOverviewActiveQuickGroup()
+  const groupText = group && group.id !== 'all' ? `｜群組：${group.name}` : ''
+  return `${viewMode}｜${deptText}｜${staffText}${groupText}`
 }
 
 function renderCompactCheckOption(name, value, checked, inputName) {
@@ -12240,6 +12498,12 @@ function getOverviewStaffRows() {
   let rows = getOverviewBaseStaffRows()
   const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
   const selectedStaffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+  const activeGroup = getOverviewActiveQuickGroup()
+  const groupStaffIds = getOverviewActiveQuickGroupStaffIds()
+
+  if (activeGroup && activeGroup.id !== 'all') {
+    rows = rows.filter(staff => groupStaffIds.includes(staff.staff_id))
+  }
 
   if (selectedDepartments.length) {
     rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
@@ -12387,6 +12651,8 @@ function renderScheduleOverview() {
         ${viewMode.startsWith('個人') ? '｜個人模式固定顯示目前登入者。' : ''}
       </div>
     </form>
+
+    ${renderOverviewQuickGroupBar(viewMode)}
 
     ${renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, tableClass)}
 
@@ -19744,13 +20010,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-170 START - remove custom group field badge proxy */
+/* FOR-e V002-1P-171 START - overview quick groups cleanup */
 /*
-  V002-1P-170｜移除自訂行事曆人選、保留返鄉代理人與外務徽章
-  - 已移除 V169 自訂行事曆人選群組，恢復原本行程總覽篩選版面
-  - 返鄉 / 請假 / 會議 / 活動 / 外訓修改表單保留代理人欄位
-  - 外務人員的「外」改放在人名旁邊
-  - 外字樣式改為與連續休假「休」字相同的圓形提示狀態
-  - 外務假日非當日維持灰色框線，只有當日維持橘色框線
+  V002-1P-171｜行程總覽快速人員群組與清理
+  - 在篩選列下方、行事曆上方新增獨立快速人員群組切換列，不放進原本篩選列，不覆蓋任何欄位
+  - 支援建立、修改、刪除群組，以及快速套用群組查看行程
+  - 內建「全部」與「外務人員」快速群組
+  - 保留原本檢視範圍、部門、人員、排序、順序條件，群組只是額外快速人選條件
+  - 清除 V169 舊自訂行事曆人選 localStorage 設定，避免舊資料影響後續狀態
+  - 外務人員「外」徽章顏色改為 #FFAE6E
 */
-/* FOR-e V002-1P-170 END - remove custom group field badge proxy */
+/* FOR-e V002-1P-171 END - overview quick groups cleanup */

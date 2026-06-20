@@ -14476,10 +14476,128 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-170 START - remove custom group field badge proxy */
-/* V002-1P-170｜移除自訂行事曆人選後的外務徽章與假日框線 */
+/* FOR-e V002-1P-171 START - overview quick groups cleanup */
+/* V002-1P-171｜行程總覽快速人員群組、外務徽章與假日框線 */
 
-/* 外務人員「外」：與連續休假「休」字同樣的圓形提示狀態 */
+/* 獨立快速群組切換列：放在篩選列下方，不影響原本篩選列 */
+.overview-quick-group-bar {
+  margin: 12px 0 14px;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(180px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.overview-quick-group-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overview-quick-group-title strong {
+  color: #1e3a8a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.overview-quick-group-title span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-quick-group-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.overview-group-chip {
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #1e3a8a;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.overview-group-chip.is-active {
+  background: #5170ff;
+  border-color: #5170ff;
+  color: #ffffff;
+}
+
+.overview-group-chip.is-manage {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.overview-group-modal .checkbox-list,
+.overview-group-modal-list {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid #dbe3f0;
+  border-radius: 14px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.overview-group-saved-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.overview-group-saved-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #dbe3f0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.overview-group-saved-row strong,
+.overview-group-saved-row span {
+  display: block;
+}
+
+.overview-group-saved-row span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.overview-group-saved-row > div:last-child {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 避免任何舊版自訂行事曆人選群組殘留影響畫面 */
+.overview-custom-group-panel {
+  display: none !important;
+}
+
+/* 外務人員「外」：與連續休假「休」字同樣的圓形提示狀態，顏色改 #FFAE6E */
 .calendar-staff-name-title {
   display: inline-flex !important;
   align-items: center !important;
@@ -14505,17 +14623,12 @@ label.is-filter-hidden {
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: #BFDDF0;
-  color: #0f172a;
+  background: #FFAE6E;
+  color: #111827;
   font-size: 12px;
   font-weight: 950;
   line-height: 1;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #BFDDF0 45%, #ffffff);
-}
-
-/* 避免舊的自訂行事曆群組殘留影響篩選列 */
-.overview-custom-group-panel {
-  display: none !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #FFAE6E 45%, #ffffff);
 }
 
 /* 外務假日非當日恢復灰色框線；當日維持橘色框線 */
@@ -14539,4 +14652,16 @@ label.is-filter-hidden {
   border-color: #FAAB78 !important;
   box-shadow: inset 0 0 0 2px #FAAB78 !important;
 }
-/* FOR-e V002-1P-170 END - remove custom group field badge proxy */
+
+@media (max-width: 900px) {
+  .overview-quick-group-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-quick-group-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+}
+/* FOR-e V002-1P-171 END - overview quick groups cleanup */
