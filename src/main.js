@@ -1,16 +1,9 @@
-unzip -o for-e-v002-1p-179-meeting-room-effective-participants-fix.zip -d .
-
-git rm --ignore-unmatch -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
-rm -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
-
-node --check src/main.js
-npm run build
-
-git status
-git add src/main.js
-git commit -m "V002-1P-179 fix meeting room effective participants"
-git pushimport { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import './style.css'
+
+/* FOR-e V002-1P-180 START - build entry repair */
+/* Keep src/main.js starting with valid JavaScript import statements. */
+/* FOR-e V002-1P-180 END - build entry repair */
 
 /* FOR-e V002-1K-1-3 START - build repair */
 /* Repair: restore valid src/main.js top-level syntax after failed Vercel build. */
@@ -19,7 +12,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-177'
+const SYSTEM_VERSION = 'V002-1P-180'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
