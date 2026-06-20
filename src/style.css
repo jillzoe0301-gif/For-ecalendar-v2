@@ -13731,256 +13731,26 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-157 START - holiday stats cleanup */
-/* V002-1P-157｜搜尋、公務車保養、外務背景、延續標記與節日背景 */
-
-/* 複選清單搜尋 */
-.choice-search-input {
-  width: 100%;
-  height: 34px;
-  min-height: 34px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  padding: 0 10px;
-  margin: 0 0 8px;
-  box-sizing: border-box;
-  font-size: 12.5px;
-  font-weight: 850;
-  color: #334155;
-}
-
-.choice-search-input:focus {
-  outline: 2px solid rgba(81, 112, 255, 0.18);
-  border-color: #5170ff;
-}
-
-.check-row.is-filter-hidden,
-.compact-check-option.is-filter-hidden,
-.department-assignee-row.is-filter-hidden,
-.field-staff-check-row.is-filter-hidden {
-  display: none !important;
-}
-
-/* 公務車保養只顯示保養欄位，不顯示一般日期/時間/標題內容區塊 */
-#scheduleForm[data-current-category="公務車保養"] .schedule-date-cycle-group,
-#scheduleForm[data-current-category="公務車保養"] .schedule-time-group,
-#scheduleForm[data-current-category="公務車保養"] [data-section="common-simple"],
-#scheduleForm[data-current-category="公務車保養"] .notify-supervisor-field,
-#editScheduleForm[data-current-category="公務車保養"] #editServiceBlock,
-#editScheduleForm[data-current-category="公務車保養"] #editServiceLocationBlock,
-#editScheduleForm[data-current-category="公務車保養"] .edit-schedule-mode-box,
-#editScheduleForm[data-current-category="公務車保養"] .edit-time-type-field,
-#editScheduleForm[data-current-category="公務車保養"] #editTimeRangeBlock,
-#editScheduleForm[data-current-category="公務車保養"] .edit-common-title-field,
-#editScheduleForm[data-current-category="公務車保養"] .edit-common-description-field,
-#editScheduleForm[data-current-category="公務車保養"] .edit-note-field,
-#editScheduleForm[data-current-category="公務車保養"] .edit-assignee-box,
-#editScheduleForm[data-current-category="公務車保養"] .edit-notify-supervisor-field {
-  display: none !important;
-}
-
-.vehicle-maintenance-section {
+/* FOR-e V002-1P-158 START - admin notify todo */
+/* V002-1P-158｜通知行政辦理欄位 */
+.admin-notify-box {
   border: 1px solid #dbe3f0;
   border-radius: 16px;
-  padding: 14px;
+  padding: 12px;
   background: #f8fafc;
 }
 
-.vehicle-maintenance-section label {
-  min-width: 0;
+.admin-notify-box .field-title {
+  margin-bottom: 8px;
 }
 
-.vehicle-maintenance-section textarea {
-  resize: vertical;
-}
-
-/* 服務行程使用「區域 / 客戶名稱 / 標題」共同欄 */
-#scheduleForm[data-current-category="服務行程"] .common-title-field {
-  display: none !important;
-}
-
-/* 公務車保養外框 #EBD6FB */
-.schedule-card[style*="#EBD6FB"],
-.week-schedule-card[style*="#EBD6FB"],
-.field-week-schedule-card[style*="#EBD6FB"] {
-  border-color: #EBD6FB !important;
-}
-
-/* 舊版跨欄 / 每日線段長條全部停用 */
-.continuous-span-row,
-.month-continuous-bars,
-.continuous-schedule-bar,
-.continuous-segment {
-  display: none !important;
-}
-
-/* 只有請假 / 休假 / 返鄉 / 外務會整格反色 */
-.week-day-cell.is-field-day,
-.field-week-day-cell.is-field-day,
-.month-day-cell.is-field-day {
-  background: color-mix(in srgb, var(--day-accent, #F48F68) 14%, #ffffff) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #F48F68) 44%, #ffffff) !important;
-  cursor: pointer;
-}
-
-.week-day-cell.is-leave-day,
-.field-week-day-cell.is-leave-day,
-.month-day-cell.is-leave-day,
-.week-day-cell.is-return-day,
-.field-week-day-cell.is-return-day,
-.month-day-cell.is-return-day {
-  background: color-mix(in srgb, var(--day-accent, #BFDDF0) 16%, #ffffff) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #BFDDF0) 48%, #ffffff) !important;
-  cursor: pointer;
-}
-
-.week-day-cell.is-return-day,
-.field-week-day-cell.is-return-day,
-.month-day-cell.is-return-day {
-  background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
-}
-
-/* 節日 / 假日背景優先，不被任何行程顏色覆蓋 */
-.week-overview-table thead th.is-holiday,
-.week-day-cell.is-holiday,
-.meeting-week-table thead th.is-holiday,
-.meeting-week-day-cell.is-holiday,
-.personal-month-calendar .month-day-cell.is-holiday,
-.week-overview-table.is-overview-month td.is-holiday,
-.week-overview-table.is-personal-month td.is-holiday {
-  background: #eef5ff !important;
-  box-shadow: inset 0 0 0 1px #dbeafe !important;
-}
-
-.field-week-table thead th.is-holiday,
-.field-week-day-cell.is-holiday,
-.field-personal-month-calendar .month-day-cell.is-holiday {
-  background: #fff7ed !important;
-  border-color: #fdba74 !important;
-  box-shadow: inset 0 0 0 1px #fdba74 !important;
-}
-
-.week-overview-table thead th.is-today.is-holiday,
-.week-day-cell.is-today.is-holiday,
-.meeting-week-table thead th.is-today.is-holiday,
-.meeting-week-day-cell.is-today.is-holiday {
-  background: #eef5ff !important;
-  box-shadow: inset 0 0 0 2px #5170ff !important;
-}
-
-.field-week-table thead th.is-today.is-holiday,
-.field-week-day-cell.is-today.is-holiday {
-  background: #fff7ed !important;
-  box-shadow: inset 0 0 0 3px #FAAB78 !important;
-}
-
-/* 其他連續項目不整格反色，只顯示細條 */
-.week-day-cell.has-continuation-mark,
-.field-week-day-cell.has-continuation-mark,
-.month-day-cell.has-continuation-mark,
-.meeting-week-day-cell.has-continuation-mark {
-  cursor: pointer;
-}
-
-.week-day-cell.has-continuation-mark:not(.is-holiday),
-.field-week-day-cell.has-continuation-mark:not(.is-holiday),
-.month-day-cell.has-continuation-mark:not(.is-holiday),
-.meeting-week-day-cell.has-continuation-mark:not(.is-holiday) {
-  background: inherit !important;
-  box-shadow: none !important;
-}
-
-.week-day-cell.has-continuation-mark:hover,
-.field-week-day-cell.has-continuation-mark:hover,
-.month-day-cell.has-continuation-mark:hover,
-.meeting-week-day-cell.has-continuation-mark:hover,
-.week-day-cell.is-field-day:hover,
-.field-week-day-cell.is-field-day:hover,
-.month-day-cell.is-field-day:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #F48F68) 48%, #ffffff) !important;
-}
-
-/* 細條標記：依該項目顏色反色 */
-.leave-return-day-mark,
-.continuation-day-mark {
+.admin-notify-box input,
+.admin-notify-box select {
   width: 100%;
-  border: 0;
-  background: color-mix(in srgb, var(--day-accent, #4E71FF) 18%, #ffffff) !important;
-  border-left: 6px solid var(--day-accent, #4E71FF);
-  border-radius: 12px;
-  min-height: 28px;
-  padding: 4px 8px;
-  margin: 3px 0 5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 950;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 38%, #ffffff) !important;
 }
 
-/* 公務車保養連續延續細條：背景比 #EBD6FB 更淡 */
-.continuation-day-mark[style*="#EBD6FB"] {
-  background: #F9F2FE !important;
-  border-left-color: #EBD6FB !important;
-  box-shadow: inset 0 0 0 1px #F0E0FC !important;
+.field-result-reminder-panel .field-result-reminder-note {
+  color: #3155d4;
+  font-weight: 900;
 }
-
-.continuation-day-mark[style*="#EBD6FB"] span {
-  background: #EBD6FB !important;
-}
-
-.leave-return-day-mark span,
-.continuation-day-mark span {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--day-accent, #4E71FF) !important;
-  color: #0f172a !important;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.leave-return-day-mark strong,
-.continuation-day-mark strong {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.continuation-day-placeholder {
-  min-height: 28px;
-  margin: 3px 0 5px;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-@supports not (color: color-mix(in srgb, #000 50%, #fff)) {
-  .week-day-cell.is-field-day,
-  .field-week-day-cell.is-field-day,
-  .month-day-cell.is-field-day,
-  .week-day-cell.is-leave-day,
-  .field-week-day-cell.is-leave-day,
-  .month-day-cell.is-leave-day,
-  .week-day-cell.is-return-day,
-  .field-week-day-cell.is-return-day,
-  .month-day-cell.is-return-day {
-    background: #f8fafc !important;
-  }
-
-  .leave-return-day-mark,
-  .continuation-day-mark {
-    background: #ffffff !important;
-  }
-}
-/* FOR-e V002-1P-157 END - holiday stats cleanup */
+/* FOR-e V002-1P-158 END - admin notify todo */

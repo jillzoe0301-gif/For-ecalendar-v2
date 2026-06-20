@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-157'
+const SYSTEM_VERSION = 'V002-1P-158'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -5432,6 +5432,10 @@ function renderIncidentTrackingHistory(row, editable = false) {
 }
 
 function buildIncidentNoteParts(form, incidentType, customerName, responsibleStaff, assistantNames, nextTime) {
+  const adminTaskType = form.get('admin_task_type') || ''
+  const adminStaffName = getStaffNameById(form.get('admin_staff_id') || '')
+  const adminTaskDetail = form.get('admin_task_detail') || ''
+
   return [
     `異況類型：${incidentType}`,
     `緊急程度：${form.get('incident_urgency') || '一般'}`,
@@ -5440,6 +5444,9 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
     `下次追蹤：${form.get('next_follow_date')}${nextTime ? ' ' + nextTime : ''}`,
     `負責人：${responsibleStaff.name || ''}`,
     assistantNames.length ? `協助人員：${assistantNames.join('、')}` : '',
+    adminTaskType ? `通知行政辦理：${adminTaskType}` : '',
+    adminStaffName ? `通知行政：${adminStaffName}` : '',
+    adminTaskDetail ? `行政通知內容：${adminTaskDetail}` : '',
     form.get('need_service_record') === 'on' ? '服務紀錄單：需要' : '服務紀錄單：不需要',
     form.get('service_record_submitted') === 'on' ? `服務紀錄單狀態：已繳交${form.get('service_record_submitted_date') ? '｜繳交日期：' + form.get('service_record_submitted_date') : ''}` : ''
   ].filter(Boolean)
@@ -5791,6 +5798,28 @@ function openIncidentNextTrackingModal(scheduleId) {
           <textarea name="tracking_content" rows="4" required placeholder="請輸入本次追蹤內容、處理狀況或待辦事項"></textarea>
         </label>
 
+        <div class="span-2 admin-notify-box">
+          <div class="field-title">通知行政辦理</div>
+          <div class="compact-grid">
+            <label>
+              通知項目
+              <select name="admin_task_type">
+                ${administrativeTaskTypeOptionsHtml()}
+              </select>
+            </label>
+            <label>
+              通知行政
+              <select name="admin_staff_id">
+                ${administrativeStaffOptionsHtml()}
+              </select>
+            </label>
+            <label class="span-2">
+              通知內容
+              <input name="admin_task_detail" placeholder="例如：逃跑通知、離境驗證、轉出辦理內容">
+            </label>
+          </div>
+        </div>
+
         <div class="modal-actions span-2">
           <button type="button" class="secondary-btn" id="cancelIncidentNextModalBtn">取消</button>
           <button type="submit" class="primary-btn">儲存追蹤</button>
@@ -5817,6 +5846,9 @@ async function saveIncidentNextTracking(event, modal, row) {
     const nextFollowDate = form.get('next_follow_date')
     const trackingContent = String(form.get('tracking_content') || '').trim()
     const targetIds = [...document.querySelectorAll('input[name="incident_tracking_target"]:checked')].map(input => input.value)
+    const adminTaskType = form.get('admin_task_type') || ''
+    const adminStaffId = form.get('admin_staff_id') || ''
+    const adminTaskDetail = String(form.get('admin_task_detail') || '').trim()
 
     if (!trackingContent) {
       alert('請輸入追蹤內容。')
@@ -5826,6 +5858,12 @@ async function saveIncidentNextTracking(event, modal, row) {
 
     if (!targetIds.length) {
       alert('請至少選擇一位執行對象。')
+      saving = false
+      return
+    }
+
+    if ((adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
+      alert('若要通知行政辦理，請選擇通知項目與通知行政。')
       saving = false
       return
     }
@@ -5861,6 +5899,19 @@ async function saveIncidentNextTracking(event, modal, row) {
     }
 
     await createIncidentTrackingSchedule(row, trackingTitle, trackingContent, nextFollowDate, nextTime, targetIds, `母案件下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+
+    if (adminTaskType && adminStaffId) {
+      try {
+        await createAdministrativeTodoSchedule(row, adminTaskType, adminTaskDetail || trackingContent, adminStaffId, {
+          sourceLabel: `異況${trackingTitle}通知行政辦理`,
+          startDate: todayString()
+        })
+      } catch (adminError) {
+        alert('追蹤已建立，但通知行政待辦建立失敗：' + (adminError?.message || adminError))
+        saving = false
+        return
+      }
+    }
 
     await supabase.from('audit_logs').insert({
       operated_by_profile_id: currentProfile.profile_id,
@@ -6130,6 +6181,28 @@ function openIncidentModal() {
           <textarea name="description" rows="4" required placeholder="請輸入第一次追蹤、處理內容或目前狀況"></textarea>
         </label>
 
+        <div class="span-2 admin-notify-box">
+          <div class="field-title">通知行政辦理</div>
+          <div class="compact-grid">
+            <label>
+              通知項目
+              <select name="admin_task_type">
+                ${administrativeTaskTypeOptionsHtml()}
+              </select>
+            </label>
+            <label>
+              通知行政
+              <select name="admin_staff_id">
+                ${administrativeStaffOptionsHtml()}
+              </select>
+            </label>
+            <label class="span-2">
+              通知內容
+              <input name="admin_task_detail" placeholder="例如：逃跑通知、離境驗證、轉出辦理內容">
+            </label>
+          </div>
+        </div>
+
         ${incidentServiceRecordFieldsHtml()}
 
         <div class="modal-actions span-2">
@@ -6170,6 +6243,15 @@ async function saveIncident(event, modal) {
 
     const incidentType = form.get('incident_type') || '其他'
     const customerName = form.get('customer_name') || ''
+    const adminTaskType = form.get('admin_task_type') || ''
+    const adminStaffId = form.get('admin_staff_id') || ''
+    const adminTaskDetail = String(form.get('admin_task_detail') || '').trim()
+
+    if ((adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
+      alert('若要通知行政辦理，請選擇通知項目與通知行政。')
+      saving = false
+      return
+    }
     const nextTime = getFieldSingleTimeValue(form, 'incident_next')
     const assistantNames = selectedStaff
       .filter(staff => assistantIds.includes(staff.staff_id))
@@ -6233,6 +6315,19 @@ async function saveIncident(event, modal) {
       alert('異況已建立，但負責 / 協助人員寫入失敗：' + assigneeError.message)
       saving = false
       return
+    }
+
+    if (adminTaskType && adminStaffId) {
+      try {
+        await createAdministrativeTodoSchedule({ ...schedule, ...payload }, adminTaskType, adminTaskDetail || form.get('description') || '', adminStaffId, {
+          sourceLabel: '異況通知行政辦理',
+          startDate: todayString()
+        })
+      } catch (adminError) {
+        alert('異況已建立，但通知行政待辦建立失敗：' + (adminError?.message || adminError))
+        saving = false
+        return
+      }
     }
 
     try {
@@ -14112,24 +14207,41 @@ function appendFieldResultNote(noteText, result) {
   return cleaned.join('｜')
 }
 
-async function updateFieldScheduleResult(scheduleId, result, detailText = '') {
+async function updateFieldScheduleResult(scheduleId, result, detailText = '', adminStaffId = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
+  if (!adminStaffId) {
+    alert('請選擇通知行政。')
+    return
+  }
+
   const detailLabel = result === '要補件' ? '補件項目' : '異常項目'
   let nextNote = appendFieldResultNote(row.sub_type_note, result)
+  const adminName = getStaffNameById(adminStaffId)
 
   if (detailText) {
     const parts = nextNote.split('｜').map(item => item.trim()).filter(Boolean)
-    const cleaned = parts.filter(item => !item.startsWith(`${detailLabel}：`))
+    const cleaned = parts.filter(item => !item.startsWith(`${detailLabel}：`) && !item.startsWith('通知行政：'))
     cleaned.push(`${detailLabel}：${detailText}`)
+    if (adminName) cleaned.push(`通知行政：${adminName}`)
     nextNote = cleaned.join('｜')
+  }
+
+  try {
+    await createAdministrativeTodoSchedule(row, result === '要補件' ? '補件' : '送件異常', detailText, adminStaffId, {
+      sourceLabel: '外務結果通知',
+      startDate: todayString()
+    })
+  } catch (todoError) {
+    alert('通知行政待辦建立失敗：' + (todoError?.message || todoError))
+    return
   }
 
   const { error } = await supabase
     .from('schedules')
     .update({
-      status: '未完成',
+      status: '已完成',
       sub_type_note: nextNote
     })
     .eq('schedule_id', scheduleId)
@@ -14143,15 +14255,15 @@ async function updateFieldScheduleResult(scheduleId, result, detailText = '') {
     operated_by_profile_id: currentProfile.profile_id,
     operated_by_staff_id: currentProfile.staff_id,
     operated_by_name: currentProfile.name || currentProfile.email,
-    action_type: '外務結果',
+    action_type: '外務結果通知行政',
     source_type: 'schedule',
     source_id: scheduleId,
-    note: `外務結果：${result}${detailText ? '｜' + detailLabel + '：' + detailText : ''}`
+    note: `外務結果：${result}${detailText ? '｜' + detailLabel + '：' + detailText : ''}${adminName ? '｜通知行政：' + adminName : ''}`
   })
 
   await refreshData()
   renderApp()
-  alert(`已標記外務結果：${result}`)
+  alert(`已通知行政處理：${result}，此外務項目已標記完成。`)
 }
 
 function openFieldResultModal(scheduleId, result) {
@@ -14166,16 +14278,23 @@ function openFieldResultModal(scheduleId, result) {
         <button class="icon-btn" id="closeFieldResultBtn" type="button">×</button>
       </div>
 
-      <div class="notice">請輸入${escapeHtml(label)}，儲存後會寫入外務備註，行程狀態維持未完成。</div>
+      <div class="notice">請輸入${escapeHtml(label)}並選擇通知行政；送出後會建立行政待辦，此外務項目會標記為已完成。</div>
 
       <label>
         ${escapeHtml(label)}
         <textarea id="fieldResultDetailInput" rows="4" placeholder="請輸入${escapeHtml(label)}"></textarea>
       </label>
 
+      <label>
+        通知行政
+        <select id="fieldResultAdminStaffSelect">
+          ${administrativeStaffOptionsHtml()}
+        </select>
+      </label>
+
       <div class="modal-actions">
         <button type="button" class="secondary-btn" id="cancelFieldResultBtn">取消</button>
-        <button type="button" class="primary-btn" id="saveFieldResultBtn">儲存</button>
+        <button type="button" class="primary-btn" id="saveFieldResultBtn">通知行政並完成</button>
       </div>
     </div>
   `
@@ -14187,13 +14306,18 @@ function openFieldResultModal(scheduleId, result) {
   document.querySelector('#cancelFieldResultBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#saveFieldResultBtn').addEventListener('click', async () => {
     const detail = document.querySelector('#fieldResultDetailInput').value.trim()
+    const adminStaffId = document.querySelector('#fieldResultAdminStaffSelect').value
     if (!detail) {
       alert(`請輸入${label}。`)
       return
     }
+    if (!adminStaffId) {
+      alert('請選擇通知行政。')
+      return
+    }
 
     modal.remove()
-    await updateFieldScheduleResult(scheduleId, result, detail)
+    await updateFieldScheduleResult(scheduleId, result, detail, adminStaffId)
   })
 }
 
@@ -14210,13 +14334,15 @@ function renderFieldResultReminder(row) {
 
   const detailLabel = result === '要補件' ? '補件項目' : '異常項目'
   const detail = getFieldNoteValue(row, detailLabel)
+  const adminName = getFieldNoteValue(row, '通知行政')
   const resultClass = result === '送件異常' ? 'is-abnormal' : 'is-supplement'
 
   return `
     <div class="field-result-reminder-panel ${resultClass}">
       <div class="field-result-reminder-title">⚠️ 外務結果：${escapeHtml(result)}</div>
       ${detail ? `<div class="field-result-reminder-detail"><span>${escapeHtml(detailLabel)}：</span>${escapeHtml(detail)}</div>` : ''}
-      <div class="field-result-reminder-note">此行程狀態維持未完成，請持續追蹤處理。</div>
+      ${adminName ? `<div class="field-result-reminder-detail"><span>通知行政：</span>${escapeHtml(adminName)}</div>` : ''}
+      <div class="field-result-reminder-note">已建立行政待辦，此外務項目已完成。</div>
     </div>
   `
 }
@@ -16041,6 +16167,137 @@ function supervisorSelectOptionsHtml(selectedStaffId = '') {
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}｜${staff.position || staff.position_name || staff.role || ''}</option>
   `).join('')
 }
+
+
+function getAdministrativeStaffRows() {
+  const keywords = ['行政', '行政辦理', '總務', '管理員', '辦理']
+  const activeRows = staffList
+    .filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .sort((a, b) => {
+      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+      if (deptCompare !== 0) return deptCompare
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+    })
+
+  const adminRows = activeRows.filter(staff => {
+    const text = [staff.department_name, staff.position, staff.position_name, staff.title, staff.role, staff.name]
+      .filter(Boolean)
+      .join('｜')
+    return keywords.some(keyword => text.includes(keyword))
+  })
+
+  return adminRows.length ? adminRows : activeRows
+}
+
+function administrativeStaffOptionsHtml(selectedStaffId = '') {
+  const rows = getAdministrativeStaffRows()
+  const selectedExists = rows.some(staff => staff.staff_id === selectedStaffId)
+  const extra = selectedStaffId && !selectedExists
+    ? staffList.filter(staff => staff.staff_id === selectedStaffId)
+    : []
+
+  return `<option value="" ${!selectedStaffId ? 'selected' : ''}>請選擇行政</option>` + [...extra, ...rows].map(staff => `
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</option>
+  `).join('')
+}
+
+function getStaffNameById(staffId = '') {
+  const staff = staffList.find(item => item.staff_id === staffId)
+  return staff ? staff.name : ''
+}
+
+function administrativeTaskTypeOptionsHtml(selected = '') {
+  const items = ['補件', '送件異常', '逃跑通知', '離境驗證', '轉出', '其他']
+  return `<option value="" ${!selected ? 'selected' : ''}>不通知行政</option>` + items.map(item => `<option value="${item}" ${selected === item ? 'selected' : ''}>${item}</option>`).join('')
+}
+
+async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', taskDetail = '', adminStaffId = '', options = {}) {
+  const adminStaff = staffList.find(staff => staff.staff_id === adminStaffId)
+  if (!adminStaff) throw new Error('請選擇通知行政。')
+
+  const sourceTitle = sourceRow.title || sourceRow.customer_name || sourceRow.location_name || '來源行程'
+  const title = `${taskType || '行政辦理'}｜${sourceTitle}`
+  const sourceDate = sourceRow.start_date || todayString()
+  const noteParts = [
+    `行政通知：${taskType || '行政辦理'}`,
+    sourceRow.schedule_id ? `來源行程：${sourceRow.schedule_id}` : '',
+    sourceRow.category ? `來源類別：${sourceRow.category}` : '',
+    sourceRow.schedule_type ? `來源類型：${sourceRow.schedule_type}` : '',
+    options.sourceLabel ? `來源說明：${options.sourceLabel}` : '',
+    `通知人：${currentProfile?.name || currentProfile?.email || ''}`
+  ].filter(Boolean)
+
+  const description = [
+    `通知項目：${taskType || '行政辦理'}`,
+    taskDetail ? `內容：${taskDetail}` : '',
+    `來源：${sourceTitle}`,
+    sourceRow.start_date ? `來源日期：${sourceRow.start_date}` : '',
+    sourceRow.location_name ? `地點：${sourceRow.location_name}` : '',
+    sourceRow.address ? `地址：${sourceRow.address}` : '',
+    sourceRow.customer_name ? `客戶 / 工人：${sourceRow.customer_name}` : '',
+    options.extraNote || ''
+  ].filter(Boolean).join('\n')
+
+  const payload = {
+    creator_profile_id: currentProfile.profile_id,
+    creator_staff_id: currentProfile.staff_id,
+    creator_name: currentProfile.name || currentProfile.email,
+    department_id: adminStaff.department_id || currentProfile.department_id,
+    department_name: adminStaff.department_name || currentProfile.department_name,
+    category: '待辦事項',
+    schedule_type: '待辦事項',
+    sub_type: taskType || '行政辦理',
+    sub_type_note: noteParts.join('｜'),
+    title,
+    description,
+    start_date: options.startDate || todayString(),
+    end_date: options.startDate || todayString(),
+    time_type: '不指定',
+    start_time: null,
+    end_time: null,
+    customer_name: sourceRow.customer_name || null,
+    location_name: sourceRow.location_name || null,
+    address: sourceRow.address || null,
+    car_no: sourceRow.car_no || null,
+    status: '未完成',
+    need_service_record: false,
+    service_record_submitted: false,
+    service_record_submitted_date: null
+  }
+
+  const { data: schedule, error: scheduleError } = await supabase
+    .from('schedules')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (scheduleError) throw scheduleError
+
+  const { error: assigneeError } = await supabase.from('schedule_assignees').insert([{
+    schedule_id: schedule.schedule_id,
+    staff_id: adminStaff.staff_id,
+    staff_name: adminStaff.name,
+    department_id: adminStaff.department_id,
+    department_name: adminStaff.department_name,
+    position: adminStaff.position,
+    assignee_type: 'executor'
+  }])
+
+  if (assigneeError) throw assigneeError
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '通知行政',
+    source_type: 'schedule',
+    source_id: schedule.schedule_id,
+    note: `${taskType || '行政辦理'}｜來源：${sourceRow.schedule_id || sourceTitle}`
+  })
+
+  return schedule
+}
+
 
 function supervisorSelectOptionsHtmlSelected(selectedStaffId = '') {
   return supervisorSelectOptionsHtml(selectedStaffId)
@@ -19120,12 +19377,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-157 START - holiday stats cleanup */
+/* FOR-e V002-1P-158 START - admin notify todo */
 /*
-  V002-1P-157｜節日背景固定與公務車保養統計排除
-  - 節日 / 假日日期格背景固定，不會被行程顏色覆蓋
-  - 外務行事曆假日維持淡橘色
-  - 行程總覽 / 會議室 / 個人月曆假日維持原本節日藍色
-  - 公務車保養不列入統計報表項目
+  V002-1P-158｜外務結果通知行政與異況行政辦理
+  - 外務行程標記「要補件 / 送件異常」時，必須輸入項目並選擇通知行政
+  - 通知後會建立行政待辦，此外務行程標記為已完成
+  - 異況新增與下次追蹤新增「通知行政辦理」欄位，可通知逃跑、離境驗證、轉出等行政項目
+  - 通知行政內容會建立到被通知行政的待辦事項中
 */
-/* FOR-e V002-1P-157 END - holiday stats cleanup */
+/* FOR-e V002-1P-158 END - admin notify todo */
