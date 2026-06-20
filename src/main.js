@@ -3376,13 +3376,15 @@ function renderApp() {
   }
 
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => openScheduleDetail(btn.dataset.viewSchedule))
+    btn.addEventListener('click', () => {
+      openScheduleDetail(btn.dataset.viewSchedule, btn.dataset.occurrenceDate || '')
+    })
   })
 
   document.querySelectorAll('[data-cell-view-schedule]').forEach(cell => {
     cell.addEventListener('click', event => {
       if (event.target.closest('button, a, input, select, textarea, summary, details, label')) return
-      openScheduleDetail(cell.dataset.cellViewSchedule)
+      openScheduleDetail(cell.dataset.cellViewSchedule, cell.dataset.occurrenceDate || '')
     })
   })
 
@@ -4050,6 +4052,257 @@ function getScheduleDatesFromForm(form) {
 
   return dates.length ? dates : [startDate]
 }
+
+function isScheduleSeriesLike(row = {}) {
+  if (!row?.start_date) return false
+  const mode = getScheduleModeFromNote(row)
+  if (mode && mode !== '單日') return true
+  return Boolean(row.end_date && row.end_date > row.start_date)
+}
+
+function getScheduleOccurrenceDates(row = {}) {
+  if (!row?.start_date) return []
+  const endDate = row.end_date && row.end_date >= row.start_date ? row.end_date : row.start_date
+  return getDateKeysBetween(row.start_date, endDate)
+    .filter(dateKey => scheduleMatchesDateByMode(row, dateKey))
+}
+
+function normalizeOccurrenceDateForSchedule(row = {}, occurrenceDate = '') {
+  const dates = getScheduleOccurrenceDates(row)
+  if (!dates.length) return row?.start_date || todayString()
+  const targetDate = String(occurrenceDate || '').trim()
+  if (targetDate && dates.includes(targetDate)) return targetDate
+  return row?.start_date && dates.includes(row.start_date) ? row.start_date : dates[0]
+}
+
+function getDateKeyOffset(dateKey = '', offsetDays = 0) {
+  const date = getDateFromKey(dateKey)
+  if (!date) return ''
+  return toDateKey(addDays(date, offsetDays))
+}
+
+function replaceRepeatNote(noteText = '', repeatNote = '行程模式：單日') {
+  return [repeatNote, cleanRepeatNote(noteText)]
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .join('｜') || null
+}
+
+function getScheduleEditScopeValue(form, originalRow = {}) {
+  if (!isScheduleSeriesLike(originalRow)) return 'all'
+  const value = String(form.get('edit_scope') || 'all').trim()
+  return ['single', 'following', 'all'].includes(value) ? value : 'all'
+}
+
+function editSeriesScopeFieldsHtml(row = {}, occurrenceDate = '', prefix = 'edit') {
+  const targetDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate)
+  if (!isScheduleSeriesLike(row)) {
+    return `<input type="hidden" name="edit_scope" value="all"><input type="hidden" name="edit_occurrence_date" value="${escapeHtml(targetDate)}">`
+  }
+
+  const mode = getScheduleModeFromNote(row)
+  const modeLabel = mode && mode !== '單日' ? mode : '連續日期'
+
+  return `
+    <div class="span-2 block-group edit-series-scope-box ${prefix}-edit-series-scope-box">
+      <div class="group-title">修改範圍</div>
+      <input type="hidden" name="edit_occurrence_date" value="${escapeHtml(targetDate)}">
+      <p class="field-hint">此筆是${escapeHtml(modeLabel)}行程，目前選取日期：${escapeHtml(targetDate)}。</p>
+      <div class="edit-series-scope-options">
+        <label class="inline-check"><input type="radio" name="edit_scope" value="single">只修改這次行程</label>
+        <label class="inline-check"><input type="radio" name="edit_scope" value="following">修改這次之後的行程</label>
+        <label class="inline-check"><input type="radio" name="edit_scope" value="all" checked>修改全部行程</label>
+      </div>
+    </div>
+  `
+}
+
+function buildScopedEditedPayload(payload = {}, originalRow = {}, scope = 'all', occurrenceDate = '') {
+  const next = { ...payload }
+  const targetDate = normalizeOccurrenceDateForSchedule(originalRow, occurrenceDate || payload.start_date)
+
+  if (scope === 'single') {
+    next.start_date = targetDate
+    next.end_date = targetDate
+    next.sub_type_note = replaceRepeatNote(next.sub_type_note, '行程模式：單日')
+    return next
+  }
+
+  if (scope === 'following') {
+    if (!next.start_date || next.start_date < targetDate) next.start_date = targetDate
+    if (!next.end_date || next.end_date < next.start_date) next.end_date = next.start_date
+    return next
+  }
+
+  return next
+}
+
+function buildScheduleInsertPayload(row = {}, overrides = {}) {
+  const keys = [
+    'creator_profile_id', 'creator_staff_id', 'creator_name',
+    'department_id', 'department_name', 'category', 'schedule_type',
+    'sub_type', 'sub_type_note', 'title', 'description',
+    'start_date', 'end_date', 'time_type', 'start_time', 'end_time',
+    'customer_name', 'location_name', 'address', 'car_no', 'status',
+    'need_service_record', 'service_record_submitted', 'service_record_submitted_date'
+  ]
+  const payload = {}
+  keys.forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined) payload[key] = row[key]
+  })
+  Object.entries(overrides || {}).forEach(([key, value]) => {
+    payload[key] = value
+  })
+  if (!payload.creator_profile_id && currentProfile?.profile_id) payload.creator_profile_id = currentProfile.profile_id
+  if (!payload.creator_staff_id && currentProfile?.staff_id) payload.creator_staff_id = currentProfile.staff_id
+  if (!payload.creator_name && currentProfile) payload.creator_name = currentProfile.name || currentProfile.email
+  if (!payload.status) payload.status = row.status || '未完成'
+  return payload
+}
+
+async function insertSchedulePayload(payload = {}) {
+  const { data, error } = await supabase
+    .from('schedules')
+    .insert(payload)
+    .select()
+    .single()
+
+  return { schedule: data, error }
+}
+
+async function updateSchedulePayload(scheduleId = '', payload = {}) {
+  return supabase
+    .from('schedules')
+    .update(payload)
+    .eq('schedule_id', scheduleId)
+}
+
+async function syncScheduleAssigneesSafely(scheduleId = '', staffIds = [], options = {}) {
+  const ids = [...new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))]
+  if (!scheduleId || !ids.length) return { error: null }
+
+  try {
+    const { error } = await supabase.rpc('update_schedule_assignees', {
+      target_schedule_id: scheduleId,
+      staff_ids_value: ids
+    })
+    if (!error) return { error: null }
+    console.warn('RPC 同步行程人員失敗，改用安全寫入。', error)
+  } catch (err) {
+    console.warn('RPC 同步行程人員例外，改用安全寫入。', err)
+  }
+
+  if (options.replaceExisting !== false) {
+    const { error: deleteError } = await supabase
+      .from('schedule_assignees')
+      .delete()
+      .eq('schedule_id', scheduleId)
+
+    if (deleteError) console.warn('清除舊行程人員失敗，將嘗試直接寫入。', deleteError)
+  }
+
+  const rows = staffList
+    .filter(staff => ids.includes(staff.staff_id))
+    .map(staff => ({
+      schedule_id: scheduleId,
+      staff_id: staff.staff_id,
+      staff_name: staff.name,
+      department_id: staff.department_id,
+      department_name: staff.department_name,
+      position: staff.position,
+      assignee_type: 'executor'
+    }))
+
+  if (!rows.length) return { error: null }
+
+  const { error } = await supabase.from('schedule_assignees').insert(rows)
+  return { error }
+}
+
+async function applyScopedScheduleEdit(originalRow = {}, editedPayload = {}, options = {}) {
+  const scope = options.scope || 'all'
+  const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, options.occurrenceDate || editedPayload.start_date)
+  const syncEditedAssignees = options.syncEditedAssignees || (async () => ({ error: null }))
+  const syncOriginalAssignees = options.syncOriginalAssignees || (async () => ({ error: null }))
+
+  if (!isScheduleSeriesLike(originalRow) || scope === 'all') {
+    const { error } = await updateSchedulePayload(originalRow.schedule_id, editedPayload)
+    if (error) return { error }
+    const { error: assigneeError } = await syncEditedAssignees(originalRow.schedule_id)
+    if (assigneeError) return { error: assigneeError, assigneeError: true }
+    return { sourceScheduleId: originalRow.schedule_id, editedScheduleId: originalRow.schedule_id }
+  }
+
+  const occurrenceDates = getScheduleOccurrenceDates(originalRow)
+  const beforeDates = occurrenceDates.filter(dateKey => dateKey < occurrenceDate)
+  const afterDates = occurrenceDates.filter(dateKey => dateKey > occurrenceDate)
+  const editedScopedPayload = buildScopedEditedPayload(editedPayload, originalRow, scope, occurrenceDate)
+
+  if (scope === 'single' && !beforeDates.length && !afterDates.length) {
+    const { error } = await updateSchedulePayload(originalRow.schedule_id, editedScopedPayload)
+    if (error) return { error }
+    const { error: assigneeError } = await syncEditedAssignees(originalRow.schedule_id)
+    if (assigneeError) return { error: assigneeError, assigneeError: true }
+    return { sourceScheduleId: originalRow.schedule_id, editedScheduleId: originalRow.schedule_id }
+  }
+
+  if (beforeDates.length) {
+    const beforePayload = {
+      start_date: originalRow.start_date,
+      end_date: beforeDates[beforeDates.length - 1]
+    }
+    const { error } = await updateSchedulePayload(originalRow.schedule_id, beforePayload)
+    if (error) return { error }
+  } else if (afterDates.length && scope === 'single') {
+    const afterPayload = {
+      start_date: afterDates[0],
+      end_date: originalRow.end_date || afterDates[afterDates.length - 1]
+    }
+    const { error } = await updateSchedulePayload(originalRow.schedule_id, afterPayload)
+    if (error) return { error }
+  }
+
+  let editedScheduleId = ''
+
+  if (scope === 'single') {
+    const { schedule, error } = await insertSchedulePayload(buildScheduleInsertPayload(originalRow, editedScopedPayload))
+    if (error) return { error }
+    editedScheduleId = schedule?.schedule_id || ''
+    const { error: assigneeError } = await syncEditedAssignees(editedScheduleId)
+    if (assigneeError) return { error: assigneeError, assigneeError: true }
+
+    if (beforeDates.length && afterDates.length) {
+      const { schedule: afterSchedule, error: afterError } = await insertSchedulePayload(buildScheduleInsertPayload(originalRow, {
+        start_date: afterDates[0],
+        end_date: originalRow.end_date || afterDates[afterDates.length - 1]
+      }))
+      if (afterError) return { error: afterError }
+      const { error: originalAssigneeError } = await syncOriginalAssignees(afterSchedule?.schedule_id || '')
+      if (originalAssigneeError) return { error: originalAssigneeError, assigneeError: true }
+    }
+
+    return { sourceScheduleId: originalRow.schedule_id, editedScheduleId }
+  }
+
+  if (scope === 'following') {
+    if (!beforeDates.length) {
+      const { error } = await updateSchedulePayload(originalRow.schedule_id, editedScopedPayload)
+      if (error) return { error }
+      const { error: assigneeError } = await syncEditedAssignees(originalRow.schedule_id)
+      if (assigneeError) return { error: assigneeError, assigneeError: true }
+      return { sourceScheduleId: originalRow.schedule_id, editedScheduleId: originalRow.schedule_id }
+    }
+
+    const { schedule, error } = await insertSchedulePayload(buildScheduleInsertPayload(originalRow, editedScopedPayload))
+    if (error) return { error }
+    editedScheduleId = schedule?.schedule_id || ''
+    const { error: assigneeError } = await syncEditedAssignees(editedScheduleId)
+    if (assigneeError) return { error: assigneeError, assigneeError: true }
+    return { sourceScheduleId: originalRow.schedule_id, editedScheduleId }
+  }
+
+  return { error: new Error('未知的修改範圍') }
+}
 /* FOR-e V002-1K-1-4 END - schedule mode display helpers */
 
 const fieldStaffSettingsStorageKey = 'for-e-field-staff-settings-v002'
@@ -4252,7 +4505,7 @@ function renderFieldScheduleCard(row) {
   return `
     <button type="button" class="field-week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderCardTime(row, 'field-week-card-time')}
-      <strong>${escapeHtml(isMeetingRoomSchedule(row) ? `會議室預約｜${row.title || '-'}` : getScheduleCardTitleText(row))}</strong>
+      <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
       ${isNoCompletionControlSchedule(row) ? '' : `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
@@ -4557,6 +4810,10 @@ function isVehicleMaintenanceSchedule(row = {}) {
 function getScheduleCardTitleText(row = {}) {
   const title = String(row.title || '').trim() || '-'
   if (isVehicleMaintenanceSchedule(row)) return title
+  if (isMeetingRoomSchedule(row)) {
+    const roomName = String(row.location_name || row.sub_type || '').trim() || '會議室'
+    return `${roomName}｜${title}`
+  }
   return `${getScheduleDisplayType(row)}｜${title}`
 }
 
@@ -4611,6 +4868,8 @@ function getDisplaySubTypeExtra(row = {}) {
     .replace(/[｜|／/()（）\-\_]/g, '')
     .toLowerCase()
 
+  if (isMeetingRoomSchedule(row)) return ''
+
   const extra = String(row.sub_type || '').trim()
   if (!extra) return ''
 
@@ -4641,13 +4900,15 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
   ).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
-function renderMeetingRoomCard(row) {
+function renderMeetingRoomCard(row, occurrenceDate = '') {
   const reserverName = getMeetingReserverName(row)
+  const titleText = getScheduleCardTitleText(row)
+  const occurrenceAttr = occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
 
   return `
-    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'meeting-room-time')}
-      <strong>${escapeHtml(row.title || '-')}</strong>
+      <strong>${escapeHtml(titleText)}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
@@ -4912,6 +5173,8 @@ async function saveMeetingRoomSchedule(event, modal) {
       .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
+    const editScope = getScheduleEditScopeValue(form, originalRow)
+    const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || startDate)
 
     if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
       alert('結束時間必須晚於開始時間。')
@@ -5024,7 +5287,7 @@ function getMeetingAssigneeStaffId(row = {}) {
   return activeAssignee?.staff_id || row.creator_staff_id || currentProfile?.staff_id || ''
 }
 
-function openEditMeetingRoomModal(scheduleId) {
+function openEditMeetingRoomModal(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
@@ -5041,6 +5304,7 @@ function openEditMeetingRoomModal(scheduleId) {
   const selectedRoom = row.location_name || row.sub_type || ''
   const selectedParticipantDepartments = getMeetingParticipantDepartments(row)
   const selectedParticipantStaffIds = getMeetingParticipantStaffIds(row)
+  const editOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.start_date)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -5061,6 +5325,8 @@ function openEditMeetingRoomModal(scheduleId) {
           狀態
           <input value="${escapeHtml(getScheduleStatusLabel(row))}" disabled>
         </label>
+
+        ${editSeriesScopeFieldsHtml(row, editOccurrenceDate, 'meeting')}
 
         ${editScheduleModeFieldsHtml(row)}
 
@@ -5167,15 +5433,23 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
+    const editScope = getScheduleEditScopeValue(form, originalRow)
+    const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || startDate)
 
     if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
       alert('結束時間必須晚於開始時間。')
       return
     }
 
+    const editDateKeys = editScope === 'single'
+      ? [occurrenceDate]
+      : (editScope === 'following' && isScheduleSeriesLike(originalRow)
+        ? getScheduleDatesFromForm(form).filter(dateKey => dateKey >= occurrenceDate)
+        : getScheduleDatesFromForm(form))
+
     const conflictDate = findMeetingRoomConflictDate(
       room,
-      getScheduleDatesFromForm(form),
+      editDateKeys.length ? editDateKeys : [occurrenceDate || startDate],
       startTime,
       endTime,
       originalRow
@@ -5215,26 +5489,28 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       service_record_submitted_date: null
     }
 
-    const { error } = await supabase
-      .from('schedules')
-      .update(payload)
-      .eq('schedule_id', originalRow.schedule_id)
+    const originalAssigneeStaffIds = getActiveAssigneeIds(originalRow)
+    const originalReserverStaff = staffList.find(staff => staff.staff_id === getMeetingAssigneeStaffId(originalRow)) || reserverStaff
+    const scopedResult = await applyScopedScheduleEdit(originalRow, payload, {
+      scope: editScope,
+      occurrenceDate,
+      syncEditedAssignees: scheduleId => syncMeetingAssigneesSafely(
+        scheduleId,
+        meetingAssigneeStaffIds,
+        reserverStaff,
+        { replaceExisting: true }
+      ),
+      syncOriginalAssignees: scheduleId => syncMeetingAssigneesSafely(
+        scheduleId,
+        originalAssigneeStaffIds,
+        originalReserverStaff,
+        { replaceExisting: true }
+      )
+    })
 
-    if (error) {
-      alert('修改會議室預約失敗：' + error.message)
-      return
-    }
-
-    const { error: assigneeError } = await syncMeetingAssigneesSafely(
-      originalRow.schedule_id,
-      meetingAssigneeStaffIds,
-      reserverStaff,
-      { replaceExisting: true }
-    )
-
-    if (assigneeError) {
-      console.error(assigneeError)
-      alert('會議室內容已修改，但與會人員同步失敗：' + assigneeError.message)
+    if (scopedResult.error) {
+      console.error(scopedResult.error)
+      alert((scopedResult.assigneeError ? '會議室內容已修改，但與會人員同步失敗：' : '修改會議室預約失敗：') + scopedResult.error.message)
       return
     }
 
@@ -5245,7 +5521,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: 'V002-1P-79 修改會議室預約'
+      note: `V002-1P-176 修改會議室預約｜範圍：${editScope}`
     })
 
     modal.remove()
@@ -11525,13 +11801,13 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   }
 }
 
-function getMeetingDayMarkInfo(continuationRows = []) {
+function getMeetingDayMarkInfo(continuationRows = [], dateKey = '') {
   const row = continuationRows[0] || null
   if (!row) return { className: '', attrs: '', continuationRows }
 
   return {
     className: rowNeedsFullDayBackground(row) ? 'is-field-day' : 'has-continuation-mark',
-    attrs: `style="--day-accent:${getScheduleColor(row)}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}"`,
+    attrs: `style="--day-accent:${getScheduleColor(row)}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}" data-occurrence-date="${escapeHtml(dateKey)}"`,
     continuationRows
   }
 }
@@ -11573,7 +11849,7 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
       }
 
       return `
-        <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
+        <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
           <span>${escapeHtml(getContinuationInitial(row))}</span>
           <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
         </button>
@@ -11878,10 +12154,10 @@ function renderMeetingMonthTable(roomRows = [], monthDates = [], todayKey = toda
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsForDate(getMeetingSchedulesForRoomDate(room, key), key)
                   const continuationRows = getContinuationRowsForDate(continuousRows, key)
-                  const dayMark = getMeetingDayMarkInfo(continuationRows)
+                  const dayMark = getMeetingDayMarkInfo(continuationRows, key)
                   return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'meeting')}
-                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : (dayMark.className ? '' : '<span class="meeting-week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(row => renderMeetingRoomCard(row, key)).join('') : (dayMark.className ? '' : '<span class="meeting-week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -11923,10 +12199,10 @@ function renderMeetingCalendarBody(roomRows = [], dates = [], todayKey = todaySt
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsForDate(getMeetingSchedulesForRoomDate(room, key), key)
                   const continuationRows = getContinuationRowsForDate(continuousRows, key)
-                  const dayMark = getMeetingDayMarkInfo(continuationRows)
+                  const dayMark = getMeetingDayMarkInfo(continuationRows, key)
                   return `<td class="meeting-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-meeting-date="${key}" data-meeting-room="${escapeHtml(room)}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'meeting')}
-                    ${dayRows.length ? dayRows.map(renderMeetingRoomCard).join('') : (dayMark.className ? '' : '<span class="meeting-week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(row => renderMeetingRoomCard(row, key)).join('') : (dayMark.className ? '' : '<span class="meeting-week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -14388,7 +14664,7 @@ async function saveUserAccount(event, modal, staffId = '') {
 }
 
 
-function openScheduleDetail(scheduleId) {
+function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
@@ -14465,10 +14741,10 @@ function openScheduleDetail(scheduleId) {
   if (editBtn) {
     editBtn.addEventListener('click', () => {
       modal.remove()
-      if (isMeetingRoomSchedule(row)) openEditMeetingRoomModal(scheduleId)
+      if (isMeetingRoomSchedule(row)) openEditMeetingRoomModal(scheduleId, occurrenceDate || row.start_date)
       else if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
       else if (isIncidentSchedule(row)) openEditIncidentModal(scheduleId)
-      else openEditScheduleModal(scheduleId)
+      else openEditScheduleModal(scheduleId, occurrenceDate || row.start_date)
     })
   }
 
@@ -17586,7 +17862,7 @@ function openMedicalFollowModal(scheduleId) {
 }
 
 
-function openEditScheduleModal(scheduleId) {
+function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
@@ -17626,6 +17902,7 @@ function openEditScheduleModal(scheduleId) {
   const maintenanceSupervisorOptions = supervisorSelectOptionsHtmlSelected(maintenanceSupervisorStaffId)
   const maintenanceNote = getLineNoteValue(row, '備註') || getLineNoteValue(row, '保養備註')
   const editProxyStaffId = getProxyStaffIdFromRow(row)
+  const editOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.start_date)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -17648,6 +17925,8 @@ function openEditScheduleModal(scheduleId) {
           狀態
           <input value="${escapeHtml(row.status || '未完成')}" disabled>
         </label>
+
+        ${editSeriesScopeFieldsHtml(row, editOccurrenceDate, 'schedule')}
 
         <label class="span-2 edit-notify-supervisor-field">
           通知主管
@@ -18028,6 +18307,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   const form = new FormData(event.target)
   const category = form.get('category')
+  const editScope = getScheduleEditScopeValue(form, originalRow)
+  const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
   const editNotifySupervisorName = category === '公務車保養' ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
   const editExecutorIds = category === '公務車保養'
     ? getVehicleMaintenanceNotifyStaffIds(form)
@@ -18169,29 +18450,25 @@ async function saveEditedSchedule(event, modal, originalRow) {
     service_record_submitted_date: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) ? submittedDate : null
   }
 
-  const { error } = await supabase
-    .from('schedules')
-    .update(payload)
-    .eq('schedule_id', originalRow.schedule_id)
-
-  if (error) {
-    alert('修改行程失敗：' + error.message)
-    return
-  }
-
-  const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
-    target_schedule_id: originalRow.schedule_id,
-    staff_ids_value: editExecutorIds
+  const originalAssigneeIds = getActiveAssigneeIds(originalRow)
+  const scopedResult = await applyScopedScheduleEdit(originalRow, payload, {
+    scope: editScope,
+    occurrenceDate: editOccurrenceDate,
+    syncEditedAssignees: scheduleId => syncScheduleAssigneesSafely(scheduleId, editExecutorIds, { replaceExisting: true }),
+    syncOriginalAssignees: scheduleId => syncScheduleAssigneesSafely(scheduleId, originalAssigneeIds, { replaceExisting: true })
   })
 
-  if (assigneeError) {
-    alert('行程內容已修改，但通知 / 執行者同步失敗：' + assigneeError.message)
+  if (scopedResult.error) {
+    alert((scopedResult.assigneeError ? '行程內容已修改，但通知 / 執行者同步失敗：' : '修改行程失敗：') + scopedResult.error.message)
     return
   }
 
+  const editedScheduleId = scopedResult.editedScheduleId || originalRow.schedule_id
+  const editedSchedulePayload = buildScopedEditedPayload(payload, originalRow, editScope, editOccurrenceDate)
+
   if (isService) {
-    await ensureServiceRecordsForScheduleRow({ ...originalRow, ...payload, schedule_id: originalRow.schedule_id }, editExecutorIds)
-    await syncMedicalFollowupSchedule({ ...originalRow, ...payload, schedule_id: originalRow.schedule_id }, form, editExecutorIds)
+    await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)
+    await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)
   }
 
   await supabase.from('audit_logs').insert({
@@ -18201,7 +18478,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
     action_type: '修改',
     source_type: 'schedule',
     source_id: originalRow.schedule_id,
-    note: 'V002-1F 修改行程內容'
+    note: `V002-1P-176 修改行程內容｜範圍：${editScope}`
   })
 
   modal.remove()

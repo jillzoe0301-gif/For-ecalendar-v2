@@ -14832,3 +14832,44 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-175 END - quick group staff dropdown */
+
+/* FOR-e V002-1P-176 START - recurring edit scope and meeting title display */
+.edit-series-scope-box {
+  border-color: #c7d2fe;
+  background: #f8fbff;
+}
+
+#meetingRoomEditForm .edit-series-scope-box {
+  border-color: #ffd8b8;
+  background: #fff8f1;
+}
+
+.edit-series-scope-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px 14px;
+  margin-top: 8px;
+}
+
+.edit-series-scope-options .inline-check {
+  width: auto;
+  min-width: 0;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.edit-series-scope-options .inline-check input[type="radio"] {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.meeting-room-card strong {
+  word-break: break-word;
+}
+/* FOR-e V002-1P-176 END - recurring edit scope and meeting title display */
