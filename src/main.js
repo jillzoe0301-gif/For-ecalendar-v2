@@ -1,4 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+unzip -o for-e-v002-1p-179-meeting-room-effective-participants-fix.zip -d .
+
+git rm --ignore-unmatch -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
+rm -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
+
+node --check src/main.js
+npm run build
+
+git status
+git add src/main.js
+git commit -m "V002-1P-179 fix meeting room effective participants"
+git pushimport { createClient } from '@supabase/supabase-js'
 import './style.css'
 
 /* FOR-e V002-1K-1-3 START - build repair */
@@ -1112,6 +1123,10 @@ function isAssignedToCurrentUser(row = {}) {
 }
 
 function getActiveAssigneeIds(row = {}) {
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
+    return getMeetingEffectiveStaffIds(row)
+  }
+
   return (row.schedule_assignees || [])
     .filter(item => !item.deleted_at && item.staff_id)
     .map(item => item.staff_id)
@@ -1344,12 +1359,25 @@ function getScheduleMetaParts(parts = []) {
 
 
 function getAssigneeIds(row) {
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
+    return getMeetingEffectiveStaffIds(row)
+  }
+
   return (row.schedule_assignees || [])
     .filter(item => !item.deleted_at)
     .map(item => item.staff_id)
 }
 
 function getAssigneeNames(row) {
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
+    const idSet = new Set(getMeetingEffectiveStaffIds(row))
+    const names = staffList
+      .filter(staff => idSet.has(staff.staff_id))
+      .map(staff => staff.name)
+      .filter(Boolean)
+    if (names.length) return names.join('、')
+  }
+
   const names = (row.schedule_assignees || [])
     .filter(item => !item.deleted_at)
     .map(item => item.staff_name)
@@ -5534,7 +5562,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: `V002-1P-178 修改會議室預約與會部門 / 與會人員｜範圍：${editScope}`
+      note: `V002-1P-179 修改會議室預約與會部門 / 與會人員｜範圍：${editScope}`
     })
 
     modal.remove()
@@ -13132,17 +13160,7 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
   const staff = staffList.find(item => item.staff_id === staffId)
   if (!staff) return false
 
-  if (getMeetingReserverStaffId(row) === staffId) return true
-
-  const departments = getMeetingParticipantDepartments(row)
-  const names = getMeetingParticipantStaffNames(row)
-
-  if (departments.includes(staff.department_name)) return true
-  if (names.includes(staff.name)) return true
-
-  if (hasMeetingParticipantSourceNote(row)) return false
-
-  return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+  return getMeetingEffectiveStaffIds(row).includes(staffId)
 }
 
 
@@ -16076,6 +16094,27 @@ function getMeetingParticipantStaffIds(row = {}) {
   return [...new Set([...fromAssignees, ...fromNote])]
 }
 
+function getMeetingEffectiveStaffIds(row = {}) {
+  if (!isMeetingRoomSchedule(row)) return getAssigneeIds(row)
+
+  const activeAssigneeIds = (row.schedule_assignees || [])
+    .filter(item => item.staff_id && !item.deleted_at)
+    .map(item => item.staff_id)
+
+  const reserverStaffId = getMeetingReserverStaffId(row)
+  const departmentStaffIds = getStaffIdsFromDepartments(getMeetingParticipantDepartments(row))
+  const explicitStaffIds = getMeetingParticipantStaffIdsFromNote(row)
+  const noteStaffIds = [reserverStaffId, ...departmentStaffIds, ...explicitStaffIds]
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+
+  if (hasMeetingParticipantSourceNote(row)) {
+    return [...new Set(noteStaffIds)]
+  }
+
+  return [...new Set([...activeAssigneeIds, ...noteStaffIds])]
+}
+
 function getMeetingParticipantStaffNames(row = {}) {
   const fromNote = getMeetingParticipantStaffNameValues(row)
 
@@ -16120,33 +16159,26 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
   const replaceExisting = options.replaceExisting === true
   const skipRpc = options.skipRpc === true
 
-  // V002-1P-178：管理員修改他人建立的會議室時，RLS 可能讓直接 delete 影響 0 筆但不報錯。
-  // 因此修改模式先走既有 RPC；若 RPC 不可用，再用前端安全替換。
-  if (replaceExisting && !skipRpc) {
-    try {
-      const { error } = await supabase.rpc('update_schedule_assignees', {
-        target_schedule_id: scheduleId,
-        staff_ids_value: ids
-      })
-
-      if (!error) return { error: null, assigneeType: 'rpc-replace' }
-      console.warn('會議室 RPC 替換與會人員失敗，改用安全寫入。', error)
-    } catch (err) {
-      console.warn('會議室 RPC 替換與會人員例外，改用安全寫入。', err)
-    }
-  }
-
-  // 修改會議室時必須「先清掉舊與會人員，再寫入新名單」。
-  // 舊資料若因 RLS 無法刪除，畫面會以 sub_type_note 的明確與會設定為準，避免舊人員覆蓋新選擇。
+  // V002-1P-179：修改會議室與會者時不能先用 RPC 後直接 return。
+  // 舊 RPC 在部分環境只會新增 / 覆蓋，不一定會移除被取消的人員，
+  // 造成取消的人員個人行事曆仍看得到該筆會議。修改模式一律走「替換」流程。
   if (replaceExisting) {
-    const { error: deleteError } = await supabase
+    const { error: softDeleteError } = await supabase
       .from('schedule_assignees')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('schedule_id', scheduleId)
+      .is('deleted_at', null)
 
-    if (deleteError) {
-      console.warn('清除舊與會人員失敗，已停止寫入避免新舊名單混在一起。', deleteError)
-      return { error: deleteError }
+    if (softDeleteError) {
+      console.warn('軟刪除舊與會人員失敗，改用直接刪除。', softDeleteError)
+      const { error: deleteError } = await supabase
+        .from('schedule_assignees')
+        .delete()
+        .eq('schedule_id', scheduleId)
+
+      if (deleteError) {
+        console.warn('清除舊與會人員失敗，將以會議室與會設定作為畫面顯示準則。', deleteError)
+      }
     }
 
     if (!ids.length) return { error: null, assigneeType: 'replace-empty' }
@@ -16154,7 +16186,7 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
 
   if (!ids.length) return { error: null }
 
-  if (!skipRpc) {
+  if (!replaceExisting && !skipRpc) {
     try {
       const { error } = await supabase.rpc('update_schedule_assignees', {
         target_schedule_id: scheduleId,
@@ -16181,10 +16213,28 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
   ]
 
   let lastError = null
+  let existingStaffIds = new Set()
+
+  if (replaceExisting) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from('schedule_assignees')
+      .select('staff_id, deleted_at')
+      .eq('schedule_id', scheduleId)
+      .in('staff_id', ids)
+
+    if (!existingError) {
+      existingStaffIds = new Set((existingRows || [])
+        .filter(item => item.staff_id && !item.deleted_at)
+        .map(item => item.staff_id))
+    } else {
+      console.warn('讀取既有會議室與會人員失敗，仍會嘗試寫入新名單。', existingError)
+    }
+  }
 
   for (const assigneeType of assigneeTypeCandidates) {
     const rows = buildMeetingAssigneeRows(scheduleId, ids, reserverStaff, assigneeType)
-    if (!rows.length) continue
+      .filter(row => !existingStaffIds.has(row.staff_id))
+    if (!rows.length) return { error: null, assigneeType: replaceExisting ? 'replace-kept-existing' : assigneeType }
 
     const { error } = await supabase
       .from('schedule_assignees')
@@ -20689,3 +20739,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 與會人員同步在替換模式先走 RPC，再用安全寫入補救，降低 RLS 造成減少人員無效的風險。
 */
 /* FOR-e V002-1P-178 END - meeting room participant source of truth fix */
+
+/* FOR-e V002-1P-179 START - meeting room effective participant visibility */
+/*
+  - 會議室與會者修改後，以 sub_type_note 的最新與會部門 / 與會人員作為畫面顯示準則。
+  - 避免舊 schedule_assignees 未被資料庫函式移除時，取消人員個人行事曆仍顯示會議。
+  - 修改會議室與會者時不再使用會留下舊人的 RPC 早退流程。
+*/
+/* FOR-e V002-1P-179 END - meeting room effective participant visibility */
