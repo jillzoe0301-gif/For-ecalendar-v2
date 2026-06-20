@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-173'
+const SYSTEM_VERSION = 'V002-1P-175'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -12318,23 +12318,30 @@ function getOverviewGroupStaffRowsFromDom() {
     'input[name="assigneeStaffIds"]',
     'input[name="fieldStaffIds"]',
     'select[name="staffId"] option',
-    'select[name="fieldStaffIds"] option'
+    'select[name="fieldStaffIds"] option',
+    'select[name*="staff"] option',
+    'select[id*="Staff"] option',
+    'select[id*="staff"] option',
+    '[data-staff-id]',
+    '[data-staffid]'
   ]
 
   return Array.from(document.querySelectorAll(selectors.join(',')))
     .map(input => {
-      const value = normalizeStaffId(input.value)
+      const value = normalizeStaffId(input.value || input.dataset?.staffId || input.dataset?.staffid)
       if (!value || value === '全部') return null
 
       const matchedStaff = findOverviewStaffSourceById(value)
       if (matchedStaff) return matchedStaff
 
-      const labelText = String(input.closest('label')?.textContent || input.textContent || input.getAttribute('title') || '').trim()
-      const cleanText = labelText.replace(/\s+/g, ' ')
-      const [name = cleanText || '-', departmentName = '', position = ''] = cleanText.split('｜').map(item => item.trim())
+      const rowHeaderText = String(input.closest('tr')?.querySelector('.staff-name-cell')?.textContent || '').trim()
+      const monthTitleText = String(input.closest('.personal-month-calendar')?.querySelector('.personal-month-calendar-title')?.textContent || '').trim()
+      const labelText = String(input.closest('label')?.textContent || input.textContent || input.getAttribute('title') || rowHeaderText || monthTitleText || '').trim()
+      const cleanText = labelText.replace(/外\s*/g, '').replace(/\s+/g, ' ').trim()
+      const [name = cleanText || value, departmentName = '', position = ''] = cleanText.split('｜').map(item => item.trim())
       return {
         staff_id: value,
-        name,
+        name: name || value,
         department_name: departmentName,
         position
       }
@@ -12357,11 +12364,31 @@ function getOverviewQuickGroupManageStaffRows() {
   return sortStaffRowsByFilter([...sourceMap.values()], { sortBy: 'display_order', sortDir: 'asc' })
 }
 
+async function ensureOverviewQuickGroupManageStaffRowsLoaded() {
+  let rows = getOverviewQuickGroupManageStaffRows()
+  if (rows.length) return rows
+
+  const tasks = []
+  if (typeof loadStaff === 'function') tasks.push(loadStaff())
+  if (typeof loadUserProfiles === 'function') tasks.push(loadUserProfiles())
+
+  if (tasks.length) {
+    try {
+      await Promise.all(tasks)
+    } catch (err) {
+      console.warn('快速群組人員資料重新載入失敗', err)
+    }
+  }
+
+  rows = getOverviewQuickGroupManageStaffRows()
+  return rows
+}
+
 function renderOverviewGroupStaffEmptyState() {
   return `
     <div class="empty-state overview-group-staff-empty">
       <strong>目前沒有可選人員。</strong>
-      <span>已改為讀取全部人員、行程指派人員與登入帳號來源。若仍為空，請先重新載入人員資料。</span>
+      <span>已改為讀取全部人員、行程指派人員、行程總覽畫面與登入帳號來源。若仍為空，請先重新載入人員資料。</span>
       <button type="button" class="small-secondary-btn" id="reloadOverviewGroupStaffBtn">重新載入人員</button>
     </div>
   `
@@ -12373,7 +12400,7 @@ function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
   const positionName = staff.position || staff.position_name || '-'
 
   return `
-    <label class="check-row overview-group-staff-option">
+    <label class="check-row overview-group-staff-option" title="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜'))}">
       <input type="checkbox" name="groupStaffIds" value="${escapeHtml(staffId)}" ${selectedIds.has(staffId) ? 'checked' : ''}>
       <span>
         <strong>${escapeHtml(staff.name || '-')}</strong>
@@ -12383,11 +12410,48 @@ function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
   `
 }
 
-function openOverviewQuickGroupManagerModal(editGroupId = '') {
+function getOverviewGroupStaffDropdownSummary(rows = [], selectedIds = new Set()) {
+  const selectedRows = rows.filter(staff => selectedIds.has(normalizeStaffId(staff.staff_id)))
+  if (!selectedRows.length) return '請選擇人員'
+  if (selectedRows.length <= 3) return selectedRows.map(staff => staff.name || '-').join('、')
+  return `已選 ${selectedRows.length} 位人員`
+}
+
+function renderOverviewGroupStaffDropdown(rows = [], selectedIds = new Set()) {
+  return `
+    <details class="compact-multi-select overview-group-person-dropdown">
+      <summary><span id="overviewGroupStaffSummaryText">${escapeHtml(getOverviewGroupStaffDropdownSummary(rows, selectedIds))}</span></summary>
+      <div class="compact-check-panel overview-group-person-dropdown-panel">
+        ${rows.length ? `
+          <div class="overview-group-dropdown-tools">
+            <button type="button" class="small-secondary-btn" id="selectAllOverviewGroupStaffBtn">全選</button>
+            <button type="button" class="small-secondary-btn" id="clearOverviewGroupStaffBtn">清除</button>
+          </div>
+          ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('')}
+        ` : renderOverviewGroupStaffEmptyState()}
+      </div>
+    </details>
+  `
+}
+
+function updateOverviewGroupStaffDropdownSummary(modal, rows = []) {
+  const summary = modal.querySelector('#overviewGroupStaffSummaryText')
+  if (!summary) return
+
+  const selectedIds = new Set(
+    Array.from(modal.querySelectorAll('input[name="groupStaffIds"]:checked'))
+      .map(input => normalizeStaffId(input.value))
+      .filter(Boolean)
+  )
+
+  summary.textContent = getOverviewGroupStaffDropdownSummary(rows, selectedIds)
+}
+
+async function openOverviewQuickGroupManagerModal(editGroupId = '') {
   const savedGroups = overviewQuickGroups.groups || []
   const editGroup = savedGroups.find(group => group.id === editGroupId) || null
   const selectedIds = new Set(editGroup ? normalizeOverviewFilterList(editGroup.staffIds) : [])
-  const rows = getOverviewQuickGroupManageStaffRows()
+  const rows = await ensureOverviewQuickGroupManageStaffRowsLoaded()
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -12406,11 +12470,9 @@ function openOverviewQuickGroupManagerModal(editGroupId = '') {
           <input name="groupName" value="${escapeHtml(editGroup?.name || '')}" placeholder="例如：營運處常用、陳恩文小組">
         </label>
 
-        <div class="span-2">
+        <div class="span-2 overview-group-person-field">
           <div class="field-title">選擇群組人員</div>
-          <div class="checkbox-list compact-check-panel overview-group-modal-list">
-            ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('') || renderOverviewGroupStaffEmptyState()}
-          </div>
+          ${renderOverviewGroupStaffDropdown(rows, selectedIds)}
           <p class="field-hint">群組只用來快速切換行程總覽人員，不會影響原本部門、人員、排序篩選欄位。</p>
         </div>
 
@@ -12444,6 +12506,28 @@ function openOverviewQuickGroupManagerModal(editGroupId = '') {
 
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
+  updateOverviewGroupStaffDropdownSummary(modal, rows)
+
+  const groupStaffInputs = Array.from(modal.querySelectorAll('input[name="groupStaffIds"]'))
+  groupStaffInputs.forEach(input => {
+    input.addEventListener('change', () => updateOverviewGroupStaffDropdownSummary(modal, rows))
+  })
+
+  const selectAllBtn = modal.querySelector('#selectAllOverviewGroupStaffBtn')
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      groupStaffInputs.forEach(input => { input.checked = true })
+      updateOverviewGroupStaffDropdownSummary(modal, rows)
+    })
+  }
+
+  const clearStaffBtn = modal.querySelector('#clearOverviewGroupStaffBtn')
+  if (clearStaffBtn) {
+    clearStaffBtn.addEventListener('click', () => {
+      groupStaffInputs.forEach(input => { input.checked = false })
+      updateOverviewGroupStaffDropdownSummary(modal, rows)
+    })
+  }
 
   const close = () => modal.remove()
   modal.querySelector('#closeOverviewGroupModalBtn').addEventListener('click', close)
@@ -20236,3 +20320,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不調整原本篩選列版面，不新增覆蓋欄位
 */
 /* FOR-e V002-1P-172 END - quick group buttons fix */
+
+/* FOR-e V002-1P-175 START - quick group staff dropdown */
+/*
+  V002-1P-175｜快速人員群組管理改為人員下拉選單
+  - 「＋ 管理群組」內改成可展開的選擇人員下拉選單
+  - 下拉內保留搜尋、全選、清除與人員勾選
+  - 開啟群組管理時若人員來源尚未載入，會先重新讀取 staff / profiles 再顯示
+  - 顯示姓名、部門、職務，勾選框與文字同排靠左
+*/
+/* FOR-e V002-1P-175 END - quick group staff dropdown */
+

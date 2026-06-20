@@ -14744,3 +14744,91 @@ label.is-filter-hidden {
   line-height: 1.5;
 }
 /* FOR-e V002-1P-174 END - quick group staff source fallback */
+
+/* FOR-e V002-1P-175 START - quick group staff dropdown */
+/* V002-1P-175｜快速人員群組管理：選擇人員改為下拉選單 */
+.overview-group-person-field {
+  position: relative;
+  overflow: visible;
+}
+
+.overview-group-person-dropdown {
+  width: 100%;
+  margin-top: 6px;
+  position: relative;
+  z-index: 5;
+}
+
+.overview-group-person-dropdown summary {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.overview-group-person-dropdown summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-group-person-dropdown .overview-group-person-dropdown-panel {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  z-index: auto !important;
+  width: 100%;
+  max-height: 330px;
+  margin-top: 8px;
+  box-sizing: border-box;
+  border: 1px solid #dbe3f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: none;
+  overflow: auto;
+}
+
+.overview-group-dropdown-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 0 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.overview-group-dropdown-tools .small-secondary-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.overview-group-person-dropdown .choice-search-input {
+  background: #ffffff;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option {
+  background: #ffffff;
+  border: 1px solid transparent;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option:hover {
+  border-color: #dbe3f0;
+  background: #eef5ff;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option:has(input:checked) {
+  border-color: #aebcff;
+  background: #eef5ff;
+}
+
+@media (max-width: 720px) {
+  .overview-group-person-dropdown .overview-group-person-dropdown-panel {
+    max-height: 280px;
+  }
+}
+/* FOR-e V002-1P-175 END - quick group staff dropdown */
