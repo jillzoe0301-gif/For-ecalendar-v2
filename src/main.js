@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-163'
+const SYSTEM_VERSION = 'V002-1P-164'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -3134,7 +3134,8 @@ function renderApp() {
     lineNotifyForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
-      const nextType = form.get('type') || '今日行程'
+      const rawType = form.get('type') || '今日行程'
+      const nextType = rawType === '全部禁行通知' ? '全部通知' : rawType
       const nextTarget = form.get('target') || '自己'
       const keepSelected = nextType === lineNotifyState.type && nextTarget === lineNotifyState.target
       lineNotifyState = {
@@ -6550,7 +6551,7 @@ function getStatsScheduleType(row) {
 }
 
 function getStatsDepartment(row) {
-  return row.department_name || getAssigneeDepartmentFallback(row) || '未指定'
+  return row.__stats_department_name || row.department_name || getAssigneeDepartmentFallback(row) || '未指定'
 }
 
 function getAssigneeDepartmentFallback(row) {
@@ -6566,9 +6567,9 @@ function getStatsDepartmentGroup(departmentName) {
 }
 
 function getStatsDepartmentOptions() {
-  const names = schedules
+  const names = expandStatsScheduleRows(schedules
     .filter(isVisibleSchedule)
-    .filter(row => !isStatsExcludedSchedule(row))
+    .filter(row => !isStatsExcludedSchedule(row)))
     .map(getStatsDepartment)
     .filter(Boolean)
 
@@ -6592,12 +6593,44 @@ function getStatsStaffOptionsHtml() {
     `).join('')
 }
 
+function getStatsAssignees(row = {}) {
+  const map = new Map()
+
+  ;(row.schedule_assignees || [])
+    .filter(item => !item.deleted_at)
+    .filter(item => item.staff_id || item.staff_name)
+    .forEach(item => {
+      const key = item.staff_id || item.staff_name
+      if (!map.has(key)) map.set(key, item)
+    })
+
+  return [...map.values()]
+}
+
+function expandStatsScheduleRows(rows = []) {
+  return rows.flatMap(row => {
+    const assignees = getStatsAssignees(row)
+    if (!assignees.length) return [row]
+
+    return assignees.map(assignee => ({
+      ...row,
+      __stats_staff_id: assignee.staff_id || '',
+      __stats_staff_name: assignee.staff_name || '',
+      __stats_department_name: assignee.department_name || '',
+      __stats_position: assignee.position || '',
+      schedule_assignees: [assignee]
+    }))
+  })
+}
+
 function getStatsFilteredSchedules() {
   const range = getStatsDateRange()
 
-  return schedules
+  const baseRows = schedules
     .filter(isVisibleSchedule)
     .filter(row => !isStatsExcludedSchedule(row))
+
+  return expandStatsScheduleRows(baseRows)
     .filter(row => {
       const date = row.start_date || ''
       if (range.start && date < range.start) return false
@@ -6607,6 +6640,7 @@ function getStatsFilteredSchedules() {
       if (statsFilters.category !== '全部' && getStatsScheduleType(row) !== statsFilters.category) return false
 
       if (statsFilters.staffId !== '全部') {
+        if (row.__stats_staff_id) return row.__stats_staff_id === statsFilters.staffId
         const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
         if (!assigned) return false
       }
@@ -7660,8 +7694,9 @@ function renderColorPreviewCard(item, color) {
 */
 
 function getLineNotifyTypeOptions() {
-  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室', '全部禁行通知']
-  return types.map(type => `<option value="${escapeHtml(type)}" ${lineNotifyState.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室', '全部通知']
+  const currentType = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
+  return types.map(type => `<option value="${escapeHtml(type)}" ${currentType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
 }
 
 function getLineNotifyTargetOptions() {
@@ -7731,45 +7766,49 @@ function getLineNotifyBaseRows() {
 function getLineNotifyRows() {
   const today = todayString()
   const rows = uniqueScheduleRows(getLineNotifyBaseRows())
+  const type = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
 
-  if (lineNotifyState.type === '今日行程') {
+  if (type === '今日行程') {
     return rows
       .filter(row => scheduleMatchesDateByMode(row, today))
       .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
   }
 
-  if (lineNotifyState.type === '任務逾期') {
+  if (type === '任務逾期') {
     return rows
       .filter(row => isOverdueSchedule(row))
       .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
   }
 
-  if (lineNotifyState.type === '待確認 / 待通知') {
+  if (type === '待確認 / 待通知') {
     return rows
       .filter(row => isReminderSchedule(row))
       .filter(row => row.status !== '已完成')
       .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
   }
 
-  if (lineNotifyState.type === '今日外務') {
+  if (type === '今日外務') {
     return rows
       .filter(row => isFieldScheduleRow(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
   }
 
-  if (lineNotifyState.type === '今日會議室') {
+  if (type === '今日會議室') {
     return rows
       .filter(row => isMeetingRoomSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
   }
 
-  if (lineNotifyState.type === '全部禁行通知') {
+  if (type === '全部通知') {
     return rows
-      .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
-      .filter(row => !row.start_date || row.start_date >= today)
-      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+      .filter(row => row.status !== '取消')
+      .sort((a, b) => {
+        const dateCompare = String(a.start_date || '').localeCompare(String(b.start_date || ''))
+        if (dateCompare !== 0) return dateCompare
+        return String(formatTime(a)).localeCompare(String(formatTime(b)))
+      })
   }
 
   return []
@@ -7826,34 +7865,41 @@ function renderLineNotifySchedulePicker(rows = []) {
 
   const selected = getLineNotifySelectedIdSet(rows)
   const useAll = !selected.size
+  const summaryText = useAll ? `下拉選單內全部 ${rows.length} 筆` : `已選 ${selected.size} / ${rows.length} 筆`
 
   return `
-    <section class="line-select-card">
+    <section class="line-select-card line-select-dropdown-card">
       <div class="line-select-head">
         <div>
           <strong>選擇要通知的行程</strong>
-          <span>${useAll ? '目前會通知清單內全部行程。勾選後只通知已選行程。' : `已選 ${selected.size} 筆，只通知已選行程。`}</span>
+          <span>${useAll ? '目前會通知清單內全部行程；展開後可改成只通知指定項目。' : `已選 ${selected.size} 筆，只通知已選行程。`}</span>
         </div>
         <div class="line-select-actions">
-          <button type="button" class="secondary-btn" id="selectAllLineRowsBtn">全選</button>
+          <button type="button" class="secondary-btn" id="selectAllLineRowsBtn">全部通知</button>
           <button type="button" class="secondary-btn" id="clearLineRowsBtn">清除選取</button>
         </div>
       </div>
 
-      <div class="line-select-list">
-        ${rows.map(row => {
-          const checked = useAll || selected.has(row.schedule_id)
-          return `
-            <label class="line-select-row">
-              <input type="checkbox" data-line-select-row value="${escapeHtml(row.schedule_id)}" ${checked ? 'checked' : ''}>
-              <span>
-                <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
-                <small>${escapeHtml(row.start_date || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
-              </span>
-            </label>
-          `
-        }).join('')}
-      </div>
+      <details class="line-select-dropdown">
+        <summary>
+          <span>${escapeHtml(summaryText)}</span>
+          <strong>展開選擇</strong>
+        </summary>
+        <div class="line-select-list">
+          ${rows.map(row => {
+            const checked = useAll || selected.has(row.schedule_id)
+            return `
+              <label class="line-select-row">
+                <input type="checkbox" data-line-select-row value="${escapeHtml(row.schedule_id)}" ${checked ? 'checked' : ''}>
+                <span>
+                  <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
+                  <small>${escapeHtml(row.start_date || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
+                </span>
+              </label>
+            `
+          }).join('')}
+        </div>
+      </details>
     </section>
   `
 }
@@ -7873,13 +7919,9 @@ function openLineAppOrShare(text = '') {
 
   const encoded = encodeURIComponent(message)
   const lineAppUrl = `line://msg/text/${encoded}`
-  const webShareUrl = `https://line.me/R/share?text=${encoded}`
 
+  // 只啟動 LINE App，不再自動開網頁分享，避免進入 LINE 首頁。
   window.location.href = lineAppUrl
-
-  window.setTimeout(() => {
-    window.open(webShareUrl, '_blank')
-  }, 900)
 }
 
 
@@ -7916,7 +7958,7 @@ function renderLineNotificationPage() {
     <div class="page-toolbar">
       <div>
         <h3>LINE 通知</h3>
-        <p class="muted">可選擇要通知的行程，或選「全部禁行通知」產生禁行通知清單。</p>
+        <p class="muted">可選擇要通知的行程，或選「全部通知」產生完整通知清單。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -7924,7 +7966,7 @@ function renderLineNotificationPage() {
     </div>
 
     <div class="notice">
-      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或直接啟動 LINE 程式分享。
+      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或直接啟動 LINE 程式傳送。
     </div>
 
     <form id="lineNotifyForm" class="line-notify-panel">
@@ -17333,6 +17375,46 @@ function openEditScheduleModal(scheduleId) {
   document.querySelector('#editScheduleForm').addEventListener('submit', event => saveEditedSchedule(event, modal, row))
 }
 
+
+async function ensureServiceRecordsForScheduleRow(scheduleRow = {}, staffIds = []) {
+  if (!scheduleRow?.schedule_id) return
+  if (!scheduleRow.need_service_record) return
+
+  const uniqueStaffIds = [...new Set((staffIds || []).filter(Boolean))]
+  if (!uniqueStaffIds.length) return
+
+  const existingKeys = new Set(
+    serviceRecords
+      .filter(record => record.schedule_id === scheduleRow.schedule_id)
+      .map(record => record.staff_id)
+      .filter(Boolean)
+  )
+
+  const missingStaff = staffList.filter(staff => uniqueStaffIds.includes(staff.staff_id) && !existingKeys.has(staff.staff_id))
+  if (!missingStaff.length) return
+
+  const rows = missingStaff.map(staff => ({
+    schedule_id: scheduleRow.schedule_id,
+    staff_id: staff.staff_id,
+    staff_name: staff.name,
+    department_id: staff.department_id,
+    department_name: staff.department_name,
+    schedule_date: scheduleRow.start_date,
+    schedule_type: scheduleRow.schedule_type,
+    title: scheduleRow.title,
+    location_name: scheduleRow.location_name || scheduleRow.customer_name,
+    need_submit: true,
+    submitted: Boolean(scheduleRow.service_record_submitted_date),
+    submitted_date: scheduleRow.service_record_submitted_date || null
+  }))
+
+  const { error } = await supabase.from('service_records').insert(rows)
+  if (error) {
+    console.warn('補建立個別服務紀錄單失敗', error)
+    alert('行程已儲存，但部分執行者的服務紀錄單建立失敗：' + error.message)
+  }
+}
+
 async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
@@ -17498,6 +17580,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   }
 
   if (isService) {
+    await ensureServiceRecordsForScheduleRow({ ...originalRow, ...payload, schedule_id: originalRow.schedule_id }, editExecutorIds)
     await syncMedicalFollowupSchedule({ ...originalRow, ...payload, schedule_id: originalRow.schedule_id }, form, editExecutorIds)
   }
 
@@ -19608,20 +19691,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-161 END - restore continuation search service form */
 
-/* FOR-e V002-1P-162 START - line selection incident pink */
+/* FOR-e V002-1P-164 START - line dropdown incident pink stats */
 /*
-  V002-1P-162｜LINE 選擇通知與異況通知粉紅系
-  - LINE 通知可選擇個別行程；未勾選時通知清單全部行程
-  - 新增「全部禁行通知」通知類型，列出外務日 / 請勿安排其他行程提醒
-  - LINE 按鈕改為優先啟動 LINE 程式 line://，並保留網頁分享備援
-  - 異況通知行政介面改為紅色 / 粉色系
+  V002-1P-164｜LINE 下拉選項、LINE App 啟動、異況粉色系與多人統計
+  - LINE 通知類型「全部禁行通知」改為「全部通知」
+  - LINE 選擇行程改為下拉點選，勾選框與文字同一排靠左
+  - 啟動 LINE 程式不再自動開啟網頁或 LINE 首頁
+  - 異況追蹤、異況通知行政、異況追蹤列表統一改為 #FF62BB / #FFCEE3 / #FF85BB 粉紅色系
+  - 統計報表改為依執行者展開：同一行程有多位執行者時，每位執行者各計一筆
+  - 修改服務行程後，會補建立缺少的個別服務紀錄單
 */
-/* FOR-e V002-1P-162 END - line selection incident pink */
-
-/* FOR-e V002-1P-163 START - style css build hotfix */
-/*
-  V002-1P-163｜style.css 建置修正
-  - 確認更新檔包含 src/style.css，修正 Vercel 找不到 ./style.css 的部署問題。
-  - 功能內容沿用 V002-1P-162。
-*/
-/* FOR-e V002-1P-163 END - style css build hotfix */
+/* FOR-e V002-1P-164 END - line dropdown incident pink stats */

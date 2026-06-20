@@ -14021,8 +14021,8 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-161 END - restore continuation search service form */
 
-/* FOR-e V002-1P-162 START - line selection incident pink */
-/* V002-1P-162｜LINE 選擇通知與異況通知粉紅系 */
+/* FOR-e V002-1P-164 START - line dropdown incident pink stats */
+/* V002-1P-164｜LINE 下拉選項與異況追蹤粉色系 */
 .line-select-card {
   border: 1px solid #dbe3f0;
   border-radius: 18px;
@@ -14059,30 +14059,79 @@ label.is-filter-hidden {
   flex-wrap: wrap;
 }
 
+.line-select-dropdown {
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.line-select-dropdown summary {
+  min-height: 44px;
+  padding: 0 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #1e3a8a;
+  font-weight: 950;
+  list-style: none;
+}
+
+.line-select-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.line-select-dropdown summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-select-dropdown summary strong {
+  flex: 0 0 auto;
+  color: #5170ff;
+  font-size: 12px;
+}
+
 .line-select-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 8px;
+  gap: 6px;
   max-height: 360px;
   overflow: auto;
-  padding-right: 4px;
+  padding: 10px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .line-select-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
+  width: 100%;
+  display: flex !important;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 9px;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 9px 10px;
   background: #f8fafc;
   cursor: pointer;
   box-sizing: border-box;
+  text-align: left;
 }
 
 .line-select-row input {
-  margin-top: 4px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+
+.line-select-row > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  text-align: left;
 }
 
 .line-select-row strong,
@@ -14092,6 +14141,7 @@ label.is-filter-hidden {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .line-select-row strong {
@@ -14103,7 +14153,6 @@ label.is-filter-hidden {
 .line-select-row small {
   color: #64748b;
   font-size: 12px;
-  margin-top: 3px;
 }
 
 .line-select-row:has(input:checked) {
@@ -14111,40 +14160,130 @@ label.is-filter-hidden {
   background: #f0fdf4;
 }
 
+/* 異況追蹤頁面：#FF62BB #FFCEE3 #FF85BB */
+.incident-list {
+  display: grid;
+  gap: 12px;
+}
+
+.incident-row {
+  border: 2px solid #FFCEE3 !important;
+  background: #fff5fb !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 20px rgba(255, 98, 187, 0.08);
+}
+
+.incident-row.is-overdue {
+  border-color: #FF62BB !important;
+  background: #ffeaf4 !important;
+}
+
+.incident-date {
+  background: #FFCEE3 !important;
+  color: #8a104d !important;
+  border-color: #FF85BB !important;
+}
+
+.incident-date span,
+.incident-date small {
+  color: #9f215b !important;
+}
+
+.incident-date strong {
+  color: #7f1548 !important;
+}
+
+.incident-title {
+  color: #9f174f !important;
+}
+
+.incident-meta,
+.incident-note {
+  color: #7f1d4f !important;
+}
+
+.incident-history-panel,
+.incident-next-context,
+.incident-tracking-target-box {
+  border-color: #FFCEE3 !important;
+  background: #fff7fb !important;
+}
+
+.incident-history-title,
+.incident-history-item-head strong {
+  color: #b01262 !important;
+}
+
+.incident-history-item {
+  border-color: #FFCEE3 !important;
+  background: #ffffff !important;
+}
+
+.incident-urgency-badge {
+  background: #FFCEE3 !important;
+  color: #9f174f !important;
+  border: 1px solid #FF85BB !important;
+}
+
+.incident-urgency-badge.is-urgent,
+.incident-urgency-badge.is-important {
+  background: #FF62BB !important;
+  color: #ffffff !important;
+  border-color: #FF62BB !important;
+}
+
+.incident-actions .small-btn,
+.incident-next-btn {
+  background: #FF62BB !important;
+  border-color: #FF62BB !important;
+  color: #ffffff !important;
+}
+
 /* 異況通知行政：紅色 / 粉色系 */
 #incidentForm .admin-notify-box,
-#incidentNextTrackingForm .admin-notify-box {
-  border-color: #f9a8d4 !important;
-  background: #fff1f8 !important;
-  box-shadow: inset 0 0 0 1px rgba(244, 114, 182, 0.14);
+#incidentNextTrackingForm .admin-notify-box,
+.admin-notify-box {
+  border-color: #FF85BB !important;
+  background: #FFCEE3 !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 98, 187, 0.18);
 }
 
 #incidentForm .admin-notify-box .field-title,
-#incidentNextTrackingForm .admin-notify-box .field-title {
-  color: #be185d !important;
+#incidentNextTrackingForm .admin-notify-box .field-title,
+.admin-notify-box .field-title {
+  color: #9f174f !important;
   font-weight: 950;
 }
 
 #incidentForm .admin-notify-box select,
 #incidentForm .admin-notify-box input,
 #incidentNextTrackingForm .admin-notify-box select,
-#incidentNextTrackingForm .admin-notify-box input {
-  border-color: #fbcfe8 !important;
+#incidentNextTrackingForm .admin-notify-box input,
+.admin-notify-box select,
+.admin-notify-box input {
+  border-color: #FF85BB !important;
   background: #ffffff !important;
 }
 
 #incidentForm .admin-notify-box select:focus,
 #incidentForm .admin-notify-box input:focus,
 #incidentNextTrackingForm .admin-notify-box select:focus,
-#incidentNextTrackingForm .admin-notify-box input:focus {
-  outline: 2px solid rgba(244, 114, 182, 0.18) !important;
-  border-color: #f472b6 !important;
+#incidentNextTrackingForm .admin-notify-box input:focus,
+.admin-notify-box select:focus,
+.admin-notify-box input:focus {
+  outline: 2px solid rgba(255, 98, 187, 0.2) !important;
+  border-color: #FF62BB !important;
 }
 
 .incident-admin-notify-line {
-  background: #fff1f8 !important;
-  border-color: #f9a8d4 !important;
-  color: #be185d !important;
+  background: #FFCEE3 !important;
+  border-color: #FF85BB !important;
+  color: #9f174f !important;
+}
+
+.field-result-reminder-panel .field-result-reminder-note {
+  color: #FF62BB !important;
+  font-weight: 900;
 }
 
 @media (max-width: 768px) {
@@ -14154,12 +14293,7 @@ label.is-filter-hidden {
   }
 
   .line-select-list {
-    grid-template-columns: 1fr;
     max-height: 300px;
   }
 }
-/* FOR-e V002-1P-162 END - line selection incident pink */
-
-/* FOR-e V002-1P-163 START - style css build hotfix */
-/* V002-1P-163｜此檔案必須放在 src/style.css，供 src/main.js 的 import './style.css' 使用。 */
-/* FOR-e V002-1P-163 END - style css build hotfix */
+/* FOR-e V002-1P-164 END - line dropdown incident pink stats */
