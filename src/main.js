@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
+/* FOR-e V002-1P-181 START - meeting room assignee type guard */
+/* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
+/* FOR-e V002-1P-181 END - meeting room assignee type guard */
+
 /* FOR-e V002-1P-180 START - build entry repair */
 /* Keep src/main.js starting with valid JavaScript import statements. */
 /* FOR-e V002-1P-180 END - build entry repair */
@@ -12,7 +16,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-180'
+const SYSTEM_VERSION = 'V002-1P-181'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -16193,53 +16197,36 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
     }
   }
 
-  const assigneeTypeCandidates = [
-    'omit',
-    'executor',
-    '執行者',
-    '負責人',
-    '主要',
-    '主辦',
-    'assignee',
-    'member',
-    'participant'
-  ]
+  // V002-1P-181：會議室與會設定已完整寫入 schedules.sub_type_note，
+  // 個人行事曆顯示會以「預約人 / 與會部門 / 與會人員」重新計算，
+  // 不再用多種 assignee_type 嘗試寫入，避免正式資料庫的
+  // schedule_assignees_type_check 被 omit / participant 等舊 fallback 觸發。
+  const rows = buildMeetingAssigneeRows(scheduleId, ids, reserverStaff, 'executor')
 
-  let lastError = null
-  let existingStaffIds = new Set()
+  if (!rows.length) return { error: null, assigneeType: 'note-only-empty' }
 
-  if (replaceExisting) {
-    const { data: existingRows, error: existingError } = await supabase
-      .from('schedule_assignees')
-      .select('staff_id, deleted_at')
-      .eq('schedule_id', scheduleId)
-      .in('staff_id', ids)
+  const { error } = await supabase
+    .from('schedule_assignees')
+    .insert(rows)
 
-    if (!existingError) {
-      existingStaffIds = new Set((existingRows || [])
-        .filter(item => item.staff_id && !item.deleted_at)
-        .map(item => item.staff_id))
-    } else {
-      console.warn('讀取既有會議室與會人員失敗，仍會嘗試寫入新名單。', existingError)
-    }
+  if (!error) return { error: null, assigneeType: 'executor' }
+
+  const message = String(error?.message || '')
+  const isTypeConstraintError = message.includes('schedule_assignees_type_check') || message.includes('assignee_type')
+
+  if (isTypeConstraintError) {
+    console.warn('會議室與會人員未寫入 schedule_assignees，已改以會議室與會設定顯示，不中斷儲存。', error)
+    return { error: null, assigneeType: 'note-only-type-check' }
   }
 
-  for (const assigneeType of assigneeTypeCandidates) {
-    const rows = buildMeetingAssigneeRows(scheduleId, ids, reserverStaff, assigneeType)
-      .filter(row => !existingStaffIds.has(row.staff_id))
-    if (!rows.length) return { error: null, assigneeType: replaceExisting ? 'replace-kept-existing' : assigneeType }
-
-    const { error } = await supabase
-      .from('schedule_assignees')
-      .insert(rows)
-
-    if (!error) return { error: null, assigneeType }
-
-    lastError = error
-    console.warn(`會議室與會人員寫入失敗 assignee_type=${assigneeType}`, error)
+  // 若因舊資料尚未刪除造成重複鍵錯誤，會議室仍可以用 sub_type_note 重新判斷顯示對象，
+  // 不讓使用者看到「內容已修改但同步失敗」的阻斷訊息。
+  if (message.includes('duplicate key') || message.includes('unique constraint')) {
+    console.warn('會議室與會人員寫入遇到重複資料，已改以會議室與會設定顯示，不中斷儲存。', error)
+    return { error: null, assigneeType: 'note-only-duplicate' }
   }
 
-  return { error: lastError || new Error('會議室與會人員寫入失敗') }
+  return { error }
 }
 
 function getMeetingParticipantSummaryText(items = [], unit = '項目') {
