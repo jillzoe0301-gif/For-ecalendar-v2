@@ -13731,169 +13731,40 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-151 START - visibility fieldday extra fix */
-/* V002-1P-151｜搜尋、外務日背景與延續標記 */
+/* FOR-e V002-1P-152 START - taipei timezone vehicle maintenance */
+/* V002-1P-152｜公務車保養與服務共同欄 */
 
-/* 複選清單搜尋 */
-.choice-search-input {
-  width: 100%;
-  height: 34px;
-  min-height: 34px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  padding: 0 10px;
-  margin: 0 0 8px;
-  box-sizing: border-box;
-  font-size: 12.5px;
-  font-weight: 850;
-  color: #334155;
-}
-
-.choice-search-input:focus {
-  outline: 2px solid rgba(81, 112, 255, 0.18);
-  border-color: #5170ff;
-}
-
-.check-row.is-filter-hidden,
-.compact-check-option.is-filter-hidden,
-.department-assignee-row.is-filter-hidden,
-.field-staff-check-row.is-filter-hidden {
+/* 公務車保養只顯示保養欄位，不顯示一般日期/時間/標題內容區塊 */
+#scheduleForm[data-current-category="公務車保養"] .schedule-date-cycle-group,
+#scheduleForm[data-current-category="公務車保養"] .schedule-time-group,
+#scheduleForm[data-current-category="公務車保養"] [data-section="common-simple"] {
   display: none !important;
 }
 
-/* 舊版跨欄 / 每日線段長條全部停用 */
-.continuous-span-row,
-.month-continuous-bars,
-.continuous-schedule-bar,
-.continuous-segment {
-  display: none !important;
+.vehicle-maintenance-section {
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  padding: 14px;
+  background: #f8fafc;
 }
 
-/* 外務日提醒：卡片與日期格都用 #F48F68 系列 */
-.week-schedule-card[style*="#F48F68"],
-.field-week-schedule-card[style*="#F48F68"],
-.schedule-card[style*="#F48F68"] {
-  border-color: #F48F68 !important;
-}
-
-.week-day-cell.is-field-day,
-.field-week-day-cell.is-field-day,
-.month-day-cell.is-field-day {
-  background: color-mix(in srgb, #F48F68 14%, #ffffff) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, #F48F68 44%, #ffffff) !important;
-  cursor: pointer;
-}
-
-/* 請假 / 休假 / 返鄉：包含連續日期的每一天，都整格反背景色 */
-.week-day-cell.is-leave-day,
-.field-week-day-cell.is-leave-day,
-.month-day-cell.is-leave-day,
-.week-day-cell.is-return-day,
-.field-week-day-cell.is-return-day,
-.month-day-cell.is-return-day {
-  background: color-mix(in srgb, var(--day-accent, #BFDDF0) 16%, #ffffff) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #BFDDF0) 48%, #ffffff) !important;
-  cursor: pointer;
-}
-
-.week-day-cell.is-return-day,
-.field-week-day-cell.is-return-day,
-.month-day-cell.is-return-day {
-  background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
-}
-
-/* 一般連續行程延續日：不整格反色，只顯示細條 */
-.week-day-cell.has-continuation-mark,
-.field-week-day-cell.has-continuation-mark,
-.month-day-cell.has-continuation-mark,
-.meeting-week-day-cell.has-continuation-mark {
-  background: inherit !important;
-  box-shadow: none !important;
-  cursor: pointer;
-}
-
-.week-day-cell.has-continuation-mark:hover,
-.field-week-day-cell.has-continuation-mark:hover,
-.month-day-cell.has-continuation-mark:hover,
-.meeting-week-day-cell.has-continuation-mark:hover,
-.week-day-cell.is-field-day:hover,
-.field-week-day-cell.is-field-day:hover,
-.month-day-cell.is-field-day:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #F48F68) 48%, #ffffff) !important;
-}
-
-/* 細條標記：依該項目顏色反色 */
-.leave-return-day-mark,
-.continuation-day-mark {
-  width: 100%;
-  border: 0;
-  background: color-mix(in srgb, var(--day-accent, #4E71FF) 18%, #ffffff) !important;
-  border-left: 6px solid var(--day-accent, #4E71FF);
-  border-radius: 12px;
-  min-height: 28px;
-  padding: 4px 8px;
-  margin: 3px 0 5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 950;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #4E71FF) 38%, #ffffff) !important;
-}
-
-.leave-return-day-mark span,
-.continuation-day-mark span {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--day-accent, #4E71FF) !important;
-  color: #0f172a !important;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.leave-return-day-mark strong,
-.continuation-day-mark strong {
+.vehicle-maintenance-section label {
   min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* 讓相同連續行程在同一排 */
-.continuation-day-placeholder {
-  min-height: 28px;
-  margin: 3px 0 5px;
-  visibility: hidden;
-  pointer-events: none;
+.vehicle-maintenance-section textarea {
+  resize: vertical;
 }
 
-/* color-mix 備援 */
-@supports not (color: color-mix(in srgb, #000 50%, #fff)) {
-  .week-day-cell.is-field-day,
-  .field-week-day-cell.is-field-day,
-  .month-day-cell.is-field-day,
-  .week-day-cell.is-leave-day,
-  .field-week-day-cell.is-leave-day,
-  .month-day-cell.is-leave-day,
-  .week-day-cell.is-return-day,
-  .field-week-day-cell.is-return-day,
-  .month-day-cell.is-return-day {
-    background: #f8fafc !important;
-  }
-
-  .leave-return-day-mark,
-  .continuation-day-mark {
-    background: #ffffff !important;
-  }
+/* 服務行程使用「區域 / 客戶名稱 / 標題」共同欄 */
+#scheduleForm[data-current-category="服務行程"] .common-title-field {
+  display: none !important;
 }
-/* FOR-e V002-1P-151 END - visibility fieldday extra fix */
+
+/* 公務車保養卡片色系 */
+.schedule-card[style*="#8FB9A8"],
+.week-schedule-card[style*="#8FB9A8"],
+.field-week-schedule-card[style*="#8FB9A8"] {
+  border-color: #8FB9A8 !important;
+}
+/* FOR-e V002-1P-152 END - taipei timezone vehicle maintenance */

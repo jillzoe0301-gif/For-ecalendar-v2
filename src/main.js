@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-151'
+const SYSTEM_VERSION = 'V002-1P-152'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -81,7 +81,7 @@ function renderPageIcon(key) {
   return pageIconMap[key] || '•'
 }
 
-const formCategories = ['服務行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+const formCategories = ['服務行程', '公務車保養', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
@@ -103,7 +103,8 @@ const scheduleContentTemplates = [
   { type: '驗證提醒', content: '驗證項目：\n預計驗證日：\n需準備文件：\n下次追蹤：' },
   { type: '返台提醒', content: '返台人員：\n返台日期：\n班機資訊：\n需處理事項：' },
   { type: '宿舍', content: '宿舍地點：\n處理事項：\n處理結果：\n後續追蹤：' },
-  { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' }
+  { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' },
+  { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保管者：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
@@ -903,6 +904,7 @@ function canCreateForCurrentPage() {
 
 function canCreateScheduleCategory(category) {
   if (category === '服務行程') return canCreateServiceSchedule()
+  if (category === '公務車保養') return canCreateServiceSchedule()
   return canCreatePersonalSchedule()
 }
 
@@ -953,7 +955,15 @@ function canCancelSchedule(row) {
 
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10)
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date())
+
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
 }
 
 function isDeletedSchedule(row) {
@@ -7251,6 +7261,7 @@ function getScheduleColorDefinitions() {
     { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
     { key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
+    { key: '公務車保養', label: '公務車保養', defaultColor: '#8FB9A8' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
@@ -7259,7 +7270,7 @@ function getScheduleColorDefinitions() {
 }
 
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1P-140'
+const scheduleColorPaletteVersion = 'V002-1P-152'
 
 function getScheduleColorSettings() {
   try {
@@ -7311,6 +7322,7 @@ function resetScheduleColorSettings() {
 
 function getScheduleColorKey(row) {
   if (!row) return '服務行程'
+  if (String(row?.category || '') === '公務車保養' || String(row?.schedule_type || '') === '公務車保養') return '公務車保養'
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
@@ -11961,7 +11973,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
               ${extra ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(extra)}</div>` : ''}
               <div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>
-              ${row.customer_name ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
+              ${row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim() ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
               ${reminders.length ? `<div class="reminder-tags">${reminders.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
               ${row.need_service_record ? `<div class="service-record-hint ${isScheduleServiceRecordSubmitted(row) ? 'is-submitted' : 'is-missing'}">${isScheduleServiceRecordSubmitted(row) ? '服務紀錄單已交' : '服務紀錄單未完成'}</div>` : ''}
@@ -14364,7 +14376,7 @@ function fieldModeTimeFieldsHtml(defaultDate = '') {
 
         <label>
           開始日期
-          <input name="start_date" type="date" required value="${defaultDate}">
+          <input name="start_date" type="date" value="${defaultDate}">
         </label>
 
         <label>
@@ -15221,7 +15233,7 @@ function openScheduleModal(defaults = {}) {
           </select>
         </label>
 
-        <div class="span-2 block-group">
+        <div class="span-2 block-group schedule-date-cycle-group">
           <div class="group-title">日期與週期</div>
 
           <div class="form-grid inner-grid">
@@ -15259,7 +15271,7 @@ function openScheduleModal(defaults = {}) {
           </div>
         </div>
 
-        <div class="span-2 block-group">
+        <div class="span-2 block-group schedule-time-group">
           <div class="group-title">時間</div>
 
           <div class="form-grid inner-grid">
@@ -15346,8 +15358,8 @@ function openScheduleModal(defaults = {}) {
 
         <div class="span-2 form-section hidden service-location-top" data-section="service-location">
           <label>
-            區域 / 客戶名稱
-            <input name="customer_name" placeholder="例如：客來喜">
+            區域 / 客戶名稱 / 標題
+            <input name="customer_name" placeholder="此欄會同時作為服務行程標題，例如：客來喜">
           </label>
 
           <label>
@@ -15362,9 +15374,9 @@ function openScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2 form-section" data-section="common-simple">
-          <label>
+          <label class="common-title-field">
             標題
-            <input name="title" required placeholder="請輸入標題">
+            <input name="title" placeholder="請輸入標題">
           </label>
 
           <label>
@@ -15375,6 +15387,45 @@ function openScheduleModal(defaults = {}) {
             <button type="button" class="secondary-btn" id="applyScheduleTypeContentBtn">帶入對應內容</button>
             <span>依行程類型帶入預設內容；已輸入內容時，按此按鈕才會覆蓋。</span>
           </div>
+        </div>
+
+
+        <div class="span-2 form-section hidden vehicle-maintenance-section" data-section="vehicle-maintenance">
+          <label>
+            公務車選擇
+            <select name="maintenance_car">
+              ${carSelectOptions}
+            </select>
+          </label>
+
+          <label>
+            保養日期
+            <input name="maintenance_start_date" type="date" value="${defaultDate}">
+          </label>
+
+          <label>
+            歸還日期
+            <input name="maintenance_return_date" type="date" value="${defaultDate}">
+          </label>
+
+          <label>
+            保養期間代步車
+            <input name="maintenance_replacement_car" placeholder="請輸入代步車或留空">
+          </label>
+
+          <label>
+            通知車子保管者
+            <select name="maintenance_notify_staff">
+              ${staffSelectOptionsHtml()}
+            </select>
+          </label>
+
+          <label class="span-2">
+            備註
+            <textarea name="maintenance_note" rows="3" placeholder="保養原因、廠商、注意事項或其他備註"></textarea>
+          </label>
+
+          <p class="field-hint span-2">公務車保養會依保養日期與歸還日期建立行程，不需要填寫一般標題與內容。</p>
         </div>
 
         <div class="span-2 form-section hidden" data-section="todo">
@@ -15554,8 +15605,10 @@ function openScheduleModal(defaults = {}) {
     const form = document.querySelector('#scheduleForm')
     if (!form) return
 
+    form.dataset.currentCategory = category
+
     form.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
-    form.querySelector('[data-section="common-simple"]')?.classList.remove('hidden')
+    if (category !== '公務車保養') form.querySelector('[data-section="common-simple"]')?.classList.remove('hidden')
 
     if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') form.querySelector('[data-section="leave-meeting"]')?.classList.remove('hidden')
@@ -15566,6 +15619,12 @@ function openScheduleModal(defaults = {}) {
       form.querySelector('[data-section="service-location"]')?.classList.remove('hidden')
       form.querySelector('[data-section="service"]')?.classList.remove('hidden')
     }
+    if (category === '公務車保養') {
+      form.querySelector('[data-section="vehicle-maintenance"]')?.classList.remove('hidden')
+    }
+
+    const commonTitleField = form.querySelector('.common-title-field')
+    if (commonTitleField) commonTitleField.classList.toggle('hidden', category === '服務行程' || category === '公務車保養')
 
     applyCreateCompactSpecialFields()
   }
@@ -16716,6 +16775,27 @@ async function saveSchedule(event, modal) {
     return
   }
 
+  const rawTitleInput = String(form.get('title') || '').trim()
+  const rawCustomerNameInput = String(form.get('customer_name') || '').trim()
+
+  if (category === '公務車保養' && !form.get('maintenance_start_date')) {
+    alert('請填寫保養日期。')
+    saving = false
+    return
+  }
+
+  if (category === '服務行程' && !rawCustomerNameInput && !rawTitleInput) {
+    alert('請填寫「區域 / 客戶名稱 / 標題」。')
+    saving = false
+    return
+  }
+
+  if (!['服務行程', '公務車保養'].includes(category) && !rawTitleInput) {
+    alert('請填寫標題。')
+    saving = false
+    return
+  }
+
   const executorIds = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
 
   if (!executorIds.length) {
@@ -16746,6 +16826,7 @@ async function saveSchedule(event, modal) {
   let locationName = null
   let address = null
   let carNo = null
+  let startDateValue = form.get('start_date')
   let endDate = form.get('repeat_mode') === '單日'
     ? form.get('start_date')
     : (form.get('end_date') || form.get('start_date'))
@@ -16776,10 +16857,43 @@ async function saveSchedule(event, modal) {
     if (deliveryItems) subTypeNoteParts.push(`交付項目：${deliveryItems}`)
   }
 
+  if (category === '公務車保養') {
+    const maintenanceCar = String(form.get('maintenance_car') || '').trim()
+    const maintenanceStartDate = form.get('maintenance_start_date') || todayString()
+    const maintenanceReturnDate = form.get('maintenance_return_date') || maintenanceStartDate
+    const maintenanceReplacementCar = String(form.get('maintenance_replacement_car') || '').trim()
+    const maintenanceNotifyName = getStaffNameFromSelect('maintenance_notify_staff')
+    const maintenanceNote = String(form.get('maintenance_note') || '').trim()
+
+    scheduleType = '公務車保養'
+    subType = maintenanceCar || '公務車保養'
+    startDateValue = maintenanceStartDate
+    endDate = maintenanceReturnDate
+    customerName = maintenanceCar || null
+    locationName = '公務車保養'
+    carNo = maintenanceCar || null
+
+    const maintenanceLines = [
+      `公務車：${maintenanceCar || '-'}`,
+      `保養日期：${maintenanceStartDate}`,
+      `歸還日期：${maintenanceReturnDate}`,
+      `保養期間代步車：${maintenanceReplacementCar || '-'}`,
+      `通知車子保管者：${maintenanceNotifyName || '-'}`,
+      `備註：${maintenanceNote || '-'}`
+    ]
+    subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
+    if (maintenanceNotifyName) subTypeNoteParts.push(`通知車子保管者：${maintenanceNotifyName}`)
+    if (maintenanceNote) subTypeNoteParts.push(`保養備註：${maintenanceNote}`)
+
+    form.set('title', `公務車保養｜${maintenanceCar || '未指定車輛'}`)
+    form.set('description', maintenanceLines.join('\n'))
+    form.set('time_type', '不指定')
+  }
+
   if (category === '服務行程') {
     scheduleType = form.get('schedule_type') || '其他'
     subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null)
-    customerName = form.get('customer_name') || null
+    customerName = rawCustomerNameInput || rawTitleInput || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
@@ -16800,13 +16914,15 @@ async function saveSchedule(event, modal) {
     schedule_type: scheduleType,
     sub_type: subType || null,
     sub_type_note: subTypeNoteParts.filter(Boolean).join('｜'),
-    title: form.get('title'),
+    title: category === '服務行程'
+      ? (customerName || rawTitleInput || scheduleType || '服務行程')
+      : (form.get('title') || rawTitleInput || scheduleType || category),
     description: form.get('description') || null,
-    start_date: form.get('start_date'),
+    start_date: startDateValue,
     end_date: endDate,
-    time_type: form.get('time_type'),
-    start_time: getTimeValue(form, 'start'),
-    end_time: getTimeValue(form, 'end'),
+    time_type: category === '公務車保養' ? '不指定' : form.get('time_type'),
+    start_time: category === '公務車保養' ? null : getTimeValue(form, 'start'),
+    end_time: category === '公務車保養' ? null : getTimeValue(form, 'end'),
     customer_name: customerName,
     location_name: locationName,
     address,
@@ -18671,3 +18787,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 移除 V150 舊樣式區塊，改為單一 V151 樣式
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
+
+/* FOR-e V002-1P-152 START - taipei timezone vehicle maintenance */
+/*
+  V002-1P-152｜台北時區、服務行程共同欄與公務車保養
+  - 今日日期改以 Asia/Taipei 台北時區為準，晚上 12 點後即為隔天
+  - 服務行程「區域 / 客戶名稱」與「標題」合併為同一欄
+  - 新增「公務車保養」類別 / 選單
+  - 公務車保養欄位：公務車、保養日期、歸還日期、保養期間代步車、通知車子保管者、備註
+  - 移除 V151 舊區塊，保留單一 V152 樣式
+*/
+/* FOR-e V002-1P-152 END - taipei timezone vehicle maintenance */
