@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-156 START - vehicle period supervisor color */
-/* V002-1P-156｜搜尋、公務車保養、外務背景與延續標記 */
+/* FOR-e V002-1P-157 START - holiday stats cleanup */
+/* V002-1P-157｜搜尋、公務車保養、外務背景、延續標記與節日背景 */
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -13841,14 +13841,54 @@ body {
   background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
 }
 
+/* 節日 / 假日背景優先，不被任何行程顏色覆蓋 */
+.week-overview-table thead th.is-holiday,
+.week-day-cell.is-holiday,
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday,
+.personal-month-calendar .month-day-cell.is-holiday,
+.week-overview-table.is-overview-month td.is-holiday,
+.week-overview-table.is-personal-month td.is-holiday {
+  background: #eef5ff !important;
+  box-shadow: inset 0 0 0 1px #dbeafe !important;
+}
+
+.field-week-table thead th.is-holiday,
+.field-week-day-cell.is-holiday,
+.field-personal-month-calendar .month-day-cell.is-holiday {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+  box-shadow: inset 0 0 0 1px #fdba74 !important;
+}
+
+.week-overview-table thead th.is-today.is-holiday,
+.week-day-cell.is-today.is-holiday,
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday {
+  background: #eef5ff !important;
+  box-shadow: inset 0 0 0 2px #5170ff !important;
+}
+
+.field-week-table thead th.is-today.is-holiday,
+.field-week-day-cell.is-today.is-holiday {
+  background: #fff7ed !important;
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+}
+
 /* 其他連續項目不整格反色，只顯示細條 */
 .week-day-cell.has-continuation-mark,
 .field-week-day-cell.has-continuation-mark,
 .month-day-cell.has-continuation-mark,
 .meeting-week-day-cell.has-continuation-mark {
+  cursor: pointer;
+}
+
+.week-day-cell.has-continuation-mark:not(.is-holiday),
+.field-week-day-cell.has-continuation-mark:not(.is-holiday),
+.month-day-cell.has-continuation-mark:not(.is-holiday),
+.meeting-week-day-cell.has-continuation-mark:not(.is-holiday) {
   background: inherit !important;
   box-shadow: none !important;
-  cursor: pointer;
 }
 
 .week-day-cell.has-continuation-mark:hover,
@@ -13943,4 +13983,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-156 END - vehicle period supervisor color */
+/* FOR-e V002-1P-157 END - holiday stats cleanup */

@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-156'
+const SYSTEM_VERSION = 'V002-1P-157'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -6332,11 +6332,12 @@ function getStatsDateRange() {
 function isStatsExcludedSchedule(row) {
   if (!row) return true
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return true
+  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return true
 
-  const excludedCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const excludedCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
   if (excludedCategories.includes(row.category)) return true
 
-  const excludedTypes = ['一般記事', '待辦事項', '請假', '會議', '活動', '外訓', '返鄉', '證件交付']
+  const excludedTypes = ['一般記事', '待辦事項', '請假', '會議', '活動', '外訓', '返鄉', '證件交付', '公務車保養']
   if (excludedTypes.includes(row.schedule_type) || excludedTypes.includes(row.sub_type)) return true
 
   return false
@@ -19119,14 +19120,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-156 START - vehicle period supervisor color */
+/* FOR-e V002-1P-157 START - holiday stats cleanup */
 /*
-  V002-1P-156｜公務車保養期間顯示、主管職務清單與色碼調整
-  - 公務車保養起訖日期間都會出現在行程表上
-  - 舊資料即使沒有連續日期備註，也會依 start_date / end_date 顯示整段保養期間
-  - 新增公務車保養時會寫入正確的單日 / 連續日期模式
-  - 通知主管下拉改為包含職務：營運經理、經理、副理、主任、主管、副主任、組長、總經理、副總經理、協理、執行長、秘書
-  - 公務車保養色碼改為 #EBD6FB
-  - 公務車保養連續延續細條背景改為比 #EBD6FB 更淡
+  V002-1P-157｜節日背景固定與公務車保養統計排除
+  - 節日 / 假日日期格背景固定，不會被行程顏色覆蓋
+  - 外務行事曆假日維持淡橘色
+  - 行程總覽 / 會議室 / 個人月曆假日維持原本節日藍色
+  - 公務車保養不列入統計報表項目
 */
-/* FOR-e V002-1P-156 END - vehicle period supervisor color */
+/* FOR-e V002-1P-157 END - holiday stats cleanup */
