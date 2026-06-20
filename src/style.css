@@ -13731,8 +13731,13 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-161 START - restore continuation search service form */
-/* V002-1P-161｜恢復搜尋、連續細條、通知待辦與服務行程共同欄 */
+/* FOR-e V002-1P-168 START - cleanup old override blocks */
+/*
+  V002-1P-168｜清理舊覆蓋區塊
+  - 已將 V161 / V164 / V165 / V167 的有效樣式合併成單一區塊
+  - 移除舊版本標記，避免後續 CSS 互相覆蓋造成跑版
+  - 保留目前功能：搜尋欄、LINE 下拉、異況粉色系、節日背景、外務 / 會議室修正、公務車保養樣式
+*/
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -14019,10 +14024,7 @@ label.is-filter-hidden {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-161 END - restore continuation search service form */
 
-/* FOR-e V002-1P-164 START - line dropdown incident pink stats */
-/* V002-1P-164｜LINE 下拉選項與異況追蹤粉色系 */
 .line-select-card {
   border: 1px solid #dbe3f0;
   border-radius: 18px;
@@ -14296,10 +14298,6 @@ label.is-filter-hidden {
     max-height: 300px;
   }
 }
-/* FOR-e V002-1P-164 END - line dropdown incident pink stats */
-
-/* FOR-e V002-1P-165 START - incident line ui polish */
-/* V002-1P-165｜異況日期、完成按鈕與 LINE 勾選列微調 */
 
 /* 圖一：異況追蹤左側日期不需要底色 */
 .incident-row .incident-date {
@@ -14412,10 +14410,6 @@ label.is-filter-hidden {
   text-align: left !important;
   max-width: 100% !important;
 }
-/* FOR-e V002-1P-165 END - incident line ui polish */
-
-/* FOR-e V002-1P-167 START - line no qr calendar fix */
-/* V002-1P-167｜會議室假日與外務今日框線修正 */
 
 /* 會議室假日恢復會議室原本棕米色，不受後續節日藍色覆蓋 */
 .meeting-week-table thead th.is-holiday,
@@ -14480,4 +14474,95 @@ label.is-filter-hidden {
 #openLineShareBtn {
   white-space: nowrap;
 }
-/* FOR-e V002-1P-167 END - line no qr calendar fix */
+/* FOR-e V002-1P-168 END - cleanup old override blocks */
+
+/* FOR-e V002-1P-169 START - overview custom proxy field badge */
+/* V002-1P-169｜自訂人選群組、外務徽章與外務假日格線 */
+
+/* 行程總覽自訂群組：收合顯示，不影響原本篩選列 */
+.overview-custom-group-panel {
+  margin: 8px 0 0;
+  border: 1px solid #dbe7ff;
+  border-radius: 14px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.overview-custom-group-panel summary {
+  min-height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  color: #3155d4;
+  font-weight: 950;
+}
+
+.overview-custom-group-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.overview-custom-group-panel summary span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.overview-custom-group-panel summary strong {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.overview-custom-group-panel .overview-custom-group-checks {
+  border-top: 1px solid #dbe7ff;
+  padding: 8px;
+  background: #ffffff;
+  max-height: 260px;
+  overflow: auto;
+}
+
+/* 外務人員姓名旁「外」標記 */
+.field-worker-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #F48F68;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+/* 外務假日非當日：恢復灰色格線，不要橘色框 */
+.field-week-day-cell.is-holiday:not(.is-today),
+.field-personal-month-calendar .month-day-cell.is-holiday:not(.is-today),
+.field-week-table thead th.is-holiday:not(.is-today) {
+  border-color: #dbe3f0 !important;
+  box-shadow: none !important;
+}
+
+/* 外務當日維持橘色框線 */
+.field-week-day-cell.is-today,
+.field-personal-month-calendar .month-day-cell.is-today,
+.field-week-table thead th.is-today {
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 2px #FAAB78 !important;
+}
+
+.field-week-day-cell.is-today.is-holiday,
+.field-personal-month-calendar .month-day-cell.is-today.is-holiday,
+.field-week-table thead th.is-today.is-holiday {
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 2px #FAAB78 !important;
+}
+/* FOR-e V002-1P-169 END - overview custom proxy field badge */

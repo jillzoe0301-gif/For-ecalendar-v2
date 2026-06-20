@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-167'
+const SYSTEM_VERSION = 'V002-1P-169'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -405,6 +405,7 @@ let overviewFilters = {
   viewMode: '全部行程',
   departments: [],
   staffIds: [],
+  customStaffIds: [],
   sortBy: 'display_order',
   sortDir: 'asc'
 }
@@ -2780,6 +2781,7 @@ function renderApp() {
         viewMode: form.get('viewMode') || '全部行程',
         departments: form.getAll('departments'),
         staffIds: form.getAll('staffIds'),
+        customStaffIds: form.getAll('customStaffIds'),
         sortBy: form.get('sortBy') || 'display_order',
         sortDir: form.get('sortDir') || 'asc'
       })
@@ -4064,6 +4066,12 @@ function isStaffFieldWorker(staff) {
   }
   return isDefaultFieldStaff(staff)
 }
+
+
+function renderFieldWorkerBadge(staff = {}) {
+  return isStaffFieldWorker(staff) ? '<span class="field-worker-badge" title="外務人員">外</span>' : ''
+}
+
 
 function setStaffFieldWorker(staffId, checked) {
   const settings = getFieldStaffSettings()
@@ -11198,7 +11206,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
   return `
     <div class="personal-month-calendar">
       <div class="personal-month-calendar-title">
-        <strong>${escapeHtml(staff.name || '-')}</strong>
+        <strong>${escapeHtml(staff.name || '-')}${renderFieldWorkerBadge(staff)}</strong>
         <span>${escapeHtml(monthKey)}</span>
       </div>
       <div class="personal-month-calendar-head">
@@ -11263,7 +11271,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
             return `
               <tr>
                 <th class="staff-name-cell">
-                  <strong>${escapeHtml(staff.name)}</strong>
+                  <strong>${escapeHtml(staff.name)}${renderFieldWorkerBadge(staff)}</strong>
                   <span>${escapeHtml(staff.department_name || '')}</span>
                 </th>
                 ${monthDates.map(date => {
@@ -11319,7 +11327,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
             return `
               <tr>
                 <th class="staff-name-cell">
-                  <strong>${escapeHtml(staff.name)}</strong>
+                  <strong>${escapeHtml(staff.name)}${renderFieldWorkerBadge(staff)}</strong>
                   <span>${escapeHtml(staff.department_name || '')}</span>
                 </th>
                 ${weekDates.map(date => {
@@ -11675,7 +11683,7 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
   return `
     <div class="personal-month-calendar field-personal-month-calendar">
       <div class="personal-month-calendar-title">
-        <strong>${escapeHtml(staff.name || '-')}</strong>
+        <strong>${escapeHtml(staff.name || '-')}${renderFieldWorkerBadge(staff)}</strong>
         <span>${escapeHtml(monthKey)}</span>
       </div>
       <div class="personal-month-calendar-head">
@@ -11737,7 +11745,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
             return `
               <tr>
                 <th class="field-staff-name-cell">
-                  <strong>${escapeHtml(staff.name)}</strong>
+                  <strong>${escapeHtml(staff.name)}${renderFieldWorkerBadge(staff)}</strong>
                   <span>${escapeHtml(staff.department_name || '')}</span>
                 </th>
                 ${monthDates.map(date => {
@@ -11792,7 +11800,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
             return `
               <tr>
                 <th class="field-staff-name-cell">
-                  <strong>${escapeHtml(staff.name)}</strong>
+                  <strong>${escapeHtml(staff.name)}${renderFieldWorkerBadge(staff)}</strong>
                   <span>${escapeHtml(staff.department_name || '')}</span>
                 </th>
                 ${dates.map(date => {
@@ -11996,6 +12004,7 @@ function normalizeOverviewFilters(value = {}) {
     viewMode,
     departments: normalizeOverviewFilterList(value.departments || value.department),
     staffIds: normalizeOverviewFilterList(value.staffIds || value.staffId),
+    customStaffIds: normalizeOverviewFilterList(value.customStaffIds || value.customStaffId),
     sortBy,
     sortDir
   }
@@ -12098,13 +12107,18 @@ function getOverviewFilterSummary() {
 
   const departments = normalizeOverviewFilterList(overviewFilters.departments)
   const staffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+  const customStaffIds = normalizeOverviewFilterList(overviewFilters.customStaffIds)
   const staffNames = staffIds
+    .map(staffId => staffList.find(staff => staff.staff_id === staffId)?.name)
+    .filter(Boolean)
+  const customNames = customStaffIds
     .map(staffId => staffList.find(staff => staff.staff_id === staffId)?.name)
     .filter(Boolean)
 
   const deptText = departments.length ? departments.join('、') : '全部部門'
   const staffText = staffNames.length ? staffNames.join('、') : '全部人員'
-  return `${viewMode}｜${deptText}｜${staffText}`
+  const customText = customNames.length ? `｜自訂：${customNames.join('、')}` : ''
+  return `${viewMode}｜${deptText}｜${staffText}${customText}`
 }
 
 function renderCompactCheckOption(name, value, checked, inputName) {
@@ -12223,13 +12237,38 @@ function getOverviewStaffCheckboxes() {
 }
 
 
+function isOverviewCustomStaffSelected(staffId) {
+  return normalizeOverviewFilterList(overviewFilters.customStaffIds).includes(staffId)
+}
+
+function getOverviewCustomStaffSelectedText() {
+  return getCompactSelectedCountText(normalizeOverviewFilterList(overviewFilters.customStaffIds))
+}
+
+function getOverviewCustomStaffCheckboxes() {
+  const rows = getOverviewBaseStaffRows()
+  if (!rows.length) return `<div class="compact-check-empty">沒有可選人員</div>`
+
+  return rows.map(staff => renderCompactCheckOption(
+    `${staff.name || '-'}｜${staff.department_name || ''}`,
+    staff.staff_id,
+    isOverviewCustomStaffSelected(staff.staff_id),
+    'customStaffIds'
+  )).join('')
+}
+
+
+
 
 
 
 function getOverviewStaffRows() {
   let rows = getOverviewBaseStaffRows()
   const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
-  const selectedStaffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
+  const selectedStaffIds = [
+    ...normalizeOverviewFilterList(overviewFilters.staffIds),
+    ...normalizeOverviewFilterList(overviewFilters.customStaffIds)
+  ].filter((value, index, list) => list.indexOf(value) === index)
 
   if (selectedDepartments.length) {
     rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
@@ -12371,6 +12410,16 @@ function renderScheduleOverview() {
         <button type="submit" class="primary-btn overview-apply-btn">套用</button>
         <button type="button" class="secondary-btn overview-reset-btn-small" id="resetOverviewFilterBtn">全部</button>
       </div>
+
+      <details class="overview-custom-group-panel ${viewMode.startsWith('個人') ? 'is-disabled-filter' : ''}">
+        <summary>
+          <span>自訂行事曆人選｜${escapeHtml(getOverviewCustomStaffSelectedText())}</span>
+          <strong>展開選擇</strong>
+        </summary>
+        <div class="compact-check-panel overview-custom-group-checks">
+          ${getOverviewCustomStaffCheckboxes()}
+        </div>
+      </details>
 
       <div class="overview-filter-summary compact-summary">
         目前：${escapeHtml(getOverviewFilterSummary())}
@@ -17024,6 +17073,7 @@ function openEditScheduleModal(scheduleId) {
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
   const editTodoOptions = optionHtml(managedTodoItemsForEdit, currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
+  const editProxyStaffId = getStaffIdByDisplayName(getNoteValue(row, '代理人'))
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
   const editDeliveryChecks = checkedOptionsHtml(deliveryDocumentItems, editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
@@ -17231,6 +17281,13 @@ function openEditScheduleModal(scheduleId) {
             類別細項
             <select name="edit_leave_meeting_type">
               ${editLeaveOptions}
+            </select>
+          </label>
+
+          <label>
+            代理人
+            <select name="edit_proxy_staff_id">
+              ${staffSelectOptionsHtmlSelected(editProxyStaffId)}
             </select>
           </label>
         </div>
@@ -17544,9 +17601,11 @@ async function saveEditedSchedule(event, modal, originalRow) {
     editScheduleType = form.get('edit_leave_meeting_type') || '請假'
     editSubType = editScheduleType
     const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
+    const editProxyName = getStaffNameFromSelect('edit_proxy_staff_id')
     editSubTypeNote = appendNotifySupervisorNote([
       buildRepeatNote(form),
-      selectedDepartments.length ? `指派部門：${selectedDepartments.join('、')}` : ''
+      selectedDepartments.length ? `指派部門：${selectedDepartments.join('、')}` : '',
+      editProxyName ? `代理人：${editProxyName}` : ''
     ].filter(Boolean), editNotifySupervisorName).join('｜') || null
   }
 
@@ -19709,25 +19768,22 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-161 END - restore continuation search service form */
 
-/* FOR-e V002-1P-164 START - line dropdown incident pink stats */
+/* FOR-e V002-1P-168 START - cleanup old override blocks */
 /*
-  V002-1P-164｜LINE 下拉選項、LINE App 啟動、異況粉色系與多人統計
-  - LINE 通知類型「全部禁行通知」改為「全部通知」
-  - LINE 選擇行程改為下拉點選，勾選框與文字同一排靠左
-  - 啟動 LINE 程式不再自動開啟網頁或 LINE 首頁
-  - 異況追蹤、異況通知行政、異況追蹤列表統一改為 #FF62BB / #FFCEE3 / #FF85BB 粉紅色系
-  - 統計報表改為依執行者展開：同一行程有多位執行者時，每位執行者各計一筆
-  - 修改服務行程後，會補建立缺少的個別服務紀錄單
+  V002-1P-168｜清理舊覆蓋區塊
+  - 移除近期已被後續版本覆蓋的說明區塊
+  - 不刪除實際功能函式，只清除舊版殘留標記
+  - 更新檔內只保留 src/main.js、src/style.css、public/icons/cake.png
 */
-/* FOR-e V002-1P-164 END - line dropdown incident pink stats */
+/* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-167 START - line no qr calendar fix */
+/* FOR-e V002-1P-169 START - overview custom proxy field badge */
 /*
-  V002-1P-167｜LINE 取消 QR、會議室假日與外務當日框線修正
-  - LINE 啟動不再使用訊息文字 URI，避免桌機產生 QR Code 與中文問號
-  - 手機優先使用系統分享，桌機先複製文字再開 LINE 聊天列表
-  - 會議室假日背景恢復為會議室棕米色系
-  - 外務行程今日框線厚度改與其他行事曆一致
-  - 外務行程非當日欄位不再出現今日框線
+  V002-1P-169｜返鄉代理人、自訂人選群組與外務標記
+  - 返鄉 / 請假 / 會議 / 活動 / 外訓修改表單新增代理人欄位，並保留原本代理人
+  - 行程總覽新增「自訂行事曆人選」收合群組，不影響原本篩選列版面
+  - 自訂人選會與原本部門、人員、排序條件一起套用
+  - 外務行事曆假日非當日恢復灰色格線；當日維持橘色框線
+  - 外務人員姓名旁新增「外」提示
 */
-/* FOR-e V002-1P-167 END - line no qr calendar fix */
+/* FOR-e V002-1P-169 END - overview custom proxy field badge */
