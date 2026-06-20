@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-165'
+const SYSTEM_VERSION = 'V002-1P-166'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7917,11 +7917,18 @@ function openLineAppOrShare(text = '') {
     console.warn('LINE 訊息複製失敗，仍嘗試開啟 LINE。', err)
   }
 
+  // 使用 LINE 官方 App URI 的 query 格式，避免 path 格式在部分裝置出現中文變問號。
+  // 不使用任何網頁 fallback，避免出現 QR Code 或 LINE 首頁。
   const encoded = encodeURIComponent(message)
-  const lineAppUrl = `line://msg/text/${encoded}`
+  const lineAppUrl = `line://msg/text/?${encoded}`
 
-  // 只啟動 LINE App，不再自動開網頁分享，避免進入 LINE 首頁。
-  window.location.href = lineAppUrl
+  const link = document.createElement('a')
+  link.href = lineAppUrl
+  link.rel = 'noopener'
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 
@@ -7966,7 +7973,7 @@ function renderLineNotificationPage() {
     </div>
 
     <div class="notice">
-      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或直接啟動 LINE 程式傳送。
+      目前是「手動產生訊息」版本：確認內容後可複製文字，或直接啟動 LINE 程式並選擇通知對象；不再產生 QR Code。
     </div>
 
     <form id="lineNotifyForm" class="line-notify-panel">
@@ -7990,11 +7997,11 @@ function renderLineNotificationPage() {
       <div class="line-message-head">
         <div>
           <strong>LINE 訊息內容</strong>
-          <span>本次會送出 ${selectedRows.length} 筆；可複製或啟動 LINE 程式。</span>
+          <span>本次會送出 ${selectedRows.length} 筆；可複製或啟動 LINE 程式選擇通知對象。</span>
         </div>
         <div class="line-message-actions">
           <button type="button" class="secondary-btn" id="copyLineMessageBtn">複製文字</button>
-          <button type="button" class="primary-btn" id="openLineShareBtn">啟動 LINE 程式</button>
+          <button type="button" class="primary-btn" id="openLineShareBtn">啟動 LINE 並選擇人員</button>
         </div>
       </div>
 
@@ -19703,12 +19710,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-164 END - line dropdown incident pink stats */
 
-/* FOR-e V002-1P-165 START - incident line ui polish */
+/* FOR-e V002-1P-166 START - line app uri utf8 */
 /*
-  V002-1P-165｜異況日期、完成按鈕與 LINE 勾選列微調
-  - 異況追蹤左側日期區移除底色
-  - 異況追蹤「已完成」按鈕恢復藍色
-  - 異況追蹤篩選列調整為比 #FFD3D5 更淡的粉色
-  - LINE 下拉選單勾選框固定在最左邊，與文字同一排，大小與文字一致
+  V002-1P-166｜LINE App URI 中文與 QR Code 修正
+  - LINE 啟動改用 line://msg/text/?<encoded text> query 格式
+  - 修正 LINE 貼上訊息變成問號的問題
+  - 不再使用網頁分享 fallback，避免出現 QR Code 或 LINE 首頁
+  - 按鈕文案改為啟動 LINE 並選擇人員
 */
-/* FOR-e V002-1P-165 END - incident line ui polish */
+/* FOR-e V002-1P-166 END - line app uri utf8 */

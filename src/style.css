@@ -14413,3 +14413,14 @@ label.is-filter-hidden {
   max-width: 100% !important;
 }
 /* FOR-e V002-1P-165 END - incident line ui polish */
+
+/* FOR-e V002-1P-166 START - line app uri utf8 */
+/* V002-1P-166｜LINE 啟動提示 */
+.line-message-head span {
+  color: #64748b;
+}
+
+#openLineShareBtn {
+  white-space: nowrap;
+}
+/* FOR-e V002-1P-166 END - line app uri utf8 */
