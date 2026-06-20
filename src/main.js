@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-161'
+const SYSTEM_VERSION = 'V002-1P-162'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -457,7 +457,8 @@ let auditFilters = {
 
 let lineNotifyState = {
   type: '今日行程',
-  target: '自己'
+  target: '自己',
+  selectedIds: []
 }
 
 let serviceRecords = []
@@ -3133,10 +3134,42 @@ function renderApp() {
     lineNotifyForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
+      const nextType = form.get('type') || '今日行程'
+      const nextTarget = form.get('target') || '自己'
+      const keepSelected = nextType === lineNotifyState.type && nextTarget === lineNotifyState.target
       lineNotifyState = {
-        type: form.get('type') || '今日行程',
-        target: form.get('target') || '自己'
+        type: nextType,
+        target: nextTarget,
+        selectedIds: keepSelected ? (lineNotifyState.selectedIds || []) : []
       }
+      renderApp()
+    })
+  }
+
+  document.querySelectorAll('[data-line-select-row]').forEach(input => {
+    input.addEventListener('change', () => {
+      const checkedIds = [...document.querySelectorAll('[data-line-select-row]:checked')].map(item => item.value)
+      const allIds = [...document.querySelectorAll('[data-line-select-row]')].map(item => item.value)
+      lineNotifyState = {
+        ...lineNotifyState,
+        selectedIds: checkedIds.length === allIds.length ? [] : checkedIds
+      }
+      renderApp()
+    })
+  })
+
+  const selectAllLineRowsBtn = document.querySelector('#selectAllLineRowsBtn')
+  if (selectAllLineRowsBtn) {
+    selectAllLineRowsBtn.addEventListener('click', () => {
+      lineNotifyState = { ...lineNotifyState, selectedIds: [] }
+      renderApp()
+    })
+  }
+
+  const clearLineRowsBtn = document.querySelector('#clearLineRowsBtn')
+  if (clearLineRowsBtn) {
+    clearLineRowsBtn.addEventListener('click', () => {
+      lineNotifyState = { ...lineNotifyState, selectedIds: ['__none__'] }
       renderApp()
     })
   }
@@ -3164,11 +3197,7 @@ function renderApp() {
   if (openLineShareBtn) {
     openLineShareBtn.addEventListener('click', () => {
       const text = document.querySelector('#lineMessageText')?.value || ''
-      if (!text.trim()) {
-        alert('目前沒有可分享的 LINE 訊息。')
-        return
-      }
-      window.open(`https://line.me/R/share?text=${encodeURIComponent(text)}`, '_blank')
+      openLineAppOrShare(text)
     })
   }
 
@@ -7631,7 +7660,7 @@ function renderColorPreviewCard(item, color) {
 */
 
 function getLineNotifyTypeOptions() {
-  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室']
+  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室', '全部禁行通知']
   return types.map(type => `<option value="${escapeHtml(type)}" ${lineNotifyState.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
 }
 
@@ -7701,7 +7730,7 @@ function getLineNotifyBaseRows() {
 
 function getLineNotifyRows() {
   const today = todayString()
-  const rows = getLineNotifyBaseRows()
+  const rows = uniqueScheduleRows(getLineNotifyBaseRows())
 
   if (lineNotifyState.type === '今日行程') {
     return rows
@@ -7734,6 +7763,13 @@ function getLineNotifyRows() {
       .filter(row => isMeetingRoomSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+  }
+
+  if (lineNotifyState.type === '全部禁行通知') {
+    return rows
+      .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+      .filter(row => !row.start_date || row.start_date >= today)
+      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
   }
 
   return []
@@ -7771,16 +7807,93 @@ function buildLineNotifyMessage(rows) {
   ].join('\n')
 }
 
+
+function getLineNotifySelectedIdSet(rows = getLineNotifyRows()) {
+  const availableIds = new Set(rows.map(row => row.schedule_id).filter(Boolean))
+  return new Set((lineNotifyState.selectedIds || []).filter(id => availableIds.has(id)))
+}
+
+function getLineNotifyFinalRows(rows = getLineNotifyRows()) {
+  const rawSelected = lineNotifyState.selectedIds || []
+  if (rawSelected.includes('__none__')) return []
+  const selected = getLineNotifySelectedIdSet(rows)
+  if (!selected.size) return rows
+  return rows.filter(row => selected.has(row.schedule_id))
+}
+
+function renderLineNotifySchedulePicker(rows = []) {
+  if (!rows.length) return '<div class="empty-state">目前沒有可選擇的 LINE 通知行程。</div>'
+
+  const selected = getLineNotifySelectedIdSet(rows)
+  const useAll = !selected.size
+
+  return `
+    <section class="line-select-card">
+      <div class="line-select-head">
+        <div>
+          <strong>選擇要通知的行程</strong>
+          <span>${useAll ? '目前會通知清單內全部行程。勾選後只通知已選行程。' : `已選 ${selected.size} 筆，只通知已選行程。`}</span>
+        </div>
+        <div class="line-select-actions">
+          <button type="button" class="secondary-btn" id="selectAllLineRowsBtn">全選</button>
+          <button type="button" class="secondary-btn" id="clearLineRowsBtn">清除選取</button>
+        </div>
+      </div>
+
+      <div class="line-select-list">
+        ${rows.map(row => {
+          const checked = useAll || selected.has(row.schedule_id)
+          return `
+            <label class="line-select-row">
+              <input type="checkbox" data-line-select-row value="${escapeHtml(row.schedule_id)}" ${checked ? 'checked' : ''}>
+              <span>
+                <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
+                <small>${escapeHtml(row.start_date || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
+              </span>
+            </label>
+          `
+        }).join('')}
+      </div>
+    </section>
+  `
+}
+
+function openLineAppOrShare(text = '') {
+  const message = String(text || '').trim()
+  if (!message) {
+    alert('目前沒有可分享的 LINE 訊息。')
+    return
+  }
+
+  try {
+    navigator.clipboard?.writeText(message)
+  } catch (err) {
+    console.warn('LINE 訊息複製失敗，仍嘗試開啟 LINE。', err)
+  }
+
+  const encoded = encodeURIComponent(message)
+  const lineAppUrl = `line://msg/text/${encoded}`
+  const webShareUrl = `https://line.me/R/share?text=${encoded}`
+
+  window.location.href = lineAppUrl
+
+  window.setTimeout(() => {
+    window.open(webShareUrl, '_blank')
+  }, 900)
+}
+
+
 function renderLineNotifySummary(rows) {
-  const overdueCount = rows.filter(isOverdueSchedule).length
+  const selectedRows = getLineNotifyFinalRows(rows)
+  const overdueCount = selectedRows.filter(isOverdueSchedule).length
   const today = todayString()
-  const todayCount = rows.filter(row => scheduleMatchesDateByMode(row, today)).length
+  const todayCount = selectedRows.filter(row => scheduleMatchesDateByMode(row, today)).length
 
   return `
     <div class="summary-grid line-summary-grid">
       <div class="summary-card">
-        <strong>${rows.length}</strong>
-        <span>通知筆數</span>
+        <strong>${selectedRows.length}</strong>
+        <span>本次通知筆數</span>
       </div>
       <div class="summary-card">
         <strong>${todayCount}</strong>
@@ -7796,13 +7909,14 @@ function renderLineNotifySummary(rows) {
 
 function renderLineNotificationPage() {
   const rows = getLineNotifyRows()
-  const message = buildLineNotifyMessage(rows)
+  const selectedRows = getLineNotifyFinalRows(rows)
+  const message = buildLineNotifyMessage(selectedRows)
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>LINE 通知</h3>
-        <p class="muted">先產生可複製的 LINE 文字。正式自動推播可在下一階段串 Webhook / LINE Messaging API。</p>
+        <p class="muted">可選擇要通知的行程，或選「全部禁行通知」產生禁行通知清單。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -7810,7 +7924,7 @@ function renderLineNotificationPage() {
     </div>
 
     <div class="notice">
-      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或用 LINE 分享開啟。
+      目前是「手動產生訊息」版本：確認內容後可複製貼到 LINE，或直接啟動 LINE 程式分享。
     </div>
 
     <form id="lineNotifyForm" class="line-notify-panel">
@@ -7824,20 +7938,21 @@ function renderLineNotificationPage() {
         <select name="target">${getLineNotifyTargetOptions()}</select>
       </label>
 
-      <button type="submit" class="primary-btn">產生訊息</button>
+      <button type="submit" class="primary-btn">套用篩選</button>
     </form>
 
+    ${renderLineNotifySchedulePicker(rows)}
     ${renderLineNotifySummary(rows)}
 
     <section class="line-message-card">
       <div class="line-message-head">
         <div>
           <strong>LINE 訊息內容</strong>
-          <span>可直接複製貼到 LINE 群組或個人聊天室</span>
+          <span>本次會送出 ${selectedRows.length} 筆；可複製或啟動 LINE 程式。</span>
         </div>
         <div class="line-message-actions">
           <button type="button" class="secondary-btn" id="copyLineMessageBtn">複製文字</button>
-          <button type="button" class="primary-btn" id="openLineShareBtn">LINE 分享</button>
+          <button type="button" class="primary-btn" id="openLineShareBtn">啟動 LINE 程式</button>
         </div>
       </div>
 
@@ -7846,10 +7961,10 @@ function renderLineNotificationPage() {
 
     <section class="line-preview-list">
       <div class="section-title-row">
-        <h4>通知資料預覽</h4>
-        <span>${rows.length} 筆</span>
+        <h4>本次通知資料預覽</h4>
+        <span>${selectedRows.length} / ${rows.length} 筆</span>
       </div>
-      ${renderScheduleList(rows, '目前沒有符合條件的通知資料。', true)}
+      ${renderScheduleList(selectedRows, '目前沒有符合條件的通知資料。', true)}
     </section>
   `
 }
@@ -19492,3 +19607,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 重新整合 V157 / V159 相關樣式，避免後續舊 CSS 覆蓋
 */
 /* FOR-e V002-1P-161 END - restore continuation search service form */
+
+/* FOR-e V002-1P-162 START - line selection incident pink */
+/*
+  V002-1P-162｜LINE 選擇通知與異況通知粉紅系
+  - LINE 通知可選擇個別行程；未勾選時通知清單全部行程
+  - 新增「全部禁行通知」通知類型，列出外務日 / 請勿安排其他行程提醒
+  - LINE 按鈕改為優先啟動 LINE 程式 line://，並保留網頁分享備援
+  - 異況通知行政介面改為紅色 / 粉色系
+*/
+/* FOR-e V002-1P-162 END - line selection incident pink */
