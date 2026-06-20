@@ -14476,93 +14476,67 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-169 START - overview custom proxy field badge */
-/* V002-1P-169｜自訂人選群組、外務徽章與外務假日格線 */
+/* FOR-e V002-1P-170 START - remove custom group field badge proxy */
+/* V002-1P-170｜移除自訂行事曆人選後的外務徽章與假日框線 */
 
-/* 行程總覽自訂群組：收合顯示，不影響原本篩選列 */
-.overview-custom-group-panel {
-  margin: 8px 0 0;
-  border: 1px solid #dbe7ff;
-  border-radius: 14px;
-  background: #f8fbff;
-  overflow: hidden;
+/* 外務人員「外」：與連續休假「休」字同樣的圓形提示狀態 */
+.calendar-staff-name-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  min-width: 0 !important;
+  vertical-align: middle;
 }
 
-.overview-custom-group-panel summary {
-  min-height: 38px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  cursor: pointer;
-  list-style: none;
-  color: #3155d4;
-  font-weight: 950;
-}
-
-.overview-custom-group-panel summary::-webkit-details-marker {
-  display: none;
-}
-
-.overview-custom-group-panel summary span {
+.calendar-staff-name-text {
   min-width: 0;
   overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.overview-custom-group-panel summary strong {
-  flex: 0 0 auto;
-  font-size: 12px;
-}
-
-.overview-custom-group-panel .overview-custom-group-checks {
-  border-top: 1px solid #dbe7ff;
-  padding: 8px;
-  background: #ffffff;
-  max-height: 260px;
-  overflow: auto;
-}
-
-/* 外務人員姓名旁「外」標記 */
 .field-worker-badge {
-  display: inline-flex;
+  flex: 0 0 auto;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  min-width: 22px;
   width: 22px;
   height: 22px;
-  margin-left: 6px;
   border-radius: 999px;
-  background: #F48F68;
-  color: #111827;
+  background: #BFDDF0;
+  color: #0f172a;
   font-size: 12px;
   font-weight: 950;
   line-height: 1;
-  vertical-align: middle;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #BFDDF0 45%, #ffffff);
 }
 
-/* 外務假日非當日：恢復灰色格線，不要橘色框 */
+/* 避免舊的自訂行事曆群組殘留影響篩選列 */
+.overview-custom-group-panel {
+  display: none !important;
+}
+
+/* 外務假日非當日恢復灰色框線；當日維持橘色框線 */
+.field-week-table thead th.is-holiday:not(.is-today),
 .field-week-day-cell.is-holiday:not(.is-today),
-.field-personal-month-calendar .month-day-cell.is-holiday:not(.is-today),
-.field-week-table thead th.is-holiday:not(.is-today) {
+.field-personal-month-calendar .month-day-cell.is-holiday:not(.is-today) {
   border-color: #dbe3f0 !important;
-  box-shadow: none !important;
+  box-shadow: inset 0 0 0 1px #dbe3f0 !important;
 }
 
-/* 外務當日維持橘色框線 */
+.field-week-table thead th.is-today,
 .field-week-day-cell.is-today,
-.field-personal-month-calendar .month-day-cell.is-today,
-.field-week-table thead th.is-today {
+.field-personal-month-calendar .month-day-cell.is-today {
   border-color: #FAAB78 !important;
   box-shadow: inset 0 0 0 2px #FAAB78 !important;
 }
 
+.field-week-table thead th.is-today.is-holiday,
 .field-week-day-cell.is-today.is-holiday,
-.field-personal-month-calendar .month-day-cell.is-today.is-holiday,
-.field-week-table thead th.is-today.is-holiday {
+.field-personal-month-calendar .month-day-cell.is-today.is-holiday {
   border-color: #FAAB78 !important;
   box-shadow: inset 0 0 0 2px #FAAB78 !important;
 }
-/* FOR-e V002-1P-169 END - overview custom proxy field badge */
+/* FOR-e V002-1P-170 END - remove custom group field badge proxy */
