@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-153 START - vehicle maintenance fix */
-/* V002-1P-153｜公務車保養、外務日背景與搜尋樣式 */
+/* FOR-e V002-1P-154 START - background supervisor end unspecified */
+/* V002-1P-154｜搜尋、公務車保養、外務背景與延續標記 */
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -13766,6 +13766,7 @@ body {
 #scheduleForm[data-current-category="公務車保養"] .schedule-date-cycle-group,
 #scheduleForm[data-current-category="公務車保養"] .schedule-time-group,
 #scheduleForm[data-current-category="公務車保養"] [data-section="common-simple"],
+#scheduleForm[data-current-category="公務車保養"] .notify-supervisor-field,
 #editScheduleForm[data-current-category="公務車保養"] #editServiceBlock,
 #editScheduleForm[data-current-category="公務車保養"] #editServiceLocationBlock,
 #editScheduleForm[data-current-category="公務車保養"] .edit-schedule-mode-box,
@@ -13774,7 +13775,8 @@ body {
 #editScheduleForm[data-current-category="公務車保養"] .edit-common-title-field,
 #editScheduleForm[data-current-category="公務車保養"] .edit-common-description-field,
 #editScheduleForm[data-current-category="公務車保養"] .edit-note-field,
-#editScheduleForm[data-current-category="公務車保養"] .edit-assignee-box {
+#editScheduleForm[data-current-category="公務車保養"] .edit-assignee-box,
+#editScheduleForm[data-current-category="公務車保養"] .edit-notify-supervisor-field {
   display: none !important;
 }
 
@@ -13813,22 +13815,15 @@ body {
   display: none !important;
 }
 
-/* 外務日提醒：卡片與日期格都用 #F48F68 系列 */
-.week-schedule-card[style*="#F48F68"],
-.field-week-schedule-card[style*="#F48F68"],
-.schedule-card[style*="#F48F68"] {
-  border-color: #F48F68 !important;
-}
-
+/* 只有請假 / 休假 / 返鄉 / 外務會整格反色 */
 .week-day-cell.is-field-day,
 .field-week-day-cell.is-field-day,
 .month-day-cell.is-field-day {
-  background: color-mix(in srgb, #F48F68 14%, #ffffff) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, #F48F68 44%, #ffffff) !important;
+  background: color-mix(in srgb, var(--day-accent, #F48F68) 14%, #ffffff) !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--day-accent, #F48F68) 44%, #ffffff) !important;
   cursor: pointer;
 }
 
-/* 請假 / 休假 / 返鄉：包含連續日期的每一天，都整格反背景色 */
 .week-day-cell.is-leave-day,
 .field-week-day-cell.is-leave-day,
 .month-day-cell.is-leave-day,
@@ -13846,7 +13841,7 @@ body {
   background: color-mix(in srgb, var(--day-accent, #9B8EC7) 18%, #ffffff) !important;
 }
 
-/* 一般連續行程延續日：不整格反色，只顯示細條 */
+/* 其他連續項目不整格反色，只顯示細條 */
 .week-day-cell.has-continuation-mark,
 .field-week-day-cell.has-continuation-mark,
 .month-day-cell.has-continuation-mark,
@@ -13937,4 +13932,4 @@ body {
     background: #ffffff !important;
   }
 }
-/* FOR-e V002-1P-153 END - vehicle maintenance fix */
+/* FOR-e V002-1P-154 END - background supervisor end unspecified */

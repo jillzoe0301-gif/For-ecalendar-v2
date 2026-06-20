@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-153'
+const SYSTEM_VERSION = 'V002-1P-154'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -4530,16 +4530,9 @@ function getDepartmentSupervisorStaffIds(departmentId = '', departmentName = '')
 
 function getVehicleMaintenanceNotifyStaffIds(form, fieldName = 'maintenance_notify_staff') {
   const notifyStaffId = String(form.get(fieldName) || '').trim()
-  const notifyStaff = staffList.find(staff => staff.staff_id === notifyStaffId)
-  const departmentId = notifyStaff?.department_id || currentProfile?.department_id || ''
-  const departmentName = notifyStaff?.department_name || currentProfile?.department_name || ''
+  const supervisorStaffId = String(form.get('maintenance_notify_supervisor') || '').trim()
 
-  const ids = [
-    notifyStaffId,
-    ...getDepartmentSupervisorStaffIds(departmentId, departmentName)
-  ].filter(Boolean)
-
-  return [...new Set(ids)]
+  return [...new Set([notifyStaffId, supervisorStaffId].filter(Boolean))]
 }
 
 
@@ -4760,7 +4753,7 @@ function openMeetingRoomModal(defaults = {}) {
         <label>
           結束時間
           <div class="compact-time-row">
-            <select name="end_hour">${hourOptionsHtml('10')}</select>
+            <select name="end_hour">${endHourOptionsHtml('10')}</select>
             <select name="end_minute">${minuteOptionsHtml('00')}</select>
           </div>
         </label>
@@ -5014,7 +5007,7 @@ function openEditMeetingRoomModal(scheduleId) {
         <label>
           結束時間
           <div class="compact-time-row">
-            <select name="end_hour">${hourOptionsHtml(end.hour)}</select>
+            <select name="end_hour">${endHourOptionsHtml(row.end_time ? end.hour : '')}</select>
             <select name="end_minute">${minuteOptionsHtml(end.minute)}</select>
           </div>
         </label>
@@ -11039,6 +11032,24 @@ function uniqueContinuousRows(rows = []) {
 }
 
 
+function rowNeedsFullDayBackground(row = {}) {
+  const key = getScheduleColorKey(row)
+  return ['請假', '返鄉', '外務行程', '外務日'].includes(key)
+}
+
+function getStaffFieldBackgroundRowsForDate(staffId = '', dateKey = '') {
+  if (!staffId || !dateKey) return []
+
+  return schedules
+    .filter(isVisibleSchedule)
+    .filter(row => rowNeedsFullDayBackground(row))
+    .filter(row => scheduleMatchesDateByMode(row, dateKey))
+    .filter(row => scheduleBelongsToStaff(row, staffId))
+    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+}
+
+
+
 function isLeaveOrReturnSchedule(row = {}) {
   const key = getScheduleColorKey(row)
   return key === '請假' || key === '返鄉'
@@ -11094,10 +11105,13 @@ function getContinuationRowsForDate(rows = [], dateKey = '') {
 function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   const leaveRows = getStaffLeaveReturnRowsForDate(staffId, dateKey)
   const fieldDayRows = getStaffFieldDayRowsForDate(staffId, dateKey)
+  const fieldBackgroundRows = getStaffFieldBackgroundRowsForDate(staffId, dateKey)
+    .filter(row => !isLeaveOrReturnSchedule(row))
   const leaveRow = leaveRows[0] || null
   const fieldDayRow = fieldDayRows[0] || null
+  const fieldBackgroundRow = fieldBackgroundRows[0] || null
   const continuationRow = continuationRows[0] || null
-  const row = leaveRow || fieldDayRow || continuationRow
+  const row = leaveRow || fieldDayRow || fieldBackgroundRow || continuationRow
 
   if (!row) {
     return {
@@ -11112,7 +11126,7 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
   const color = getScheduleColor(row)
   const className = leaveRow
     ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
-    : (fieldDayRow ? 'is-field-day' : 'has-continuation-mark')
+    : ((fieldDayRow || fieldBackgroundRow || rowNeedsFullDayBackground(row)) ? 'is-field-day' : 'has-continuation-mark')
 
   return {
     className,
@@ -11128,7 +11142,7 @@ function getMeetingDayMarkInfo(continuationRows = []) {
   if (!row) return { className: '', attrs: '', continuationRows }
 
   return {
-    className: 'has-continuation-mark',
+    className: rowNeedsFullDayBackground(row) ? 'is-field-day' : 'has-continuation-mark',
     attrs: `style="--day-accent:${getScheduleColor(row)}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}"`,
     continuationRows
   }
@@ -13706,6 +13720,13 @@ function hourOptionsHtml(defaultValue = '09') {
   }).join('')
 }
 
+
+function endHourOptionsHtml(defaultValue = '') {
+  const emptySelected = !defaultValue ? 'selected' : ''
+  return `<option value="" ${emptySelected}>不指定</option>` + hourOptionsHtml(defaultValue)
+}
+
+
 function minuteOptionsHtml(defaultValue = '00') {
   return Array.from({ length: 12 }, (_, i) => {
     const value = String(i * 5).padStart(2, '0')
@@ -15267,6 +15288,7 @@ function openScheduleModal(defaults = {}) {
   const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
+  const supervisorOptions = supervisorSelectOptionsHtml()
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
@@ -15363,7 +15385,7 @@ function openScheduleModal(defaults = {}) {
                 </label>
                 <label>
                   結束小時
-                  <select name="end_hour">${hourOptionsHtml('10')}</select>
+                  <select name="end_hour">${endHourOptionsHtml('10')}</select>
                 </label>
                 <label>
                   結束分鐘
@@ -15374,6 +15396,14 @@ function openScheduleModal(defaults = {}) {
             </div>
           </div>
         </div>
+
+
+        <label class="span-2 notify-supervisor-field">
+          通知主管
+          <select name="notify_supervisor_staff">
+            ${supervisorOptions}
+          </select>
+        </label>
 
         <div class="span-2 form-section hidden service-grid service-top-grid" data-section="service-top">
           <label>
@@ -15484,6 +15514,13 @@ function openScheduleModal(defaults = {}) {
             通知車子保養者
             <select name="maintenance_notify_staff">
               ${staffSelectOptionsHtml()}
+            </select>
+          </label>
+
+<label>
+            通知主管
+            <select name="maintenance_notify_supervisor">
+              ${supervisorOptions}
             </select>
           </label>
 
@@ -15691,6 +15728,7 @@ function openScheduleModal(defaults = {}) {
     }
 
     form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養')
+    form.querySelector('.notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養')
 
     const commonTitleField = form.querySelector('.common-title-field')
     if (commonTitleField) commonTitleField.classList.toggle('hidden', category === '服務行程' || category === '公務車保養')
@@ -15815,8 +15853,10 @@ function openScheduleModal(defaults = {}) {
 function getTimeValue(form, prefix) {
   const timeType = form.get('time_type')
   if (!['上午', '下午'].includes(timeType)) return null
-  const hour = form.get(`${prefix}_hour`) || '00'
+  const hour = form.get(`${prefix}_hour`) || ''
   const minute = form.get(`${prefix}_minute`) || '00'
+  if (prefix === 'end' && !hour) return null
+  if (!hour) return null
   return `${hour}:${minute}:00`
 }
 
@@ -15958,6 +15998,57 @@ function staffSelectOptionsHtmlSelected(selectedStaffId = '') {
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>
   `).join('')
 }
+
+
+function getSupervisorRows() {
+  const rows = getAssignableStaffRows().filter(staff => {
+    const text = [staff.role, staff.position, staff.position_name, staff.title]
+      .filter(Boolean)
+      .join('｜')
+    return text.includes('主管')
+  })
+
+  if (rows.length) return rows
+
+  return getAssignableStaffRows()
+}
+
+function supervisorSelectOptionsHtml(selectedStaffId = '') {
+  const rows = getSupervisorRows()
+  const selectedExists = rows.some(staff => staff.staff_id === selectedStaffId)
+  const extra = selectedStaffId && !selectedExists
+    ? staffList.filter(staff => staff.staff_id === selectedStaffId)
+    : []
+
+  return `<option value="" ${!selectedStaffId ? 'selected' : ''}>不通知主管</option>` + [...extra, ...rows].map(staff => `
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}｜${staff.position || staff.position_name || staff.role || ''}</option>
+  `).join('')
+}
+
+function supervisorSelectOptionsHtmlSelected(selectedStaffId = '') {
+  return supervisorSelectOptionsHtml(selectedStaffId)
+}
+
+function getStaffIdByDisplayName(name = '') {
+  const normalized = String(name || '').split('｜')[0].trim()
+  if (!normalized) return ''
+  return staffList.find(staff => staff.name === normalized || String(staff.name || '').trim() === normalized)?.staff_id || ''
+}
+
+function cleanNotifySupervisorNote(noteText = '') {
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith('通知主管：'))
+    .join('｜')
+}
+
+function appendNotifySupervisorNote(parts = [], supervisorName = '') {
+  if (!supervisorName) return parts
+  return [...parts, `通知主管：${supervisorName}`]
+}
+
 
 function cleanServiceExtraNotes(noteText = '', scheduleType = '') {
   const removeLabelsByType = {
@@ -16412,13 +16503,18 @@ function openEditScheduleModal(scheduleId) {
   const showTime = ['上午', '下午'].includes(row.time_type)
   const medicalInfo = parseMedicalFollowupInfo(row)
   const isMaintenance = isVehicleMaintenanceSchedule(row)
+  const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
+  const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
+  const isMaintenanceActiveIds = getActiveAssigneeIds(row)
   const maintenanceCarValue = row.car_no || row.customer_name || row.sub_type || '不使用'
   const maintenanceCarOptions = optionHtml(getManagedListOption('carOptions', carOptions), maintenanceCarValue)
   const maintenanceStartDate = row.start_date || todayString()
   const maintenanceReturnDate = row.end_date || maintenanceStartDate
   const maintenanceReplacementCar = getLineNoteValue(row, '保養期間代步車')
-  const maintenanceNotifyStaffId = getActiveAssigneeIds(row)[0] || ''
+  const maintenanceNotifyStaffId = isMaintenanceActiveIds[0] || ''
+  const maintenanceSupervisorStaffId = isMaintenanceActiveIds[1] || notifySupervisorStaffId || ''
   const maintenanceNotifyOptions = staffSelectOptionsHtmlSelected(maintenanceNotifyStaffId)
+  const maintenanceSupervisorOptions = supervisorSelectOptionsHtmlSelected(maintenanceSupervisorStaffId)
   const maintenanceNote = getLineNoteValue(row, '備註') || getLineNoteValue(row, '保養備註')
 
   const modal = document.createElement('div')
@@ -16441,6 +16537,13 @@ function openEditScheduleModal(scheduleId) {
         <label>
           狀態
           <input value="${escapeHtml(row.status || '未完成')}" disabled>
+        </label>
+
+        <label class="span-2 edit-notify-supervisor-field">
+          通知主管
+          <select name="edit_notify_supervisor_staff">
+            ${supervisorOptions}
+          </select>
         </label>
 
         <div class="span-2 service-grid" id="editServiceBlock">
@@ -16567,6 +16670,13 @@ function openEditScheduleModal(scheduleId) {
             </select>
           </label>
 
+          <label>
+            通知主管
+            <select name="maintenance_notify_supervisor">
+              ${maintenanceSupervisorOptions}
+            </select>
+          </label>
+
           <label class="span-2">
             備註
             <textarea name="maintenance_note" rows="3">${escapeHtml(maintenanceNote)}</textarea>
@@ -16636,7 +16746,7 @@ function openEditScheduleModal(scheduleId) {
             </label>
             <label>
               結束小時
-              <select name="end_hour">${hourOptionsHtml(end.hour)}</select>
+              <select name="end_hour">${endHourOptionsHtml(row.end_time ? end.hour : '')}</select>
             </label>
             <label>
               結束分鐘
@@ -16703,6 +16813,7 @@ function openEditScheduleModal(scheduleId) {
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養')
+    document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養')
     if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
 
     applyEditCompactSpecialFields()
@@ -16760,6 +16871,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   const form = new FormData(event.target)
   const category = form.get('category')
+  const editNotifySupervisorName = category === '公務車保養' ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
   const editExecutorIds = category === '公務車保養'
     ? getVehicleMaintenanceNotifyStaffIds(form)
     : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
@@ -16800,9 +16912,9 @@ async function saveEditedSchedule(event, modal, originalRow) {
     if (isCompactSpecialScheduleType(editScheduleType)) {
       editSubTypeNote = null
     } else {
-      const cleanedNote = cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType))
+      const cleanedNote = cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))
       const extraNotes = buildServiceExtraNotes(form, editScheduleType)
-      editSubTypeNote = [buildRepeatNote(form), cleanedNote, ...extraNotes].filter(Boolean).join('｜') || null
+      editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form), cleanedNote, ...extraNotes].filter(Boolean), editNotifySupervisorName).join('｜') || null
     }
   }
 
@@ -16812,6 +16924,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
     const maintenanceReturnDate = form.get('maintenance_return_date') || maintenanceStartDate
     const maintenanceReplacementCar = String(form.get('maintenance_replacement_car') || '').trim()
     const maintenanceNotifyName = getStaffNameFromSelect('maintenance_notify_staff')
+    const maintenanceSupervisorName = getStaffNameFromSelect('maintenance_notify_supervisor')
     const maintenanceNote = String(form.get('maintenance_note') || '').trim()
 
     editScheduleType = '公務車保養'
@@ -16823,6 +16936,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
       `通知車子保養者：${maintenanceNotifyName || '-'}`,
+      `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ].join('\n')
     payloadStartDate = maintenanceStartDate
@@ -16843,35 +16957,36 @@ async function saveEditedSchedule(event, modal, originalRow) {
       }, getAll: () => [] }),
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
       maintenanceNotifyName ? `通知車子保養者：${maintenanceNotifyName}` : '',
+      maintenanceSupervisorName ? `通知主管：${maintenanceSupervisorName}` : '',
       maintenanceNote ? `保養備註：${maintenanceNote}` : ''
     ].filter(Boolean).join('｜') || null
   }
 
   if (category === '一般記事') {
     editScheduleType = '一般記事'
-    editSubTypeNote = buildRepeatNote(form)
+    editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form)], editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '待辦事項') {
     editScheduleType = '待辦事項'
     editSubType = String(form.get('edit_todo_item_custom') || '').trim() || form.get('edit_todo_item') || null
-    editSubTypeNote = buildRepeatNote(form)
+    editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form)], editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
     editScheduleType = form.get('edit_leave_meeting_type') || '請假'
     editSubType = editScheduleType
     const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
-    editSubTypeNote = [
+    editSubTypeNote = appendNotifySupervisorNote([
       buildRepeatNote(form),
       selectedDepartments.length ? `指派部門：${selectedDepartments.join('、')}` : ''
-    ].filter(Boolean).join('｜') || null
+    ].filter(Boolean), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '證件交付') {
     editScheduleType = '證件交付'
     editSubType = editDeliveryText || null
-    editSubTypeNote = [buildRepeatNote(form), editDeliveryText ? `交付項目：${editDeliveryText}` : ''].filter(Boolean).join('｜') || null
+    editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form), editDeliveryText ? `交付項目：${editDeliveryText}` : ''].filter(Boolean), editNotifySupervisorName).join('｜') || null
   }
 
   const payload = {
@@ -17006,6 +17121,8 @@ async function saveSchedule(event, modal) {
   let scheduleType = ''
   let subType = ''
   let subTypeNoteParts = [buildRepeatNote(form)]
+  const notifySupervisorName = category === '公務車保養' ? '' : getStaffNameFromSelect('notify_supervisor_staff')
+  if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
   let locationName = null
   let address = null
@@ -17067,6 +17184,7 @@ async function saveSchedule(event, modal) {
     ]
     subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
     if (maintenanceNotifyName) subTypeNoteParts.push(`通知車子保養者：${maintenanceNotifyName}`)
+    if (maintenanceSupervisorName) subTypeNoteParts.push(`通知主管：${maintenanceSupervisorName}`)
     if (maintenanceNote) subTypeNoteParts.push(`保養備註：${maintenanceNote}`)
 
     form.set('title', `公務車保養｜${maintenanceCar || '未指定車輛'}`)
@@ -18972,15 +19090,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-153 START - vehicle maintenance fix */
+/* FOR-e V002-1P-154 START - background supervisor end unspecified */
 /*
-  V002-1P-153｜公務車保養修改、標題重複與通知狀態修正
-  - 公務車保養卡片標題只顯示一次
-  - 公務車保養修改表單顯示公務車選擇、保養日期、歸還日期、代步車、通知車子保養者、備註
-  - 公務車保養只通知車子保養者與部門主管，不顯示執行者
-  - 公務車保養不顯示已完成 / 未完成狀態
-  - 行程有開始時間但沒有有效結束時間時，只顯示開始時間
-  - 公務車保養外框改為 #DCDCDC
-  - 恢復外務日當日欄位淡橘背景與搜尋樣式，移除 V152 舊樣式區塊
+  V002-1P-154｜背景反色範圍、通知主管與結束時間不指定
+  - 只有請假 / 休假 / 外務 / 返鄉的日期格會反背景色
+  - 其他行程只保留卡片 / 細條顏色，不整格反色
+  - 新增行程增加「通知主管」欄位
+  - 公務車保養的主管通知改為手動選擇，不再自動抓部門主管
+  - 結束時間新增「不指定」選項；有開始時間無結束時間時只顯示開始時間
+  - 移除 V153 舊樣式區塊，改用單一 V154 樣式
 */
-/* FOR-e V002-1P-153 END - vehicle maintenance fix */
+/* FOR-e V002-1P-154 END - background supervisor end unspecified */
