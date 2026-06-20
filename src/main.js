@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-158'
+const SYSTEM_VERSION = 'V002-1P-159'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -5452,6 +5452,50 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
   ].filter(Boolean)
 }
 
+
+function getIncidentAdminNotifyInfo(row = {}) {
+  const parts = String(row.sub_type_note || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  const getValue = prefix => {
+    const found = parts.find(item => item.startsWith(prefix))
+    return found ? found.slice(prefix.length).trim() : ''
+  }
+
+  return {
+    type: getValue('通知行政辦理：'),
+    staff: getValue('通知行政：'),
+    detail: getValue('行政通知內容：')
+  }
+}
+
+function stripIncidentAdminNotifyNote(noteText = '') {
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith('通知行政辦理：'))
+    .filter(item => !item.startsWith('通知行政：'))
+    .filter(item => !item.startsWith('行政通知內容：'))
+    .join('｜')
+}
+
+function renderIncidentAdminNotifyLine(row = {}) {
+  const info = getIncidentAdminNotifyInfo(row)
+  if (!info.type && !info.staff && !info.detail) return ''
+
+  const pieces = [
+    info.type ? `項目：${info.type}` : '',
+    info.staff ? `行政：${info.staff}` : '',
+    info.detail ? `內容：${info.detail}` : ''
+  ].filter(Boolean)
+
+  return `<div class="incident-admin-notify-line">通知行政辦理｜${escapeHtml(pieces.join('｜'))}</div>`
+}
+
+
 function incidentServiceRecordFieldsHtml(row = null) {
   const need = row ? !!row.need_service_record : true
   const submitted = row ? !!row.service_record_submitted : false
@@ -5609,7 +5653,8 @@ function renderIncidentList(rows) {
               </div>
               ${renderIncidentTrackingHistory(row)}
               ${row.need_service_record ? `<div class="incident-sr-badge">服務紀錄單：${isScheduleServiceRecordSubmitted(row) ? '已繳交 ' + escapeHtml(getScheduleServiceRecordSubmittedDate(row)) : '需繳交'}</div>` : ''}
-              ${row.sub_type_note ? `<div class="incident-note">${escapeHtml(row.sub_type_note)}</div>` : ''}
+              ${renderIncidentAdminNotifyLine(row)}
+              ${stripIncidentAdminNotifyNote(row.sub_type_note) ? `<div class="incident-note">${escapeHtml(stripIncidentAdminNotifyNote(row.sub_type_note))}</div>` : ''}
             </div>
 
             <div class="incident-actions">
@@ -6177,8 +6222,8 @@ function openIncidentModal() {
         </div>
 
         <label class="span-2">
-          第一次追蹤 / 處理內容
-          <textarea name="description" rows="4" required placeholder="請輸入第一次追蹤、處理內容或目前狀況"></textarea>
+          說明
+          <textarea name="description" rows="4" required placeholder="請輸入異況說明、目前狀況或處理內容"></textarea>
         </label>
 
         <div class="span-2 admin-notify-box">
@@ -14231,7 +14276,7 @@ async function updateFieldScheduleResult(scheduleId, result, detailText = '', ad
   try {
     await createAdministrativeTodoSchedule(row, result === '要補件' ? '補件' : '送件異常', detailText, adminStaffId, {
       sourceLabel: '外務結果通知',
-      startDate: todayString()
+      startDate: row.start_date || todayString()
     })
   } catch (todoError) {
     alert('通知行政待辦建立失敗：' + (todoError?.message || todoError))
@@ -16170,23 +16215,20 @@ function supervisorSelectOptionsHtml(selectedStaffId = '') {
 
 
 function getAdministrativeStaffRows() {
-  const keywords = ['行政', '行政辦理', '總務', '管理員', '辦理']
-  const activeRows = staffList
+  return staffList
     .filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .filter(staff => {
+      const positionText = [staff.position, staff.position_name, staff.title, staff.role]
+        .filter(Boolean)
+        .join('｜')
+      const departmentText = String(staff.department_name || '')
+      return positionText.includes('行政') || positionText.includes('海外行政') || departmentText.includes('營運處')
+    })
     .sort((a, b) => {
       const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
       if (deptCompare !== 0) return deptCompare
       return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
     })
-
-  const adminRows = activeRows.filter(staff => {
-    const text = [staff.department_name, staff.position, staff.position_name, staff.title, staff.role, staff.name]
-      .filter(Boolean)
-      .join('｜')
-    return keywords.some(keyword => text.includes(keyword))
-  })
-
-  return adminRows.length ? adminRows : activeRows
 }
 
 function administrativeStaffOptionsHtml(selectedStaffId = '') {
@@ -19377,12 +19419,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-158 START - admin notify todo */
+/* FOR-e V002-1P-159 START - admin staff incident display fix */
 /*
-  V002-1P-158｜外務結果通知行政與異況行政辦理
-  - 外務行程標記「要補件 / 送件異常」時，必須輸入項目並選擇通知行政
-  - 通知後會建立行政待辦，此外務行程標記為已完成
-  - 異況新增與下次追蹤新增「通知行政辦理」欄位，可通知逃跑、離境驗證、轉出等行政項目
-  - 通知行政內容會建立到被通知行政的待辦事項中
+  V002-1P-159｜行政通知人員與異況顯示修正
+  - 通知行政人員改為：職務含行政 / 海外行政，或部門為營運處的啟用同仁
+  - 外務補件 / 送件異常通知行政後，行政待辦會建立到來源外務日期，顯示在被通知行政的行事曆上
+  - 異況通知行政資訊改為單獨一行顯示一次，並從一般備註重複內容中移除
+  - 新增異況的第一次追蹤欄位名稱改為「說明」
 */
-/* FOR-e V002-1P-158 END - admin notify todo */
+/* FOR-e V002-1P-159 END - admin staff incident display fix */

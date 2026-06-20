@@ -13731,8 +13731,8 @@ body {
 }
 /* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-158 START - admin notify todo */
-/* V002-1P-158｜通知行政辦理欄位 */
+/* FOR-e V002-1P-159 START - admin staff incident display fix */
+/* V002-1P-159｜通知行政辦理欄位 */
 .admin-notify-box {
   border: 1px solid #dbe3f0;
   border-radius: 16px;
@@ -13753,4 +13753,16 @@ body {
   color: #3155d4;
   font-weight: 900;
 }
-/* FOR-e V002-1P-158 END - admin notify todo */
+
+.incident-admin-notify-line {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+/* FOR-e V002-1P-159 END - admin staff incident display fix */
