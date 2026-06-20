@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-172'
+const SYSTEM_VERSION = 'V002-1P-173'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -12194,11 +12194,90 @@ function renderOverviewQuickGroupBar(viewMode = getOverviewViewMode()) {
   `
 }
 
+function normalizeOverviewGroupStaffRow(staff = {}) {
+  const staffId = normalizeStaffId(staff.staff_id || staff.staffId || staff.id || staff.profile_id || staff.email)
+  if (!staffId) return null
+
+  return {
+    ...staff,
+    staff_id: staffId,
+    name: staff.name || staff.full_name || staff.display_name || staff.email || '-',
+    department_name: staff.department_name || staff.department || staff.dept_name || '',
+    position: staff.position || staff.position_name || staff.job_title || '',
+    position_name: staff.position_name || staff.position || staff.job_title || '',
+    display_order: staff.display_order
+  }
+}
+
+function addOverviewGroupStaffSource(map, rows = []) {
+  if (!Array.isArray(rows)) return
+
+  rows.forEach(row => {
+    const staff = normalizeOverviewGroupStaffRow(row)
+    if (!staff || map.has(staff.staff_id)) return
+    if (staff.deleted_at) return
+    if ((staff.status || '啟用') !== '啟用') return
+    map.set(staff.staff_id, staff)
+  })
+}
+
+function getOverviewGroupStaffRowsFromDom() {
+  if (typeof document === 'undefined') return []
+
+  return Array.from(document.querySelectorAll('input[name="staffIds"], select[name="staffId"] option, select[name="fieldStaffIds"] option'))
+    .map(input => {
+      const value = normalizeStaffId(input.value)
+      if (!value || value === '全部') return null
+      const text = String(input.textContent || input.getAttribute('title') || '').trim()
+      const matchedStaff = staffList.find(staff => normalizeStaffId(staff.staff_id) === value)
+        || allStaffList.find(staff => normalizeStaffId(staff.staff_id) === value)
+      if (matchedStaff) return matchedStaff
+
+      const [name = text || '-', departmentName = '', position = ''] = text.split('｜').map(item => item.trim())
+      return {
+        staff_id: value,
+        name,
+        department_name: departmentName,
+        position
+      }
+    })
+    .filter(Boolean)
+}
+
+function getOverviewQuickGroupManageStaffRows() {
+  const sourceMap = new Map()
+
+  addOverviewGroupStaffSource(sourceMap, staffList)
+  addOverviewGroupStaffSource(sourceMap, allStaffList)
+  addOverviewGroupStaffSource(sourceMap, getOverviewBaseStaffRows())
+  addOverviewGroupStaffSource(sourceMap, getOverviewGroupStaffRowsFromDom())
+  addOverviewGroupStaffSource(sourceMap, userProfileList)
+  if (currentProfile?.staff_id) addOverviewGroupStaffSource(sourceMap, [currentProfile])
+
+  return sortStaffRowsByFilter([...sourceMap.values()], { sortBy: 'display_order', sortDir: 'asc' })
+}
+
+function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
+  const staffId = normalizeStaffId(staff.staff_id)
+  const departmentName = staff.department_name || '-'
+  const positionName = staff.position || staff.position_name || '-'
+
+  return `
+    <label class="check-row overview-group-staff-option">
+      <input type="checkbox" name="groupStaffIds" value="${escapeHtml(staffId)}" ${selectedIds.has(staffId) ? 'checked' : ''}>
+      <span>
+        <strong>${escapeHtml(staff.name || '-')}</strong>
+        <em>${escapeHtml(departmentName)}｜${escapeHtml(positionName)}</em>
+      </span>
+    </label>
+  `
+}
+
 function openOverviewQuickGroupManagerModal(editGroupId = '') {
   const savedGroups = overviewQuickGroups.groups || []
   const editGroup = savedGroups.find(group => group.id === editGroupId) || null
-  const selectedIds = new Set(editGroup ? editGroup.staffIds : [])
-  const rows = getOverviewBaseStaffRows()
+  const selectedIds = new Set(editGroup ? normalizeOverviewFilterList(editGroup.staffIds) : [])
+  const rows = getOverviewQuickGroupManageStaffRows()
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -12220,12 +12299,7 @@ function openOverviewQuickGroupManagerModal(editGroupId = '') {
         <div class="span-2">
           <div class="field-title">選擇群組人員</div>
           <div class="checkbox-list compact-check-panel overview-group-modal-list">
-            ${rows.map(staff => `
-              <label class="check-row">
-                <input type="checkbox" name="groupStaffIds" value="${escapeHtml(staff.staff_id)}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
-                <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || '')}</span>
-              </label>
-            `).join('') || '<div class="empty-state">目前沒有可選人員。</div>'}
+            ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('') || '<div class="empty-state">目前沒有可選人員。請先確認人員 / 帳號已有啟用人員資料。</div>'}
           </div>
           <p class="field-hint">群組只用來快速切換行程總覽人員，不會影響原本部門、人員、排序篩選欄位。</p>
         </div>

@@ -14677,3 +14677,46 @@ label.is-filter-hidden {
   opacity: 0.6;
 }
 /* FOR-e V002-1P-172 END - quick group buttons fix */
+
+/* FOR-e V002-1P-173 START - quick group staff list fix */
+/* V002-1P-173｜管理快速人員群組人員清單 */
+.overview-group-staff-option {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.overview-group-staff-option input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.overview-group-staff-option > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.overview-group-staff-option strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.overview-group-staff-option em {
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+/* FOR-e V002-1P-173 END - quick group staff list fix */
+
