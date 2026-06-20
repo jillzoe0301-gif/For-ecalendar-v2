@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-154'
+const SYSTEM_VERSION = 'V002-1P-155'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -16001,16 +16001,24 @@ function staffSelectOptionsHtmlSelected(selectedStaffId = '') {
 
 
 function getSupervisorRows() {
-  const rows = getAssignableStaffRows().filter(staff => {
-    const text = [staff.role, staff.position, staff.position_name, staff.title]
-      .filter(Boolean)
-      .join('｜')
-    return text.includes('主管')
-  })
+  const rows = staffList
+    .filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .filter(staff => {
+      const positionText = [
+        staff.position,
+        staff.position_name,
+        staff.title,
+        staff.role
+      ].filter(Boolean).join('｜')
+      return positionText.includes('主管')
+    })
+    .sort((a, b) => {
+      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+      if (deptCompare !== 0) return deptCompare
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+    })
 
-  if (rows.length) return rows
-
-  return getAssignableStaffRows()
+  return rows
 }
 
 function supervisorSelectOptionsHtml(selectedStaffId = '') {
@@ -16877,7 +16885,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
     : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
 
   if (!editExecutorIds.length) {
-    alert(category === '公務車保養' ? '請選擇通知車子保養者或確認部門主管設定。' : '請至少選擇一位執行者。')
+    alert(category === '公務車保養' ? '請選擇通知車子保養者或通知主管。' : '請至少選擇一位執行者。')
     return
   }
 
@@ -17164,6 +17172,7 @@ async function saveSchedule(event, modal) {
     const maintenanceReturnDate = form.get('maintenance_return_date') || maintenanceStartDate
     const maintenanceReplacementCar = String(form.get('maintenance_replacement_car') || '').trim()
     const maintenanceNotifyName = getStaffNameFromSelect('maintenance_notify_staff')
+    const maintenanceSupervisorName = getStaffNameFromSelect('maintenance_notify_supervisor')
     const maintenanceNote = String(form.get('maintenance_note') || '').trim()
 
     scheduleType = '公務車保養'
@@ -17180,6 +17189,7 @@ async function saveSchedule(event, modal) {
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
       `通知車子保養者：${maintenanceNotifyName || '-'}`,
+      `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ]
     subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
@@ -19090,14 +19100,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-154 START - background supervisor end unspecified */
+/* FOR-e V002-1P-155 START - supervisor dropdown fix */
 /*
-  V002-1P-154｜背景反色範圍、通知主管與結束時間不指定
-  - 只有請假 / 休假 / 外務 / 返鄉的日期格會反背景色
-  - 其他行程只保留卡片 / 細條顏色，不整格反色
-  - 新增行程增加「通知主管」欄位
-  - 公務車保養的主管通知改為手動選擇，不再自動抓部門主管
-  - 結束時間新增「不指定」選項；有開始時間無結束時間時只顯示開始時間
-  - 移除 V153 舊樣式區塊，改用單一 V154 樣式
+  V002-1P-155｜通知主管下拉與公務車保養儲存錯誤修正
+  - 通知主管欄位改為：所有啟用人員中，職位 / 職稱 / title / role 含「主管」者都會出現
+  - 不再受可指派人員範圍限制
+  - 修正新增公務車保養時 maintenanceSupervisorName is not defined 的錯誤
+  - 公務車保養內容會寫入「通知主管」
 */
-/* FOR-e V002-1P-154 END - background supervisor end unspecified */
+/* FOR-e V002-1P-155 END - supervisor dropdown fix */
