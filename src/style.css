@@ -14414,13 +14414,70 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-165 END - incident line ui polish */
 
-/* FOR-e V002-1P-166 START - line app uri utf8 */
-/* V002-1P-166｜LINE 啟動提示 */
-.line-message-head span {
-  color: #64748b;
+/* FOR-e V002-1P-167 START - line no qr calendar fix */
+/* V002-1P-167｜會議室假日與外務今日框線修正 */
+
+/* 會議室假日恢復會議室原本棕米色，不受後續節日藍色覆蓋 */
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday {
+  background: #EFE9E3 !important;
+  border-color: #D8C9BA !important;
+  box-shadow: inset 0 0 0 1px #D8C9BA !important;
 }
 
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today:not(.is-holiday),
+.meeting-week-day-cell.is-today:not(.is-holiday) {
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday {
+  background: #EFE9E3 !important;
+  box-shadow: inset 0 0 0 2px #C08552 !important;
+}
+
+.meeting-week-table thead th.is-today strong {
+  background: #C08552 !important;
+  color: #ffffff !important;
+}
+
+/* 外務非當日不顯示今日框線；保留淡背景即可 */
+.field-week-day-cell.is-field-day:not(.is-today):not(.is-holiday),
+.field-personal-month-calendar .month-day-cell.is-field-day:not(.is-today):not(.is-holiday) {
+  box-shadow: none !important;
+  border-color: #dbe3f0 !important;
+}
+
+/* 外務當日框線厚度與其他行事曆一致：2px */
+.field-week-table thead th.is-today,
+.field-week-day-cell.is-today,
+.field-personal-month-calendar .month-day-cell.is-today {
+  box-shadow: inset 0 0 0 2px #FAAB78 !important;
+  border-color: #FAAB78 !important;
+}
+
+.field-week-table thead th.is-today.is-holiday,
+.field-week-day-cell.is-today.is-holiday,
+.field-personal-month-calendar .month-day-cell.is-today.is-holiday {
+  background: #fff7ed !important;
+  box-shadow: inset 0 0 0 2px #FAAB78 !important;
+  border-color: #FAAB78 !important;
+}
+
+.field-week-table thead th.is-today strong,
+.field-personal-month-calendar .month-day-cell.is-today .month-day-header strong {
+  background: #FAAB78 !important;
+  color: #111827 !important;
+}
+
+/* LINE 按鈕不要換行 */
 #openLineShareBtn {
   white-space: nowrap;
 }
-/* FOR-e V002-1P-166 END - line app uri utf8 */
+/* FOR-e V002-1P-167 END - line no qr calendar fix */

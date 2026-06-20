@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-166'
+const SYSTEM_VERSION = 'V002-1P-167'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7904,31 +7904,42 @@ function renderLineNotifySchedulePicker(rows = []) {
   `
 }
 
-function openLineAppOrShare(text = '') {
+async function openLineAppOrShare(text = '') {
   const message = String(text || '').trim()
   if (!message) {
     alert('目前沒有可分享的 LINE 訊息。')
     return
   }
 
+  let copied = false
   try {
-    navigator.clipboard?.writeText(message)
+    await navigator.clipboard?.writeText(message)
+    copied = true
   } catch (err) {
     console.warn('LINE 訊息複製失敗，仍嘗試開啟 LINE。', err)
   }
 
-  // 使用 LINE 官方 App URI 的 query 格式，避免 path 格式在部分裝置出現中文變問號。
-  // 不使用任何網頁 fallback，避免出現 QR Code 或 LINE 首頁。
-  const encoded = encodeURIComponent(message)
-  const lineAppUrl = `line://msg/text/?${encoded}`
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
 
-  const link = document.createElement('a')
-  link.href = lineAppUrl
-  link.rel = 'noopener'
-  link.style.display = 'none'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+  // 手機優先使用系統分享，讓使用者直接選 LINE / 聊天室；不產生 QR Code。
+  if (isMobile && navigator.share) {
+    try {
+      await navigator.share({ text: message })
+      return
+    } catch (err) {
+      console.warn('系統分享取消或失敗，改用 LINE App。', err)
+    }
+  }
+
+  // 桌機不再使用 LINE 訊息文字 URI，因 LINE 會產生 QR Code 且中文可能變成問號。
+  // 改開 LINE 聊天列表，文字已先複製到剪貼簿，選擇聊天室後貼上即可保留中文。
+  window.location.href = 'line://nv/chat'
+
+  if (copied) {
+    window.setTimeout(() => {
+      alert('LINE 訊息已複製。請在 LINE 選擇通知人員後直接貼上。')
+    }, 600)
+  }
 }
 
 
@@ -7973,7 +7984,7 @@ function renderLineNotificationPage() {
     </div>
 
     <div class="notice">
-      目前是「手動產生訊息」版本：確認內容後可複製文字，或直接啟動 LINE 程式並選擇通知對象；不再產生 QR Code。
+      目前是「手動產生訊息」版本：確認內容後可複製文字，或啟動 LINE 選擇通知對象；桌機會先複製文字再開 LINE，不再產生 QR Code。
     </div>
 
     <form id="lineNotifyForm" class="line-notify-panel">
@@ -7997,7 +8008,7 @@ function renderLineNotificationPage() {
       <div class="line-message-head">
         <div>
           <strong>LINE 訊息內容</strong>
-          <span>本次會送出 ${selectedRows.length} 筆；可複製或啟動 LINE 程式選擇通知對象。</span>
+          <span>本次會送出 ${selectedRows.length} 筆；可複製或啟動 LINE 選擇通知對象。</span>
         </div>
         <div class="line-message-actions">
           <button type="button" class="secondary-btn" id="copyLineMessageBtn">複製文字</button>
@@ -19710,12 +19721,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-164 END - line dropdown incident pink stats */
 
-/* FOR-e V002-1P-166 START - line app uri utf8 */
+/* FOR-e V002-1P-167 START - line no qr calendar fix */
 /*
-  V002-1P-166｜LINE App URI 中文與 QR Code 修正
-  - LINE 啟動改用 line://msg/text/?<encoded text> query 格式
-  - 修正 LINE 貼上訊息變成問號的問題
-  - 不再使用網頁分享 fallback，避免出現 QR Code 或 LINE 首頁
-  - 按鈕文案改為啟動 LINE 並選擇人員
+  V002-1P-167｜LINE 取消 QR、會議室假日與外務當日框線修正
+  - LINE 啟動不再使用訊息文字 URI，避免桌機產生 QR Code 與中文問號
+  - 手機優先使用系統分享，桌機先複製文字再開 LINE 聊天列表
+  - 會議室假日背景恢復為會議室棕米色系
+  - 外務行程今日框線厚度改與其他行事曆一致
+  - 外務行程非當日欄位不再出現今日框線
 */
-/* FOR-e V002-1P-166 END - line app uri utf8 */
+/* FOR-e V002-1P-167 END - line no qr calendar fix */
