@@ -4171,10 +4171,24 @@ async function insertSchedulePayload(payload = {}) {
 }
 
 async function updateSchedulePayload(scheduleId = '', payload = {}) {
-  return supabase
+  if (!scheduleId) return { data: null, error: new Error('找不到行程 ID，無法儲存修改。') }
+
+  const { data, error } = await supabase
     .from('schedules')
     .update(payload)
     .eq('schedule_id', scheduleId)
+    .select('schedule_id')
+    .maybeSingle()
+
+  if (error) return { data, error }
+  if (!data?.schedule_id) {
+    return {
+      data: null,
+      error: new Error('行程沒有被更新。若此筆行程是他人建立，請確認目前帳號是管理員 / 主管 / 行政，且 Supabase 權限允許管理角色修改全部行程。')
+    }
+  }
+
+  return { data, error: null }
 }
 
 async function syncScheduleAssigneesSafely(scheduleId = '', staffIds = [], options = {}) {
@@ -5167,7 +5181,7 @@ async function saveMeetingRoomSchedule(event, modal) {
     const participantDepartments = getSelectedMeetingDepartments(form)
     const explicitParticipantStaffIds = getSelectedMeetingParticipantStaffIds(form)
     const meetingAssigneeStaffIds = buildMeetingAssigneeStaffIds(reserverStaff.staff_id, participantDepartments, explicitParticipantStaffIds)
-    const participantStaffNames = getStaffRowsByIds(meetingAssigneeStaffIds)
+    const explicitParticipantStaffNames = getStaffRowsByIds(explicitParticipantStaffIds)
       .filter(staff => staff.staff_id !== reserverStaff.staff_id)
       .map(staff => staff.name)
       .filter(Boolean)
@@ -5200,8 +5214,9 @@ async function saveMeetingRoomSchedule(event, modal) {
         buildRepeatNote(form),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
+        '與會設定：已指定',
         participantDepartments.length ? `與會部門：${participantDepartments.join('、')}` : '',
-        participantStaffNames.length ? `與會人員：${participantStaffNames.join('、')}` : ''
+        explicitParticipantStaffNames.length ? `與會人員：${explicitParticipantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -5295,7 +5310,7 @@ function openEditMeetingRoomModal(scheduleId, occurrenceDate = '') {
 
   const start = parseTimeForEdit(row.start_time, '09', '00')
   const end = parseTimeForEdit(row.end_time, '10', '00')
-  const selectedStaffId = getMeetingAssigneeStaffId(row)
+  const selectedStaffId = getMeetingReserverStaffId(row)
   const selectedStaff = staffList.find(staff => staff.staff_id === selectedStaffId)
   const selectedDepartment = getFieldNoteValue(row, '部門') || selectedStaff?.department_name || row.department_name || currentProfile?.department_name || ''
   const selectedRoom = row.location_name || row.sub_type || ''
@@ -5424,7 +5439,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
     const participantDepartments = getSelectedMeetingDepartments(form)
     const explicitParticipantStaffIds = getSelectedMeetingParticipantStaffIds(form)
     const meetingAssigneeStaffIds = buildMeetingAssigneeStaffIds(reserverStaff.staff_id, participantDepartments, explicitParticipantStaffIds)
-    const participantStaffNames = getStaffRowsByIds(meetingAssigneeStaffIds)
+    const explicitParticipantStaffNames = getStaffRowsByIds(explicitParticipantStaffIds)
       .filter(staff => staff.staff_id !== reserverStaff.staff_id)
       .map(staff => staff.name)
       .filter(Boolean)
@@ -5467,8 +5482,9 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
         buildRepeatNote(form),
         form.get('department') ? `部門：${form.get('department')}` : '',
         reserverStaff.name ? `預約人：${reserverStaff.name}` : '',
+        '與會設定：已指定',
         participantDepartments.length ? `與會部門：${participantDepartments.join('、')}` : '',
-        participantStaffNames.length ? `與會人員：${participantStaffNames.join('、')}` : ''
+        explicitParticipantStaffNames.length ? `與會人員：${explicitParticipantStaffNames.join('、')}` : ''
       ].filter(Boolean).join('｜'),
       title: form.get('title'),
       description: form.get('description') || null,
@@ -5518,7 +5534,7 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: `V002-1P-177 修改會議室預約與會人員｜範圍：${editScope}`
+      note: `V002-1P-178 修改會議室預約與會部門 / 與會人員｜範圍：${editScope}`
     })
 
     modal.remove()
@@ -13116,13 +13132,17 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
   const staff = staffList.find(item => item.staff_id === staffId)
   if (!staff) return false
 
+  if (getMeetingReserverStaffId(row) === staffId) return true
+
   const departments = getMeetingParticipantDepartments(row)
   const names = getMeetingParticipantStaffNames(row)
 
   if (departments.includes(staff.department_name)) return true
   if (names.includes(staff.name)) return true
 
-  return false
+  if (hasMeetingParticipantSourceNote(row)) return false
+
+  return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
 }
 
 
@@ -14862,15 +14882,40 @@ function getFieldStaffRowsForEdit(row = {}) {
   })
 }
 
-function getMeetingParticipantStaffIdsFromNote(row = {}) {
-  const names = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
+function getMeetingParticipantStaffNameValues(row = {}) {
+  return String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
     .split(/[、,，]/)
     .map(item => item.trim())
     .filter(Boolean)
+}
+
+function getMeetingParticipantStaffIdsFromNote(row = {}) {
+  const names = getMeetingParticipantStaffNameValues(row)
 
   return staffList
     .filter(staff => names.includes(staff.name))
     .map(staff => staff.staff_id)
+}
+
+function hasMeetingParticipantSourceNote(row = {}) {
+  const note = String(row?.sub_type_note || '')
+  return [
+    '與會設定：',
+    '與會部門：',
+    '與會人員：',
+    '參與部門：',
+    '參與人員：'
+  ].some(token => note.includes(token))
+}
+
+function getMeetingReserverStaffId(row = {}) {
+  const reserverName = String(getFieldNoteValue(row, '預約人') || '').trim()
+  if (reserverName) {
+    const staff = staffList.find(item => String(item.name || '').trim() === reserverName)
+    if (staff?.staff_id) return staff.staff_id
+  }
+
+  return row.creator_staff_id || getMeetingAssigneeStaffId(row) || currentProfile?.staff_id || ''
 }
 
 
@@ -16015,22 +16060,26 @@ function getMeetingReserverName(row = {}) {
 
 
 function getMeetingParticipantStaffIds(row = {}) {
-  const reserverStaffId = getMeetingAssigneeStaffId(row)
+  const fromNote = getMeetingParticipantStaffIdsFromNote(row)
+
+  // 新版會議室表單把「與會部門」與「與會人員」分開保存。
+  // 若 sub_type_note 已有明確與會設定，就不能再用 schedule_assignees 回填，
+  // 否則部門帶出的舊人員會變成個別人員被勾住，造成修改後看起來沒有反應。
+  if (hasMeetingParticipantSourceNote(row)) return fromNote
+
+  const reserverStaffId = getMeetingReserverStaffId(row)
   const fromAssignees = (row.schedule_assignees || [])
     .filter(item => item.staff_id && !item.deleted_at)
     .map(item => item.staff_id)
     .filter(staffId => staffId !== reserverStaffId)
 
-  return [...new Set([...fromAssignees, ...getMeetingParticipantStaffIdsFromNote(row)])]
+  return [...new Set([...fromAssignees, ...fromNote])]
 }
 
 function getMeetingParticipantStaffNames(row = {}) {
-  const fromNote = String(getFieldNoteValue(row, '與會人員') || getFieldNoteValue(row, '參與人員') || '')
-    .split(/[、,，]/)
-    .map(item => item.trim())
-    .filter(Boolean)
+  const fromNote = getMeetingParticipantStaffNameValues(row)
 
-  if (fromNote.length) return fromNote
+  if (fromNote.length || hasMeetingParticipantSourceNote(row)) return fromNote
 
   const selectedIds = new Set(getMeetingParticipantStaffIds(row))
   return (row.schedule_assignees || [])
@@ -16069,11 +16118,26 @@ async function syncMeetingAssigneesSafely(scheduleId, staffIds = [], reserverSta
   if (!scheduleId) return { error: new Error('找不到會議室預約 ID，無法同步與會人員。') }
 
   const replaceExisting = options.replaceExisting === true
-  const skipRpc = options.skipRpc === true || replaceExisting
+  const skipRpc = options.skipRpc === true
+
+  // V002-1P-178：管理員修改他人建立的會議室時，RLS 可能讓直接 delete 影響 0 筆但不報錯。
+  // 因此修改模式先走既有 RPC；若 RPC 不可用，再用前端安全替換。
+  if (replaceExisting && !skipRpc) {
+    try {
+      const { error } = await supabase.rpc('update_schedule_assignees', {
+        target_schedule_id: scheduleId,
+        staff_ids_value: ids
+      })
+
+      if (!error) return { error: null, assigneeType: 'rpc-replace' }
+      console.warn('會議室 RPC 替換與會人員失敗，改用安全寫入。', error)
+    } catch (err) {
+      console.warn('會議室 RPC 替換與會人員例外，改用安全寫入。', err)
+    }
+  }
 
   // 修改會議室時必須「先清掉舊與會人員，再寫入新名單」。
-  // 舊 RPC 在部分環境只會新增 / 覆蓋，減少人員時可能不會移除舊資料，
-  // 造成畫面看起來已取消勾選，但重新整理後舊與會人員又回來。
+  // 舊資料若因 RLS 無法刪除，畫面會以 sub_type_note 的明確與會設定為準，避免舊人員覆蓋新選擇。
   if (replaceExisting) {
     const { error: deleteError } = await supabase
       .from('schedule_assignees')
@@ -20614,3 +20678,14 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-175 END - quick group staff dropdown */
 
+
+
+/* FOR-e V002-1P-178 START - meeting room participant source of truth fix */
+/*
+  V002-1P-178｜會議室與會部門 / 與會人員修改無反應修正
+  - 與會部門帶出的人員不再回填成個別與會人員勾選，避免移除部門後舊人員仍被保留。
+  - 會議室顯示與個人可見性以 sub_type_note 的明確與會設定為主，避免舊 schedule_assignees 殘留覆蓋新選擇。
+  - 修改他人建立的會議室時，前端仍允許管理員 / 主管 / 行政操作；儲存時會驗證 schedules 是否真的被更新。
+  - 與會人員同步在替換模式先走 RPC，再用安全寫入補救，降低 RLS 造成減少人員無效的風險。
+*/
+/* FOR-e V002-1P-178 END - meeting room participant source of truth fix */
