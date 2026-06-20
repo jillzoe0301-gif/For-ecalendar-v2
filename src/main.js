@@ -8,7 +8,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-159'
+const SYSTEM_VERSION = 'V002-1P-160'
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -5213,6 +5213,38 @@ function isIncidentSchedule(row) {
     .join('｜')
   return row.category === '異況追蹤' || row.schedule_type === '異況' || text.includes('異況類型：')
 }
+
+
+function isIncidentGeneratedSchedule(row = {}) {
+  const note = String(row.sub_type_note || '')
+  return note.includes('來源異況：') || note.includes('來源行程：')
+}
+
+function getIncidentGeneratedSchedules(parentScheduleId = '') {
+  if (!parentScheduleId) return []
+
+  const sourceTokens = [
+    `來源異況：${parentScheduleId}`,
+    `來源行程：${parentScheduleId}`
+  ]
+
+  return schedules
+    .filter(row => row?.schedule_id && row.schedule_id !== parentScheduleId)
+    .filter(row => !isCancelledSchedule(row))
+    .filter(row => !isDeletedSchedule(row))
+    .filter(row => sourceTokens.some(token => String(row.sub_type_note || '').includes(token)))
+}
+
+function getIncidentCascadeCancelTargets(row = {}) {
+  if (!row?.schedule_id) return []
+
+  // 只在主異況刪除 / 取消時連動延伸行程；延伸行程本身取消時不再向上或互相影響。
+  if (!isIncidentSchedule(row)) return []
+  if (isIncidentGeneratedSchedule(row)) return []
+
+  return getIncidentGeneratedSchedules(row.schedule_id)
+}
+
 
 function isIncidentTrackingTask(row) {
   const note = String(row?.sub_type_note || '')
@@ -17678,7 +17710,7 @@ function openCancelModal(scheduleId) {
 
       <div class="warning-card">
         <strong>防呆提醒</strong>
-        <p>系統目前會以「取消行程」方式保留紀錄，不會直接硬刪資料。</p>
+        <p>系統目前會以「取消行程」方式保留紀錄，不會直接硬刪資料。若取消主異況，會一併取消延伸追蹤行程與行政待辦。</p>
       </div>
 
       <div class="radio-list">
@@ -17766,14 +17798,40 @@ function openCancelModal(scheduleId) {
 }
 
 async function cancelSchedule(scheduleId, reason) {
-  const { error } = await supabase.rpc('cancel_schedule', {
-    target_schedule_id: scheduleId,
-    cancel_note: reason
-  })
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  const cascadeTargets = getIncidentCascadeCancelTargets(row)
 
-  if (error) {
-    alert('取消行程失敗：' + error.message)
+  const targetRows = [
+    ...cascadeTargets,
+    row
+  ].filter(Boolean)
+
+  const errors = []
+
+  for (const targetRow of targetRows) {
+    const cascadeNote = targetRow.schedule_id === scheduleId
+      ? reason
+      : `${reason}｜主異況取消同步取消：${row?.title || row?.schedule_id || scheduleId}`
+
+    const { error } = await supabase.rpc('cancel_schedule', {
+      target_schedule_id: targetRow.schedule_id,
+      cancel_note: cascadeNote
+    })
+
+    if (error) {
+      errors.push(`${targetRow.title || targetRow.schedule_id}：${error.message}`)
+    }
+  }
+
+  if (errors.length) {
+    alert('取消行程部分失敗：\n' + errors.join('\n'))
+    await refreshData()
+    renderApp()
     return
+  }
+
+  if (cascadeTargets.length) {
+    alert(`異況已取消，並同步取消 ${cascadeTargets.length} 筆延伸行程 / 行政待辦。`)
   }
 
   await refreshData()
@@ -19419,12 +19477,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
 */
 /* FOR-e V002-1P-151 END - visibility fieldday extra fix */
 
-/* FOR-e V002-1P-159 START - admin staff incident display fix */
+/* FOR-e V002-1P-160 START - incident cascade cancel */
 /*
-  V002-1P-159｜行政通知人員與異況顯示修正
-  - 通知行政人員改為：職務含行政 / 海外行政，或部門為營運處的啟用同仁
-  - 外務補件 / 送件異常通知行政後，行政待辦會建立到來源外務日期，顯示在被通知行政的行事曆上
-  - 異況通知行政資訊改為單獨一行顯示一次，並從一般備註重複內容中移除
-  - 新增異況的第一次追蹤欄位名稱改為「說明」
+  V002-1P-160｜異況刪除 / 取消連動延伸行程
+  - 主異況取消時，會一併取消由該異況延伸建立的追蹤行程
+  - 主異況取消時，會一併取消由該異況通知行政建立的行政待辦
+  - 延伸行程判斷來源包含：來源異況：主異況ID、來源行程：主異況ID
+  - 只在主異況取消時連動，單獨取消延伸行程不會反向影響主異況
 */
-/* FOR-e V002-1P-159 END - admin staff incident display fix */
+/* FOR-e V002-1P-160 END - incident cascade cancel */
