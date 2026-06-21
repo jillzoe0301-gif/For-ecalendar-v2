@@ -1027,8 +1027,14 @@ function isVisibleSchedule(row) {
   return row && !isDeletedSchedule(row) && !isCancelledSchedule(row) && canSeePersonalPrivateSchedule(row)
 }
 
+function isPromptOnlySchedule(row = {}) {
+  if (!row) return false
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return true
+  return false
+}
+
 function isSearchableSchedule(row) {
-  return isVisibleSchedule(row)
+  return isVisibleSchedule(row) && !isPromptOnlySchedule(row)
 }
 
 function isActiveServiceRecord(record) {
@@ -3424,6 +3430,16 @@ function renderApp() {
       if (!scheduleId) return
       if (typeof openEditFieldScheduleModal === 'function') openEditFieldScheduleModal(scheduleId)
       else openScheduleDetail(scheduleId)
+    })
+  })
+
+  document.querySelectorAll('[data-delete-field-day-reminder]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      const scheduleId = btn.dataset.deleteFieldDayReminder
+      if (!scheduleId) return
+      openCancelModal(scheduleId)
     })
   })
 
@@ -6901,6 +6917,7 @@ function getStatsDateRange() {
 
 function isStatsExcludedSchedule(row) {
   if (!row) return true
+  if (isPromptOnlySchedule(row)) return true
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return true
   if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return true
 
@@ -8119,6 +8136,7 @@ function getLineNotifyTargetText() {
 
 function isLineNotifyExcludedSchedule(row = {}) {
   if (!row) return true
+  if (isPromptOnlySchedule(row)) return true
   if (isLeaveOrReturnSchedule(row)) return true
 
   const category = String(row.category || '')
@@ -8549,7 +8567,7 @@ function getCurrentWeekScheduleOverviewRows() {
       rows.push(...getSchedulesForStaffDate(staff.staff_id, toDateKey(date)))
     })
   })
-  return uniqueScheduleRows(rows)
+  return uniqueScheduleRows(rows).filter(row => !isPromptOnlySchedule(row))
 }
 
 function getCurrentFieldWeekExportRows() {
@@ -21008,3 +21026,6 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 
 /* FOR-e V002-1P-193｜服務紀錄單多執行者有效統計與個別繳交狀態修正 */
+
+
+/* FOR-e V002-1P-199｜prompt-only schedules excluded from search / LINE / stats / overview CSV */
