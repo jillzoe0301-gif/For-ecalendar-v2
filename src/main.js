@@ -1037,7 +1037,13 @@ function isActiveServiceRecord(record) {
   if (record.need_submit === false || record.need_submit === 'false') return false
   const schedule = getServiceRecordSchedule(record)
   if (!schedule) return false
-  return isScheduleNeedServiceRecord(schedule)
+  if (!isScheduleNeedServiceRecord(schedule)) return false
+
+  const staffId = String(record.staff_id || '').trim()
+  const effectiveStaffIds = getServiceRecordScheduleStaffIds(schedule)
+  if (staffId && effectiveStaffIds.length && !effectiveStaffIds.includes(staffId)) return false
+
+  return true
 }
 
 
@@ -2590,7 +2596,7 @@ async function loadServiceRecords() {
     .from('service_records')
     .select('*')
     .order('schedule_date', { ascending: false })
-    .limit(500)
+    .limit(2000)
 
   if (error) {
     console.error(error)
@@ -3423,7 +3429,7 @@ function renderApp() {
   })
 
   document.querySelectorAll('[data-record-schedule]').forEach(btn => {
-    btn.addEventListener('click', () => openServiceRecordModal(btn.dataset.recordSchedule))
+    btn.addEventListener('click', () => openServiceRecordModal(btn.dataset.recordSchedule, btn.dataset.recordStaff || ''))
   })
 
 
@@ -6999,7 +7005,7 @@ function getStatsFilteredSchedules() {
 function getStatsFilteredServiceRecords() {
   const range = getStatsDateRange()
 
-  return serviceRecords.filter(isActiveServiceRecord).filter(record => {
+  return getEffectiveServiceRecords().filter(isActiveServiceRecord).filter(record => {
     const date = record.schedule_date || ''
     if (range.start && date < range.start) return false
     if (range.end && date > range.end) return false
@@ -8599,7 +8605,7 @@ function getScheduleCsvColumns() {
 }
 
 function getServiceRecordCsvRows() {
-  return serviceRecords.filter(record => matchesServiceRecordFilters(record, currentPage === 'recordSubmit'))
+  return getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, currentPage === 'recordSubmit'))
 }
 
 function getServiceRecordCsvColumns() {
@@ -11224,7 +11230,7 @@ function getMyPendingServiceRecordReminders() {
   const pending = []
   const overdue = []
 
-  serviceRecords
+  getEffectiveServiceRecords()
     .filter(record => record.staff_id === myStaffId)
     .filter(isValidPendingServiceRecord)
     .forEach(record => {
@@ -13338,6 +13344,119 @@ function getServiceRecordSchedule(record) {
   return schedules.find(row => row.schedule_id === record.schedule_id) || null
 }
 
+function getServiceRecordStaffById(staffId = '') {
+  const id = String(staffId || '').trim()
+  if (!id) return null
+  return staffList.find(staff => staff.staff_id === id) ||
+    (typeof allStaffList !== 'undefined' ? allStaffList.find(staff => staff.staff_id === id) : null) ||
+    null
+}
+
+function getServiceRecordScheduleStaffIds(schedule = {}) {
+  if (!schedule?.schedule_id) return []
+
+  const ids = [...new Set(getActiveAssigneeIds(schedule).map(id => String(id || '').trim()).filter(Boolean))]
+  if (ids.length) return ids
+
+  const creatorId = String(schedule.creator_staff_id || '').trim()
+  return creatorId ? [creatorId] : []
+}
+
+function getServiceRecordKey(record = {}) {
+  const scheduleId = String(record.schedule_id || '').trim()
+  const staffId = String(record.staff_id || '').trim()
+  if (scheduleId && staffId) return `${scheduleId}::${staffId}`
+  return String(record.record_id || record.service_record_id || record.id || scheduleId || Math.random())
+}
+
+function normalizeServiceRecordFromSchedule(record = {}) {
+  const schedule = getServiceRecordSchedule(record)
+  if (!schedule) return record
+  return {
+    ...record,
+    schedule_date: schedule.start_date || record.schedule_date || '',
+    schedule_type: schedule.schedule_type || record.schedule_type || schedule.category || '',
+    title: schedule.title || record.title || '',
+    location_name: schedule.location_name || schedule.customer_name || record.location_name || '',
+    need_submit: record.need_submit !== false && record.need_submit !== 'false'
+  }
+}
+
+function buildVirtualServiceRecord(schedule = {}, staffId = '', legacyRecord = null) {
+  const staff = getServiceRecordStaffById(staffId) || {}
+  return normalizeServiceRecordFromSchedule({
+    ...(legacyRecord || {}),
+    __virtual: true,
+    schedule_id: schedule.schedule_id,
+    staff_id: staffId,
+    staff_name: staff.name || legacyRecord?.staff_name || '-',
+    department_id: staff.department_id || legacyRecord?.department_id || schedule.department_id || '',
+    department_name: staff.department_name || legacyRecord?.department_name || schedule.department_name || '-',
+    schedule_date: schedule.start_date || legacyRecord?.schedule_date || '',
+    schedule_type: schedule.schedule_type || legacyRecord?.schedule_type || schedule.category || '',
+    title: schedule.title || legacyRecord?.title || '',
+    location_name: schedule.location_name || schedule.customer_name || legacyRecord?.location_name || '',
+    need_submit: true,
+    submitted: legacyRecord?.submitted ?? legacyRecord?.is_submitted ?? false,
+    submitted_date: legacyRecord?.submitted_date || legacyRecord?.submit_date || legacyRecord?.service_record_submitted_date || null
+  })
+}
+
+function chooseServiceRecordForMerge(currentRecord, nextRecord) {
+  if (!currentRecord) return nextRecord
+  if (isServiceRecordSubmitted(nextRecord) && !isServiceRecordSubmitted(currentRecord)) return nextRecord
+  const currentDate = getServiceRecordSubmittedDate(currentRecord) || currentRecord.updated_at || currentRecord.created_at || ''
+  const nextDate = getServiceRecordSubmittedDate(nextRecord) || nextRecord.updated_at || nextRecord.created_at || ''
+  return String(nextDate).localeCompare(String(currentDate)) > 0 ? nextRecord : currentRecord
+}
+
+function getEffectiveServiceRecords(sourceRecords = serviceRecords) {
+  const physicalByKey = new Map()
+  const legacyBySchedule = new Map()
+
+  ;(sourceRecords || []).forEach(rawRecord => {
+    if (!rawRecord || rawRecord.deleted_at || rawRecord.deletedAt || rawRecord.is_deleted === true || rawRecord.deleted === true) return
+    if (rawRecord.need_submit === false || rawRecord.need_submit === 'false') return
+
+    const schedule = getServiceRecordSchedule(rawRecord)
+    if (!schedule || !isScheduleNeedServiceRecord(schedule)) return
+
+    const normalized = normalizeServiceRecordFromSchedule(rawRecord)
+    const staffId = String(normalized.staff_id || '').trim()
+
+    if (!staffId) {
+      legacyBySchedule.set(normalized.schedule_id, chooseServiceRecordForMerge(legacyBySchedule.get(normalized.schedule_id), normalized))
+      return
+    }
+
+    const scheduleStaffIds = getServiceRecordScheduleStaffIds(schedule)
+    if (scheduleStaffIds.length && !scheduleStaffIds.includes(staffId)) return
+
+    const key = getServiceRecordKey(normalized)
+    physicalByKey.set(key, chooseServiceRecordForMerge(physicalByKey.get(key), normalized))
+  })
+
+  schedules
+    .filter(isScheduleNeedServiceRecord)
+    .forEach(schedule => {
+      const staffIds = getServiceRecordScheduleStaffIds(schedule)
+      const legacyRecord = legacyBySchedule.get(schedule.schedule_id) || null
+
+      staffIds.forEach(staffId => {
+        const key = `${schedule.schedule_id}::${staffId}`
+        if (!physicalByKey.has(key)) {
+          physicalByKey.set(key, buildVirtualServiceRecord(schedule, staffId, legacyRecord))
+        }
+      })
+
+      if (!staffIds.length && legacyRecord) {
+        physicalByKey.set(getServiceRecordKey(legacyRecord), legacyRecord)
+      }
+    })
+
+  return [...physicalByKey.values()].filter(isActiveServiceRecord)
+}
+
 function getServiceRecordDepartment(record) {
   const schedule = getServiceRecordSchedule(record)
   return record.department_name || schedule?.department_name || '-'
@@ -13359,9 +13478,12 @@ function getServiceRecordLocation(record) {
 }
 
 function getServiceRecordExecutor(record) {
+  if (record?.staff_name && record.staff_name !== '-') return record.staff_name
+  const staff = getServiceRecordStaffById(record?.staff_id || '')
+  if (staff?.name) return staff.name
   const schedule = getServiceRecordSchedule(record)
   const names = schedule ? getAssigneeNames(schedule) : ''
-  return names && names !== '-' ? names : (record.staff_name || '-')
+  return names && names !== '-' ? names : '-'
 }
 
 function getServiceRecordPeriodRows(records, period) {
@@ -13607,11 +13729,11 @@ function renderServiceRecordDetailTitle() {
 }
 
 function getServiceRecordDepartmentOptions() {
-  return ['全部', ...new Set(serviceRecords.map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
+  return ['全部', ...new Set(getEffectiveServiceRecords().map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
 }
 
 function getServiceRecordTypeOptions() {
-  return ['全部', ...new Set(serviceRecords.map(getServiceRecordScheduleType).filter(item => item && item !== '-'))]
+  return ['全部', ...new Set(getEffectiveServiceRecords().map(getServiceRecordScheduleType).filter(item => item && item !== '-'))]
 }
 
 function buildServiceRecordOptionList(items, selectedValue) {
@@ -13696,7 +13818,7 @@ function isPendingStatusText(value = '') {
   return ['未完成', '未繳交', '未交', '待繳交', 'pending'].includes(text)
 }
 
-function isScheduleServiceRecordSubmitted(row = {}) {
+function isScheduleServiceRecordSubmittedByFields(row = {}) {
   return Boolean(
     row?.service_record_submitted === true ||
     row?.service_record_submitted_date ||
@@ -13705,11 +13827,54 @@ function isScheduleServiceRecordSubmitted(row = {}) {
   )
 }
 
+function isServiceRecordSubmittedByRecordFields(record = {}) {
+  return Boolean(
+    record?.submitted === true ||
+    record?.is_submitted === true ||
+    record?.completed === true ||
+    record?.is_completed === true ||
+    record?.submitted_date ||
+    record?.submit_date ||
+    record?.service_record_submitted_date ||
+    record?.completed_at ||
+    record?.submitted_at ||
+    isSubmittedStatusText(record?.status) ||
+    isSubmittedStatusText(record?.record_status) ||
+    isSubmittedStatusText(record?.submit_status) ||
+    isSubmittedStatusText(record?.service_record_status)
+  )
+}
+
+function hasExplicitServiceRecordStatus(record = {}) {
+  return [
+    'submitted', 'is_submitted', 'completed', 'is_completed',
+    'submitted_date', 'submit_date', 'service_record_submitted_date',
+    'completed_at', 'submitted_at', 'status', 'record_status',
+    'submit_status', 'service_record_status'
+  ].some(key => record[key] !== undefined && record[key] !== null && String(record[key]).trim() !== '')
+}
+
+function isScheduleServiceRecordSubmitted(row = {}) {
+  if (isScheduleServiceRecordSubmittedByFields(row)) return true
+  if (!row?.schedule_id) return false
+
+  const records = (serviceRecords || [])
+    .filter(record => record.schedule_id === row.schedule_id)
+    .filter(record => record.staff_id)
+    .filter(record => !record.deleted_at && !record.deletedAt && record.is_deleted !== true && record.deleted !== true)
+
+  return records.length > 0 && records.every(isServiceRecordSubmittedByRecordFields)
+}
+
 
 function isScheduleNeedServiceRecord(row = {}) {
   if (!row) return false
   if (!isVisibleSchedule(row)) return false
   if (typeof isCompactSpecialScheduleType === 'function' && isCompactSpecialScheduleType(row.schedule_type)) return false
+
+  const excludedCategories = ['會議室預約', '公務車保養', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  if (excludedCategories.includes(row.category)) return false
+
   return row.need_service_record === true || row.need_submit === true
 }
 
@@ -13729,34 +13894,24 @@ function getScheduleServiceRecordSubmittedDate(row = {}) {
 }
 
 function isServiceRecordSubmitted(record = {}) {
+  if (hasExplicitServiceRecordStatus(record)) return isServiceRecordSubmittedByRecordFields(record)
   const schedule = getServiceRecordSchedule(record)
-  return Boolean(
-    record?.submitted === true ||
-    record?.is_submitted === true ||
-    record?.completed === true ||
-    record?.is_completed === true ||
-    record?.submitted_date ||
-    record?.submit_date ||
-    record?.service_record_submitted_date ||
-    record?.completed_at ||
-    record?.submitted_at ||
-    isSubmittedStatusText(record?.status) ||
-    isSubmittedStatusText(record?.record_status) ||
-    isSubmittedStatusText(record?.submit_status) ||
-    isSubmittedStatusText(record?.service_record_status) ||
-    isScheduleServiceRecordSubmitted(schedule)
-  )
+  return isScheduleServiceRecordSubmittedByFields(schedule)
 }
 
 function getServiceRecordSubmittedDate(record = {}) {
-  const schedule = getServiceRecordSchedule(record)
-  return record?.submitted_date ||
+  const recordDate = record?.submitted_date ||
     record?.submit_date ||
     record?.service_record_submitted_date ||
     record?.completed_at ||
     record?.submitted_at ||
-    getScheduleServiceRecordSubmittedDate(schedule) ||
     ''
+
+  if (recordDate) return recordDate
+  if (hasExplicitServiceRecordStatus(record)) return ''
+
+  const schedule = getServiceRecordSchedule(record)
+  return getScheduleServiceRecordSubmittedDate(schedule) || ''
 }
 
 function getServiceRecordStatus(record) {
@@ -13941,7 +14096,7 @@ function renderServiceRecordList(records, emptyText) {
             </div>
 
             <div class="service-record-action">
-              ${record.schedule_id ? `<button class="small-record-btn" data-record-schedule="${record.schedule_id}">繳交狀況</button>` : ''}
+              ${record.schedule_id ? `<button class="small-record-btn" data-record-schedule="${record.schedule_id}" data-record-staff="${escapeHtml(record.staff_id || '')}">繳交狀況</button>` : ''}
               ${record.schedule_id ? `<button class="small-secondary-btn" data-view-schedule="${record.schedule_id}">查看</button>` : ''}
             </div>
           </div>
@@ -14035,7 +14190,7 @@ function renderServiceRecordDepartmentSplitStatusV3(records) {
 
 
 function renderServiceRecordDashboard() {
-  const records = serviceRecords.filter(record => matchesServiceRecordFilters(record, false))
+  const records = getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, false))
 
   return `
     <div class="page-toolbar">
@@ -14063,7 +14218,7 @@ function renderServiceRecordDashboard() {
 
 
 function renderRecordSubmit() {
-  const records = serviceRecords.filter(record => matchesServiceRecordFilters(record, true))
+  const records = getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, true))
 
   return `
     <div class="page-toolbar">
@@ -19047,12 +19202,23 @@ async function cancelSchedule(scheduleId, reason) {
 }
 
 
-function openServiceRecordModal(scheduleId) {
+function openServiceRecordModal(scheduleId, staffId = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
-  const submittedNow = isScheduleServiceRecordSubmitted(row)
-  const submittedDateNow = getScheduleServiceRecordSubmittedDate(row)
+  const effectiveRecords = getEffectiveServiceRecords().filter(record => record.schedule_id === scheduleId)
+  const targetStaffId = String(staffId || '').trim()
+  const targetRecords = targetStaffId
+    ? effectiveRecords.filter(record => record.staff_id === targetStaffId)
+    : effectiveRecords
+  const displayRecord = targetRecords[0] || null
+  const submittedNow = targetRecords.length
+    ? targetRecords.every(isServiceRecordSubmitted)
+    : isScheduleServiceRecordSubmitted(row)
+  const submittedDateNow = displayRecord ? getServiceRecordSubmittedDate(displayRecord) : getScheduleServiceRecordSubmittedDate(row)
+  const targetStaffText = targetStaffId
+    ? (displayRecord?.staff_name || getServiceRecordStaffById(targetStaffId)?.name || '指定人員')
+    : `全部執行者（${targetRecords.length || getServiceRecordScheduleStaffIds(row).length} 人）`
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -19064,12 +19230,13 @@ function openServiceRecordModal(scheduleId) {
       </div>
 
       <div class="notice">
-        此處只更新服務紀錄單繳交狀態；選擇完成後，服務紀錄單頁面會同步顯示已繳交。
+        此處會更新本次選擇的服務紀錄單繳交狀態；同一行程多位執行者會各自保留繳交狀態。
       </div>
 
       <div class="detail-grid">
         <div class="span-2"><span>行程</span><strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title)}</strong></div>
         <div><span>行程日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
+        <div><span>繳交人員</span><strong>${escapeHtml(targetStaffText)}</strong></div>
         <div><span>目前狀態</span><strong>${submittedNow ? '已繳交' + (submittedDateNow ? '：' + submittedDateNow : '') : '尚未繳交'}</strong></div>
       </div>
 
@@ -19116,33 +19283,64 @@ function openServiceRecordModal(scheduleId) {
       return
     }
 
-    let rpcError = null
-    const { error } = await supabase.rpc('update_service_record_status', {
-      target_schedule_id: scheduleId,
-      submitted_value: submitted,
-      submitted_date_value: submittedDate
-    })
+    const staffIds = targetStaffId ? [targetStaffId] : getServiceRecordScheduleStaffIds(row)
 
-    if (error) {
-      console.warn('update_service_record_status RPC 失敗，改用 schedules 直接同步。', error)
-      rpcError = error
+    for (const id of staffIds) {
+      const staff = getServiceRecordStaffById(id) || {}
+      const payload = {
+        schedule_id: scheduleId,
+        staff_id: id,
+        staff_name: staff.name || targetRecords.find(record => record.staff_id === id)?.staff_name || '-',
+        department_id: staff.department_id || targetRecords.find(record => record.staff_id === id)?.department_id || row.department_id || null,
+        department_name: staff.department_name || targetRecords.find(record => record.staff_id === id)?.department_name || row.department_name || null,
+        schedule_date: row.start_date,
+        schedule_type: row.schedule_type || row.category,
+        title: row.title,
+        location_name: row.location_name || row.customer_name || null,
+        need_submit: true,
+        submitted,
+        submitted_date: submittedDate
+      }
+
+      const existing = serviceRecords.find(record => record.schedule_id === scheduleId && record.staff_id === id && !record.deleted_at && !record.deletedAt && record.is_deleted !== true && record.deleted !== true)
+
+      if (existing) {
+        let query = supabase.from('service_records').update({
+          submitted,
+          submitted_date: submittedDate,
+          schedule_date: row.start_date,
+          schedule_type: row.schedule_type || row.category,
+          title: row.title,
+          location_name: row.location_name || row.customer_name || null
+        })
+
+        if (existing.record_id) query = query.eq('record_id', existing.record_id)
+        else if (existing.service_record_id) query = query.eq('service_record_id', existing.service_record_id)
+        else if (existing.id) query = query.eq('id', existing.id)
+        else query = query.eq('schedule_id', scheduleId).eq('staff_id', id)
+
+        const { error } = await query
+        if (error) {
+          alert('更新服務紀錄單狀況失敗：' + error.message)
+          return
+        }
+      } else {
+        const { error } = await supabase.from('service_records').insert(payload)
+        if (error) {
+          alert('建立服務紀錄單狀況失敗：' + error.message)
+          return
+        }
+      }
     }
 
-    const { error: scheduleUpdateError } = await supabase
-      .from('schedules')
-      .update({
-        service_record_submitted: submitted,
-        service_record_submitted_date: submittedDate
-      })
-      .eq('schedule_id', scheduleId)
-
-    if (scheduleUpdateError) {
-      alert('更新服務紀錄單狀況失敗：' + scheduleUpdateError.message)
-      return
-    }
-
-    if (rpcError) {
-      console.warn('RPC 未成功，但 schedules 已同步服務紀錄單狀態。', rpcError.message)
+    if (!targetStaffId) {
+      await supabase
+        .from('schedules')
+        .update({
+          service_record_submitted: submitted,
+          service_record_submitted_date: submittedDate
+        })
+        .eq('schedule_id', scheduleId)
     }
 
     modal.remove()
@@ -19150,6 +19348,7 @@ function openServiceRecordModal(scheduleId) {
     renderApp()
   })
 }
+
 
 
 
@@ -20746,3 +20945,6 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 修改會議室與會者時不再使用會留下舊人的 RPC 早退流程。
 */
 /* FOR-e V002-1P-179 END - meeting room effective participant visibility */
+
+
+/* FOR-e V002-1P-193｜服務紀錄單多執行者有效統計與個別繳交狀態修正 */
