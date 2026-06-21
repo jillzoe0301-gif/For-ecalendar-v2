@@ -445,6 +445,7 @@ let fieldDetailFilters = {
 let incidentFilters = {
   staffId: '全部',
   status: '全部',
+  adminStatus: '全部',
   keyword: ''
 }
 let searchFilters = {
@@ -3051,6 +3052,7 @@ function renderApp() {
       incidentFilters = {
         staffId: form.get('staffId') || '全部',
         status: form.get('status') || '全部',
+        adminStatus: form.get('adminStatus') || '全部',
         keyword: form.get('keyword') || ''
       }
       renderApp()
@@ -3063,6 +3065,7 @@ function renderApp() {
       incidentFilters = {
         staffId: '全部',
         status: '全部',
+        adminStatus: '全部',
         keyword: ''
       }
       renderApp()
@@ -4806,6 +4809,10 @@ function renderFieldDetailPage() {
         <strong>${activeRows.length}</strong>
         <span>未完成</span>
       </div>
+      <div class="summary-card ${adminOpenCount ? 'is-alert' : ''}">
+        <strong>${adminOpenCount}</strong>
+        <span>行政待辦</span>
+      </div>
       <div class="summary-card">
         <strong>${completedRows.length}</strong>
         <span>已完成</span>
@@ -6060,6 +6067,110 @@ function renderIncidentAdminNotifyLine(row = {}) {
   return `<div class="incident-admin-notify-line">通知行政辦理｜${escapeHtml(pieces.join('｜'))}</div>`
 }
 
+function isIncidentAdministrativeTodo(row = {}) {
+  if (!row) return false
+  const note = String(row.sub_type_note || '')
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.description, note]
+    .filter(Boolean)
+    .join('｜')
+  return row.category === '待辦事項' && (note.includes('行政通知：') || text.includes('通知行政辦理'))
+}
+
+function getIncidentAdministrativeTodoRows(parentRow = {}) {
+  if (!parentRow?.schedule_id) return []
+  return getIncidentGeneratedSchedules(parentRow.schedule_id)
+    .filter(isIncidentAdministrativeTodo)
+    .sort((a, b) => {
+      const statusA = a.status === '已完成' ? 1 : 0
+      const statusB = b.status === '已完成' ? 1 : 0
+      if (statusA !== statusB) return statusA - statusB
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+    })
+}
+
+function getIncidentAdministrativeState(row = {}) {
+  const todos = getIncidentAdministrativeTodoRows(row)
+  const info = getIncidentAdminNotifyInfo(row)
+  const hasNotifyNote = Boolean(info.type || info.staff || info.detail)
+  const hasNotify = hasNotifyNote || todos.length > 0
+  const activeTodos = todos.filter(item => item.status !== '已完成' && item.status !== '取消')
+  const completedTodos = todos.filter(item => item.status === '已完成')
+  const overdueTodos = activeTodos.filter(item => item.start_date && item.start_date < todayString())
+
+  return {
+    info,
+    todos,
+    hasNotify,
+    hasNotifyNote,
+    activeTodos,
+    completedTodos,
+    overdueTodos
+  }
+}
+
+function incidentAdminStatusOptionsHtml(selected = '全部') {
+  return ['全部', '有行政通知', '行政未完成', '行政已完成', '無行政通知']
+    .map(item => `<option value="${item}" ${selected === item ? 'selected' : ''}>${item}</option>`)
+    .join('')
+}
+
+function incidentMatchesAdminStatusFilter(row = {}) {
+  const filter = incidentFilters.adminStatus || '全部'
+  if (filter === '全部') return true
+
+  const state = getIncidentAdministrativeState(row)
+  if (filter === '有行政通知') return state.hasNotify
+  if (filter === '無行政通知') return !state.hasNotify
+  if (filter === '行政未完成') return state.hasNotify && (!state.todos.length || state.activeTodos.length > 0)
+  if (filter === '行政已完成') return state.hasNotify && state.todos.length > 0 && state.activeTodos.length === 0
+  return true
+}
+
+function renderIncidentAdminTodoPanel(row = {}) {
+  const state = getIncidentAdministrativeState(row)
+  if (!state.hasNotify) return ''
+
+  const headerText = state.todos.length
+    ? `通知行政待辦｜${state.activeTodos.length} 未完成 / ${state.todos.length} 筆`
+    : '通知行政辦理｜尚未找到行政待辦'
+
+  if (!state.todos.length) {
+    return `
+      <div class="incident-admin-todo-panel is-missing-todo">
+        <div class="incident-admin-todo-title">${escapeHtml(headerText)}</div>
+        <div class="incident-admin-todo-empty">
+          ${renderIncidentAdminNotifyLine(row)}
+          <span>請確認是否已建立行政待辦，或重新通知行政。</span>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="incident-admin-todo-panel">
+      <div class="incident-admin-todo-title">${escapeHtml(headerText)}</div>
+      <div class="incident-admin-todo-list">
+        ${state.todos.map(todo => {
+          const isDone = todo.status === '已完成'
+          const isOverdue = !isDone && todo.start_date && todo.start_date < todayString()
+          const statusText = isDone ? '已完成' : (isOverdue ? '逾期' : (todo.status || '未完成'))
+          const taskType = todo.sub_type || getFieldNoteValue(todo, '行政通知') || '行政辦理'
+          return `
+            <div class="incident-admin-todo-item ${isDone ? 'is-done' : ''} ${isOverdue ? 'is-overdue' : ''}">
+              <div class="incident-admin-todo-main">
+                <strong>${escapeHtml(taskType)}｜${escapeHtml(todo.title || '-')}</strong>
+                <span>行政：${escapeHtml(getAssigneeNames(todo) || '-')}｜日期：${escapeHtml(todo.start_date || '-')}</span>
+              </div>
+              <span class="incident-admin-todo-status">${escapeHtml(statusText)}</span>
+              <button type="button" class="small-secondary-btn" data-view-schedule="${escapeHtml(todo.schedule_id)}">查看</button>
+            </div>
+          `
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
 
 function incidentServiceRecordFieldsHtml(row = null) {
   const need = row ? !!row.need_service_record : true
@@ -6095,6 +6206,7 @@ function getIncidentRows() {
     .filter(row => !isIncidentTrackingTask(row))
     .filter(row => {
       if (incidentFilters.status !== '全部' && row.status !== incidentFilters.status) return false
+      if (!incidentMatchesAdminStatusFilter(row)) return false
 
       if (incidentFilters.staffId !== '全部') {
         const assigned = (row.schedule_assignees || []).some(item => item.staff_id === incidentFilters.staffId && !item.deleted_at)
@@ -6130,6 +6242,7 @@ function renderIncidentTrackingPage() {
   const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
   const completedRows = rows.filter(row => row.status === '已完成')
   const overdueRows = activeRows.filter(row => row.start_date && row.start_date < todayString())
+  const adminOpenCount = rows.reduce((count, row) => count + getIncidentAdministrativeState(row).activeTodos.length, 0)
 
   return `
     <div class="page-toolbar">
@@ -6156,6 +6269,13 @@ function renderIncidentTrackingPage() {
         狀態
         <select name="status">
           ${['全部', '未完成', '已完成'].map(item => `<option value="${item}" ${incidentFilters.status === item ? 'selected' : ''}>${item}</option>`).join('')}
+        </select>
+      </label>
+
+      <label>
+        行政通知
+        <select name="adminStatus">
+          ${incidentAdminStatusOptionsHtml(incidentFilters.adminStatus || '全部')}
         </select>
       </label>
 
@@ -6218,7 +6338,7 @@ function renderIncidentList(rows) {
               </div>
               ${renderIncidentTrackingHistory(row)}
               ${row.need_service_record ? `<div class="incident-sr-badge">服務紀錄單：${isScheduleServiceRecordSubmitted(row) ? '已繳交 ' + escapeHtml(getScheduleServiceRecordSubmittedDate(row)) : '需繳交'}</div>` : ''}
-              ${renderIncidentAdminNotifyLine(row)}
+              ${renderIncidentAdminTodoPanel(row)}
               ${stripIncidentAdminNotifyNote(row.sub_type_note) ? `<div class="incident-note">${escapeHtml(stripIncidentAdminNotifyNote(row.sub_type_note))}</div>` : ''}
             </div>
 

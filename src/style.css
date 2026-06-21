@@ -15598,3 +15598,159 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-198 END - field day prompt single entry */
+
+
+/* FOR-e V002-1P-202 START - incident admin todo display and filters */
+.incident-admin-todo-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #FF85BB;
+  border-radius: 14px;
+  background: #fff7fb;
+  display: grid;
+  gap: 8px;
+}
+
+.incident-admin-todo-title {
+  color: #9f174f;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.4;
+}
+
+.incident-admin-todo-list {
+  display: grid;
+  gap: 6px;
+}
+
+.incident-admin-todo-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #ffd3d5;
+  border-radius: 12px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.incident-admin-todo-item.is-overdue {
+  border-color: #FF62BB;
+  background: #fff0f7;
+}
+
+.incident-admin-todo-item.is-done {
+  opacity: 0.7;
+  background: #f8fafc;
+}
+
+.incident-admin-todo-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.incident-admin-todo-main strong,
+.incident-admin-todo-main span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incident-admin-todo-main strong {
+  color: #9f174f;
+  font-size: 12.5px;
+  font-weight: 950;
+}
+
+.incident-admin-todo-main span,
+.incident-admin-todo-empty span {
+  color: #7f1d4f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.incident-admin-todo-status {
+  min-width: 58px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #FFCEE3;
+  color: #9f174f;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.incident-admin-todo-item.is-overdue .incident-admin-todo-status {
+  background: #FF62BB;
+  color: #ffffff;
+}
+
+.incident-admin-todo-empty {
+  display: grid;
+  gap: 6px;
+}
+
+.incident-admin-todo-empty .incident-admin-notify-line {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .incident-admin-todo-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .incident-admin-todo-main strong,
+  .incident-admin-todo-main span {
+    white-space: normal;
+  }
+
+  .incident-admin-todo-status,
+  .incident-admin-todo-item button {
+    width: 100%;
+  }
+}
+/* FOR-e V002-1P-202 END - incident admin todo display and filters */
+
+/* FOR-e V002-1P-202-1 START - incident filter column alignment */
+#incidentFilterForm.incident-filter {
+  grid-template-columns: minmax(150px, 1fr) minmax(120px, 0.8fr) minmax(150px, 0.9fr) minmax(220px, 1.5fr) auto;
+}
+
+.incident-summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  #incidentFilterForm.incident-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #incidentFilterForm .incident-keyword-filter,
+  #incidentFilterForm button[type="submit"] {
+    grid-column: span 2;
+  }
+
+  .incident-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  #incidentFilterForm.incident-filter {
+    grid-template-columns: 1fr;
+  }
+
+  #incidentFilterForm .incident-keyword-filter,
+  #incidentFilterForm button[type="submit"] {
+    grid-column: span 1;
+  }
+
+  .incident-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+/* FOR-e V002-1P-202-1 END - incident filter column alignment */
