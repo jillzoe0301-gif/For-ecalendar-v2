@@ -15051,7 +15051,9 @@ label.is-filter-hidden {
 
 
 
-/* FOR-e V002-1P-188 START - tablet isolated layout */
+
+
+/* FOR-e V002-1P-189 START - tablet filter layout cleanup */
 @media (min-width: 769px) and (max-width: 1180px) {
   .sidebar {
     display: none !important;
@@ -15242,17 +15244,159 @@ label.is-filter-hidden {
     padding: 0 12px !important;
   }
 
-  .overview-filter-compact-row,
-  .field-filter-panel-compact .overview-filter-compact-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 10px !important;
+  .overview-filter-panel-compact,
+  .field-filter-panel-compact {
+    padding: 18px !important;
+    gap: 14px !important;
+    border-radius: 20px !important;
   }
 
-  .compact-multi-select summary,
-  .compact-sort-select select,
-  .overview-filter-compact-row > .primary-btn,
-  .overview-filter-compact-row > .secondary-btn {
-    min-height: 46px !important;
+  .overview-filter-panel-compact .compact-field-label,
+  .field-filter-panel-compact .compact-field-label {
+    display: none !important;
+  }
+
+  .overview-filter-panel-compact .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    display: grid !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: 52px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  #fieldScheduleFilterForm .overview-filter-compact-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(1) {
+    grid-column: 1 / span 2 !important;
+    grid-row: 1 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(2) {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(3) {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(4) {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(5) {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(6) {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+  }
+
+  #overviewFilterForm .overview-filter-compact-row > :nth-child(7) {
+    grid-column: 4 !important;
+    grid-row: 2 !important;
+  }
+
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(1),
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(2),
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(3) {
+    grid-row: 1 !important;
+  }
+
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(4),
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(5),
+  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(6) {
+    grid-row: 2 !important;
+  }
+
+  .overview-filter-panel-compact .compact-filter-control,
+  .field-filter-panel-compact .compact-filter-control,
+  .overview-filter-panel-compact .compact-sort-select,
+  .field-filter-panel-compact .compact-sort-select,
+  .overview-filter-panel-compact .compact-multi-select,
+  .field-filter-panel-compact .compact-multi-select,
+  .overview-filter-panel-compact .overview-filter-compact-row > button,
+  .field-filter-panel-compact .overview-filter-compact-row > button {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+    display: block !important;
+  }
+
+  .overview-filter-panel-compact .compact-multi-select summary,
+  .field-filter-panel-compact .compact-multi-select summary,
+  .overview-filter-panel-compact .compact-sort-select select,
+  .field-filter-panel-compact .compact-sort-select select,
+  .overview-filter-panel-compact .overview-filter-compact-row > .primary-btn,
+  .field-filter-panel-compact .overview-filter-compact-row > .primary-btn,
+  .overview-filter-panel-compact .overview-filter-compact-row > .secondary-btn,
+  .field-filter-panel-compact .overview-filter-compact-row > .secondary-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    border-radius: 15px !important;
+    font-size: 15px !important;
+    font-weight: 950 !important;
+    line-height: 52px !important;
+    box-sizing: border-box !important;
+  }
+
+  .overview-filter-panel-compact .compact-multi-select summary,
+  .field-filter-panel-compact .compact-multi-select summary {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 14px !important;
+  }
+
+  .overview-filter-panel-compact .compact-sort-select select,
+  .field-filter-panel-compact .compact-sort-select select {
+    display: block !important;
+    padding: 0 32px 0 14px !important;
+    text-align: left !important;
+  }
+
+  .overview-filter-panel-compact .overview-filter-compact-row > .primary-btn,
+  .field-filter-panel-compact .overview-filter-compact-row > .primary-btn,
+  .overview-filter-panel-compact .overview-filter-compact-row > .secondary-btn,
+  .field-filter-panel-compact .overview-filter-compact-row > .secondary-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 0 12px !important;
+  }
+
+  .overview-filter-panel-compact .compact-summary,
+  .field-filter-panel-compact .compact-summary {
+    margin-top: 2px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
   }
 
   .week-overview-scroll,
@@ -15319,4 +15463,4 @@ label.is-filter-hidden {
     border-radius: 18px !important;
   }
 }
-/* FOR-e V002-1P-188 END - tablet isolated layout */
+/* FOR-e V002-1P-189 END - tablet filter layout cleanup */
