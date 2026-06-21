@@ -14875,7 +14875,7 @@ label.is-filter-hidden {
 /* FOR-e V002-1P-176 END - recurring edit scope and meeting title display */
 
 
-/* FOR-e V002-1P-186 START - mobile toolbar centered equal controls */
+/* FOR-e V002-1P-187 START - mobile month value vertical center */
 @media (max-width: 768px) {
   .page-toolbar .overview-toolbar-actions,
   .page-toolbar .field-toolbar-actions,
@@ -14933,11 +14933,8 @@ label.is-filter-hidden {
     display: none !important;
   }
 
-  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
   .page-toolbar .overview-toolbar-actions .toolbar-month-control select,
-  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
   .page-toolbar .field-toolbar-actions .toolbar-month-control select,
-  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"],
   .page-toolbar .meeting-toolbar-actions .toolbar-month-control select,
   .page-toolbar .overview-toolbar-actions button,
   .page-toolbar .field-toolbar-actions button,
@@ -14957,42 +14954,7 @@ label.is-filter-hidden {
     white-space: nowrap !important;
     font-size: 14px !important;
     font-weight: 900 !important;
-    line-height: 44px !important;
     vertical-align: middle !important;
-  }
-
-  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
-  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
-  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"] {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    text-align: left !important;
-    padding: 0 8px 0 12px !important;
-  }
-
-  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
-  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
-  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    line-height: 44px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    text-align: left !important;
-  }
-
-  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator,
-  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator,
-  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator {
-    margin: 0 !important;
-    padding: 0 !important;
-    align-self: center !important;
   }
 
   .page-toolbar .overview-toolbar-actions .toolbar-month-control select,
@@ -15003,6 +14965,69 @@ label.is-filter-hidden {
     padding: 0 28px 0 12px !important;
     line-height: 44px !important;
     background-position: right 12px center !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    inline-size: 100% !important;
+    max-inline-size: 100% !important;
+    min-inline-size: 0 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+    line-height: 20px !important;
+    padding: 12px 8px 12px 12px !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value {
+    display: block !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: left !important;
+    transform: translateY(0) !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-calendar-picker-indicator {
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: center !important;
   }
 
   .page-toolbar .overview-toolbar-actions button,
@@ -15022,6 +15047,6 @@ label.is-filter-hidden {
     grid-column: auto !important;
   }
 }
-/* FOR-e V002-1P-186 END - mobile toolbar centered equal controls */
+/* FOR-e V002-1P-187 END - mobile month value vertical center */
 
 
