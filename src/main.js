@@ -910,7 +910,7 @@ function getAssignableStaffRows() {
 
 function canCreateForCurrentPage() {
   if (currentPage === 'personalSchedule' || currentPage === 'personalTodo') return canCreatePersonalSchedule()
-  if (currentPage === 'scheduleOverview') return canCreateServiceSchedule()
+  if (currentPage === 'scheduleOverview' || currentPage === 'assignedTracking') return canCreateServiceSchedule()
   if (currentPage === 'fieldSchedule' || currentPage === 'fieldDetail') return canCreateFieldSchedule()
   if (currentPage === 'meetingRoom') return canCreateMeetingRoomSchedule()
   return false
@@ -4565,7 +4565,7 @@ function renderFieldScheduleCalendar() {
         <h3>外務行程</h3>
         <p class="muted">外務人員 × 日期｜${getFieldCalendarLabel(weekDates)}</p>
       </div>
-      <div class="toolbar-actions">
+      <div class="toolbar-actions field-toolbar-actions">
         ${renderToolbarViewModeSelect('fieldCalendarViewModeSelect', fieldCalendarViewMode)}
         ${renderToolbarMonthInput('fieldMonthToolbarInput', getFieldActiveMonth())}
         <button class="secondary-btn" id="fieldPrevWeekBtn">${isMonthView ? '上一月' : '上一週'}</button>
@@ -8095,8 +8095,26 @@ function getLineNotifyTargetText() {
   return '自己'
 }
 
+function isLineNotifyExcludedSchedule(row = {}) {
+  if (!row) return true
+  if (isLeaveOrReturnSchedule(row)) return true
+
+  const category = String(row.category || '')
+  const text = [row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  if (category === '請假 / 會議 / 活動 / 外訓' && /請假|休假|特休|病假|事假|公假|婚假|喪假|產假|育嬰假|陪產假|安胎|補休|調休/.test(text)) {
+    return true
+  }
+
+  return false
+}
+
 function getLineNotifyBaseRows() {
-  let rows = schedules.filter(isVisibleSchedule).filter(row => row.status !== '取消')
+  let rows = schedules
+    .filter(isVisibleSchedule)
+    .filter(row => row.status !== '取消')
+    .filter(row => !isLineNotifyExcludedSchedule(row))
   const target = lineNotifyState.target || '自己'
 
   if (!canLineNotifyAll()) {
@@ -11110,7 +11128,7 @@ function renderAssignedTrackingPage() {
         <h3>我指派的事項追蹤</h3>
         <p class="muted">只追蹤我建立，並指派給他人的任務。</p>
       </div>
-      <div class="toolbar-actions">
+      <div class="toolbar-actions assigned-tracking-toolbar-actions">
         ${canCreateServiceSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增行程</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
@@ -13199,7 +13217,7 @@ function renderScheduleOverview() {
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
-      <div class="toolbar-actions">
+      <div class="toolbar-actions overview-toolbar-actions">
         ${renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>

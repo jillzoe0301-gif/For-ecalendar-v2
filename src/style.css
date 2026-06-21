@@ -14873,3 +14873,48 @@ label.is-filter-hidden {
   word-break: break-word;
 }
 /* FOR-e V002-1P-176 END - recurring edit scope and meeting title display */
+
+
+/* FOR-e V002-1P-182 START - line notify / assigned tracking / mobile toolbar fixes */
+@media (max-width: 768px) {
+  .field-toolbar-actions,
+  .overview-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: stretch;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .field-toolbar-actions > *,
+  .overview-toolbar-actions > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .field-toolbar-actions .toolbar-month-control,
+  .overview-toolbar-actions .toolbar-month-control {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .field-toolbar-actions .toolbar-month-control select,
+  .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .overview-toolbar-actions .toolbar-month-control select {
+    width: 100%;
+  }
+
+  .field-toolbar-actions button,
+  .overview-toolbar-actions button {
+    width: 100%;
+    margin: 0;
+  }
+
+  .field-toolbar-actions #refreshBtn,
+  .overview-toolbar-actions #refreshBtn {
+    grid-column: 1 / -1;
+  }
+}
+/* FOR-e V002-1P-182 END - line notify / assigned tracking / mobile toolbar fixes */
