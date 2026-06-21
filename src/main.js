@@ -5659,6 +5659,18 @@ function getIncidentCascadeCancelTargets(row = {}) {
   return getIncidentGeneratedSchedules(row.schedule_id)
 }
 
+function getIncidentCascadeCompleteTargets(row = {}) {
+  if (!row?.schedule_id) return []
+
+  // 只在主異況完成時同步完成延伸行程 / 行政待辦；延伸項目單獨完成不反向影響主異況。
+  if (!isIncidentSchedule(row)) return []
+  if (isIncidentGeneratedSchedule(row)) return []
+
+  return getIncidentGeneratedSchedules(row.schedule_id)
+    .filter(item => item.status !== '已完成' && item.status !== '取消')
+    .filter(item => !isNoCompletionControlSchedule(item))
+}
+
 
 function isIncidentTrackingTask(row) {
   const note = String(row?.sub_type_note || '')
@@ -19121,15 +19133,36 @@ async function saveSchedule(event, modal) {
 }
 
 async function completeSchedule(scheduleId) {
-  if (!confirm('確定要將此行程標記為已完成嗎？')) return
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  const cascadeTargets = getIncidentCascadeCompleteTargets(row)
+  const confirmText = cascadeTargets.length
+    ? `確定要將此異況標記為已完成嗎？\n\n會一併完成 ${cascadeTargets.length} 筆延伸追蹤行程 / 行政待辦。`
+    : '確定要將此行程標記為已完成嗎？'
 
-  const { error } = await supabase.rpc('complete_schedule', {
-    target_schedule_id: scheduleId
-  })
+  if (!confirm(confirmText)) return
 
-  if (error) {
-    alert('完成行程失敗：' + error.message)
+  const targetRows = [row, ...cascadeTargets].filter(Boolean)
+  const errors = []
+
+  for (const targetRow of targetRows) {
+    const { error } = await supabase.rpc('complete_schedule', {
+      target_schedule_id: targetRow.schedule_id
+    })
+
+    if (error) {
+      errors.push(`${targetRow.title || targetRow.schedule_id}：${error.message}`)
+    }
+  }
+
+  if (errors.length) {
+    alert('完成行程部分失敗：\n' + errors.join('\n'))
+    await refreshData()
+    renderApp()
     return
+  }
+
+  if (cascadeTargets.length) {
+    alert(`異況已完成，並同步完成 ${cascadeTargets.length} 筆延伸追蹤行程 / 行政待辦。`)
   }
 
   await refreshData()
