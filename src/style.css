@@ -1,4 +1,16 @@
-:root {
+unzip -o for-e-v002-1p-190-tablet-filter-natural-width-fix.zip -d .
+
+git rm --ignore-unmatch -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
+rm -f tools/apply-v002-1p-173.cjs apply-v002-1p-173.cjs
+
+node --check src/main.js
+npx esbuild src/main.js --outfile=/tmp/for-e-main.out.js --format=esm --platform=browser
+npm run build
+
+git status
+git add src/style.css
+git commit -m "V002-1P-190 fix tablet filter natural width"
+git push:root {
   --blue: #5170ff;
   --light-blue: #eef5ff;
   --border: #dbe3f0;
@@ -15049,11 +15061,7 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-187 END - mobile month value vertical center */
 
-
-
-
-
-/* FOR-e V002-1P-189 START - tablet filter layout cleanup */
+/* FOR-e V002-1P-190 START - tablet filter natural width layout */
 @media (min-width: 769px) and (max-width: 1180px) {
   .sidebar {
     display: none !important;
@@ -15258,69 +15266,24 @@ label.is-filter-hidden {
 
   .overview-filter-panel-compact .overview-filter-compact-row,
   .field-filter-panel-compact .overview-filter-compact-row {
-    display: grid !important;
-    gap: 12px !important;
-    align-items: stretch !important;
-    grid-auto-flow: row !important;
-    grid-auto-rows: 52px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    align-content: flex-start !important;
+    gap: 10px 12px !important;
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    grid-template-columns: none !important;
+    grid-auto-flow: unset !important;
+    grid-auto-rows: unset !important;
   }
 
-  #overviewFilterForm .overview-filter-compact-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-
-  #fieldScheduleFilterForm .overview-filter-compact-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(1) {
-    grid-column: 1 / span 2 !important;
-    grid-row: 1 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(2) {
-    grid-column: 3 !important;
-    grid-row: 1 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(3) {
-    grid-column: 4 !important;
-    grid-row: 1 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(4) {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(5) {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(6) {
-    grid-column: 3 !important;
-    grid-row: 2 !important;
-  }
-
-  #overviewFilterForm .overview-filter-compact-row > :nth-child(7) {
-    grid-column: 4 !important;
-    grid-row: 2 !important;
-  }
-
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(1),
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(2),
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(3) {
-    grid-row: 1 !important;
-  }
-
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(4),
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(5),
-  #fieldScheduleFilterForm .overview-filter-compact-row > :nth-child(6) {
-    grid-row: 2 !important;
+  #overviewFilterForm .overview-filter-compact-row > *,
+  #fieldScheduleFilterForm .overview-filter-compact-row > * {
+    grid-column: auto !important;
+    grid-row: auto !important;
   }
 
   .overview-filter-panel-compact .compact-filter-control,
@@ -15331,17 +15294,18 @@ label.is-filter-hidden {
   .field-filter-panel-compact .compact-multi-select,
   .overview-filter-panel-compact .overview-filter-compact-row > button,
   .field-filter-panel-compact .overview-filter-compact-row > button {
-    width: 100% !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    height: 52px !important;
-    min-height: 52px !important;
+    height: 48px !important;
+    min-height: 48px !important;
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
-    align-self: stretch !important;
-    justify-self: stretch !important;
-    display: block !important;
+    align-self: auto !important;
+    justify-self: auto !important;
+    display: inline-flex !important;
   }
 
   .overview-filter-panel-compact .compact-multi-select summary,
@@ -15352,30 +15316,32 @@ label.is-filter-hidden {
   .field-filter-panel-compact .overview-filter-compact-row > .primary-btn,
   .overview-filter-panel-compact .overview-filter-compact-row > .secondary-btn,
   .field-filter-panel-compact .overview-filter-compact-row > .secondary-btn {
-    width: 100% !important;
+    width: auto !important;
     max-width: 100% !important;
-    min-width: 0 !important;
-    height: 52px !important;
-    min-height: 52px !important;
+    min-width: max-content !important;
+    height: 48px !important;
+    min-height: 48px !important;
     border-radius: 15px !important;
     font-size: 15px !important;
     font-weight: 950 !important;
-    line-height: 52px !important;
+    line-height: 48px !important;
     box-sizing: border-box !important;
+    white-space: nowrap !important;
   }
 
   .overview-filter-panel-compact .compact-multi-select summary,
   .field-filter-panel-compact .compact-multi-select summary {
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    padding: 0 14px !important;
+    gap: 10px !important;
+    padding: 0 16px !important;
   }
 
   .overview-filter-panel-compact .compact-sort-select select,
   .field-filter-panel-compact .compact-sort-select select {
-    display: block !important;
-    padding: 0 32px 0 14px !important;
+    display: inline-block !important;
+    padding: 0 34px 0 16px !important;
     text-align: left !important;
   }
 
@@ -15383,15 +15349,16 @@ label.is-filter-hidden {
   .field-filter-panel-compact .overview-filter-compact-row > .primary-btn,
   .overview-filter-panel-compact .overview-filter-compact-row > .secondary-btn,
   .field-filter-panel-compact .overview-filter-compact-row > .secondary-btn {
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     text-align: center !important;
-    padding: 0 12px !important;
+    padding: 0 22px !important;
   }
 
   .overview-filter-panel-compact .compact-summary,
   .field-filter-panel-compact .compact-summary {
+    width: 100% !important;
     margin-top: 2px !important;
     padding: 12px 14px !important;
     border-radius: 16px !important;
@@ -15463,4 +15430,4 @@ label.is-filter-hidden {
     border-radius: 18px !important;
   }
 }
-/* FOR-e V002-1P-189 END - tablet filter layout cleanup */
+/* FOR-e V002-1P-190 END - tablet filter natural width layout */
