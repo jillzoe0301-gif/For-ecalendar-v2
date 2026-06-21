@@ -1314,7 +1314,19 @@ function getBirthdayWishRows(staffId = '', dateKey = todayString()) {
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
 }
 
+function canViewBirthdayWishesForStaff(staff = {}) {
+  return Boolean(staff?.staff_id && currentProfile?.staff_id && String(staff.staff_id) === String(currentProfile.staff_id))
+}
+
 function renderBirthdayWishRows(staff = {}, dateKey = todayString()) {
+  if (!canViewBirthdayWishesForStaff(staff)) {
+    return '<div class="birthday-wish-private-note">生日祝福留言只有壽星本人看得到；其他同仁不會看到彼此寫的內容。</div>'
+  }
+
+  if (birthdayWishesError) {
+    return `<div class="birthday-wish-error">生日祝福留言讀取失敗，請先執行 V002-1P-206 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
+  }
+
   const rows = getBirthdayWishRows(staff.staff_id, dateKey)
   if (!rows.length) return '<div class="birthday-wish-empty">目前還沒有生日祝福。</div>'
 
@@ -1334,13 +1346,13 @@ function renderBirthdayWishRows(staff = {}, dateKey = todayString()) {
 }
 
 function renderBirthdayWishForm(staff = {}, dateKey = todayString()) {
-  const isSelf = String(staff.staff_id || '') === String(currentProfile?.staff_id || '')
+  const isSelf = canViewBirthdayWishesForStaff(staff)
   if (isSelf) {
-    return '<div class="birthday-wish-self-note">今天是你的生日，這裡會顯示同仁給你的祝福。</div>'
+    return '<div class="birthday-wish-self-note">今天是你的生日，這裡只會顯示同仁寫給你的生日祝福。</div>'
   }
 
   if (birthdayWishesError) {
-    return `<div class="birthday-wish-error">生日祝福留言表尚未啟用，請先執行 V002-1P-205 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
+    return `<div class="birthday-wish-error">生日祝福留言表權限尚未啟用，請先執行 V002-1P-206 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
   }
 
   return `
@@ -1387,7 +1399,7 @@ function openBirthdayWishModal(options = {}) {
         <img src="/icons/cake.png" alt="" class="login-birthday-icon">
         <div>
           <strong>${escapeHtml(dateKey)}｜今天生日同仁</strong>
-          <span>可查看生日同仁並留言祝福。</span>
+          <span>可查看生日同仁並留言祝福；留言只有壽星本人看得到。</span>
         </div>
       </div>
 
@@ -1422,6 +1434,7 @@ function openBirthdayWishModal(options = {}) {
 
     try {
       await saveBirthdayWish(staffId, targetDate, message)
+      alert('生日祝福已送出，只有壽星本人看得到。')
       await loadBirthdayWishes()
       close()
       openBirthdayWishModal({ staffId, dateKey: targetDate })
@@ -21566,3 +21579,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 可送出生日祝福到 birthday_wishes
 */
 /* FOR-e V002-1P-205 END - birthday wish modal */
+
+
+/* FOR-e V002-1P-206 START - birthday wish privacy and permission repair */
+/*
+  V002-1P-206｜生日祝福權限與隱私修正
+  - 補上 birthday_wishes grant / RLS SQL
+  - 其他同仁可以留言，但看不到彼此留言
+  - 只有壽星本人可以看到收到的生日祝福
+*/
+/* FOR-e V002-1P-206 END - birthday wish privacy and permission repair */

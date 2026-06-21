@@ -15933,6 +15933,7 @@ button.field-birthday-card:focus-visible {
 
 .birthday-wish-empty,
 .birthday-wish-self-note,
+.birthday-wish-private-note,
 .birthday-wish-error {
   border-radius: 14px;
   padding: 10px 11px;
@@ -15948,6 +15949,12 @@ button.field-birthday-card:focus-visible {
   background: #fff7ed;
   color: #c2410c;
   border: 1px solid #fed7aa;
+}
+
+.birthday-wish-private-note {
+  background: #fdf2f8;
+  color: #be185d;
+  border: 1px solid #f9a8d4;
 }
 
 .birthday-wish-error {
@@ -15995,3 +16002,6 @@ button.field-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-205 END - birthday wish modal */
+/* FOR-e V002-1P-206 START - birthday wish privacy note */
+/* V206 只新增 .birthday-wish-private-note，並保留 V205 生日祝福視窗樣式。 */
+/* FOR-e V002-1P-206 END - birthday wish privacy note */
