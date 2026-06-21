@@ -16048,14 +16048,15 @@ button.field-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-207 END - field detail action stack */
 
-/* FOR-e V002-1P-209 START - birthday pale background */
+/* FOR-e V002-1P-210 START - birthday softer background and accent */
 .birthday-card,
 .field-birthday-card,
 .login-birthday-card,
 .login-birthday-card.is-personal,
 .birthday-wish-hero,
 .birthday-wish-staff-card {
-  background: #FDEDED !important;
+  background: #FFF7F7 !important;
+  border-color: #CFECF3 !important;
 }
 
 button.birthday-card:hover,
@@ -16064,6 +16065,35 @@ button.field-birthday-card:hover,
 button.field-birthday-card:focus-visible,
 button.login-birthday-card:hover,
 button.login-birthday-card:focus-visible {
-  background: #FBE4E4 !important;
+  background: #FFF2F2 !important;
+  border-color: #8CA9FF !important;
+  box-shadow: 0 8px 18px rgba(140, 169, 255, 0.18) !important;
 }
-/* FOR-e V002-1P-209 END - birthday pale background */
+
+.login-birthday-card span,
+.birthday-wish-hero span {
+  color: #8CA9FF !important;
+}
+
+.birthday-wish-private-note {
+  background: #FFF7F7 !important;
+  color: #8CA9FF !important;
+  border-color: #CFECF3 !important;
+}
+
+.birthday-wish-form textarea {
+  border-color: #CFECF3 !important;
+}
+
+.birthday-wish-form textarea:focus {
+  outline: none;
+  border-color: #8CA9FF !important;
+  box-shadow: 0 0 0 3px rgba(140, 169, 255, 0.18) !important;
+}
+
+.birthday-wish-form button {
+  background: #8CA9FF !important;
+  border-color: #8CA9FF !important;
+  color: #ffffff !important;
+}
+/* FOR-e V002-1P-210 END - birthday softer background and accent */
