@@ -16,8 +16,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-184'
-/* V002-1P-184：手機行程總覽 / 外務 / 會議室工具列等寬排版，清理 V182/V183 重複覆蓋樣式。 */
+const SYSTEM_VERSION = 'V002-1P-204'
+/* V002-1P-204：修正外務明細頁因未定義統計變數造成按鈕無反應，並加上外務明細錯誤保護。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -25,7 +25,7 @@ const pages = [
   { key: 'assignedTracking', label: '我指派的事項追蹤', mobileLabel: '指派', roles: 'ALL', mobile: true },
   { key: 'scheduleOverview', label: '行程總覽', mobileLabel: '行程', roles: 'ALL', mobile: true },
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
-  { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '行政 / 海外'], mobile: false },
+  { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
   { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
   { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
   { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
@@ -4808,10 +4808,6 @@ function renderFieldDetailPage() {
       <div class="summary-card">
         <strong>${activeRows.length}</strong>
         <span>未完成</span>
-      </div>
-      <div class="summary-card ${adminOpenCount ? 'is-alert' : ''}">
-        <strong>${adminOpenCount}</strong>
-        <span>行政待辦</span>
       </div>
       <div class="summary-card">
         <strong>${completedRows.length}</strong>
@@ -11355,7 +11351,25 @@ function renderPageContent() {
       `
     }
   }
-  if (currentPage === 'fieldDetail') return renderFieldDetailPage()
+  if (currentPage === 'fieldDetail') {
+    try {
+      return renderFieldDetailPage()
+    } catch (err) {
+      console.error('外務明細開啟失敗', err)
+      return `
+        <div class="page-toolbar">
+          <div>
+            <h3>外務明細</h3>
+            <p class="muted">外務明細載入時發生錯誤。</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="secondary-btn" id="refreshBtn">重新整理</button>
+          </div>
+        </div>
+        <div class="error-card">外務明細開啟失敗：${escapeHtml(err?.message || err || '未知錯誤')}</div>
+      `
+    }
+  }
   if (currentPage === 'meetingRoom') return renderMeetingRoomCalendar()
   if (currentPage === 'incident') return renderIncidentTrackingPage()
   if (currentPage === 'search') return renderSearchPage()
@@ -21302,3 +21316,7 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 
 /* FOR-e V002-1P-199｜prompt-only schedules excluded from search / LINE / stats / overview CSV */
+
+/* FOR-e V002-1P-204 START - field detail button fix */
+/* 外務明細：移除未定義 adminOpenCount 統計卡、補上錯誤保護，避免外務明細按鈕點擊後 render 中斷。 */
+/* FOR-e V002-1P-204 END - field detail button fix */
