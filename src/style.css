@@ -16005,3 +16005,65 @@ button.field-birthday-card:focus-visible {
 /* FOR-e V002-1P-206 START - birthday wish privacy note */
 /* V206 只新增 .birthday-wish-private-note，並保留 V205 生日祝福視窗樣式。 */
 /* FOR-e V002-1P-206 END - birthday wish privacy note */
+
+
+/* FOR-e V002-1P-207 START - field detail action stack */
+.field-detail-action-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  width: 96px;
+}
+
+.field-detail-action-stack .small-secondary-btn,
+.field-detail-action-stack .small-primary-btn,
+.field-detail-action-stack .small-danger-btn {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.small-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
+.small-primary-btn:hover {
+  background: #dbeafe;
+}
+
+@media (max-width: 768px) {
+  .field-detail-action-stack {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* FOR-e V002-1P-207 END - field detail action stack */
+
+/* FOR-e V002-1P-209 START - birthday pale background */
+.birthday-card,
+.field-birthday-card,
+.login-birthday-card,
+.login-birthday-card.is-personal,
+.birthday-wish-hero,
+.birthday-wish-staff-card {
+  background: #FDEDED !important;
+}
+
+button.birthday-card:hover,
+button.birthday-card:focus-visible,
+button.field-birthday-card:hover,
+button.field-birthday-card:focus-visible,
+button.login-birthday-card:hover,
+button.login-birthday-card:focus-visible {
+  background: #FBE4E4 !important;
+}
+/* FOR-e V002-1P-209 END - birthday pale background */
