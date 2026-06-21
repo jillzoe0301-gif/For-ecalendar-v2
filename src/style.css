@@ -15565,7 +15565,7 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-194 END - field day prompt and clickable field cells */
 
-/* FOR-e V002-1P-196 START - overview field day prompt actions */
+/* FOR-e V002-1P-197 START - field day prompt click edit no edit button */
 .week-day-cell .field-day-reminder-stack,
 .field-week-day-cell .field-day-reminder-stack {
   margin: 0 0 6px;
@@ -15612,6 +15612,11 @@ label.is-filter-hidden {
   filter: brightness(0.98);
 }
 
+.field-day-reminder-prompt:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
 @media (max-width: 768px) {
   .field-day-reminder-prompt {
     align-items: flex-start;
@@ -15628,7 +15633,7 @@ label.is-filter-hidden {
     margin-left: 23px;
   }
 }
-/* FOR-e V002-1P-196 END - overview field day prompt actions */
+/* FOR-e V002-1P-197 END - field day prompt click edit no edit button */
 
 
 

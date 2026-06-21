@@ -11972,15 +11972,18 @@ function renderFieldDayReminderPrompt(rows = []) {
       ${reminderRows.map(row => {
         const canEdit = canModifySchedule(row) && row.status !== '取消'
         const canDelete = canCancelSchedule(row)
-        const actionButtons = canEdit || canDelete ? `
+        const promptActionAttr = canEdit
+          ? `data-edit-field-day-reminder="${escapeHtml(row.schedule_id)}"`
+          : `data-view-schedule="${escapeHtml(row.schedule_id)}"`
+        const promptTitle = canEdit ? `${getFieldDayReminderPromptText(row)}｜點擊修改` : getFieldDayReminderPromptText(row)
+        const actionButtons = canDelete ? `
           <span class="field-day-reminder-actions">
-            ${canEdit ? `<button type="button" class="field-day-reminder-action" data-edit-field-day-reminder="${escapeHtml(row.schedule_id)}">修改</button>` : ''}
-            ${canDelete ? `<button type="button" class="field-day-reminder-action is-danger" data-delete-field-day-reminder="${escapeHtml(row.schedule_id)}">刪除</button>` : ''}
+            <button type="button" class="field-day-reminder-action is-danger" data-delete-field-day-reminder="${escapeHtml(row.schedule_id)}">刪除</button>
           </span>
         ` : ''
 
         return `
-          <div class="field-day-reminder-prompt" title="${escapeHtml(getFieldDayReminderPromptText(row))}" data-view-schedule="${escapeHtml(row.schedule_id)}">
+          <div class="field-day-reminder-prompt" title="${escapeHtml(promptTitle)}" ${promptActionAttr}>
             <span class="field-day-reminder-badge">外</span>
             <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
             ${actionButtons}
