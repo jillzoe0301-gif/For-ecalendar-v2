@@ -15565,7 +15565,8 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-194 END - field day prompt and clickable field cells */
 
-/* FOR-e V002-1P-197 START - field day prompt click edit no edit button */
+
+/* FOR-e V002-1P-198 START - field day prompt single entry */
 .week-day-cell .field-day-reminder-stack,
 .field-week-day-cell .field-day-reminder-stack {
   margin: 0 0 6px;
@@ -15580,38 +15581,6 @@ label.is-filter-hidden {
   flex: 1 1 auto;
 }
 
-.field-day-reminder-actions {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex: 0 0 auto;
-}
-
-.field-day-reminder-action {
-  min-height: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid #fdba74;
-  background: #ffffff;
-  color: #c2410c;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.field-day-reminder-action.is-danger {
-  border-color: #fecaca;
-  color: #dc2626;
-  background: #fff1f2;
-}
-
-.field-day-reminder-action:hover {
-  filter: brightness(0.98);
-}
-
 .field-day-reminder-prompt:hover {
   background: #ffedd5;
   border-color: #fdba74;
@@ -15619,22 +15588,13 @@ label.is-filter-hidden {
 
 @media (max-width: 768px) {
   .field-day-reminder-prompt {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
   .field-day-reminder-prompt strong {
     white-space: normal;
     line-height: 1.35;
   }
-
-  .field-day-reminder-actions {
-    width: 100%;
-    margin-left: 23px;
-  }
 }
-/* FOR-e V002-1P-197 END - field day prompt click edit no edit button */
-
-
-
-
+/* FOR-e V002-1P-198 END - field day prompt single entry */

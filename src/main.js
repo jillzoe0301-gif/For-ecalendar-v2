@@ -3427,16 +3427,6 @@ function renderApp() {
     })
   })
 
-  document.querySelectorAll('[data-delete-field-day-reminder]').forEach(btn => {
-    btn.addEventListener('click', event => {
-      event.preventDefault()
-      event.stopPropagation()
-      const scheduleId = btn.dataset.deleteFieldDayReminder
-      if (!scheduleId) return
-      openCancelModal(scheduleId)
-    })
-  })
-
   document.querySelectorAll('[data-cell-view-schedule]').forEach(cell => {
     cell.addEventListener('click', event => {
       if (event.target.closest('button, a, input, select, textarea, summary, details, label')) return
@@ -11971,22 +11961,15 @@ function renderFieldDayReminderPrompt(rows = []) {
     <div class="field-day-reminder-stack" aria-label="外務日提醒">
       ${reminderRows.map(row => {
         const canEdit = canModifySchedule(row) && row.status !== '取消'
-        const canDelete = canCancelSchedule(row)
         const promptActionAttr = canEdit
           ? `data-edit-field-day-reminder="${escapeHtml(row.schedule_id)}"`
           : `data-view-schedule="${escapeHtml(row.schedule_id)}"`
-        const promptTitle = canEdit ? `${getFieldDayReminderPromptText(row)}｜點擊修改` : getFieldDayReminderPromptText(row)
-        const actionButtons = canDelete ? `
-          <span class="field-day-reminder-actions">
-            <button type="button" class="field-day-reminder-action is-danger" data-delete-field-day-reminder="${escapeHtml(row.schedule_id)}">刪除</button>
-          </span>
-        ` : ''
+        const promptTitle = canEdit ? `${getFieldDayReminderPromptText(row)}｜點擊進入修改 / 刪除` : getFieldDayReminderPromptText(row)
 
         return `
           <div class="field-day-reminder-prompt" title="${escapeHtml(promptTitle)}" ${promptActionAttr}>
             <span class="field-day-reminder-badge">外</span>
             <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
-            ${actionButtons}
           </div>
         `
       }).join('')}
