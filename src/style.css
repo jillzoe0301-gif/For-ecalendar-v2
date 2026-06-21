@@ -15501,3 +15501,64 @@ label.is-filter-hidden {
 /* FOR-e V002-1P-192 END - compact logout button */
 
 
+
+
+/* FOR-e V002-1P-194 START - field day prompt and clickable field cells */
+.field-week-day-cell {
+  cursor: cell;
+}
+
+.field-week-day-cell:has(.field-week-schedule-card),
+.field-week-day-cell:has(.leave-return-day-mark),
+.field-week-day-cell:has(.continuation-day-mark) {
+  cursor: cell;
+}
+
+.field-day-reminder-stack {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.field-day-reminder-prompt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #FFAE6E;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.field-day-reminder-prompt span {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #FFAE6E;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.field-day-reminder-prompt strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9a3412;
+}
+/* FOR-e V002-1P-194 END - field day prompt and clickable field cells */

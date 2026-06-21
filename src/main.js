@@ -2962,7 +2962,10 @@ function renderApp() {
   }
 
   document.querySelectorAll('.field-week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => {
+    cell.addEventListener('click', event => {
+      if (event.target.closest('button, a, input, select, textarea, summary, details, label')) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
       if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
       openFieldScheduleModal({
         date: cell.dataset.fieldDate || '',
@@ -4540,6 +4543,7 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
   return uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!(isFieldScheduleRow(row) || isLeaveOrReturnSchedule(row))) return false
+    if (isFieldDayReminderSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
   })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
@@ -11855,9 +11859,11 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
     ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
     : ((fieldDayRow || fieldBackgroundRow || rowNeedsFullDayBackground(row)) ? 'is-field-day' : 'has-continuation-mark')
 
+  const shouldOpenCellDetail = Boolean(row?.schedule_id) && !(fieldDayRow && row.schedule_id === fieldDayRow.schedule_id)
+
   return {
     className,
-    attrs: `style="--day-accent:${color}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}"`,
+    attrs: `style="--day-accent:${color}"${shouldOpenCellDetail ? ` data-cell-view-schedule="${escapeHtml(row.schedule_id)}"` : ''}`,
     leaveRows,
     fieldDayRows,
     continuationRows
@@ -11919,6 +11925,33 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
       `
     })
     .join('')
+}
+
+
+function getFieldDayReminderPromptText(row = {}) {
+  const text = [row.title, row.sub_type, row.schedule_type, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+
+  if (/請勿安排其他行程|勿安排其他行程/.test(text)) return '外務日｜請勿安排其他行程'
+  if (/請勿安排/.test(text)) return '外務日｜請勿安排'
+  return '外務日｜請勿安排其他行程'
+}
+
+function renderFieldDayReminderPrompt(rows = []) {
+  const reminderRows = uniqueScheduleRows(rows).filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+  if (!reminderRows.length) return ''
+
+  return `
+    <div class="field-day-reminder-stack" aria-label="外務日提醒">
+      ${reminderRows.map(row => `
+        <div class="field-day-reminder-prompt" title="${escapeHtml(getFieldDayReminderPromptText(row))}">
+          <span>外</span>
+          <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
+        </div>
+      `).join('')}
+    </div>
+  `
 }
 
 
@@ -12070,6 +12103,7 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
                 <strong>${Number(key.slice(8, 10))}</strong>
                 ${renderHolidayLabels(key)}
               </div>
+              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
               ${birthdayCard}
               ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
               ${renderContinuationDayMarks(continuousRows, key, 'field')}
@@ -12119,6 +12153,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                   const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
@@ -12174,6 +12209,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                   const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
