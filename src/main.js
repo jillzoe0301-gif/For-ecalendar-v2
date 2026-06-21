@@ -402,6 +402,8 @@ let schedules = []
 let staffList = []
 let allStaffList = []
 let userProfileList = []
+let birthdayWishes = []
+let birthdayWishesError = ''
 let userProfilesError = ''
 let loadingSchedules = false
 let schedulesError = ''
@@ -1277,13 +1279,188 @@ function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview')
 
   const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
   return `
-    <div class="${className}" title="HappyBirthday ❤">
+    <button type="button" class="${className}" title="點擊查看生日同仁並留言祝福" data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey || todayString())}">
       <img src="/icons/cake.png" alt="" class="birthday-card-icon">
       <div>
         <strong>HappyBirthday ❤</strong>
       </div>
+    </button>
+  `
+}
+
+function getBirthdayStaffRowsForDate(dateKey = todayString()) {
+  return staffList
+    .filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
+    .filter(staff => isStaffBirthdayOnDate(staff, dateKey))
+    .sort((a, b) => String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant') || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'))
+}
+
+function getBirthdayStaffById(staffId = '') {
+  return staffList.find(staff => String(staff.staff_id || '') === String(staffId || ''))
+    || allStaffList.find(staff => String(staff.staff_id || '') === String(staffId || ''))
+    || null
+}
+
+function getBirthdayWishRows(staffId = '', dateKey = todayString()) {
+  const monthDay = String(dateKey || '').slice(5, 10)
+  return (birthdayWishes || [])
+    .filter(wish => !wish.deleted_at)
+    .filter(wish => String(wish.birthday_staff_id || '') === String(staffId || ''))
+    .filter(wish => {
+      if (wish.birthday_date && String(wish.birthday_date).slice(0, 10) === dateKey) return true
+      if (wish.birthday_month_day && String(wish.birthday_month_day).slice(0, 5) === monthDay) return true
+      return false
+    })
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+}
+
+function renderBirthdayWishRows(staff = {}, dateKey = todayString()) {
+  const rows = getBirthdayWishRows(staff.staff_id, dateKey)
+  if (!rows.length) return '<div class="birthday-wish-empty">目前還沒有生日祝福。</div>'
+
+  return `
+    <div class="birthday-wish-list">
+      ${rows.map(wish => `
+        <div class="birthday-wish-item">
+          <div>
+            <strong>${escapeHtml(wish.sender_name || '同仁')}</strong>
+            <span>${escapeHtml(String(wish.created_at || '').slice(0, 16).replace('T', ' '))}</span>
+          </div>
+          <p>${escapeHtml(wish.message || '').replaceAll('\n', '<br>')}</p>
+        </div>
+      `).join('')}
     </div>
   `
+}
+
+function renderBirthdayWishForm(staff = {}, dateKey = todayString()) {
+  const isSelf = String(staff.staff_id || '') === String(currentProfile?.staff_id || '')
+  if (isSelf) {
+    return '<div class="birthday-wish-self-note">今天是你的生日，這裡會顯示同仁給你的祝福。</div>'
+  }
+
+  if (birthdayWishesError) {
+    return `<div class="birthday-wish-error">生日祝福留言表尚未啟用，請先執行 V002-1P-205 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
+  }
+
+  return `
+    <form class="birthday-wish-form" data-birthday-wish-form data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey)}">
+      <textarea name="message" maxlength="300" rows="3" placeholder="輸入生日祝福，例如：生日快樂～祝你今天一切順心！" required></textarea>
+      <button type="submit" class="primary-btn">送出祝福</button>
+    </form>
+  `
+}
+
+function renderBirthdayWishStaffCard(staff = {}, dateKey = todayString()) {
+  return `
+    <section class="birthday-wish-staff-card">
+      <div class="birthday-wish-staff-head">
+        <img src="/icons/cake.png" alt="" class="birthday-card-icon">
+        <div>
+          <strong>${escapeHtml(staff.name || '同仁')}｜HappyBirthday ❤</strong>
+          <span>${escapeHtml([staff.department_name, staff.position_name || staff.position].filter(Boolean).join('｜') || '未設定部門 / 職務')}</span>
+        </div>
+      </div>
+      ${renderBirthdayWishRows(staff, dateKey)}
+      ${renderBirthdayWishForm(staff, dateKey)}
+    </section>
+  `
+}
+
+function openBirthdayWishModal(options = {}) {
+  const dateKey = options.dateKey || todayString()
+  const selectedStaff = options.staffId ? getBirthdayStaffById(options.staffId) : null
+  const rows = selectedStaff ? [selectedStaff] : getBirthdayStaffRowsForDate(dateKey)
+  const existing = document.querySelector('.birthday-wish-backdrop')
+  if (existing) existing.remove()
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop birthday-wish-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel birthday-wish-modal">
+      <div class="modal-header">
+        <h3>生日祝福</h3>
+        <button class="icon-btn" data-close-birthday-wish type="button" aria-label="關閉">×</button>
+      </div>
+
+      <div class="birthday-wish-hero">
+        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
+        <div>
+          <strong>${escapeHtml(dateKey)}｜今天生日同仁</strong>
+          <span>可查看生日同仁並留言祝福。</span>
+        </div>
+      </div>
+
+      <div class="birthday-wish-body">
+        ${rows.length ? rows.map(staff => renderBirthdayWishStaffCard(staff, dateKey)).join('') : '<div class="empty-state">今天沒有同仁生日。</div>'}
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  const close = () => modal.remove()
+
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-close-birthday-wish]')) {
+      event.preventDefault()
+      close()
+    }
+  })
+
+  modal.addEventListener('submit', async event => {
+    const form = event.target.closest('[data-birthday-wish-form]')
+    if (!form) return
+    event.preventDefault()
+    const staffId = form.dataset.birthdayStaffId || ''
+    const targetDate = form.dataset.birthdayDate || dateKey
+    const message = String(new FormData(form).get('message') || '').trim()
+    if (!message) {
+      alert('請先輸入生日祝福。')
+      return
+    }
+
+    try {
+      await saveBirthdayWish(staffId, targetDate, message)
+      await loadBirthdayWishes()
+      close()
+      openBirthdayWishModal({ staffId, dateKey: targetDate })
+    } catch (err) {
+      console.error('生日祝福送出失敗', err)
+    }
+  })
+}
+
+async function saveBirthdayWish(staffId = '', dateKey = todayString(), message = '') {
+  const staff = getBirthdayStaffById(staffId)
+  if (!staff) throw new Error('找不到生日同仁。')
+  if (String(staff.staff_id || '') === String(currentProfile?.staff_id || '')) {
+    alert('今天是你的生日，這裡會顯示同仁給你的祝福。')
+    return
+  }
+
+  const payload = {
+    birthday_staff_id: String(staff.staff_id || ''),
+    birthday_staff_name: staff.name || '',
+    birthday_date: dateKey,
+    birthday_month_day: String(dateKey || '').slice(5, 10),
+    sender_staff_id: String(currentProfile?.staff_id || ''),
+    sender_name: currentProfile?.name || currentProfile?.email || '同仁',
+    message: String(message || '').trim().slice(0, 300)
+  }
+
+  const { error } = await supabase.from('birthday_wishes').insert(payload)
+  if (error) {
+    alert('生日祝福送出失敗：' + error.message)
+    throw error
+  }
+
+  await supabase.from('audit_logs').insert({
+    action_type: '生日祝福',
+    schedule_id: null,
+    actor_name: currentProfile?.name || currentProfile?.email || '',
+    note: `祝福對象：${staff.name || staff.staff_id}`
+  })
 }
 
 function isPublicLeaveMeetingActivitySchedule(row = {}) {
@@ -1726,7 +1903,7 @@ async function loadProfile(options = {}) {
 }
 
 async function refreshData() {
-  await Promise.all([loadAppSettings(), loadStaff(), loadUserProfiles(), loadSchedules(), loadAuditLogs(), loadServiceRecords()])
+  await Promise.all([loadAppSettings(), loadStaff(), loadUserProfiles(), loadSchedules(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
 }
 
 
@@ -2572,6 +2749,26 @@ async function loadSchedules() {
   loadingSchedules = false
 }
 
+
+async function loadBirthdayWishes() {
+  birthdayWishesError = ''
+
+  const { data, error } = await supabase
+    .from('birthday_wishes')
+    .select('*')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(500)
+
+  if (error) {
+    console.warn('birthday_wishes 讀取失敗，生日祝福留言會暫時無法顯示。', error.message)
+    birthdayWishes = []
+    birthdayWishesError = error.message
+    return
+  }
+
+  birthdayWishes = data || []
+}
 
 async function loadAuditLogs() {
   auditLoading = true
@@ -3422,6 +3619,28 @@ function renderApp() {
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
     btn.addEventListener('click', () => {
       openScheduleDetail(btn.dataset.viewSchedule, btn.dataset.occurrenceDate || '')
+    })
+  })
+
+  document.querySelectorAll('[data-birthday-staff-id]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      openBirthdayWishModal({
+        staffId: btn.dataset.birthdayStaffId || '',
+        dateKey: btn.dataset.birthdayDate || todayString()
+      })
+    })
+  })
+
+  document.querySelectorAll('[data-open-birthday-wishes]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      const mode = btn.dataset.openBirthdayWishes || 'today'
+      openBirthdayWishModal({
+        staffId: mode === 'self' ? currentProfile?.staff_id : '',
+        dateKey: todayString()
+      })
     })
   })
 
@@ -9528,6 +9747,17 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
       return
     }
 
+    const birthdayBtn = event.target.closest('[data-open-birthday-wishes]')
+    if (birthdayBtn) {
+      event.preventDefault()
+      const mode = birthdayBtn.dataset.openBirthdayWishes || 'today'
+      openBirthdayWishModal({
+        staffId: mode === 'self' ? currentProfile?.staff_id : '',
+        dateKey: todayString()
+      })
+      return
+    }
+
     const goPersonalBtn = event.target.closest('[data-go-personal-schedule]')
     if (goPersonalBtn) {
       event.preventDefault()
@@ -12635,12 +12865,13 @@ function renderLoginBirthdayReminderSection(rows = []) {
 
   return `
     <section class="login-birthday-reminder">
-      <div class="login-birthday-card">
+      <button type="button" class="login-birthday-card" data-open-birthday-wishes="today">
         <img src="/icons/cake.png" alt="" class="login-birthday-icon">
         <div>
           <strong>今天有 ${rows.length} 位同仁生日：HappyBirthday ❤</strong>
+          <span>點擊查看生日同仁並留言祝福</span>
         </div>
-      </div>
+      </button>
     </section>
   `
 }
@@ -12662,8 +12893,13 @@ function renderLoginPersonalBirthdayGreeting(isBirthday = false) {
 
   return `
     <section class="login-personal-birthday-greeting">
-      <img src="/icons/cake.png" alt="" class="login-birthday-icon">
-      <strong>Happy Birthday ~Have a nice day♥</strong>
+      <button type="button" class="login-birthday-card is-personal" data-open-birthday-wishes="self">
+        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
+        <div>
+          <strong>Happy Birthday ~Have a nice day♥</strong>
+          <span>點擊查看同仁給你的生日祝福</span>
+        </div>
+      </button>
     </section>
   `
 }
@@ -21320,3 +21556,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
 /* FOR-e V002-1P-204 START - field detail button fix */
 /* 外務明細：移除未定義 adminOpenCount 統計卡、補上錯誤保護，避免外務明細按鈕點擊後 render 中斷。 */
 /* FOR-e V002-1P-204 END - field detail button fix */
+
+
+/* FOR-e V002-1P-205 START - birthday wish modal */
+/*
+  V002-1P-205｜生日提示可查看同仁與留言祝福
+  - 生日卡 / 今日生日提醒可點擊開啟生日祝福視窗
+  - 可查看今天生日同仁、部門職務、祝福留言
+  - 可送出生日祝福到 birthday_wishes
+*/
+/* FOR-e V002-1P-205 END - birthday wish modal */
