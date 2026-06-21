@@ -2963,7 +2963,7 @@ function renderApp() {
 
   document.querySelectorAll('.field-week-day-cell').forEach(cell => {
     cell.addEventListener('click', event => {
-      if (event.target.closest('button, a, input, select, textarea, summary, details, label')) return
+      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], .field-day-reminder-prompt')) return
       event.preventDefault()
       event.stopImmediatePropagation()
       if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
@@ -3413,6 +3413,27 @@ function renderApp() {
   document.querySelectorAll('[data-view-schedule]').forEach(btn => {
     btn.addEventListener('click', () => {
       openScheduleDetail(btn.dataset.viewSchedule, btn.dataset.occurrenceDate || '')
+    })
+  })
+
+  document.querySelectorAll('[data-edit-field-day-reminder]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      const scheduleId = btn.dataset.editFieldDayReminder
+      if (!scheduleId) return
+      if (typeof openEditFieldScheduleModal === 'function') openEditFieldScheduleModal(scheduleId)
+      else openScheduleDetail(scheduleId)
+    })
+  })
+
+  document.querySelectorAll('[data-delete-field-day-reminder]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      const scheduleId = btn.dataset.deleteFieldDayReminder
+      if (!scheduleId) return
+      openCancelModal(scheduleId)
     })
   })
 
@@ -11600,6 +11621,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
                 <strong>${Number(key.slice(8, 10))}</strong>
                 ${renderHolidayLabels(key)}
               </div>
+              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
               ${birthdayCard}
               ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
               ${renderContinuationDayMarks(continuousRows, key, 'overview')}
@@ -11650,6 +11672,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
@@ -11706,6 +11729,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
@@ -11824,6 +11848,7 @@ function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
 
 function filterDailyCardsForDate(rows = [], dateKey = '') {
   return rows.filter(row => {
+    if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return true
     return row.start_date === dateKey
   })
@@ -11944,12 +11969,24 @@ function renderFieldDayReminderPrompt(rows = []) {
 
   return `
     <div class="field-day-reminder-stack" aria-label="外務日提醒">
-      ${reminderRows.map(row => `
-        <div class="field-day-reminder-prompt" title="${escapeHtml(getFieldDayReminderPromptText(row))}">
-          <span>外</span>
-          <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
-        </div>
-      `).join('')}
+      ${reminderRows.map(row => {
+        const canEdit = canModifySchedule(row) && row.status !== '取消'
+        const canDelete = canCancelSchedule(row)
+        const actionButtons = canEdit || canDelete ? `
+          <span class="field-day-reminder-actions">
+            ${canEdit ? `<button type="button" class="field-day-reminder-action" data-edit-field-day-reminder="${escapeHtml(row.schedule_id)}">修改</button>` : ''}
+            ${canDelete ? `<button type="button" class="field-day-reminder-action is-danger" data-delete-field-day-reminder="${escapeHtml(row.schedule_id)}">刪除</button>` : ''}
+          </span>
+        ` : ''
+
+        return `
+          <div class="field-day-reminder-prompt" title="${escapeHtml(getFieldDayReminderPromptText(row))}" data-view-schedule="${escapeHtml(row.schedule_id)}">
+            <span class="field-day-reminder-badge">外</span>
+            <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
+            ${actionButtons}
+          </div>
+        `
+      }).join('')}
     </div>
   `
 }
@@ -13231,6 +13268,7 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 }
 
 function renderWeekScheduleCard(row) {
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
   const contentPreview = getFirstTwoLines(row.description)
   const extra = getDisplaySubTypeExtra(row)
   return `

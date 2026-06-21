@@ -13980,7 +13980,8 @@ label.is-filter-hidden {
   min-height: 28px;
   margin: 3px 0 5px;
   visibility: hidden;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* 通知行政辦理欄位 */
@@ -15535,10 +15536,11 @@ label.is-filter-hidden {
   font-weight: 900;
   line-height: 1.25;
   box-sizing: border-box;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.field-day-reminder-prompt span {
+.field-day-reminder-badge {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
@@ -15562,3 +15564,72 @@ label.is-filter-hidden {
   color: #9a3412;
 }
 /* FOR-e V002-1P-194 END - field day prompt and clickable field cells */
+
+/* FOR-e V002-1P-196 START - overview field day prompt actions */
+.week-day-cell .field-day-reminder-stack,
+.field-week-day-cell .field-day-reminder-stack {
+  margin: 0 0 6px;
+}
+
+.week-day-cell .field-day-reminder-prompt,
+.field-week-day-cell .field-day-reminder-prompt {
+  min-height: 28px;
+}
+
+.field-day-reminder-prompt strong {
+  flex: 1 1 auto;
+}
+
+.field-day-reminder-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.field-day-reminder-action {
+  min-height: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid #fdba74;
+  background: #ffffff;
+  color: #c2410c;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.field-day-reminder-action.is-danger {
+  border-color: #fecaca;
+  color: #dc2626;
+  background: #fff1f2;
+}
+
+.field-day-reminder-action:hover {
+  filter: brightness(0.98);
+}
+
+@media (max-width: 768px) {
+  .field-day-reminder-prompt {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .field-day-reminder-prompt strong {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .field-day-reminder-actions {
+    width: 100%;
+    margin-left: 23px;
+  }
+}
+/* FOR-e V002-1P-196 END - overview field day prompt actions */
+
+
+
+
