@@ -15501,28 +15501,49 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-192 END - compact logout button */
 
-
-
-
-/* FOR-e V002-1P-194 START - field day prompt and clickable field cells */
-.field-week-day-cell {
-  cursor: cell;
+/* FOR-e V002-1P-203 START - meeting first column sticky and tablet field-day prompt containment */
+/* 會議室：表頭第一欄固定，與左側會議室名稱欄位同步 sticky。 */
+.meeting-week-table thead th.meeting-room-col {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 8 !important;
+  background: #fbf8f1 !important;
+  box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
 }
 
-.field-week-day-cell:has(.field-week-schedule-card),
-.field-week-day-cell:has(.leave-return-day-mark),
-.field-week-day-cell:has(.continuation-day-mark) {
-  cursor: cell;
+.meeting-week-table .meeting-room-col,
+.meeting-room-name-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 6 !important;
+  background: #ffffff !important;
+  box-shadow: 1px 0 0 var(--border);
 }
 
-.field-day-reminder-stack {
+.meeting-week-table thead th.meeting-room-col {
+  background: #fbf8f1 !important;
+}
+
+/* 外務日：提示列只做提醒與點擊入口，所有尺寸都不可超出欄位。 */
+.week-day-cell .field-day-reminder-stack,
+.field-week-day-cell .field-day-reminder-stack,
+.month-day-cell .field-day-reminder-stack {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: grid;
   gap: 4px;
   margin: 0 0 6px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .field-day-reminder-prompt {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 28px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -15538,6 +15559,7 @@ label.is-filter-hidden {
   box-sizing: border-box;
   pointer-events: auto;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .field-day-reminder-badge {
@@ -15556,34 +15578,40 @@ label.is-filter-hidden {
 }
 
 .field-day-reminder-prompt strong {
+  flex: 1 1 auto;
   display: block;
   min-width: 0;
+  max-width: 100%;
+  color: #9a3412;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #9a3412;
-}
-/* FOR-e V002-1P-194 END - field day prompt and clickable field cells */
-
-
-/* FOR-e V002-1P-198 START - field day prompt single entry */
-.week-day-cell .field-day-reminder-stack,
-.field-week-day-cell .field-day-reminder-stack {
-  margin: 0 0 6px;
-}
-
-.week-day-cell .field-day-reminder-prompt,
-.field-week-day-cell .field-day-reminder-prompt {
-  min-height: 28px;
-}
-
-.field-day-reminder-prompt strong {
-  flex: 1 1 auto;
 }
 
 .field-day-reminder-prompt:hover {
   background: #ffedd5;
   border-color: #fdba74;
+}
+
+/* 平板外務行事曆：提示文字允許換行，避免超出欄位。 */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .field-week-day-cell .field-day-reminder-prompt,
+  .week-day-cell .field-day-reminder-prompt {
+    align-items: flex-start;
+    gap: 4px;
+    padding: 4px 5px;
+  }
+
+  .field-week-day-cell .field-day-reminder-prompt strong,
+  .week-day-cell .field-day-reminder-prompt strong {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
 
 @media (max-width: 768px) {
@@ -15593,11 +15621,13 @@ label.is-filter-hidden {
   }
 
   .field-day-reminder-prompt strong {
-    white-space: normal;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     line-height: 1.35;
   }
 }
-/* FOR-e V002-1P-198 END - field day prompt single entry */
+/* FOR-e V002-1P-203 END - meeting first column sticky and tablet field-day prompt containment */
 
 
 /* FOR-e V002-1P-202 START - incident admin todo display and filters */
