@@ -15050,3 +15050,273 @@ label.is-filter-hidden {
 /* FOR-e V002-1P-187 END - mobile month value vertical center */
 
 
+
+/* FOR-e V002-1P-188 START - tablet isolated layout */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .sidebar {
+    display: none !important;
+  }
+
+  .main {
+    width: min(100%, 1080px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 20px 22px calc(104px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .mobile-header {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: 0 0 18px !important;
+  }
+
+  .mobile-header .brand-logo-img {
+    width: 138px !important;
+    height: auto !important;
+  }
+
+  .topbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 18px !important;
+    padding: 20px 22px !important;
+    border-radius: 22px !important;
+  }
+
+  .topbar h2 {
+    font-size: 27px !important;
+    line-height: 1.25 !important;
+  }
+
+  .topbar p {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+  }
+
+  .logout-btn {
+    min-width: 180px !important;
+    min-height: 48px !important;
+  }
+
+  .content-card {
+    padding: 20px !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+  }
+
+  .page-toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .page-toolbar h3 {
+    font-size: 28px !important;
+    line-height: 1.25 !important;
+  }
+
+  .page-toolbar .muted {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions,
+  .page-toolbar .field-toolbar-actions,
+  .page-toolbar .meeting-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: 48px !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    justify-items: stretch !important;
+    align-items: stretch !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions > *,
+  .page-toolbar .field-toolbar-actions > *,
+  .page-toolbar .meeting-toolbar-actions > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    justify-self: stretch !important;
+    align-self: stretch !important;
+    flex: none !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control {
+    display: block !important;
+    grid-template-rows: none !important;
+    gap: 0 !important;
+    text-align: left !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control > span,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control > span,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control > span {
+    display: none !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .overview-toolbar-actions button,
+  .page-toolbar .field-toolbar-actions button,
+  .page-toolbar .meeting-toolbar-actions button {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 15.5px !important;
+    font-weight: 950 !important;
+    line-height: 48px !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control select {
+    display: block !important;
+    padding: 0 32px 0 14px !important;
+    text-align: left !important;
+    background-position: right 14px center !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    display: block !important;
+    padding: 0 12px 0 14px !important;
+    text-align: left !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-date-and-time-value,
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit,
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"]::-webkit-datetime-edit-fields-wrapper {
+    height: 48px !important;
+    min-height: 48px !important;
+    line-height: 48px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: left !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions button,
+  .page-toolbar .field-toolbar-actions button,
+  .page-toolbar .meeting-toolbar-actions button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 0 12px !important;
+  }
+
+  .overview-filter-compact-row,
+  .field-filter-panel-compact .overview-filter-compact-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .compact-multi-select summary,
+  .compact-sort-select select,
+  .overview-filter-compact-row > .primary-btn,
+  .overview-filter-compact-row > .secondary-btn {
+    min-height: 46px !important;
+  }
+
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    min-width: 1180px !important;
+  }
+
+  .week-overview-table .staff-col,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-staff-name-cell,
+  .meeting-week-table .meeting-room-col,
+  .meeting-room-name-cell {
+    width: 150px !important;
+  }
+
+  .modal-backdrop {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 24px !important;
+  }
+
+  .modal-panel {
+    width: min(92vw, 860px) !important;
+    max-width: min(92vw, 860px) !important;
+    max-height: calc(100dvh - 48px) !important;
+    border-radius: 24px !important;
+    padding: 20px !important;
+  }
+
+  .mobile-nav {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    width: min(100%, 880px) !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)) !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: 0 -8px 22px rgba(15, 23, 42, 0.08) !important;
+    z-index: 999 !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .mobile-nav button {
+    flex: 0 0 92px !important;
+    min-width: 92px !important;
+    min-height: 58px !important;
+    padding: 8px 10px !important;
+    border-radius: 18px !important;
+  }
+}
+/* FOR-e V002-1P-188 END - tablet isolated layout */
