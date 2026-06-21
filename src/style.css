@@ -694,7 +694,13 @@ button {
 
   .logout-btn {
     margin-top: 12px;
-    width: 100%;
+    width: auto;
+    min-width: 96px;
+    max-width: 132px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 18px;
+    font-size: 13px;
   }
 
   .page-toolbar { display: block; }
@@ -8051,8 +8057,13 @@ button:disabled,
   }
 
   .logout-btn {
-    width: 100%;
-    min-height: 40px;
+    width: auto !important;
+    min-width: 96px !important;
+    max-width: 132px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 18px !important;
+    font-size: 13px !important;
   }
 
   .content-card {
@@ -15098,8 +15109,14 @@ label.is-filter-hidden {
   }
 
   .logout-btn {
-    min-width: 180px !important;
-    min-height: 48px !important;
+    width: auto !important;
+    min-width: 104px !important;
+    max-width: 128px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 18px !important;
+    font-size: 13.5px !important;
+    border-radius: 12px !important;
   }
 
   .content-card {
@@ -15444,4 +15461,43 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-191 END - tablet layout reset and stable equal columns */
+
+/* FOR-e V002-1P-192 START - compact logout button */
+.logout-btn {
+  width: auto;
+  min-width: 96px;
+  max-width: 132px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .topbar .logout-btn {
+    width: auto !important;
+    min-width: 96px !important;
+    max-width: 132px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    margin-top: 12px !important;
+    padding: 0 18px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  .topbar .logout-btn {
+    width: auto !important;
+    min-width: 104px !important;
+    max-width: 128px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 18px !important;
+    align-self: center !important;
+  }
+}
+/* FOR-e V002-1P-192 END - compact logout button */
+
 
