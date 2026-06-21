@@ -16,7 +16,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-181'
+const SYSTEM_VERSION = 'V002-1P-184'
+/* V002-1P-184：手機行程總覽 / 外務 / 會議室工具列等寬排版，清理 V182/V183 重複覆蓋樣式。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },

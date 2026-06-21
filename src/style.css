@@ -14874,123 +14874,109 @@ label.is-filter-hidden {
 }
 /* FOR-e V002-1P-176 END - recurring edit scope and meeting title display */
 
-
-/* FOR-e V002-1P-182 START - line notify / assigned tracking / mobile toolbar fixes */
+/* FOR-e V002-1P-184 START - mobile calendar toolbar stable grid */
 @media (max-width: 768px) {
-  .field-toolbar-actions,
-  .overview-toolbar-actions {
+  .page-toolbar .overview-toolbar-actions,
+  .page-toolbar .field-toolbar-actions,
+  .page-toolbar .meeting-toolbar-actions {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    align-items: stretch;
-    overflow: visible;
-    padding-bottom: 0;
-  }
-
-  .field-toolbar-actions > *,
-  .overview-toolbar-actions > * {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .field-toolbar-actions .toolbar-month-control,
-  .overview-toolbar-actions .toolbar-month-control {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .field-toolbar-actions .toolbar-month-control input[type="month"],
-  .field-toolbar-actions .toolbar-month-control select,
-  .overview-toolbar-actions .toolbar-month-control input[type="month"],
-  .overview-toolbar-actions .toolbar-month-control select {
-    width: 100%;
-  }
-
-  .field-toolbar-actions button,
-  .overview-toolbar-actions button {
-    width: 100%;
-    margin: 0;
-  }
-
-  .field-toolbar-actions #refreshBtn,
-  .overview-toolbar-actions #refreshBtn {
-    grid-column: 1 / -1;
-  }
-}
-/* FOR-e V002-1P-182 END - line notify / assigned tracking / mobile toolbar fixes */
-
-
-/* FOR-e V002-1P-183 START - mobile calendar toolbar equal width repair */
-@media (max-width: 768px) {
-  .overview-toolbar-actions,
-  .field-toolbar-actions,
-  .meeting-toolbar-actions {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
-  }
-
-  .overview-toolbar-actions > *,
-  .field-toolbar-actions > *,
-  .meeting-toolbar-actions > * {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-auto-flow: row !important;
+    grid-auto-columns: minmax(0, 1fr) !important;
+    column-gap: 12px !important;
+    row-gap: 8px !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    justify-self: stretch !important;
     margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    justify-content: stretch !important;
+    justify-items: stretch !important;
+    align-items: stretch !important;
   }
 
-  .overview-toolbar-actions .toolbar-month-control,
-  .field-toolbar-actions .toolbar-month-control,
-  .meeting-toolbar-actions .toolbar-month-control {
+  .page-toolbar .overview-toolbar-actions > *,
+  .page-toolbar .field-toolbar-actions > *,
+  .page-toolbar .meeting-toolbar-actions > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-inline-size: 0 !important;
+    max-width: 100% !important;
+    max-inline-size: 100% !important;
+    box-sizing: border-box !important;
+    justify-self: stretch !important;
+    align-self: stretch !important;
+    flex: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control {
     display: grid !important;
     grid-template-rows: 14px 42px !important;
     gap: 3px !important;
     text-align: left !important;
   }
 
-  .overview-toolbar-actions .toolbar-month-control span,
-  .field-toolbar-actions .toolbar-month-control span,
-  .meeting-toolbar-actions .toolbar-month-control span {
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control span,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control span,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control span {
     display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     overflow: hidden !important;
+    text-align: left !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
 
-  .overview-toolbar-actions .toolbar-month-control input[type="month"],
-  .overview-toolbar-actions .toolbar-month-control select,
-  .field-toolbar-actions .toolbar-month-control input[type="month"],
-  .field-toolbar-actions .toolbar-month-control select,
-  .meeting-toolbar-actions .toolbar-month-control input[type="month"],
-  .meeting-toolbar-actions .toolbar-month-control select,
-  .overview-toolbar-actions button,
-  .field-toolbar-actions button,
-  .meeting-toolbar-actions button {
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .field-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control select,
+  .page-toolbar .overview-toolbar-actions button,
+  .page-toolbar .field-toolbar-actions button,
+  .page-toolbar .meeting-toolbar-actions button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 100% !important;
+    inline-size: 100% !important;
     min-width: 0 !important;
+    min-inline-size: 0 !important;
     max-width: 100% !important;
+    max-inline-size: 100% !important;
     height: 42px !important;
     min-height: 42px !important;
     box-sizing: border-box !important;
     margin: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
 
-  .overview-toolbar-actions #refreshBtn,
-  .field-toolbar-actions #refreshBtn,
-  .meeting-toolbar-actions #refreshBtn {
+  .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .page-toolbar .meeting-toolbar-actions .toolbar-month-control input[type="month"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    text-align: center !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions #refreshBtn,
+  .page-toolbar .field-toolbar-actions #refreshBtn,
+  .page-toolbar .meeting-toolbar-actions #refreshBtn {
     grid-column: auto !important;
   }
 }
-/* FOR-e V002-1P-183 END - mobile calendar toolbar equal width repair */
+/* FOR-e V002-1P-184 END - mobile calendar toolbar stable grid */
