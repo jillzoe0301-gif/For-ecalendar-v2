@@ -5911,6 +5911,113 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
 }
 
 
+function setIncidentDelimitedNoteValue(noteText = '', label = '', value = '') {
+  const parts = String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith(`${label}：`))
+
+  const nextValue = String(value || '').trim()
+  if (nextValue) parts.push(`${label}：${nextValue}`)
+  return parts.join('｜')
+}
+
+function updateIncidentGeneratedDescription(description = '', updates = {}) {
+  const removeLabels = ['來源', '來源日期', '客戶 / 工人']
+  const lines = String(description || '')
+    .split(/\r?\n/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !removeLabels.some(label => item.startsWith(`${label}：`)))
+
+  if (updates.sourceTitle) lines.push(`來源：${updates.sourceTitle}`)
+  if (updates.incidentDate) lines.push(`來源日期：${updates.incidentDate}`)
+  if (updates.customerName) lines.push(`客戶 / 工人：${updates.customerName}`)
+  return lines.join('\n')
+}
+
+function isIncidentInitialGeneratedSchedule(row = {}) {
+  const note = String(row?.sub_type_note || '')
+  return isIncidentGeneratedSchedule(row) && note.includes('建立異況當天行程')
+}
+
+async function syncIncidentGeneratedSchedulesAfterEdit(parentRow = {}, context = {}) {
+  if (!parentRow?.schedule_id) return { updated: 0, assigneesUpdated: 0, errors: [] }
+
+  const generatedRows = getIncidentGeneratedSchedules(parentRow.schedule_id)
+  const errors = []
+  let updated = 0
+  let assigneesUpdated = 0
+
+  for (const row of generatedRows) {
+    const note = String(row.sub_type_note || '')
+    const isGeneratedIncident = isIncidentSchedule(row) && isIncidentGeneratedSchedule(row)
+    const isAdminTodo = row.category === '待辦事項' && note.includes(`來源行程：${parentRow.schedule_id}`)
+    const isInitialGenerated = isIncidentInitialGeneratedSchedule(row)
+
+    if (!isGeneratedIncident && !isAdminTodo) continue
+
+    let nextNote = note
+    const updatePayload = {
+      customer_name: context.customerName || null
+    }
+
+    if (isGeneratedIncident) {
+      const trackingTitle = row.sub_type || getFieldNoteValue(row, '追蹤項目') || '追蹤項目'
+      nextNote = setIncidentDelimitedNoteValue(nextNote, '異況類型', context.incidentType || '')
+      nextNote = setIncidentDelimitedNoteValue(nextNote, '客戶 / 工人', context.customerName || '')
+      updatePayload.title = `${trackingTitle}｜${context.incidentTitle || parentRow.title || '異況追蹤'}`
+      updatePayload.sub_type_note = nextNote
+
+      if (isInitialGenerated) {
+        updatePayload.start_date = context.incidentDate || row.start_date
+        updatePayload.end_date = context.incidentDate || row.end_date || row.start_date
+        updatePayload.department_id = context.responsibleStaff?.department_id || row.department_id
+        updatePayload.department_name = context.responsibleStaff?.department_name || row.department_name
+      }
+    }
+
+    if (isAdminTodo) {
+      const taskType = row.sub_type || getFieldNoteValue(row, '行政通知') || '行政辦理'
+      updatePayload.title = `${taskType}｜${context.incidentTitle || parentRow.title || '異況追蹤'}`
+      updatePayload.description = updateIncidentGeneratedDescription(row.description, {
+        sourceTitle: context.incidentTitle || parentRow.title || '',
+        incidentDate: context.incidentDate || parentRow.start_date || '',
+        customerName: context.customerName || ''
+      })
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update(updatePayload)
+      .eq('schedule_id', row.schedule_id)
+
+    if (error) {
+      errors.push(error.message || String(error))
+      continue
+    }
+
+    updated += 1
+
+    if (isInitialGenerated && Array.isArray(context.selectedIds) && context.selectedIds.length) {
+      const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
+        target_schedule_id: row.schedule_id,
+        staff_ids_value: context.selectedIds
+      })
+
+      if (assigneeError) {
+        errors.push(assigneeError.message || String(assigneeError))
+      } else {
+        assigneesUpdated += 1
+      }
+    }
+  }
+
+  return { updated, assigneesUpdated, errors }
+}
+
+
 function getIncidentAdminNotifyInfo(row = {}) {
   const parts = String(row.sub_type_note || '')
     .split('｜')
@@ -6603,6 +6710,15 @@ async function saveEditedIncident(event, modal, originalRow) {
       return
     }
 
+    const generatedSyncResult = await syncIncidentGeneratedSchedulesAfterEdit(originalRow, {
+      incidentType,
+      incidentTitle: payload.title,
+      incidentDate: form.get('incident_date'),
+      customerName,
+      responsibleStaff,
+      selectedIds
+    })
+
     await supabase.from('audit_logs').insert({
       operated_by_profile_id: currentProfile.profile_id,
       operated_by_staff_id: currentProfile.staff_id,
@@ -6610,13 +6726,17 @@ async function saveEditedIncident(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: 'V002-1L-2 修改異況追蹤'
+      note: `V002-1P-201 修改異況追蹤｜同步延伸資料 ${generatedSyncResult.updated} 筆${generatedSyncResult.errors.length ? '｜部分失敗：' + generatedSyncResult.errors.join('；') : ''}`
     })
 
     modal.remove()
     await refreshData()
     saving = false
     renderApp()
+
+    if (generatedSyncResult.errors.length) {
+      alert(`異況已修改，但延伸追蹤 / 行政待辦有 ${generatedSyncResult.errors.length} 筆同步失敗：\n${generatedSyncResult.errors.join('\n')}`)
+    }
   } catch (err) {
     alert('修改異況失敗：' + (err?.message || err))
     saving = false
