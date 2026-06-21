@@ -4966,7 +4966,7 @@ function renderMeetingRoomCalendar() {
         <h3>會議室預約</h3>
         <p class="muted">會議室 × 日期｜${getMeetingCalendarLabel(weekDates)}</p>
       </div>
-      <div class="toolbar-actions">
+      <div class="toolbar-actions meeting-toolbar-actions">
         ${renderToolbarViewModeSelect('meetingCalendarViewModeSelect', meetingCalendarViewMode)}
         ${renderToolbarMonthInput('meetingMonthToolbarInput', getMeetingActiveMonth())}
         <button class="secondary-btn" id="meetingPrevWeekBtn">${isMonthView ? '上一月' : '上一週'}</button>

@@ -14918,3 +14918,79 @@ label.is-filter-hidden {
   }
 }
 /* FOR-e V002-1P-182 END - line notify / assigned tracking / mobile toolbar fixes */
+
+
+/* FOR-e V002-1P-183 START - mobile calendar toolbar equal width repair */
+@media (max-width: 768px) {
+  .overview-toolbar-actions,
+  .field-toolbar-actions,
+  .meeting-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .overview-toolbar-actions > *,
+  .field-toolbar-actions > *,
+  .meeting-toolbar-actions > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    justify-self: stretch !important;
+    margin: 0 !important;
+  }
+
+  .overview-toolbar-actions .toolbar-month-control,
+  .field-toolbar-actions .toolbar-month-control,
+  .meeting-toolbar-actions .toolbar-month-control {
+    display: grid !important;
+    grid-template-rows: 14px 42px !important;
+    gap: 3px !important;
+    text-align: left !important;
+  }
+
+  .overview-toolbar-actions .toolbar-month-control span,
+  .field-toolbar-actions .toolbar-month-control span,
+  .meeting-toolbar-actions .toolbar-month-control span {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .overview-toolbar-actions .toolbar-month-control input[type="month"],
+  .overview-toolbar-actions .toolbar-month-control select,
+  .field-toolbar-actions .toolbar-month-control input[type="month"],
+  .field-toolbar-actions .toolbar-month-control select,
+  .meeting-toolbar-actions .toolbar-month-control input[type="month"],
+  .meeting-toolbar-actions .toolbar-month-control select,
+  .overview-toolbar-actions button,
+  .field-toolbar-actions button,
+  .meeting-toolbar-actions button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .overview-toolbar-actions #refreshBtn,
+  .field-toolbar-actions #refreshBtn,
+  .meeting-toolbar-actions #refreshBtn {
+    grid-column: auto !important;
+  }
+}
+/* FOR-e V002-1P-183 END - mobile calendar toolbar equal width repair */
