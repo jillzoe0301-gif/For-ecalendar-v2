@@ -12579,11 +12579,11 @@ function getDayMarkInfo(staffId = '', dateKey = '', continuationRows = []) {
     ? (isReturnHomeSchedule(leaveRow) ? 'is-return-day' : 'is-leave-day')
     : ((fieldDayRow || fieldBackgroundRow || rowNeedsFullDayBackground(row)) ? 'is-field-day' : 'has-continuation-mark')
 
-  const shouldOpenCellDetail = Boolean(row?.schedule_id) && !(fieldDayRow && row.schedule_id === fieldDayRow.schedule_id)
-
+  // V002-1P-228：提示 / 連續行程只讓可見提示條或卡片可點，
+  // 不再把 data-cell-view-schedule 掛在整個日期格上，避免點空白處誤開舊行程。
   return {
     className,
-    attrs: `style="--day-accent:${color}"${shouldOpenCellDetail ? ` data-cell-view-schedule="${escapeHtml(row.schedule_id)}"` : ''}`,
+    attrs: `style="--day-accent:${color}"`,
     leaveRows,
     fieldDayRows,
     continuationRows
@@ -12596,7 +12596,7 @@ function getMeetingDayMarkInfo(continuationRows = [], dateKey = '') {
 
   return {
     className: rowNeedsFullDayBackground(row) ? 'is-field-day' : 'has-continuation-mark',
-    attrs: `style="--day-accent:${getScheduleColor(row)}" data-cell-view-schedule="${escapeHtml(row.schedule_id)}" data-occurrence-date="${escapeHtml(dateKey)}"`,
+    attrs: `style="--day-accent:${getScheduleColor(row)}"`,
     continuationRows
   }
 }
