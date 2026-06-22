@@ -16516,6 +16516,8 @@ function openEditFieldScheduleModal(scheduleId) {
           ${fieldTimeSelectHtml('edit_field', row.start_time ? start.hour : '', row.start_time ? start.minute : '00', row.time_type || '不指定')}
         </label>
 
+        <div class="span-2 field-training-hint hidden" data-field-training-hint></div>
+
         <div class="span-2 field-location-box">
           <label>
             地點選擇
@@ -16587,6 +16589,7 @@ function openEditFieldScheduleModal(scheduleId) {
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
   initFieldSpecialDropdowns(modal)
+  bindFieldTrainingHint(modal, '#editFieldScheduleForm', 'edit_field_executor', row.schedule_id)
 
   const locationSelect = document.querySelector('#editFieldLocationSelect')
   if (locationSelect) {
@@ -17243,6 +17246,141 @@ function staffOptionsSelectHtml(selectedStaffId = '') {
 }
 
 
+
+function isExternalTrainingScheduleForFieldHint(row = {}) {
+  if (!row || row.status === '取消' || row.deleted_at) return false
+  if (typeof isVisibleSchedule === 'function' && !isVisibleSchedule(row)) return false
+  if (typeof getScheduleColorKey === 'function' && getScheduleColorKey(row) === '外訓') return true
+
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  return row.category === '請假 / 會議 / 活動 / 外訓' && /外訓|外部訓練|教育訓練|受訓|研習|講習|課程|培訓/.test(text)
+}
+
+function getFieldTrainingHintDateKeysBetween(startDate = '', endDate = '', limit = 120) {
+  if (!startDate) return []
+  const start = new Date(`${startDate}T00:00:00`)
+  const safeEnd = endDate && endDate >= startDate ? endDate : startDate
+  const end = new Date(`${safeEnd}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [startDate]
+
+  const keys = []
+  let current = start
+  while (current <= end && keys.length < limit) {
+    keys.push(toDateKey(current))
+    current = addDays(current, 1)
+  }
+  return keys
+}
+
+function getFieldTrainingHintDateKeys(formEl) {
+  if (!formEl) return []
+  const form = new FormData(formEl)
+  const mode = String(form.get('repeat_mode') || '單日')
+  const startDate = String(form.get('start_date') || '').trim()
+  const endDate = String(form.get('end_date') || startDate).trim()
+  if (!startDate) return []
+
+  if (mode === '單日') return [startDate]
+
+  const rangeKeys = getFieldTrainingHintDateKeysBetween(startDate, endDate, 120)
+  if (mode === '連續日期') return rangeKeys
+
+  if (mode === '每週重複') {
+    const selectedWeekdays = [...formEl.querySelectorAll('input[name="repeat_weekdays"]:checked')].map(input => input.value)
+    const fallback = getWeekdayValueFromDateKey(startDate)
+    const allowed = selectedWeekdays.length ? selectedWeekdays : (fallback ? [fallback] : [])
+    return rangeKeys.filter(dateKey => allowed.includes(getWeekdayValueFromDateKey(dateKey)))
+  }
+
+  if (mode === '每月重複') {
+    const monthlyDay = Number(form.get('monthly_day') || startDate.slice(8, 10))
+    return rangeKeys.filter(dateKey => Number(dateKey.slice(8, 10)) === monthlyDay)
+  }
+
+  return [startDate]
+}
+
+function getFieldTrainingHintRows(staffIds = [], dateKeys = [], excludeScheduleId = '') {
+  const cleanStaffIds = [...new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))]
+  const cleanDateKeys = [...new Set((dateKeys || []).map(item => String(item || '').trim()).filter(Boolean))]
+  if (!cleanStaffIds.length || !cleanDateKeys.length) return []
+
+  const rows = []
+  schedules
+    .filter(isExternalTrainingScheduleForFieldHint)
+    .filter(row => !excludeScheduleId || row.schedule_id !== excludeScheduleId)
+    .forEach(row => {
+      cleanDateKeys.forEach(dateKey => {
+        if (!scheduleMatchesDateByMode(row, dateKey)) return
+        const matchedStaff = cleanStaffIds
+          .filter(staffId => scheduleBelongsToStaff(row, staffId))
+          .map(staffId => staffList.find(staff => staff.staff_id === staffId)?.name || '')
+          .filter(Boolean)
+
+        if (!matchedStaff.length) return
+        rows.push({
+          key: `${row.schedule_id}-${dateKey}-${matchedStaff.join(',')}`,
+          row,
+          dateKey,
+          staffNames: matchedStaff
+        })
+      })
+    })
+
+  return rows.sort((a, b) => {
+    const dateCompare = String(a.dateKey || '').localeCompare(String(b.dateKey || ''))
+    if (dateCompare !== 0) return dateCompare
+    return String(getScheduleCardTitleText(a.row) || '').localeCompare(String(getScheduleCardTitleText(b.row) || ''), 'zh-Hant')
+  })
+}
+
+function getFieldTrainingHintTimeText(item = {}) {
+  const row = item.row || {}
+  const dateText = item.dateKey || row.start_date || ''
+  const timeText = formatTime(row) || '不指定時間'
+  return [dateText, timeText].filter(Boolean).join('｜')
+}
+
+function renderFieldTrainingHintRows(matches = []) {
+  if (!matches.length) return ''
+  const visible = matches.slice(0, 6)
+  const moreCount = matches.length - visible.length
+  return `
+    <div class="field-training-hint-title">外訓提醒</div>
+    <div class="field-training-hint-list">
+      ${visible.map(item => `
+        <div class="field-training-hint-row">
+          <strong>${escapeHtml(getScheduleCardTitleText(item.row) || item.row?.title || '外訓')}</strong>
+          <span>時間：${escapeHtml(getFieldTrainingHintTimeText(item))}</span>
+        </div>
+      `).join('')}
+      ${moreCount > 0 ? `<div class="field-training-hint-more">另有 ${moreCount} 筆外訓資訊。</div>` : ''}
+    </div>
+  `
+}
+
+function refreshFieldTrainingHint(formEl, checkboxName, hintEl, excludeScheduleId = '') {
+  if (!formEl || !hintEl) return
+  const staffIds = [...formEl.querySelectorAll(`input[name="${checkboxName}"]:checked`)].map(input => input.value)
+  const dateKeys = getFieldTrainingHintDateKeys(formEl)
+  const matches = getFieldTrainingHintRows(staffIds, dateKeys, excludeScheduleId)
+  hintEl.innerHTML = renderFieldTrainingHintRows(matches)
+  hintEl.classList.toggle('hidden', !matches.length)
+}
+
+function bindFieldTrainingHint(modal, formSelector, checkboxName, excludeScheduleId = '') {
+  const formEl = modal.querySelector(formSelector)
+  const hintEl = modal.querySelector('[data-field-training-hint]')
+  if (!formEl || !hintEl) return
+
+  const update = () => refreshFieldTrainingHint(formEl, checkboxName, hintEl, excludeScheduleId)
+  formEl.addEventListener('change', update)
+  formEl.addEventListener('input', update)
+  window.setTimeout(update, 0)
+}
+
 function openFieldScheduleModal(defaults = {}) {
   if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
   const defaultDate = defaults.date || todayString()
@@ -17269,6 +17407,8 @@ function openFieldScheduleModal(defaults = {}) {
         </div>
 
         ${fieldModeTimeFieldsHtml(defaultDate)}
+
+        <div class="span-2 field-training-hint hidden" data-field-training-hint></div>
 
         <div class="span-2 field-location-box">
           <label>
@@ -17372,6 +17512,8 @@ function openFieldScheduleModal(defaults = {}) {
     fieldRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('field'))
     refreshScheduleModeBlocks('field')
   }
+
+  bindFieldTrainingHint(modal, '#fieldScheduleForm', 'field_executor')
 
   const locationSelect = document.querySelector('#fieldLocationSelect')
   if (locationSelect) {

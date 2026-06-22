@@ -16405,3 +16405,54 @@ button.login-birthday-card:focus-visible {
   color: #64748b !important;
 }
 /* FOR-e V002-1P-215 END - overview quick groups and overview field day background fix */
+
+
+/* FOR-e V002-1P-217 START - field form external training hint */
+.field-training-hint {
+  border: 1px solid #fbbf24;
+  background: #fff7ed;
+  color: #92400e;
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.field-training-hint-title {
+  font-size: 14px;
+  font-weight: 900;
+  color: #9a3412;
+}
+
+.field-training-hint-note {
+  display: none !important;
+}
+
+.field-training-hint-list {
+  display: grid;
+  gap: 7px;
+}
+
+.field-training-hint-row {
+  border: 1px solid rgba(251, 191, 36, 0.72);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.field-training-hint-row strong {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: #7c2d12;
+}
+
+.field-training-hint-row span,
+.field-training-hint-more {
+  font-size: 12px;
+  font-weight: 800;
+  color: #92400e;
+  line-height: 1.45;
+}
+/* FOR-e V002-1P-217 END - field form external training hint */
