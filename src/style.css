@@ -16055,8 +16055,8 @@ button.field-birthday-card:focus-visible {
 .login-birthday-card.is-personal,
 .birthday-wish-hero,
 .birthday-wish-staff-card {
-  background: #FFF7F7 !important;
-  border-color: #CFECF3 !important;
+  background: var(--birthday-bg, #FFF7F7) !important;
+  border-color: var(--birthday-border, #CFECF3) !important;
 }
 
 button.birthday-card:hover,
@@ -16065,35 +16065,93 @@ button.field-birthday-card:hover,
 button.field-birthday-card:focus-visible,
 button.login-birthday-card:hover,
 button.login-birthday-card:focus-visible {
-  background: #FFF2F2 !important;
-  border-color: #8CA9FF !important;
+  background: var(--birthday-bg, #FFF7F7) !important;
+  border-color: var(--birthday-accent, #8CA9FF) !important;
   box-shadow: 0 8px 18px rgba(140, 169, 255, 0.18) !important;
 }
 
 .login-birthday-card span,
 .birthday-wish-hero span {
-  color: #8CA9FF !important;
+  color: var(--birthday-accent, #8CA9FF) !important;
 }
 
 .birthday-wish-private-note {
-  background: #FFF7F7 !important;
-  color: #8CA9FF !important;
-  border-color: #CFECF3 !important;
+  background: var(--birthday-bg, #FFF7F7) !important;
+  color: var(--birthday-accent, #8CA9FF) !important;
+  border-color: var(--birthday-border, #CFECF3) !important;
 }
 
 .birthday-wish-form textarea {
-  border-color: #CFECF3 !important;
+  border-color: var(--birthday-border, #CFECF3) !important;
 }
 
 .birthday-wish-form textarea:focus {
   outline: none;
-  border-color: #8CA9FF !important;
+  border-color: var(--birthday-accent, #8CA9FF) !important;
   box-shadow: 0 0 0 3px rgba(140, 169, 255, 0.18) !important;
 }
 
 .birthday-wish-form button {
-  background: #8CA9FF !important;
-  border-color: #8CA9FF !important;
+  background: var(--birthday-accent, #8CA9FF) !important;
+  border-color: var(--birthday-accent, #8CA9FF) !important;
   color: #ffffff !important;
 }
 /* FOR-e V002-1P-210 END - birthday softer background and accent */
+
+
+/* FOR-e V002-1P-211 START - option color UI and calendar text polish */
+/* 篩選列與工具列的小字全部隱藏：檢視範圍、排序、順序、顯示月份、檢視。 */
+.overview-filter-panel-compact .compact-field-label,
+.field-filter-panel-compact .compact-field-label,
+.compact-sort-select .compact-field-label,
+.toolbar-month-control > span {
+  display: none !important;
+}
+
+.toolbar-month-control {
+  grid-template-rows: 42px !important;
+  align-items: stretch !important;
+}
+
+.toolbar-month-control select,
+.toolbar-month-control input[type="month"] {
+  height: 42px !important;
+  min-height: 42px !important;
+  line-height: 42px !important;
+}
+
+/* 行事曆左側人員名字條加大 2pt。 */
+.week-overview-table .staff-name-cell strong,
+.field-week-table .field-staff-name-cell strong,
+.calendar-staff-name-text {
+  font-size: 17px !important;
+  line-height: 1.25 !important;
+}
+
+.week-overview-table .staff-name-cell span,
+.field-week-table .field-staff-name-cell span {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+/* 外務日提示色改由顏色設定控制。 */
+.field-day-reminder-prompt {
+  background: var(--field-day-prompt-bg, #fff7ed) !important;
+  border-color: var(--field-day-prompt-border, #FFAE6E) !important;
+  border-left-color: var(--field-day-prompt-border, #FFAE6E) !important;
+  color: var(--field-day-prompt-text, #9a3412) !important;
+}
+
+.field-day-reminder-badge {
+  background: var(--field-day-prompt-border, #FFAE6E) !important;
+}
+
+.field-day-reminder-prompt strong {
+  color: var(--field-day-prompt-text, #9a3412) !important;
+}
+
+.field-day-reminder-prompt:hover {
+  background: var(--field-day-prompt-bg, #fff7ed) !important;
+  border-color: var(--field-day-prompt-border, #FFAE6E) !important;
+}
+/* FOR-e V002-1P-211 END - option color UI and calendar text polish */

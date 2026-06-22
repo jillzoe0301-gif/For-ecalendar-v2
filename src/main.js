@@ -139,6 +139,7 @@ const carOptions = [
 ]
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
+const administrativeTaskTypeOptions = ['補件', '送件異常', '逃跑通知', '離境驗證', '轉出', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
 const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
 const incidentTypeOptions = ['逃跑', '轉出', '車禍', '醫療異況', '雇主反映', '工人反映', '宿舍異況', '文件異常', '其他']
@@ -529,6 +530,18 @@ function getManagedUserDepartmentOptions() {
 function getManagedUserPositionOptions() {
   return getManagedListOption('userManagePositions', userManageDefaultPositions)
     .filter(position => !isRemovedUserManagePosition(position))
+}
+
+function getManagedServiceDocumentOptions() {
+  return getManagedListOption('serviceDocumentOptions', documentOptions)
+}
+
+function getManagedDeliveryDocumentItems() {
+  return getManagedListOption('deliveryDocumentItems', deliveryDocumentItems)
+}
+
+function getManagedAdministrativeTaskTypeOptions() {
+  return getManagedListOption('administrativeTaskTypeOptions', administrativeTaskTypeOptions)
 }
 
 
@@ -1279,7 +1292,7 @@ function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview')
 
   const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
   return `
-    <button type="button" class="${className}" title="點擊查看生日同仁並留言祝福" data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey || todayString())}">
+    <button type="button" class="${className}" ${getBirthdayColorStyleAttr()} title="點擊查看生日同仁並留言祝福" data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey || todayString())}">
       <img src="/icons/cake.png" alt="" class="birthday-card-icon">
       <div>
         <strong>HappyBirthday ❤</strong>
@@ -1365,7 +1378,7 @@ function renderBirthdayWishForm(staff = {}, dateKey = todayString()) {
 
 function renderBirthdayWishStaffCard(staff = {}, dateKey = todayString()) {
   return `
-    <section class="birthday-wish-staff-card">
+    <section class="birthday-wish-staff-card" ${getBirthdayColorStyleAttr()}>
       <div class="birthday-wish-staff-head">
         <img src="/icons/cake.png" alt="" class="birthday-card-icon">
         <div>
@@ -1395,7 +1408,7 @@ function openBirthdayWishModal(options = {}) {
         <button class="icon-btn" data-close-birthday-wish type="button" aria-label="關閉">×</button>
       </div>
 
-      <div class="birthday-wish-hero">
+      <div class="birthday-wish-hero" ${getBirthdayColorStyleAttr()}>
         <img src="/icons/cake.png" alt="" class="login-birthday-icon">
         <div>
           <strong>${escapeHtml(dateKey)}｜今天生日同仁</strong>
@@ -3346,6 +3359,9 @@ function renderApp() {
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
         leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
+        serviceDocumentOptions: parseOptionLines(form.get('serviceDocumentOptions')),
+        deliveryDocumentItems: parseOptionLines(form.get('deliveryDocumentItems')),
+        administrativeTaskTypeOptions: parseOptionLines(form.get('administrativeTaskTypeOptions')),
         carOptions: parseOptionLines(form.get('carOptions')),
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
         fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
@@ -3739,6 +3755,17 @@ function renderApp() {
   document.querySelectorAll('[data-field-cancel]').forEach(btn => {
     btn.addEventListener('click', () => {
       openCancelModal(btn.dataset.fieldCancel)
+    })
+  })
+
+  document.querySelectorAll('[data-edit-field-detail]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      const scheduleId = btn.dataset.editFieldDetail
+      if (!scheduleId) return
+      if (typeof openEditFieldScheduleModal === 'function') openEditFieldScheduleModal(scheduleId)
+      else openScheduleDetail(scheduleId)
     })
   })
 
@@ -4946,8 +4973,7 @@ function getFieldDetailRows() {
       if (fieldDetailFilters.endDate && row.start_date > fieldDetailFilters.endDate) return false
 
       if (fieldDetailFilters.staffId !== '全部') {
-        const assigned = (row.schedule_assignees || []).some(item => item.staff_id === fieldDetailFilters.staffId && !item.deleted_at)
-        if (!assigned) return false
+        if (!scheduleBelongsToStaff(row, fieldDetailFilters.staffId)) return false
       }
 
       if (fieldDetailFilters.purpose !== '全部') {
@@ -5055,6 +5081,22 @@ function renderFieldDetailPage() {
   `
 }
 
+
+function renderFieldDetailActionButtons(row = {}) {
+  const scheduleId = escapeHtml(row.schedule_id || '')
+  const isClosed = row.status === '已完成' || row.status === '取消'
+  const canEditField = canCreateFieldSchedule() || isAssignedToMe(row)
+  const canCompleteField = !isClosed && canManageFieldResult(row)
+  const canCancelField = !isClosed && canCreateFieldSchedule()
+
+  return [
+    `<button class="small-secondary-btn" data-view-schedule="${scheduleId}">查看</button>`,
+    canEditField ? `<button class="small-secondary-btn" data-edit-field-detail="${scheduleId}">修改</button>` : '',
+    canCompleteField ? `<button class="small-primary-btn" data-field-complete="${scheduleId}">完成</button>` : '',
+    canCancelField ? `<button class="small-danger-btn" data-field-cancel="${scheduleId}">取消</button>` : ''
+  ].filter(Boolean).join('')
+}
+
 function renderFieldDetailList(rows) {
   if (!rows.length) {
     return `<div class="empty-state">目前沒有符合條件的外務明細。</div>`
@@ -5089,7 +5131,9 @@ function renderFieldDetailList(rows) {
 
             <div class="field-detail-status">
               <span class="status-pill">${escapeHtml(getScheduleStatusLabel(row))}</span>
-              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              <div class="field-detail-action-stack">
+                ${renderFieldDetailActionButtons(row)}
+              </div>
             </div>
           </div>
         `
@@ -8372,6 +8416,9 @@ function renderOptionsPage() {
           ${scheduleTemplateEditor()}
           ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
+          ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
+          ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
+          ${optionTextarea('通知行政辦理項目', 'administrativeTaskTypeOptions', optionLinesValue('administrativeTaskTypeOptions', administrativeTaskTypeOptions), '異況與外務通知行政時使用，每行一個', '例如：補件')}
           ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
         </div>
       </section>
@@ -8430,7 +8477,13 @@ function getScheduleColorDefinitions() {
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
-    { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' }
+    { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
+    { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
+    { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
+    { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
+    { key: '外務日提示背景色', label: '外務日提示背景色', defaultColor: '#FFF7ED' },
+    { key: '外務日提示外框色', label: '外務日提示外框色', defaultColor: '#FFAE6E' },
+    { key: '外務日提示文字色', label: '外務日提示文字色', defaultColor: '#9A3412' }
   ]
 }
 
@@ -8469,6 +8522,25 @@ function getScheduleColorSettings() {
     console.warn('顏色設定讀取失敗', err)
     return getDefaultScheduleColorMap()
   }
+}
+
+function getNamedColorSetting(key, fallback = '#ffffff') {
+  const settings = getScheduleColorSettings()
+  return normalizeManualColorCode(settings[key], fallback) || fallback
+}
+
+function getBirthdayColorStyleAttr() {
+  const bg = getNamedColorSetting('生日背景色', '#FFF7F7')
+  const border = getNamedColorSetting('生日外框色', '#CFECF3')
+  const accent = getNamedColorSetting('生日提示文字色', '#8CA9FF')
+  return `style="--birthday-bg:${bg};--birthday-border:${border};--birthday-accent:${accent};"`
+}
+
+function getFieldDayPromptColorStyleAttr() {
+  const bg = getNamedColorSetting('外務日提示背景色', '#FFF7ED')
+  const border = getNamedColorSetting('外務日提示外框色', '#FFAE6E')
+  const text = getNamedColorSetting('外務日提示文字色', '#9A3412')
+  return `style="--field-day-prompt-bg:${bg};--field-day-prompt-border:${border};--field-day-prompt-text:${text};"`
 }
 
 function saveScheduleColorSettings(value) {
@@ -12494,7 +12566,7 @@ function renderFieldDayReminderPrompt(rows = []) {
         const promptTitle = canEdit ? `${getFieldDayReminderPromptText(row)}｜點擊進入修改 / 刪除` : getFieldDayReminderPromptText(row)
 
         return `
-          <div class="field-day-reminder-prompt" title="${escapeHtml(promptTitle)}" ${promptActionAttr}>
+          <div class="field-day-reminder-prompt" ${getFieldDayPromptColorStyleAttr()} title="${escapeHtml(promptTitle)}" ${promptActionAttr}>
             <span class="field-day-reminder-badge">外</span>
             <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
           </div>
@@ -12878,7 +12950,7 @@ function renderLoginBirthdayReminderSection(rows = []) {
 
   return `
     <section class="login-birthday-reminder">
-      <button type="button" class="login-birthday-card" data-open-birthday-wishes="today">
+      <button type="button" class="login-birthday-card" ${getBirthdayColorStyleAttr()} data-open-birthday-wishes="today">
         <img src="/icons/cake.png" alt="" class="login-birthday-icon">
         <div>
           <strong>今天有 ${rows.length} 位同仁生日：HappyBirthday ❤</strong>
@@ -12906,7 +12978,7 @@ function renderLoginPersonalBirthdayGreeting(isBirthday = false) {
 
   return `
     <section class="login-personal-birthday-greeting">
-      <button type="button" class="login-birthday-card is-personal" data-open-birthday-wishes="self">
+      <button type="button" class="login-birthday-card is-personal" ${getBirthdayColorStyleAttr()} data-open-birthday-wishes="self">
         <img src="/icons/cake.png" alt="" class="login-birthday-icon">
         <div>
           <strong>Happy Birthday ~Have a nice day♥</strong>
@@ -17402,11 +17474,11 @@ function openScheduleModal(defaults = {}) {
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
-  const documentChecks = documentOptions.map(item => `
+  const documentChecks = getManagedServiceDocumentOptions().map(item => `
     <label class="inline-check"><input type="checkbox" name="document_items" value="${item}">${item}</label>
   `).join('')
 
-  const deliveryDocumentChecks = deliveryDocumentItems.map(item => `
+  const deliveryDocumentChecks = getManagedDeliveryDocumentItems().map(item => `
     <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
   `).join('')
 
@@ -18179,8 +18251,8 @@ function getStaffNameById(staffId = '') {
 }
 
 function administrativeTaskTypeOptionsHtml(selected = '') {
-  const items = ['補件', '送件異常', '逃跑通知', '離境驗證', '轉出', '其他']
-  return `<option value="" ${!selected ? 'selected' : ''}>不通知行政</option>` + items.map(item => `<option value="${item}" ${selected === item ? 'selected' : ''}>${item}</option>`).join('')
+  const items = getManagedAdministrativeTaskTypeOptions()
+  return `<option value="" ${!selected ? 'selected' : ''}>不通知行政</option>` + items.map(item => `<option value="${escapeHtml(item)}" ${selected === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')
 }
 
 async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', taskDetail = '', adminStaffId = '', options = {}) {
@@ -18750,7 +18822,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const editTodoOptions = optionHtml(managedTodoItemsForEdit, currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
-  const editDeliveryChecks = checkedOptionsHtml(deliveryDocumentItems, editDeliveryItems, 'edit_delivery_items')
+  const editDeliveryChecks = checkedOptionsHtml(getManagedDeliveryDocumentItems(), editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
   const showTime = ['上午', '下午'].includes(row.time_type)
   const medicalInfo = parseMedicalFollowupInfo(row)
@@ -21589,3 +21661,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 只有壽星本人可以看到收到的生日祝福
 */
 /* FOR-e V002-1P-206 END - birthday wish privacy and permission repair */
+
+
+/* FOR-e V002-1P-211 START - options and color settings first batch */
+/*
+  V002-1P-211｜選項管理與顏色設定補齊第一批
+  - 選項管理新增服務行程證件項目、證件交付文件項目、通知行政辦理項目
+  - 顏色設定新增生日與外務日提示色
+  - 行事曆人員名字條加大 2pt，篩選 / 工具列小字隱藏
+*/
+/* FOR-e V002-1P-211 END - options and color settings first batch */
