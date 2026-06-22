@@ -1559,9 +1559,14 @@ function formatTime(row) {
   const start = row.start_time ? row.start_time.slice(0, 5) : ''
   const end = row.end_time ? row.end_time.slice(0, 5) : ''
   const hasEnd = Boolean(end && end !== '00:00' && end !== start)
+  const normalizedType = ['上午', '下午'].includes(row.time_type) ? row.time_type : ''
+  const derivedType = start ? getFieldTimeTypeFromValue(start) : ''
+  const displayType = normalizedType || (derivedType === '不指定' ? '' : derivedType)
 
-  if (['上午', '下午'].includes(row.time_type) && start && hasEnd) return `${row.time_type} ${start}-${end}`
-  if (['上午', '下午'].includes(row.time_type) && start) return `${row.time_type} ${start}`
+  if (displayType && start && hasEnd) return `${displayType} ${start}-${end}`
+  if (displayType && start) return `${displayType} ${start}`
+  if (start && hasEnd) return `${start}-${end}`
+  if (start) return start
   if (row.time_type && row.time_type !== '不指定') return row.time_type
   return ''
 }
@@ -16796,7 +16801,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: getScheduleModeEndDate(form),
-      time_type: getFieldTimeTypeFromForm(form, 'field'),
+      time_type: getFieldTimeTypeFromForm(form, 'edit_field'),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
       location_name: locationName || null,
@@ -17796,7 +17801,7 @@ async function saveFieldSchedule(event, modal) {
       description: form.get('description') || null,
       start_date: form.get('start_date'),
       end_date: getScheduleModeEndDate(form),
-      time_type: getFieldTimeTypeFromForm(form, 'edit_field'),
+      time_type: getFieldTimeTypeFromForm(form, 'field'),
       start_time: getFieldDbTimeValue(fieldTime),
       end_time: null,
       customer_name: null,
