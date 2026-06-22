@@ -17289,6 +17289,24 @@ function isExternalTrainingScheduleForFieldHint(row = {}) {
   return false
 }
 
+function isCompanyDepartmentActivityScheduleForFieldFormHint(row = {}) {
+  if (!row || row.status === '取消' || row.deleted_at) return false
+  if (typeof isVisibleSchedule === 'function' && !isVisibleSchedule(row)) return false
+
+  const contentText = [row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  const normalizedText = contentText.replace(/\s+/g, '').replace(/[／/]/g, '')
+  const activityPattern = /公司活動|部門活動/
+  return activityPattern.test(contentText) || activityPattern.test(normalizedText)
+}
+
+function isFieldFormScheduleHintRow(row = {}, options = {}) {
+  if (isExternalTrainingScheduleForFieldHint(row)) return true
+  if (options.includeActivities && isCompanyDepartmentActivityScheduleForFieldFormHint(row)) return true
+  return false
+}
+
 function getFieldTrainingHintDateKeysBetween(startDate = '', endDate = '', limit = 120) {
   if (!startDate) return []
   const start = new Date(`${startDate}T00:00:00`)
@@ -17333,14 +17351,14 @@ function getFieldTrainingHintDateKeys(formEl) {
   return [startDate]
 }
 
-function getFieldTrainingHintRows(staffIds = [], dateKeys = [], excludeScheduleId = '') {
+function getFieldTrainingHintRows(staffIds = [], dateKeys = [], excludeScheduleId = '', options = {}) {
   const cleanStaffIds = [...new Set((staffIds || []).map(item => String(item || '').trim()).filter(Boolean))]
   const cleanDateKeys = [...new Set((dateKeys || []).map(item => String(item || '').trim()).filter(Boolean))]
   if (!cleanStaffIds.length || !cleanDateKeys.length) return []
 
   const rows = []
   schedules
-    .filter(isExternalTrainingScheduleForFieldHint)
+    .filter(row => isFieldFormScheduleHintRow(row, options))
     .filter(row => !excludeScheduleId || row.schedule_id !== excludeScheduleId)
     .forEach(row => {
       cleanDateKeys.forEach(dateKey => {
@@ -17378,8 +17396,11 @@ function renderFieldTrainingHintRows(matches = []) {
   if (!matches.length) return ''
   const visible = matches.slice(0, 6)
   const moreCount = matches.length - visible.length
+  const hasActivity = matches.some(item => isCompanyDepartmentActivityScheduleForFieldFormHint(item.row))
+  const hasTraining = matches.some(item => isExternalTrainingScheduleForFieldHint(item.row))
+  const titleText = hasActivity && hasTraining ? '外訓 / 活動提醒' : (hasActivity ? '活動提醒' : '外訓提醒')
   return `
-    <div class="field-training-hint-title">外訓提醒</div>
+    <div class="field-training-hint-title">${titleText}</div>
     <div class="field-training-hint-list">
       ${visible.map(item => `
         <div class="field-training-hint-row">
@@ -17387,7 +17408,7 @@ function renderFieldTrainingHintRows(matches = []) {
           <span>時間：${escapeHtml(getFieldTrainingHintTimeText(item))}</span>
         </div>
       `).join('')}
-      ${moreCount > 0 ? `<div class="field-training-hint-more">另有 ${moreCount} 筆外訓資訊。</div>` : ''}
+      ${moreCount > 0 ? `<div class="field-training-hint-more">另有 ${moreCount} 筆提醒資訊。</div>` : ''}
     </div>
   `
 }
@@ -17420,7 +17441,7 @@ function refreshFieldTrainingHint(formEl, checkboxName, hintEl, excludeScheduleI
   if (!formEl || !hintEl) return
   const staffIds = [...formEl.querySelectorAll(`input[name="${checkboxName}"]:checked`)].map(input => input.value)
   const dateKeys = getFieldTrainingHintDateKeys(formEl)
-  const matches = getFieldTrainingHintRows(staffIds, dateKeys, excludeScheduleId)
+  const matches = getFieldTrainingHintRows(staffIds, dateKeys, excludeScheduleId, { includeActivities: true })
   hintEl.innerHTML = renderFieldTrainingHintRows(matches)
   hintEl.classList.toggle('hidden', !matches.length)
 }
