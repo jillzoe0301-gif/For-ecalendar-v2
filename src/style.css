@@ -16267,3 +16267,90 @@ button.login-birthday-card:focus-visible {
   font-weight: 750 !important;
 }
 /* FOR-e V002-1P-213 END - field today border, personal occurrence, field detail actions, staff font repair */
+
+/* FOR-e V002-1P-214 START - overview field-day today frame and staff name hierarchy fix */
+/* 行程總覽：今天欄位無論是否為外務日 / 連續行程，都要保留今日藍框。 */
+.week-overview-table td.week-day-cell.is-today,
+.week-overview-table td.week-day-cell.is-today.is-field-day,
+.week-overview-table td.week-day-cell.is-today.has-continuation-mark,
+.week-overview-table td.week-day-cell.is-today.is-leave-day,
+.week-overview-table td.week-day-cell.is-today.is-return-day,
+.week-overview-table td.week-day-cell.is-today.is-personal-leave-day {
+  position: relative !important;
+  outline: 3px solid #5170ff !important;
+  outline-offset: -3px !important;
+  box-shadow: inset 0 0 0 3px #5170ff !important;
+  z-index: 1 !important;
+}
+
+.week-overview-table td.week-day-cell.is-today::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid #5170ff;
+  pointer-events: none;
+  z-index: 8;
+  box-sizing: border-box;
+}
+
+.week-overview-table td.week-day-cell.is-today > *,
+.field-week-table td.field-week-day-cell.is-today > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* 外務行程：今天欄位無論是否為外務日 / 連續行程，都要保留外務橘框。 */
+.field-week-table td.field-week-day-cell.is-today,
+.field-week-table td.field-week-day-cell.is-today.is-field-day,
+.field-week-table td.field-week-day-cell.is-today.has-continuation-mark,
+.field-week-table td.field-week-day-cell.is-today.is-leave-day,
+.field-week-table td.field-week-day-cell.is-today.is-return-day {
+  position: relative !important;
+  outline: 3px solid #FAAB78 !important;
+  outline-offset: -3px !important;
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+  z-index: 1 !important;
+}
+
+.field-week-table td.field-week-day-cell.is-today::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid #FAAB78;
+  pointer-events: none;
+  z-index: 8;
+  box-sizing: border-box;
+}
+
+/* 行程總覽 / 外務行程左側人名必須比部門大；避免舊的 span 規則壓到人名。 */
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.field-week-table .field-staff-name-cell .calendar-staff-name-title {
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+  font-weight: 950 !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text,
+.field-week-table .field-staff-name-cell .calendar-staff-name-title .calendar-staff-name-text {
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+  font-weight: 950 !important;
+}
+
+.week-overview-table .staff-name-cell > span,
+.field-week-table .field-staff-name-cell > span {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 750 !important;
+  color: #64748b !important;
+}
+
+.week-overview-table .staff-name-cell .field-worker-badge,
+.field-week-table .field-staff-name-cell .field-worker-badge {
+  font-size: 13px !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+}
+/* FOR-e V002-1P-214 END - overview field-day today frame and staff name hierarchy fix */
