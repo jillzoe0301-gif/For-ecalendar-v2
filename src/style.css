@@ -13976,6 +13976,28 @@ label.is-filter-hidden {
   white-space: nowrap;
 }
 
+.field-leave-return-prompt {
+  border-left-width: 0 !important;
+  border: 1px solid color-mix(in srgb, var(--day-accent, #BFDDF0) 42%, #ffffff) !important;
+  background: color-mix(in srgb, var(--day-accent, #BFDDF0) 13%, #ffffff) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #BFDDF0) 18%, #ffffff) !important;
+  border-radius: 999px;
+  min-height: 27px;
+  padding: 3px 8px;
+  margin: 3px 0 5px;
+}
+
+.field-leave-return-prompt span {
+  min-width: 20px;
+  width: 20px;
+  height: 20px;
+  color: #0f172a !important;
+}
+
+.field-leave-return-prompt strong {
+  font-size: 12px;
+}
+
 .continuation-day-placeholder {
   min-height: 28px;
   margin: 3px 0 5px;
@@ -16472,15 +16494,16 @@ button.login-birthday-card:focus-visible {
   max-width: 100%;
   min-width: 0;
   padding: 3px 8px;
-  border: 1px solid #c7d2fe;
+  border: 1px solid var(--field-training-accent, #87B6BC);
   border-radius: 999px;
-  background: #eef2ff;
-  color: #1e3a8a;
+  background: var(--field-training-soft-bg, #EFF7F8);
+  color: #0f172a;
   font-size: 12px;
   font-weight: 900;
   line-height: 1.25;
   box-sizing: border-box;
   pointer-events: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--field-training-accent, #87B6BC) 18%, #ffffff);
 }
 
 .field-training-calendar-badge {
@@ -16490,7 +16513,7 @@ button.login-birthday-card:focus-visible {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: #8ca9ff;
+  background: var(--field-training-accent, #87B6BC);
   color: #ffffff;
   font-size: 12px;
   font-weight: 900;
@@ -16529,3 +16552,8 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-219 END - field calendar training prompt */
+
+
+/* FOR-e V002-1P-220 START - field calendar leave return prompt and training color */
+/* 外務行程表：請假 / 返鄉只顯示提示，外訓提示沿用外訓色並使用更淡背景。 */
+/* FOR-e V002-1P-220 END - field calendar leave return prompt and training color */

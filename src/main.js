@@ -4863,8 +4863,9 @@ function isFieldDayReminderSchedule(row = {}) {
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
   return uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
-    if (!(isFieldScheduleRow(row) || isLeaveOrReturnSchedule(row))) return false
+    if (!isFieldScheduleRow(row)) return false
     if (isFieldDayReminderSchedule(row)) return false
+    if (isLeaveOrReturnSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
   })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
@@ -8625,6 +8626,17 @@ function getReadableTextColor(backgroundColor) {
   const b = parseInt(hex.slice(4, 6), 16)
   const yiq = (r * 299 + g * 587 + b * 114) / 1000
   return yiq >= 145 ? '#111827' : '#ffffff'
+}
+
+function mixHexWithWhite(color = '#ffffff', whiteRatio = 0.86) {
+  const hex = String(color || '').trim().replace('#', '')
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return '#f8fafc'
+  const ratio = Math.max(0, Math.min(1, Number(whiteRatio)))
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  const mix = value => Math.round(value * (1 - ratio) + 255 * ratio).toString(16).padStart(2, '0')
+  return `#${mix(r)}${mix(g)}${mix(b)}`
 }
 
 function getScheduleColorInlineStyle(row) {
@@ -12578,19 +12590,21 @@ function getMeetingDayMarkInfo(continuationRows = [], dateKey = '') {
   }
 }
 
-function renderLeaveReturnDayMark(rows = [], dateKey = '') {
+function renderLeaveReturnDayMark(rows = [], dateKey = '', variant = 'overview') {
   if (!rows.length) return ''
   const row = rows[0]
   const isFirstDay = row.start_date === dateKey
 
-  // 第一天已顯示完整卡片，不再另外顯示單一「休 / 返」字。
-  if (isFirstDay) return ''
+  // 行程總覽第一天已顯示完整卡片，不再另外顯示單一「休 / 返」字。
+  // 外務行程表只需要提示，不顯示完整請假 / 返鄉卡片，所以第一天也要顯示提示。
+  if (variant !== 'field' && isFirstDay) return ''
 
   const title = row.title || row.sub_type || getScheduleDisplayType(row) || '休假'
   const label = isReturnHomeSchedule(row) ? '返' : '休'
+  const occurrenceAttr = dateKey ? ` data-occurrence-date="${escapeHtml(dateKey)}"` : ''
 
   return `
-    <button type="button" class="leave-return-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="leave-return-day-mark ${variant === 'field' ? 'field-leave-return-prompt' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       <span>${label}</span>
       <strong>${escapeHtml(title)}</strong>
     </button>
@@ -12811,7 +12825,7 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
               ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
               ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
               ${birthdayCard}
-              ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+              ${renderLeaveReturnDayMark(dayMark.leaveRows, key, 'field')}
               ${renderContinuationDayMarks(continuousRows, key, 'field')}
               ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="field-week-empty">—</span>')}
             </div>
@@ -12862,7 +12876,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
                     ${birthdayCard}
-                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key, 'field')}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
                     ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="field-week-empty">—</span>')}
                   </td>`
@@ -12919,7 +12933,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                     ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
                     ${birthdayCard}
-                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key, 'field')}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
                     ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="field-week-empty">—</span>')}
                   </td>`
@@ -17375,7 +17389,9 @@ function renderFieldTrainingCalendarPrompt(staffId = '', dateKey = '') {
       ${visible.map(item => {
         const title = getScheduleCardTitleText(item.row) || item.row?.title || '外訓'
         const time = formatTime(item.row) || '不指定時間'
-        return `<div class="field-training-calendar-prompt" title="外訓提醒：${escapeHtml(title)} ${escapeHtml(time)}">
+        const accent = getScheduleColor(item.row) || getNamedColorSetting('外訓', '#87B6BC')
+        const softBg = mixHexWithWhite(accent, 0.88)
+        return `<div class="field-training-calendar-prompt" style="--field-training-accent:${accent};--field-training-soft-bg:${softBg};" title="外訓提醒：${escapeHtml(title)} ${escapeHtml(time)}">
           <span class="field-training-calendar-badge">訓</span>
           <span class="field-training-calendar-text">${escapeHtml(title)}｜${escapeHtml(time)}</span>
         </div>`
