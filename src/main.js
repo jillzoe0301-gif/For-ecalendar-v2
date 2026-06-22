@@ -17414,24 +17414,27 @@ function renderFieldTrainingHintRows(matches = []) {
 }
 
 function renderFieldTrainingCalendarPrompt(staffId = '', dateKey = '') {
-  const matches = getFieldTrainingHintRows([staffId], [dateKey])
+  const matches = getFieldTrainingHintRows([staffId], [dateKey], '', { includeActivities: true })
   if (!matches.length) return ''
 
   const visible = matches.slice(0, 3)
   const moreCount = matches.length - visible.length
   return `
-    <div class="field-training-calendar-prompt-list" aria-label="外訓提醒">
+    <div class="field-training-calendar-prompt-list" aria-label="外訓 / 活動提醒">
       ${visible.map(item => {
-        const title = getScheduleCardTitleText(item.row) || item.row?.title || '外訓'
+        const isActivity = isCompanyDepartmentActivityScheduleForFieldFormHint(item.row)
+        const label = isActivity ? '活' : '訓'
+        const title = getScheduleCardTitleText(item.row) || item.row?.title || (isActivity ? '活動' : '外訓')
         const time = formatTime(item.row) || '不指定時間'
-        const accent = getScheduleColor(item.row) || getNamedColorSetting('外訓', '#87B6BC')
+        const fallbackColor = isActivity ? getNamedColorSetting('活動', '#F3C969') : getNamedColorSetting('外訓', '#87B6BC')
+        const accent = getScheduleColor(item.row) || fallbackColor
         const softBg = mixHexWithWhite(accent, 0.88)
-        return `<div class="field-training-calendar-prompt" style="--field-training-accent:${accent};--field-training-soft-bg:${softBg};" title="外訓提醒：${escapeHtml(title)} ${escapeHtml(time)}">
-          <span class="field-training-calendar-badge">訓</span>
+        return `<div class="field-training-calendar-prompt ${isActivity ? 'is-activity' : 'is-training'}" style="--field-training-accent:${accent};--field-training-soft-bg:${softBg};" title="${isActivity ? '活動' : '外訓'}提醒：${escapeHtml(title)} ${escapeHtml(time)}">
+          <span class="field-training-calendar-badge">${label}</span>
           <span class="field-training-calendar-text">${escapeHtml(title)}｜${escapeHtml(time)}</span>
         </div>`
       }).join('')}
-      ${moreCount > 0 ? `<div class="field-training-calendar-prompt is-more">訓｜另有 ${moreCount} 筆外訓</div>` : ''}
+      ${moreCount > 0 ? `<div class="field-training-calendar-prompt is-more">提｜另有 ${moreCount} 筆提醒</div>` : ''}
     </div>
   `
 }
