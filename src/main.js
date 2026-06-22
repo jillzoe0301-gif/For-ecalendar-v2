@@ -554,7 +554,7 @@ function getManagedAdministrativeTaskTypeOptions() {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options', 'overview_quick_groups']
+const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options']
 
 function readLocalJsonSetting(key) {
   try {
@@ -575,13 +575,32 @@ function normalizeSettingValue(value) {
   return value
 }
 
+function getPersonalSettingOwnerKey() {
+  const rawOwner = currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.email || currentProfile?.name || ''
+  return String(rawOwner || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9@._-]/g, '_')
+}
+
+function getPersonalOverviewQuickGroupsSettingKey() {
+  const ownerKey = getPersonalSettingOwnerKey()
+  return ownerKey ? `overview_quick_groups:${ownerKey}` : ''
+}
+
+function getAppSettingQueryKeys() {
+  const keys = [...sharedSettingKeys]
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey) keys.push(personalQuickGroupKey)
+  return [...new Set(keys)]
+}
+
 async function loadAppSettings() {
   appSettingsError = ''
 
   const { data, error } = await supabase
     .from('app_settings')
     .select('setting_key, setting_value')
-    .in('setting_key', sharedSettingKeys)
+    .in('setting_key', getAppSettingQueryKeys())
 
   if (error) {
     console.warn('app_settings 尚未啟用，暫用本機設定。', error.message)
@@ -613,10 +632,17 @@ async function loadAppSettings() {
     saveAppSetting('managed_options', localManagedOptions)
   }
 
-  const localOverviewQuickGroups = readLocalJsonSetting(overviewQuickGroupsStorageKey)
-  if (!appSettings.overview_quick_groups && Object.keys(localOverviewQuickGroups).length) {
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey && appSettings[personalQuickGroupKey]) {
+    appSettings.overview_quick_groups = appSettings[personalQuickGroupKey]
+  }
+
+  const localOverviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, {})
+  const hasLocalOverviewQuickGroups = Boolean((localOverviewQuickGroups.groups || []).length || localOverviewQuickGroups.activeId !== 'all')
+  if (personalQuickGroupKey && !appSettings[personalQuickGroupKey] && hasLocalOverviewQuickGroups) {
+    appSettings[personalQuickGroupKey] = localOverviewQuickGroups
     appSettings.overview_quick_groups = localOverviewQuickGroups
-    saveAppSetting('overview_quick_groups', localOverviewQuickGroups)
+    saveAppSetting(personalQuickGroupKey, localOverviewQuickGroups)
   }
 }
 
@@ -13186,9 +13212,11 @@ function cleanupLegacyOverviewCustomGroupStorage() {
 }
 
 function getSharedOverviewQuickGroupsSetting() {
-  return hasSharedSetting('overview_quick_groups')
-    ? normalizeOverviewQuickGroups(appSettings.overview_quick_groups)
-    : null
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey && hasSharedSetting(personalQuickGroupKey)) {
+    return normalizeOverviewQuickGroups(appSettings[personalQuickGroupKey])
+  }
+  return null
 }
 
 function loadOverviewQuickGroupsPreference() {
@@ -13198,7 +13226,7 @@ function loadOverviewQuickGroupsPreference() {
   if (sharedGroups) {
     overviewQuickGroups = sharedGroups
     try {
-      localStorage.setItem(overviewQuickGroupsStorageKey, JSON.stringify(sharedGroups))
+      saveFilterPreference(overviewQuickGroupsStorageKey, sharedGroups, normalizeOverviewQuickGroups)
     } catch (err) {
       console.warn('快速人員群組本機同步失敗', err)
     }
@@ -13211,8 +13239,14 @@ function loadOverviewQuickGroupsPreference() {
 function saveOverviewQuickGroupsPreference() {
   const normalized = normalizeOverviewQuickGroups(overviewQuickGroups)
   overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, normalized, normalizeOverviewQuickGroups)
-  appSettings.overview_quick_groups = overviewQuickGroups
-  saveAppSetting('overview_quick_groups', overviewQuickGroups)
+
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey) {
+    appSettings[personalQuickGroupKey] = overviewQuickGroups
+    appSettings.overview_quick_groups = overviewQuickGroups
+    saveAppSetting(personalQuickGroupKey, overviewQuickGroups)
+  }
+
   return overviewQuickGroups
 }
 
@@ -21760,3 +21794,11 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - app_settings 尚未啟用時仍保留 localStorage 後備，不中斷原功能
 */
 /* FOR-e V002-1P-215 END - overview quick groups shared sync */
+
+/* FOR-e V002-1P-216 START - personal quick groups cross-device sync */
+/*
+  V002-1P-216｜快速人員群組個人化跨裝置同步
+  - 電腦、手機、平板同步同一位登入者自己的快速人員群組
+  - 不再使用全公司共用 overview_quick_groups，避免一人設定影響所有人
+*/
+/* FOR-e V002-1P-216 END - personal quick groups cross-device sync */
