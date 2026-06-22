@@ -17268,17 +17268,23 @@ function isExternalTrainingScheduleForFieldHint(row = {}) {
   if (!row || row.status === '取消' || row.deleted_at) return false
   if (typeof isVisibleSchedule === 'function' && !isVisibleSchedule(row)) return false
 
-  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+  const colorKey = typeof getScheduleColorKey === 'function' ? getScheduleColorKey(row) : ''
+  if (colorKey === '請假' || colorKey === '返鄉') return false
+
+  const contentText = [row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
     .filter(Boolean)
     .join('｜')
+  const normalizedText = contentText.replace(/\s+/g, '').replace(/[／/]/g, '')
   const trainingPattern = /外訓|外部訓練|教育訓練|上線教育訓練|訓練|受訓|研習|講習|課程|培訓/
   const leaveReturnPattern = /請假|休假|安息假|特休|病假|事假|公假|婚假|喪假|產假|育嬰假|陪產假|安胎|補休|調休|返鄉/
 
-  // 外務行程表的請假 / 休假 / 返鄉只顯示一筆「休 / 返」提示，不能再被外訓提示重複顯示成「訓」。
-  if (leaveReturnPattern.test(text) && !trainingPattern.test(text)) return false
+  // 不要把大分類「請假 / 會議 / 活動 / 外訓」中的「外訓」當作外訓提示來源；
+  // 只看實際細項、標題、內容，避免同一筆請假 / 休假同時顯示「訓」與「休」。
+  if (leaveReturnPattern.test(contentText) && !trainingPattern.test(contentText)) return false
 
-  if (row.category === '請假 / 會議 / 活動 / 外訓' && trainingPattern.test(text)) return true
-  if (typeof getScheduleColorKey === 'function' && getScheduleColorKey(row) === '外訓' && trainingPattern.test(text)) return true
+  if (colorKey === '外訓' && trainingPattern.test(contentText)) return true
+  if (row.category === '請假 / 會議 / 活動 / 外訓' && trainingPattern.test(contentText)) return true
+  if (trainingPattern.test(normalizedText)) return true
 
   return false
 }
