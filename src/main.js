@@ -383,7 +383,7 @@ function renderPersonalTodayScheduleNotice(rows = []) {
 
       <div class="todo-notice-list">
         ${rows.map(row => `
-          <button type="button" class="todo-notice-card ${getAlertItemClass(row)}" data-view-schedule="${row.schedule_id}">
+          <button type="button" class="todo-notice-card ${getAlertItemClass(row)}" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
               <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(getScheduleMetaParts([getCardTimeText(row), getAssigneeNames(row), row.location_name]))}</span>
@@ -6616,7 +6616,7 @@ function renderIncidentList(rows) {
 
             <div class="incident-actions">
               <span class="status-pill">${isOverdue ? '逾期' : escapeHtml(row.status || '未完成')}</span>
-              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
               ${row.status !== '已完成' && row.status !== '取消' ? `<button class="small-btn incident-next-btn" data-incident-next="${row.schedule_id}">下次追蹤</button>` : ''}
               ${canCompleteSchedule(row) ? `<button class="small-btn" data-incident-complete="${row.schedule_id}">已完成</button>` : ''}
             </div>
@@ -9106,7 +9106,9 @@ function downloadCsv(filename, columns, rows) {
 function uniqueScheduleRows(rows) {
   const map = new Map()
   rows.forEach(row => {
-    if (row?.schedule_id && !map.has(row.schedule_id)) map.set(row.schedule_id, row)
+    if (!row?.schedule_id) return
+    const key = row.__occurrenceKey || (row.__occurrenceDate ? `${row.schedule_id}:${row.__occurrenceDate}` : row.schedule_id)
+    if (!map.has(key)) map.set(key, row)
   })
   return [...map.values()]
 }
@@ -11809,7 +11811,7 @@ function renderAssignedTrackingList(rows) {
 
             <div class="assigned-tracking-status">
               <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
-              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
             </div>
           </div>
         `
@@ -11886,6 +11888,40 @@ function renderServiceRecordReminderArea() {
 }
 /* FOR-e V002-1H-4 END - service record reminder area */
 
+function createScheduleOccurrenceRow(row = {}, dateKey = '') {
+  if (!row?.schedule_id || !dateKey) return row
+  return {
+    ...row,
+    __sourceStartDate: row.start_date,
+    __sourceEndDate: row.end_date,
+    __occurrenceDate: dateKey,
+    __occurrenceKey: `${row.schedule_id}:${dateKey}`,
+    start_date: dateKey,
+    end_date: dateKey
+  }
+}
+
+function normalizeRowsForOccurrenceDate(rows = [], dateKey = todayString()) {
+  return (rows || []).map(row => {
+    if (!row?.schedule_id || !dateKey) return row
+    if (isScheduleSeriesLike(row) && scheduleMatchesDateByMode(row, dateKey)) {
+      return createScheduleOccurrenceRow(row, dateKey)
+    }
+    return row
+  })
+}
+
+function getScheduleOccurrenceDateAttr(row = {}) {
+  const occurrenceDate = row.__occurrenceDate || ''
+  return occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
+}
+
+function getScheduleDisplayDateText(row = {}) {
+  const displayStartDate = row.__occurrenceDate || row.start_date || ''
+  const displayEndDate = row.__occurrenceDate ? '' : row.end_date
+  return `${formatDate(displayStartDate)}${displayEndDate && displayEndDate !== displayStartDate ? ' ～ ' + formatDate(displayEndDate) : ''}`
+}
+
 function getPersonalOverdueTaskRows() {
   return schedules
     .filter(row => isActivePersonalSchedule(row))
@@ -11930,11 +11966,18 @@ function renderPersonalOverdueTaskArea() {
 function renderPersonalSchedule() {
   const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
   const today = todayString()
-  const todayRows = myRows
-    .filter(row => isActionReminderSchedule(row))
-    .filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
+  const displayRows = normalizeRowsForOccurrenceDate(myRows, today)
+  const todayRows = normalizeRowsForOccurrenceDate(
+    myRows
+      .filter(row => isActionReminderSchedule(row))
+      .filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消'),
+    today
+  )
   const overdueRows = getPersonalOverdueTaskRows()
-  const todayMeetingRows = myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today))
+  const todayMeetingRows = normalizeRowsForOccurrenceDate(
+    myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today)),
+    today
+  )
 
   return `
     ${renderToolbar('個人行程表')}
@@ -11957,11 +12000,11 @@ function renderPersonalSchedule() {
         <span>任務逾期</span>
       </div>
       <div class="summary-card">
-        <strong>${myRows.length}</strong>
+        <strong>${displayRows.length}</strong>
         <span>個人行程總數</span>
       </div>
     </div>
-    ${renderScheduleList(myRows, '目前沒有個人行程。', true)}
+    ${renderScheduleList(displayRows, '目前沒有個人行程。', true)}
   `
 }
 
@@ -11977,7 +12020,7 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
 
       <div class="todo-notice-list">
         ${todayRows.length ? todayRows.map(row => `
-          <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}">
+          <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
               <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(row.customer_name || row.location_name || getAssigneeNames(row) || '個人待辦')}</span>
@@ -11998,7 +12041,7 @@ function renderPersonalTodo() {
     .filter(row => isActionReminderSchedule(row))
     .filter(row => todoCategories.includes(row.category))
   const today = todayString()
-  const todayRows = myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消')
+  const todayRows = normalizeRowsForOccurrenceDate(myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消'), today)
   const overdueRows = myRows.filter(row => row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
 
   return `
@@ -13980,7 +14023,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         return `
           <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
-              <div class="schedule-date">${formatDate(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + formatDate(row.end_date) : ''}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
+              <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
               <div class="schedule-title">${escapeHtml(getScheduleCardTitleText(row))}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
@@ -13993,7 +14036,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
             </div>
             <div class="schedule-card-actions">
               ${isMaintenance ? '' : `<span class="status-pill ${isNoCompletionControlSchedule(row) ? 'is-calendar-only' : ''}">${escapeHtml(getScheduleStatusLabel(row))}</span>`}
-              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
               ${row.need_service_record ? `<button class="small-record-btn" data-record-schedule="${row.schedule_id}">紀錄單</button>` : ``}
             </div>
           </div>

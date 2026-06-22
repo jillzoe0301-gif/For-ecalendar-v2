@@ -16155,3 +16155,60 @@ button.login-birthday-card:focus-visible {
   border-color: var(--field-day-prompt-border, #FFAE6E) !important;
 }
 /* FOR-e V002-1P-211 END - option color UI and calendar text polish */
+
+
+/* FOR-e V002-1P-212 START - continuous today border and calendar staff font repair */
+/* 連續行程落在今日時，保留今日外框，不被連續行程細條或反色背景覆蓋。 */
+.week-day-cell.is-today.has-continuation-mark,
+.week-day-cell.is-today.is-leave-day,
+.week-day-cell.is-today.is-return-day,
+.week-day-cell.is-today.is-personal-leave-day,
+.month-day-cell.is-today.has-continuation-mark,
+.month-day-cell.is-today.is-leave-day,
+.month-day-cell.is-today.is-return-day,
+.month-day-cell.is-today.is-personal-leave-day {
+  box-shadow: inset 0 0 0 2px #5170ff !important;
+}
+
+.field-week-day-cell.is-today.has-continuation-mark,
+.field-week-day-cell.is-today.is-leave-day,
+.field-week-day-cell.is-today.is-return-day,
+.field-week-day-cell.is-today.is-field-day,
+.field-personal-month-calendar .month-day-cell.is-today.has-continuation-mark,
+.field-personal-month-calendar .month-day-cell.is-today.is-field-day,
+.field-personal-month-calendar .month-day-cell.is-today.is-leave-day,
+.field-personal-month-calendar .month-day-cell.is-today.is-return-day {
+  border-color: #FAAB78 !important;
+  box-shadow: inset 0 0 0 2px #FAAB78 !important;
+}
+
+/* 連續行程當天的完整卡片與延續提示保留各自行程色。 */
+.week-day-cell.is-today .week-schedule-card[style],
+.month-day-cell.is-today .week-schedule-card[style],
+.field-week-day-cell.is-today .field-week-schedule-card[style],
+.field-personal-month-calendar .month-day-cell.is-today .field-week-schedule-card[style] {
+  border-color: var(--schedule-accent, #4E71FF) !important;
+}
+
+.week-day-cell.is-today .continuation-day-mark,
+.month-day-cell.is-today .continuation-day-mark,
+.field-week-day-cell.is-today .continuation-day-mark,
+.field-personal-month-calendar .month-day-cell.is-today .continuation-day-mark {
+  border-left-color: var(--day-accent, #4E71FF) !important;
+}
+
+/* 行事曆人員名稱與外務人員名稱再加大，放在最後避免舊版字級覆蓋。 */
+.week-overview-table .staff-name-cell strong,
+.field-week-table .field-staff-name-cell strong,
+.calendar-staff-name-text {
+  font-size: 19px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+.week-overview-table .staff-name-cell span,
+.field-week-table .field-staff-name-cell span {
+  font-size: 16px !important;
+  line-height: 1.35 !important;
+}
+/* FOR-e V002-1P-212 END - continuous today border and calendar staff font repair */
