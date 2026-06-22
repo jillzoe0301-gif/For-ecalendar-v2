@@ -3147,7 +3147,10 @@ function renderApp() {
   }
 
   document.querySelectorAll('.week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => {
+    cell.addEventListener('click', event => {
+      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], [data-cell-view-schedule], .week-schedule-card, .birthday-card, .leave-return-day-mark, .continuation-day-mark')) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
       if (canCreateServiceSchedule()) {
         openScheduleModal({
           date: cell.dataset.weekDate || todayString(),
@@ -3230,7 +3233,7 @@ function renderApp() {
 
   document.querySelectorAll('.field-week-day-cell').forEach(cell => {
     cell.addEventListener('click', event => {
-      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], .field-day-reminder-prompt')) return
+      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], .field-day-reminder-prompt, .field-training-calendar-prompt, .field-training-calendar-prompt-list, .field-leave-return-prompt')) return
       event.preventDefault()
       event.stopImmediatePropagation()
       if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
@@ -3286,7 +3289,10 @@ function renderApp() {
   }
 
   document.querySelectorAll('.meeting-week-day-cell').forEach(cell => {
-    cell.addEventListener('dblclick', () => {
+    cell.addEventListener('click', event => {
+      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], [data-cell-view-schedule], .meeting-room-card, .continuation-day-mark')) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
       if (!canCreateMeetingRoomSchedule()) return denyPermission('你的角色沒有新增會議室預約權限。')
       openMeetingRoomModal({
         date: cell.dataset.meetingDate || '',
