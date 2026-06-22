@@ -554,7 +554,7 @@ function getManagedAdministrativeTaskTypeOptions() {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options']
+const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options', 'overview_quick_groups']
 
 function readLocalJsonSetting(key) {
   try {
@@ -611,6 +611,12 @@ async function loadAppSettings() {
   if (!appSettings.managed_options && Object.keys(localManagedOptions).length) {
     appSettings.managed_options = localManagedOptions
     saveAppSetting('managed_options', localManagedOptions)
+  }
+
+  const localOverviewQuickGroups = readLocalJsonSetting(overviewQuickGroupsStorageKey)
+  if (!appSettings.overview_quick_groups && Object.keys(localOverviewQuickGroups).length) {
+    appSettings.overview_quick_groups = localOverviewQuickGroups
+    saveAppSetting('overview_quick_groups', localOverviewQuickGroups)
   }
 }
 
@@ -13179,13 +13185,35 @@ function cleanupLegacyOverviewCustomGroupStorage() {
   })
 }
 
+function getSharedOverviewQuickGroupsSetting() {
+  return hasSharedSetting('overview_quick_groups')
+    ? normalizeOverviewQuickGroups(appSettings.overview_quick_groups)
+    : null
+}
+
 function loadOverviewQuickGroupsPreference() {
   cleanupLegacyOverviewCustomGroupStorage()
+  const sharedGroups = getSharedOverviewQuickGroupsSetting()
+
+  if (sharedGroups) {
+    overviewQuickGroups = sharedGroups
+    try {
+      localStorage.setItem(overviewQuickGroupsStorageKey, JSON.stringify(sharedGroups))
+    } catch (err) {
+      console.warn('快速人員群組本機同步失敗', err)
+    }
+    return
+  }
+
   overviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, overviewQuickGroups)
 }
 
 function saveOverviewQuickGroupsPreference() {
-  overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, overviewQuickGroups, normalizeOverviewQuickGroups)
+  const normalized = normalizeOverviewQuickGroups(overviewQuickGroups)
+  overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, normalized, normalizeOverviewQuickGroups)
+  appSettings.overview_quick_groups = overviewQuickGroups
+  saveAppSetting('overview_quick_groups', overviewQuickGroups)
+  return overviewQuickGroups
 }
 
 function getOverviewBuiltInQuickGroups() {
@@ -21722,3 +21750,13 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 行事曆人員名字條加大 2pt，篩選 / 工具列小字隱藏
 */
 /* FOR-e V002-1P-211 END - options and color settings first batch */
+
+
+/* FOR-e V002-1P-215 START - overview quick groups shared sync */
+/*
+  V002-1P-215｜快速人員群組跨裝置同步
+  - 快速人員群組改用 app_settings.overview_quick_groups 共用儲存
+  - 電腦建立或修改群組後，手機與平板重新整理即可同步
+  - app_settings 尚未啟用時仍保留 localStorage 後備，不中斷原功能
+*/
+/* FOR-e V002-1P-215 END - overview quick groups shared sync */

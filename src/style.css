@@ -16354,3 +16354,54 @@ button.login-birthday-card:focus-visible {
   line-height: 24px !important;
 }
 /* FOR-e V002-1P-214 END - overview field-day today frame and staff name hierarchy fix */
+
+
+/* FOR-e V002-1P-215 START - overview quick groups and overview field day background fix */
+/* 行程總覽：外務日 / 外務背景日期要反淡橘底，即使當天有今日藍框也不能被蓋掉。 */
+.week-overview-table td.week-day-cell.is-field-day,
+.week-overview-table td.week-day-cell.is-today.is-field-day,
+.week-overview-table td.week-day-cell.is-field-day.has-continuation-mark,
+.week-overview-table td.week-day-cell.is-field-day.is-personal-leave-day {
+  background: #fff7ed !important;
+}
+
+.week-overview-table td.week-day-cell.is-today.is-field-day,
+.week-overview-table td.week-day-cell.is-today.is-field-day.has-continuation-mark {
+  outline: 3px solid #5170ff !important;
+  outline-offset: -3px !important;
+  box-shadow: inset 0 0 0 3px #5170ff !important;
+}
+
+.week-overview-table td.week-day-cell.is-today.is-field-day::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid #5170ff;
+  pointer-events: none;
+  z-index: 8;
+  box-sizing: border-box;
+}
+
+/* 行程總覽 / 外務行程：人員姓名固定比部門大，放最後避免舊 span/strong 規則覆蓋。 */
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.field-week-table .field-staff-name-cell .calendar-staff-name-title,
+.week-overview-table .staff-name-cell .calendar-staff-name-text,
+.field-week-table .field-staff-name-cell .calendar-staff-name-text,
+.week-overview-table .staff-name-cell strong,
+.field-week-table .field-staff-name-cell strong {
+  font-size: 21px !important;
+  line-height: 1.22 !important;
+  font-weight: 950 !important;
+  color: #1f2937 !important;
+}
+
+.week-overview-table .staff-name-cell > span,
+.field-week-table .field-staff-name-cell > span,
+.week-overview-table .staff-name-cell .calendar-staff-department,
+.field-week-table .field-staff-name-cell .calendar-staff-department {
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+  font-weight: 750 !important;
+  color: #64748b !important;
+}
+/* FOR-e V002-1P-215 END - overview quick groups and overview field day background fix */
