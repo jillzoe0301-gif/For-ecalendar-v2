@@ -15665,6 +15665,125 @@ async function saveUserAccount(event, modal, staffId = '') {
 }
 
 
+
+function isTodoOrNoteSchedule(row = {}) {
+  return row?.category === '待辦事項' || row?.category === '一般記事'
+}
+
+function canManageTodoNoteStatus(row = {}) {
+  if (!isTodoOrNoteSchedule(row)) return false
+  if (row.status === '取消') return false
+  if (canManageAllSchedules()) return true
+  return row.creator_staff_id === currentProfile?.staff_id || isAssignedToMe(row)
+}
+
+function getTodoNoteResult(row = {}) {
+  return getNoteValue(row, '處理結果') || ''
+}
+
+function setTodoNoteResultNote(noteText = '', resultText = '') {
+  const cleaned = removeNoteLabels(noteText, ['處理結果'])
+  const result = String(resultText || '').trim()
+  return [cleaned, result ? `處理結果：${result}` : '']
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .join('｜') || null
+}
+
+async function updateTodoNoteStatus(scheduleId = '', status = '未完成', resultText = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canManageTodoNoteStatus(row)) return denyPermission('你沒有修改此一般記事 / 待辦事項狀態的權限。')
+
+  const nextStatus = status === '已完成' ? '已完成' : '未完成'
+  const payload = {
+    status: nextStatus,
+    sub_type_note: setTodoNoteResultNote(row.sub_type_note, nextStatus === '已完成' ? resultText : '')
+  }
+
+  const { error } = await supabase
+    .from('schedules')
+    .update(payload)
+    .eq('schedule_id', scheduleId)
+
+  if (error) {
+    alert('修改狀態失敗：' + error.message)
+    return
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '修改狀態',
+    source_type: 'schedule',
+    source_id: scheduleId,
+    note: `${row.category || '事項'}狀態：${nextStatus}${nextStatus === '已完成' && String(resultText || '').trim() ? '｜處理結果：' + String(resultText || '').trim() : ''}`
+  })
+
+  await refreshData()
+  renderApp()
+}
+
+function openTodoNoteStatusModal(scheduleId = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canManageTodoNoteStatus(row)) return denyPermission('你沒有修改此一般記事 / 待辦事項狀態的權限。')
+
+  const currentStatus = row.status === '已完成' ? '已完成' : '未完成'
+  const currentResult = getTodoNoteResult(row)
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel todo-status-panel">
+      <div class="modal-header">
+        <h3>修改狀態</h3>
+        <button class="icon-btn" id="closeTodoStatusModalBtn" type="button">×</button>
+      </div>
+
+      <div class="detail-grid">
+        <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || row.category || '-')}</strong></div>
+        <div><span>類別</span><strong>${escapeHtml(row.category || '-')}</strong></div>
+        <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
+      </div>
+
+      <form id="todoNoteStatusForm" class="form-grid">
+        <label class="span-2">
+          狀態
+          <select name="status" id="todoNoteStatusSelect">
+            <option value="未完成" ${currentStatus !== '已完成' ? 'selected' : ''}>未完成</option>
+            <option value="已完成" ${currentStatus === '已完成' ? 'selected' : ''}>已完成</option>
+          </select>
+        </label>
+
+        <label class="span-2 ${currentStatus === '已完成' ? '' : 'hidden'}" id="todoNoteResultBlock">
+          處理結果（非必填）
+          <textarea name="result" rows="4" placeholder="可輸入處理結果，未填也可以完成。">${escapeHtml(currentResult)}</textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelTodoStatusBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存狀態</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  const close = () => modal.remove()
+  modal.querySelector('#closeTodoStatusModalBtn')?.addEventListener('click', close)
+  modal.querySelector('#cancelTodoStatusBtn')?.addEventListener('click', close)
+  modal.querySelector('#todoNoteStatusSelect')?.addEventListener('change', event => {
+    modal.querySelector('#todoNoteResultBlock')?.classList.toggle('hidden', event.target.value !== '已完成')
+  })
+  modal.querySelector('#todoNoteStatusForm')?.addEventListener('submit', async event => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    await updateTodoNoteStatus(scheduleId, form.get('status') || '未完成', form.get('result') || '')
+    close()
+  })
+}
+
 function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -15703,6 +15822,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
+        ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong>${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
       </div>
 
@@ -15715,8 +15835,9 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
+        ${canManageTodoNoteStatus(row) ? `<button type="button" class="primary-btn" id="detailTodoStatusBtn">修改狀態</button>` : ''}
         ${isIncidentSchedule(row) && row.status !== '取消' && canManageIncidentAction(row) ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
-        ${canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
+        ${!isTodoOrNoteSchedule(row) && canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
         ${canCancelSchedule(row) ? `<button type="button" class="danger-btn" id="detailCancelBtn">取消行程</button>` : ''}
@@ -15746,6 +15867,14 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
       else if (isFieldScheduleRow(row)) openEditFieldScheduleModal(scheduleId)
       else if (isIncidentSchedule(row)) openEditIncidentModal(scheduleId)
       else openEditScheduleModal(scheduleId, occurrenceDate || row.start_date)
+    })
+  }
+
+  const todoStatusBtn = document.querySelector('#detailTodoStatusBtn')
+  if (todoStatusBtn) {
+    todoStatusBtn.addEventListener('click', () => {
+      modal.remove()
+      openTodoNoteStatusModal(scheduleId)
     })
   }
 
