@@ -12345,7 +12345,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-                    ${birthdayCard}
+                          ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
@@ -12402,7 +12402,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-                    ${birthdayCard}
+                          ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
@@ -12809,6 +12809,7 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
                 ${renderHolidayLabels(key)}
               </div>
               ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+              ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
               ${birthdayCard}
               ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
               ${renderContinuationDayMarks(continuousRows, key, 'field')}
@@ -12859,6 +12860,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+                    ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
@@ -12915,6 +12917,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+                    ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
                     ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
@@ -17360,6 +17363,28 @@ function renderFieldTrainingHintRows(matches = []) {
     </div>
   `
 }
+
+function renderFieldTrainingCalendarPrompt(staffId = '', dateKey = '') {
+  const matches = getFieldTrainingHintRows([staffId], [dateKey])
+  if (!matches.length) return ''
+
+  const visible = matches.slice(0, 3)
+  const moreCount = matches.length - visible.length
+  return `
+    <div class="field-training-calendar-prompt-list" aria-label="外訓提醒">
+      ${visible.map(item => {
+        const title = getScheduleCardTitleText(item.row) || item.row?.title || '外訓'
+        const time = formatTime(item.row) || '不指定時間'
+        return `<div class="field-training-calendar-prompt" title="外訓提醒：${escapeHtml(title)} ${escapeHtml(time)}">
+          <span class="field-training-calendar-badge">訓</span>
+          <span class="field-training-calendar-text">${escapeHtml(title)}｜${escapeHtml(time)}</span>
+        </div>`
+      }).join('')}
+      ${moreCount > 0 ? `<div class="field-training-calendar-prompt is-more">訓｜另有 ${moreCount} 筆外訓</div>` : ''}
+    </div>
+  `
+}
+
 
 function refreshFieldTrainingHint(formEl, checkboxName, hintEl, excludeScheduleId = '') {
   if (!formEl || !hintEl) return

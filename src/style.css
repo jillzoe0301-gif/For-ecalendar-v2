@@ -16456,3 +16456,76 @@ button.login-birthday-card:focus-visible {
   line-height: 1.45;
 }
 /* FOR-e V002-1P-217 END - field form external training hint */
+
+
+/* FOR-e V002-1P-219 START - field calendar training prompt */
+.field-training-calendar-prompt-list {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+
+.field-training-calendar-prompt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.field-training-calendar-badge {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #8ca9ff;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.field-training-calendar-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-training-calendar-prompt.is-more {
+  justify-content: center;
+  color: #475569;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.field-week-day-cell .field-training-calendar-prompt-list,
+.month-day-cell .field-training-calendar-prompt-list {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 1180px) {
+  .field-training-calendar-prompt {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .field-training-calendar-badge {
+    width: 17px;
+    height: 17px;
+    font-size: 11px;
+  }
+}
+/* FOR-e V002-1P-219 END - field calendar training prompt */
