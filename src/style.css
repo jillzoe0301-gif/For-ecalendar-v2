@@ -16212,3 +16212,58 @@ button.login-birthday-card:focus-visible {
   line-height: 1.35 !important;
 }
 /* FOR-e V002-1P-212 END - continuous today border and calendar staff font repair */
+
+
+/* FOR-e V002-1P-213 START - field today border, personal occurrence, field detail actions, staff font repair */
+/* 外務行程當日欄位外框固定顯示，避免外務日反色背景或卡片覆蓋。 */
+.field-week-day-cell.is-today,
+.field-week-day-cell.is-today.is-field-day,
+.field-week-day-cell.is-today.has-continuation-mark,
+.field-week-day-cell.is-today.is-leave-day,
+.field-week-day-cell.is-today.is-return-day,
+.field-personal-month-calendar .month-day-cell.is-today,
+.field-personal-month-calendar .month-day-cell.is-today.is-field-day,
+.field-personal-month-calendar .month-day-cell.is-today.has-continuation-mark,
+.field-personal-month-calendar .month-day-cell.is-today.is-leave-day,
+.field-personal-month-calendar .month-day-cell.is-today.is-return-day {
+  position: relative !important;
+  border-color: #FAAB78 !important;
+  outline: 3px solid #FAAB78 !important;
+  outline-offset: -3px !important;
+  box-shadow: inset 0 0 0 3px #FAAB78 !important;
+  z-index: 1 !important;
+}
+
+.field-week-day-cell.is-today .field-day-reminder-stack,
+.field-week-day-cell.is-today .field-week-schedule-card,
+.field-personal-month-calendar .month-day-cell.is-today .field-day-reminder-stack,
+.field-personal-month-calendar .month-day-cell.is-today .field-week-schedule-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 外務明細只保留狀態與查看，操作入口回到查看頁內處理。 */
+.field-detail-action-stack {
+  justify-content: flex-end !important;
+}
+
+.field-detail-action-stack .small-secondary-btn[data-view-schedule] {
+  min-width: 72px !important;
+}
+
+/* 行事曆人員名稱維持明顯，但部門字體較小，避免名字與部門同樣大。 */
+.week-overview-table .staff-name-cell strong,
+.field-week-table .field-staff-name-cell strong,
+.calendar-staff-name-text {
+  font-size: 19px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+.week-overview-table .staff-name-cell span,
+.field-week-table .field-staff-name-cell span {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 750 !important;
+}
+/* FOR-e V002-1P-213 END - field today border, personal occurrence, field detail actions, staff font repair */

@@ -5084,17 +5084,7 @@ function renderFieldDetailPage() {
 
 function renderFieldDetailActionButtons(row = {}) {
   const scheduleId = escapeHtml(row.schedule_id || '')
-  const isClosed = row.status === '已完成' || row.status === '取消'
-  const canEditField = canCreateFieldSchedule() || isAssignedToMe(row)
-  const canCompleteField = !isClosed && canManageFieldResult(row)
-  const canCancelField = !isClosed && canCreateFieldSchedule()
-
-  return [
-    `<button class="small-secondary-btn" data-view-schedule="${scheduleId}">查看</button>`,
-    canEditField ? `<button class="small-secondary-btn" data-edit-field-detail="${scheduleId}">修改</button>` : '',
-    canCompleteField ? `<button class="small-primary-btn" data-field-complete="${scheduleId}">完成</button>` : '',
-    canCancelField ? `<button class="small-danger-btn" data-field-cancel="${scheduleId}">取消</button>` : ''
-  ].filter(Boolean).join('')
+  return `<button class="small-secondary-btn" data-view-schedule="${scheduleId}">查看</button>`
 }
 
 function renderFieldDetailList(rows) {
@@ -11911,6 +11901,24 @@ function normalizeRowsForOccurrenceDate(rows = [], dateKey = todayString()) {
   })
 }
 
+function getPersonalScheduleDisplayOccurrenceDate(row = {}, baseDate = todayString()) {
+  if (!row?.schedule_id || !isScheduleSeriesLike(row)) return ''
+  const targetDate = String(baseDate || todayString()).trim()
+  const occurrenceDates = getScheduleOccurrenceDates(row)
+  if (!occurrenceDates.length) return ''
+  if (targetDate && occurrenceDates.includes(targetDate)) return targetDate
+  const nextDate = occurrenceDates.find(dateKey => targetDate ? dateKey >= targetDate : false)
+  if (nextDate) return nextDate
+  return occurrenceDates[occurrenceDates.length - 1] || ''
+}
+
+function normalizeRowsForPersonalScheduleDisplay(rows = [], baseDate = todayString()) {
+  return (rows || []).map(row => {
+    const occurrenceDate = getPersonalScheduleDisplayOccurrenceDate(row, baseDate)
+    return occurrenceDate ? createScheduleOccurrenceRow(row, occurrenceDate) : row
+  })
+}
+
 function getScheduleOccurrenceDateAttr(row = {}) {
   const occurrenceDate = row.__occurrenceDate || ''
   return occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
@@ -11966,7 +11974,7 @@ function renderPersonalOverdueTaskArea() {
 function renderPersonalSchedule() {
   const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
   const today = todayString()
-  const displayRows = normalizeRowsForOccurrenceDate(myRows, today)
+  const displayRows = normalizeRowsForPersonalScheduleDisplay(myRows, today)
   const todayRows = normalizeRowsForOccurrenceDate(
     myRows
       .filter(row => isActionReminderSchedule(row))
