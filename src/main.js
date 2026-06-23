@@ -12617,13 +12617,35 @@ function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
     .sort((a, b) => String(getReturnTaiwanReminderDate(a) || '').localeCompare(String(getReturnTaiwanReminderDate(b) || '')))
 }
 
-function getReturnTaiwanReminderTitle(row = {}) {
-  const title = String(row.title || '').trim()
-  const fallback = String(row.sub_type || row.schedule_type || '').trim() || '返台提醒'
-  const timeText = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台班機時間') : ''
-  const flightText = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台班機') : ''
-  const displayTitle = title || flightText || fallback
-  return [displayTitle, timeText].filter(Boolean).join('｜')
+function getReturnTaiwanReminderFlightText(row = {}) {
+  if (typeof getLineNoteValue !== 'function') return ''
+  return [
+    getLineNoteValue(row, '班機'),
+    getLineNoteValue(row, '班機資訊'),
+    getLineNoteValue(row, '返台班機'),
+    getLineNoteValue(row, '抵台班機')
+  ].find(Boolean) || ''
+}
+
+function getReturnTaiwanReminderArrivalTimeText(row = {}) {
+  if (typeof getLineNoteValue !== 'function') return ''
+  return [
+    getLineNoteValue(row, '抵台時間'),
+    getLineNoteValue(row, '抵台班機時間'),
+    getLineNoteValue(row, '返台班機時間'),
+    getLineNoteValue(row, '返台時間')
+  ].find(Boolean) || ''
+}
+
+function getReturnTaiwanReminderCalendarText(row = {}) {
+  const timeText = getReturnTaiwanReminderArrivalTimeText(row)
+  const flightText = getReturnTaiwanReminderFlightText(row)
+  const fallback = String(row.title || row.sub_type || row.schedule_type || '返台提醒').trim()
+  const pieces = []
+  if (timeText) pieces.push(`抵台 ${timeText}`)
+  if (flightText) pieces.push(`班機 ${flightText}`)
+  if (!pieces.length && fallback) pieces.push(fallback)
+  return pieces.join('｜')
 }
 
 function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
@@ -12632,8 +12654,8 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
   return reminderRows.map(row => `
     <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-      <span>返台提醒</span>
-      <strong>${escapeHtml(getReturnTaiwanReminderTitle(row))}</strong>
+      <span>抵台提醒</span>
+      <strong>${escapeHtml(getReturnTaiwanReminderCalendarText(row))}</strong>
     </button>
   `).join('')
 }
@@ -18714,7 +18736,7 @@ function openScheduleModal(defaults = {}) {
               <label>返台日<input name="return_date" type="date"></label>
               <label>返台班機<input name="return_flight" placeholder="返台班機"></label>
               <label>
-                返台班機時間
+                抵台時間
                 ${compactTimeSelectHtml('arrival', '09', '00')}
               </label>
             </div>
@@ -19009,7 +19031,7 @@ function buildServiceExtraNotes(form, scheduleType) {
   if (scheduleType === '返台提醒') {
     if (form.get('return_date')) notes.push(`返台日：${form.get('return_date')}`)
     if (form.get('return_flight')) notes.push(`返台班機：${form.get('return_flight')}`)
-    notes.push(`返台班機時間：${getCompactTime(form, 'arrival')}`)
+    notes.push(`抵台時間：${getCompactTime(form, 'arrival')}`)
   }
 
   if (scheduleType === '住變資訊') {
