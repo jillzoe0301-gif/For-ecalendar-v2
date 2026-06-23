@@ -4377,8 +4377,7 @@ function scheduleMatchesDateByMode(row, dateKey) {
   }
 
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    const reminderEndDate = (row.end_date && row.end_date >= startDate) ? row.end_date : startDate
-    return dateKey >= startDate && dateKey <= reminderEndDate
+    return isAdministrativeReminderCalendarDate(row, dateKey)
   }
 
   const mode = getScheduleModeFromNote(row)
@@ -4404,6 +4403,38 @@ function scheduleMatchesDateByMode(row, dateKey) {
   }
 
   return dateKey === startDate
+}
+
+
+function getAdministrativeReminderEndDate(row = {}) {
+  const startDate = String(row.start_date || '').trim()
+  const endDate = String(row.end_date || '').trim()
+  if (!startDate) return ''
+  return endDate && endDate >= startDate ? endDate : startDate
+}
+
+function isAdministrativeReminderCalendarDate(row = {}, dateKey = '') {
+  if (!isAdministrativeReminderSchedule(row) || !row.start_date || !dateKey) return false
+  const startDate = String(row.start_date || '').trim()
+  const endDate = getAdministrativeReminderEndDate(row)
+  if (endDate && endDate !== startDate) return dateKey === startDate || dateKey === endDate
+  return dateKey === startDate
+}
+
+function isAdministrativeReminderDueReminderDate(row = {}, dateKey = '') {
+  if (!isAdministrativeReminderSchedule(row) || !row.start_date || !dateKey) return false
+  const startDate = String(row.start_date || '').trim()
+  const endDate = getAdministrativeReminderEndDate(row)
+  if (endDate && endDate !== startDate) {
+    const reminderStart = getDateKeyOffset(endDate, -1) || endDate
+    return dateKey >= reminderStart && dateKey <= endDate
+  }
+  return dateKey === startDate
+}
+
+function scheduleMatchesActionReminderDate(row = {}, dateKey = '') {
+  if (isAdministrativeReminderSchedule(row)) return isAdministrativeReminderDueReminderDate(row, dateKey)
+  return scheduleMatchesDateByMode(row, dateKey)
 }
 
 function getScheduleDatesFromForm(form) {
@@ -8518,7 +8549,7 @@ function getScheduleColorDefinitions() {
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
     { key: '一般記事', label: '一般記事', defaultColor: '#BFC9D1' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#FFD65A' },
-    { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#8CA9FF' },
+    { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
@@ -8553,6 +8584,7 @@ function getScheduleColorSettings() {
 
     const saved = remoteSaved || localSaved || {}
     delete saved['請假 / 會議 / 活動 / 外訓']
+    if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
 
     const defaults = getDefaultScheduleColorMap()
     const currentPaletteVersion = localStorage.getItem(scheduleColorPaletteVersionKey)
@@ -9610,7 +9642,7 @@ function getLoginDailyReminderRows() {
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
-    .filter(row => scheduleMatchesDateByMode(row, today))
+    .filter(row => scheduleMatchesActionReminderDate(row, today))
     .filter(row => isActionReminderSchedule(row)))
 
   const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
@@ -12054,7 +12086,7 @@ function renderPersonalSchedule() {
   const todayRows = normalizeRowsForOccurrenceDate(
     myRows
       .filter(row => isActionReminderSchedule(row))
-      .filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消'),
+      .filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'),
     today
   )
   const overdueRows = getPersonalOverdueTaskRows()
@@ -12125,8 +12157,8 @@ function renderPersonalTodo() {
     .filter(row => isActionReminderSchedule(row))
     .filter(row => todoCategories.includes(row.category))
   const today = todayString()
-  const todayRows = normalizeRowsForOccurrenceDate(myRows.filter(row => scheduleMatchesDateByMode(row, today) && row.status !== '已完成' && row.status !== '取消'), today)
-  const overdueRows = myRows.filter(row => row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
+  const todayRows = normalizeRowsForOccurrenceDate(myRows.filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'), today)
+  const overdueRows = myRows.filter(row => !isAdministrativeReminderSchedule(row) && row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
 
   return `
     ${renderToolbar('個人一般待辦')}
