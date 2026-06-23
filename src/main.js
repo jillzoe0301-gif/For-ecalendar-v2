@@ -12659,7 +12659,7 @@ function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
 function getReturnTaiwanReminderInfo(row = {}) {
   const parsed = typeof parseReturnTaiwanReminderInfo === 'function' ? parseReturnTaiwanReminderInfo(row) : {}
   return {
-    title: String(row.title || row.customer_name || row.sub_type || '返台提醒').trim(),
+    title: String(row.customer_name || row.title || row.sub_type || '返台提醒').trim(),
     date: parsed.date || getReturnTaiwanReminderDate(row),
     flight: parsed.flight || '',
     time: parsed.time || ''
@@ -12670,9 +12670,7 @@ function getReturnTaiwanReminderTitle(row = {}) {
   const info = getReturnTaiwanReminderInfo(row)
   return [
     info.title,
-    info.date ? `返台日：${info.date}` : '',
-    info.flight ? `返台班機：${info.flight}` : '',
-    info.time ? `返台時間：${info.time}` : ''
+    info.date ? `返台日：${info.date}` : ''
   ].filter(Boolean).join('｜')
 }
 
@@ -12688,8 +12686,6 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
         <strong>
           <em>${escapeHtml(info.title || '返台提醒')}</em>
           ${info.date ? `<small>返台日：${escapeHtml(info.date)}</small>` : ''}
-          ${info.flight ? `<small>返台班機：${escapeHtml(info.flight)}</small>` : ''}
-          ${info.time ? `<small>返台時間：${escapeHtml(info.time)}</small>` : ''}
         </strong>
       </button>
     `
@@ -14460,10 +14456,8 @@ function getServiceReminderDisplayLines(row = {}) {
   if (type === '返台提醒') {
     const info = getReturnTaiwanReminderInfo(row)
     return [
-      title,
-      info.date ? `返台日：${info.date}` : '',
-      info.flight ? `返台班機：${info.flight}` : '',
-      info.time ? `返台時間：${info.time}` : ''
+      info.title || title,
+      info.date ? `返台日：${info.date}` : ''
     ].filter(Boolean)
   }
   if (type === '驗證提醒') {
@@ -14472,14 +14466,18 @@ function getServiceReminderDisplayLines(row = {}) {
       title,
       info.salaryDate ? `結薪日：${info.salaryDate}` : '',
       info.verifyDate ? `驗證日：${info.verifyDate}` : '',
-      info.leaveDate ? `離境日：${info.leaveDate}` : ''
+      info.leaveDate ? `離境日：${info.leaveDate}` : '',
+      info.leaveTime && info.leaveTime !== '不指定' ? `離境時間：${info.leaveTime}` : ''
     ].filter(Boolean)
   }
   if (type === '住變資訊提供') {
     const info = parseHousingReminderInfo(row)
+    const content = getFirstTwoLines(row.description || '')
     return [
       title,
+      content ? `內容：${content.replaceAll('\n', ' / ')}` : '',
       info.moveDate ? `搬遷日期：${info.moveDate}` : '',
+      info.time && info.time !== '不指定' ? `搬遷時間：${info.time}` : '',
       info.address ? `地址：${info.address}` : ''
     ].filter(Boolean)
   }
@@ -16790,10 +16788,16 @@ function parseHousingReminderInfo(row = {}) {
 }
 
 function parseVerifyReminderInfo(row = {}) {
+  const rawLeaveTime = getReminderNoteValue(row, ['離境時間', '預計離境時間', '離境班機時間'])
+  const timeParts = parseCompactTimeParts(rawLeaveTime)
   return {
     salaryDate: getReminderNoteValue(row, ['結薪日', '最後工作日']),
     verifyDate: getReminderNoteValue(row, ['驗證日', '預計驗證日']),
-    leaveDate: getReminderNoteValue(row, ['離境日', '預計離境日'])
+    leaveDate: getReminderNoteValue(row, ['離境日', '預計離境日']),
+    leaveTime: rawLeaveTime,
+    leaveTimeType: timeParts.timeType,
+    leaveHour: timeParts.hour,
+    leaveMinute: timeParts.minute
   }
 }
 
@@ -16829,6 +16833,11 @@ function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
   if (type === '住變資訊提供') {
     const moveDate = parseHousingReminderInfo(row).moveDate
     return (moveDate || row.start_date) === dateKey
+  }
+  if (type === '驗證提醒') {
+    const info = parseVerifyReminderInfo(row)
+    const dates = [row.start_date, info.verifyDate, info.leaveDate].filter(Boolean)
+    return dates.length ? dates.includes(dateKey) : dateKey === row.start_date
   }
   if (type === '返台提醒') return returnTaiwanReminderMatchesDate(row, dateKey)
   return dateKey === (row.start_date || '')
@@ -16989,6 +16998,10 @@ function applyCreateCompactSpecialFields() {
     setCompactHidden(block, activeType === '電表提醒')
   })
 
+  form.querySelectorAll('.service-general-address-field').forEach(block => {
+    setCompactHidden(block, isCompact)
+  })
+
   if (activeType === '電表提醒') {
     const locationName = form.querySelector('[name="location_name"]')
     if (locationName) locationName.value = ''
@@ -17026,6 +17039,10 @@ function applyEditCompactSpecialFields() {
 
   form.querySelectorAll('.meter-hide-for-reminder').forEach(block => {
     setCompactHidden(block, activeType === '電表提醒')
+  })
+
+  form.querySelectorAll('.service-general-address-field').forEach(block => {
+    setCompactHidden(block, isCompact)
   })
 
   if (activeType === '電表提醒') {
@@ -18888,7 +18905,7 @@ function openScheduleModal(defaults = {}) {
 
           <input type="hidden" name="location_name" value="">
 
-          <label class="span-2">
+          <label class="span-2 service-general-address-field">
             地址
             <input name="address" placeholder="完整地址，可先空白">
           </label>
@@ -19082,7 +19099,7 @@ function openScheduleModal(defaults = {}) {
           <div class="span-2 conditional-service hidden" data-service-extra="返台提醒">
             <div class="group-title">返台提醒</div>
             <div class="compact-grid">
-              <label>返台日<input name="return_date" type="date"></label>
+              <label>返台日（手動輸入）<input name="return_date" type="date"></label>
               <label>返台班機<input name="return_flight" placeholder="返台班機"></label>
               <label>
                 返台時間
@@ -19110,6 +19127,10 @@ function openScheduleModal(defaults = {}) {
               <label>結薪日<input name="verify_last_work_date" type="date"></label>
               <label>驗證日<input name="verify_date" type="date"></label>
               <label>離境日<input name="verify_leave_date" type="date"></label>
+              <label>
+                離境時間
+                ${compactTimeSelectHtml('verify_leave', '09', '00')}
+              </label>
             </div>
           </div>
 
@@ -19418,6 +19439,8 @@ function buildServiceExtraNotes(form, scheduleType) {
     if (form.get('verify_last_work_date')) notes.push(`結薪日：${form.get('verify_last_work_date')}`)
     if (form.get('verify_date')) notes.push(`預計驗證日：${form.get('verify_date')}`)
     if (form.get('verify_leave_date')) notes.push(`預計離境日：${form.get('verify_leave_date')}`)
+    const leaveTime = getCompactTime(form, 'verify_leave')
+    if (leaveTime && leaveTime !== '不指定') notes.push(`離境時間：${leaveTime}`)
   }
 
   return notes
@@ -20292,7 +20315,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <div class="span-2 conditional-service hidden" data-service-extra="返台提醒">
             <div class="group-title">返台提醒</div>
             <div class="compact-grid">
-              <label>返台日<input name="return_date" type="date" value="${escapeHtml(returnTaiwanInfo.date || '')}"></label>
+              <label>返台日（手動輸入）<input name="return_date" type="date" value="${escapeHtml(returnTaiwanInfo.date || '')}"></label>
               <label>返台班機<input name="return_flight" value="${escapeHtml(returnTaiwanInfo.flight || '')}" placeholder="返台班機"></label>
               <label>
                 返台時間
@@ -20338,6 +20361,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
               <label>結薪日<input name="verify_last_work_date" type="date" value="${escapeHtml(verifyInfo.salaryDate || '')}"></label>
               <label>驗證日<input name="verify_date" type="date" value="${escapeHtml(verifyInfo.verifyDate || '')}"></label>
               <label>離境日<input name="verify_leave_date" type="date" value="${escapeHtml(verifyInfo.leaveDate || '')}"></label>
+              <label>
+                離境時間
+                ${compactTimeSelectHtmlSelected('verify_leave', verifyInfo.leaveTimeType, verifyInfo.leaveHour, verifyInfo.leaveMinute)}
+              </label>
             </div>
           </div>
 
@@ -20358,7 +20385,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
           <input type="hidden" name="location_name" value="">
 
-          <label class="span-2">
+          <label class="span-2 service-general-address-field">
             地址
             <input name="address" value="${escapeHtml(row.address || '')}">
           </label>
@@ -20707,7 +20734,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   let payloadEndTime = getTimeValue(form, 'end')
   let payloadCustomerName = isService ? (form.get('customer_name') || null) : null
   let payloadLocationName = null
-  let payloadAddress = isService ? (form.get('address') || null) : null
+  let payloadAddress = isService ? (isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? null : (form.get('address') || null)) : null
   let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
 
   if (category === '服務行程') {
@@ -21050,7 +21077,7 @@ async function saveSchedule(event, modal) {
       ? (String(form.get('meter_place') || '').trim() || null)
       : (rawCustomerNameInput || rawTitleInput || null)
     locationName = null
-    address = scheduleType === '電表提醒' ? null : (form.get('address') || null)
+    address = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('address') || null)
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
