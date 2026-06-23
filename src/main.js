@@ -4376,6 +4376,11 @@ function scheduleMatchesDateByMode(row, dateKey) {
     return dateKey >= startDate && dateKey <= maintenanceEndDate
   }
 
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
+    const reminderEndDate = (row.end_date && row.end_date >= startDate) ? row.end_date : startDate
+    return dateKey >= startDate && dateKey <= reminderEndDate
+  }
+
   const mode = getScheduleModeFromNote(row)
   const endDate = mode === '單日'
     ? startDate

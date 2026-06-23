@@ -16569,7 +16569,7 @@ button.login-birthday-card:focus-visible {
   padding: 4px 8px;
   margin: 3px 0 5px;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 7px;
   color: #0f172a;
   font-size: 12px;
@@ -16596,9 +16596,13 @@ button.login-birthday-card:focus-visible {
 .administrative-reminder-day-mark strong {
   min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 @media (max-width: 768px) {
@@ -16615,3 +16619,8 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-229 END - administrative reminder */
+
+
+/* FOR-e V002-1P-230 START - administrative reminder end date and wrapping */
+/* 行政事務提醒：使用起訖日期顯示，提示文字自動換行。 */
+/* FOR-e V002-1P-230 END - administrative reminder end date and wrapping */
