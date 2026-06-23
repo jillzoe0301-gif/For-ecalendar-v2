@@ -17701,3 +17701,66 @@ button.login-birthday-card:focus-visible {
   flex: 1 1 auto !important;
 }
 /* FOR-e V002-1P-254 END - return reminder bigger text and horizontal field day badge */
+
+/* FOR-e V002-1P-255 START - full calendar height for all staff */
+/* 行程總覽 / 外務行程 / 會議室：取消底部高度限制，讓全部人員 / 會議室列完整往下展開。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  overscroll-behavior-x: contain !important;
+  overscroll-behavior-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 取消內層高度限制後，表格本體也不要被舊版高度規則壓住。 */
+.week-overview-table,
+.field-week-table,
+.meeting-week-table {
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* 保留日期 / 星期表頭固定，並維持左上角交會格最高層級。 */
+.week-overview-table thead tr:first-child th,
+.field-week-table thead tr:first-child th,
+.meeting-week-table thead tr:first-child th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 300 !important;
+}
+
+.week-overview-table thead tr:first-child th.staff-col,
+.field-week-table thead tr:first-child th.field-staff-col,
+.meeting-week-table thead tr:first-child th.meeting-room-col {
+  z-index: 360 !important;
+}
+
+@media (max-width: 900px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+}
+/* FOR-e V002-1P-255 END - full calendar height for all staff */
