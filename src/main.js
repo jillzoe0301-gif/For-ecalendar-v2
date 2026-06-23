@@ -98,27 +98,35 @@ function getScheduleCategoryDisplayLabel(value = '') {
   return text
 }
 const serviceScheduleTypes = [
-  '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
-  '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
-  '住變資訊', '驗證提醒', '返台提醒', '宿舍', '其他'
+  '--', '面談', '上線/教育訓練', '定期/開會', '送工', '銀行', '醫療',
+  '車禍處理', '結薪', '收', '簽收文件', '宿舍', '其他', '求才拍照'
 ]
+const serviceReminderTypes = [
+  '--', '逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒'
+]
+const legacyServiceReminderAliases = {
+  '住變資訊': '住變資訊提供',
+  '收送簽文件': '簽收文件'
+}
 const scheduleContentTemplates = [
   { type: '面談', content: '面談對象：\n面談原因：\n處理內容：\n後續追蹤：' },
-  { type: '上線 / 教育訓練', content: '上線 / 教育訓練內容：\n參與人員：\n注意事項：' },
-  { type: '定期 / 開會', content: '會議主題：\n參與人員：\n會議重點：\n待辦事項：' },
+  { type: '上線/教育訓練', content: '上線/教育訓練內容：\n參與人員：\n注意事項：' },
+  { type: '定期/開會', content: '會議主題：\n參與人員：\n會議重點：\n待辦事項：' },
   { type: '送工', content: '送工人員：\n雇主 / 地點：\n送工狀況：\n需追蹤事項：' },
   { type: '銀行', content: '辦理項目：\n銀行名稱：\n辦理結果：\n需補件 / 追蹤：' },
   { type: '醫療', content: '就醫原因：\n醫院 / 診所：\n診療結果：\n下次回診：' },
   { type: '車禍處理', content: '事故狀況：\n處理進度：\n聯絡對象：\n後續追蹤：' },
   { type: '結薪', content: '結薪對象：\n結薪期間：\n結薪狀況：\n備註：' },
-  { type: '收送簽文件', content: '文件項目：\n收 / 送件對象：\n處理結果：\n下次追蹤：' },
+  { type: '收', content: '收件項目：\n收件對象：\n處理結果：\n備註：' },
+  { type: '簽收文件', content: '文件項目：\n收 / 送件對象：\n處理結果：\n下次追蹤：' },
   { type: '逃跑通知', content: '逃跑狀況：\n通知對象：\n處理進度：\n下次追蹤：' },
   { type: '轉出追蹤', content: '轉出原因：\n轉出進度：\n聯絡對象：\n下次追蹤：' },
-  { type: '住變資訊', content: '住變地址：\n搬遷狀況：\n租約 / 文件：\n下次追蹤：' },
+  { type: '住變資訊提供', content: '住變地址：\n搬遷狀況：\n租約 / 文件：\n下次追蹤：' },
   { type: '驗證提醒', content: '驗證項目：\n預計驗證日：\n需準備文件：\n下次追蹤：' },
-  { type: '返台提醒', content: '返台人員：\n返台日期：\n班機資訊：\n需處理事項：' },
+  { type: '返台提醒', content: '返台人員：\n返台日：\n返台班機：\n返台時間：\n需處理事項：' },
   { type: '宿舍', content: '宿舍地點：\n處理事項：\n處理結果：\n後續追蹤：' },
   { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' },
+  { type: '求才拍照', content: '求才對象：\n拍照地點：\n處理內容：\n備註：' },
   { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
@@ -1707,7 +1715,7 @@ function removeNoteLabels(noteText, labels) {
 function getReminderTokens(row) {
   const type = row.schedule_type || ''
   const noteItems = parseNoteTokens(row)
-  const reminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒']
+  const reminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '電表提醒']
   const tokens = []
 
   noteItems.forEach(item => {
@@ -3434,6 +3442,7 @@ function renderApp() {
         userManageDepartments: parseOptionLines(form.get('userManageDepartments')),
         userManagePositions: parseOptionLines(form.get('userManagePositions')).filter(position => !isRemovedUserManagePosition(position)),
         serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
+        serviceReminderTypes: parseOptionLines(form.get('serviceReminderTypes')),
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
         administrativeReminderItems: parseOptionLines(form.get('administrativeReminderItems')),
@@ -8461,7 +8470,7 @@ function getScheduleTypeTemplate(type) {
 
 function getCurrentFormScheduleType(form) {
   const category = form?.querySelector('[name="category"]')?.value || ''
-  if (category === '服務行程') return form.querySelector('[name="schedule_type"]')?.value || ''
+  if (category === '服務行程') return getServiceScheduleTypeFromForm(form)
   if (category === '待辦事項') return form.querySelector('[name="todo_item_custom"]')?.value?.trim() || form.querySelector('[name="todo_item"]')?.value || '待辦事項'
   if (category === '請假 / 會議 / 活動 / 外訓') return form.querySelector('[name="leave_meeting_type"]')?.value || ''
   if (category === '證件交付') return '證件交付'
@@ -8753,7 +8762,8 @@ function renderOptionsPage() {
           <p>管理服務行程、待辦事項與一般行程會用到的選項。</p>
         </div>
         <div class="option-group-body">
-          ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '可新增或修改服務行程類型', '例如：醫療')}
+          ${optionTextarea('服務行程｜行程類型', 'serviceScheduleTypes', getManagedServiceScheduleTypes().join('\n'), '服務行程主要行程類型；-- 代表不指定', '例如：醫療')}
+          ${optionTextarea('服務行程｜提醒事項', 'serviceReminderTypes', getManagedServiceReminderTypes().join('\n'), '服務行程提醒事項；-- 代表不指定', '例如：返台提醒')}
           ${scheduleTemplateEditor()}
           ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
           ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
@@ -12617,47 +12627,44 @@ function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
     .sort((a, b) => String(getReturnTaiwanReminderDate(a) || '').localeCompare(String(getReturnTaiwanReminderDate(b) || '')))
 }
 
-function getReturnTaiwanReminderFlightText(row = {}) {
-  if (typeof getLineNoteValue !== 'function') return ''
-  return [
-    getLineNoteValue(row, '班機'),
-    getLineNoteValue(row, '班機資訊'),
-    getLineNoteValue(row, '返台班機'),
-    getLineNoteValue(row, '抵台班機')
-  ].find(Boolean) || ''
+function getReturnTaiwanReminderInfo(row = {}) {
+  const parsed = typeof parseReturnTaiwanReminderInfo === 'function' ? parseReturnTaiwanReminderInfo(row) : {}
+  return {
+    title: String(row.title || row.customer_name || row.sub_type || '返台提醒').trim(),
+    date: parsed.date || getReturnTaiwanReminderDate(row),
+    flight: parsed.flight || '',
+    time: parsed.time || ''
+  }
 }
 
-function getReturnTaiwanReminderArrivalTimeText(row = {}) {
-  if (typeof getLineNoteValue !== 'function') return ''
+function getReturnTaiwanReminderTitle(row = {}) {
+  const info = getReturnTaiwanReminderInfo(row)
   return [
-    getLineNoteValue(row, '抵台時間'),
-    getLineNoteValue(row, '抵台班機時間'),
-    getLineNoteValue(row, '返台班機時間'),
-    getLineNoteValue(row, '返台時間')
-  ].find(Boolean) || ''
-}
-
-function getReturnTaiwanReminderCalendarText(row = {}) {
-  const timeText = getReturnTaiwanReminderArrivalTimeText(row)
-  const flightText = getReturnTaiwanReminderFlightText(row)
-  const fallback = String(row.title || row.sub_type || row.schedule_type || '返台提醒').trim()
-  const pieces = []
-  if (timeText) pieces.push(`抵台 ${timeText}`)
-  if (flightText) pieces.push(`班機 ${flightText}`)
-  if (!pieces.length && fallback) pieces.push(fallback)
-  return pieces.join('｜')
+    info.title,
+    info.date ? `返台日：${info.date}` : '',
+    info.flight ? `返台班機：${info.flight}` : '',
+    info.time ? `返台時間：${info.time}` : ''
+  ].filter(Boolean).join('｜')
 }
 
 function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
   const reminderRows = uniqueScheduleRows(rows).filter(isReturnTaiwanReminderSchedule)
   if (!reminderRows.length) return ''
 
-  return reminderRows.map(row => `
-    <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-      <span>抵台提醒</span>
-      <strong>${escapeHtml(getReturnTaiwanReminderCalendarText(row))}</strong>
-    </button>
-  `).join('')
+  return reminderRows.map(row => {
+    const info = getReturnTaiwanReminderInfo(row)
+    return `
+      <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+        <span>返台提醒</span>
+        <strong>
+          <em>${escapeHtml(info.title || '返台提醒')}</em>
+          ${info.date ? `<small>返台日：${escapeHtml(info.date)}</small>` : ''}
+          ${info.flight ? `<small>返台班機：${escapeHtml(info.flight)}</small>` : ''}
+          ${info.time ? `<small>返台時間：${escapeHtml(info.time)}</small>` : ''}
+        </strong>
+      </button>
+    `
+  }).join('')
 }
 
 function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
@@ -16537,9 +16544,74 @@ function getAvailableFormCategories() {
   return formCategories
 }
 
-function serviceTypeOptionsHtml(includeEmpty = false) {
+function normalizeServiceTypeOption(value = '') {
+  const text = String(value || '').trim()
+  return legacyServiceReminderAliases[text] || text
+}
+
+function uniqueOptionList(items = []) {
+  const seen = new Set()
+  return (items || [])
+    .map(normalizeServiceTypeOption)
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .filter(item => {
+      if (seen.has(item)) return false
+      seen.add(item)
+      return true
+    })
+}
+
+function getManagedServiceScheduleTypes() {
+  const reminderSet = new Set(uniqueOptionList(serviceReminderTypes).filter(item => item !== '--'))
+  const base = uniqueOptionList(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes))
+    .filter(item => item !== '--')
+    .filter(item => !reminderSet.has(item))
+  const preferred = uniqueOptionList(serviceScheduleTypes).filter(item => item !== '--')
+  const merged = uniqueOptionList([...preferred, ...base])
+  return ['--', ...merged]
+}
+
+function getManagedServiceReminderTypes() {
+  const normalSet = new Set(uniqueOptionList(serviceScheduleTypes).filter(item => item !== '--'))
+  const configured = uniqueOptionList(getManagedListOption('serviceReminderTypes', serviceReminderTypes))
+    .filter(item => item !== '--')
+    .filter(item => !normalSet.has(item))
+  const preferred = uniqueOptionList(serviceReminderTypes).filter(item => item !== '--')
+  return ['--', ...uniqueOptionList([...preferred, ...configured])]
+}
+
+function isBlankOptionValue(value = '') {
+  const text = String(value || '').trim()
+  return !text || text === '--' || text === '無'
+}
+
+function getServiceScheduleTypeFromForm(form) {
+  if (!form) return '服務行程'
+  const getter = typeof form.get === 'function'
+    ? name => form.get(name)
+    : name => form.querySelector(`[name="${name}"]`)?.value
+  const reminderType = normalizeServiceTypeOption(getter('service_reminder_type'))
+  if (!isBlankOptionValue(reminderType)) return reminderType
+  const scheduleType = normalizeServiceTypeOption(getter('schedule_type'))
+  if (!isBlankOptionValue(scheduleType)) return scheduleType
+  return '服務行程'
+}
+
+function serviceTypeOptionsHtml(includeEmpty = false, selectedValue = '') {
   const empty = includeEmpty ? '<option value="">無</option>' : ''
-  return empty + getManagedListOption('serviceScheduleTypes', serviceScheduleTypes).map(type => `<option value="${type}">${type}</option>`).join('')
+  const selected = normalizeServiceTypeOption(selectedValue)
+  return empty + getManagedServiceScheduleTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+}
+
+function serviceReminderOptionsHtml(selectedValue = '') {
+  const selected = normalizeServiceTypeOption(selectedValue)
+  return getManagedServiceReminderTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+}
+
+function isServiceReminderType(value = '') {
+  const normalized = normalizeServiceTypeOption(value)
+  return !isBlankOptionValue(normalized) && getManagedServiceReminderTypes().includes(normalized)
 }
 
 function optionHtml(items, selectedValue = '', includeEmpty = false) {
@@ -16590,10 +16662,16 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
 
 
 // V002-1H-5-7-5｜特殊行程類型精準欄位控制
-const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '驗證提醒', '返台提醒']
+const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒']
 
 function isCompactSpecialScheduleType(value) {
-  return compactSpecialScheduleTypes.includes(String(value || '').trim())
+  return compactSpecialScheduleTypes.includes(normalizeServiceTypeOption(value))
+}
+
+function isMatchingServiceExtra(extraKey = '', scheduleType = '') {
+  const extra = normalizeServiceTypeOption(extraKey)
+  const type = normalizeServiceTypeOption(scheduleType)
+  return extra === type
 }
 
 function setCompactHidden(element, hidden) {
@@ -16659,9 +16737,11 @@ function applyCreateCompactSpecialFields() {
   if (!form) return
 
   const serviceTypeSelect = form.querySelector('#serviceTypeSelect')
-  if (!serviceTypeSelect) return
+  const serviceReminderTypeSelect = form.querySelector('#serviceReminderTypeSelect')
+  if (!serviceTypeSelect && !serviceReminderTypeSelect) return
 
-  const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
+  const activeType = getServiceScheduleTypeFromForm(form)
+  const isCompact = isCompactSpecialScheduleType(activeType)
 
   form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
     setCompactHidden(block, isCompact)
@@ -16669,7 +16749,7 @@ function applyCreateCompactSpecialFields() {
 
   // 特殊類型自己的提醒欄位要保留顯示，例如逃跑三天、轉出日期、驗證日期、返台班機、住變追蹤。
   form.querySelectorAll('[data-service-extra]').forEach(block => {
-    block.classList.toggle('hidden', block.dataset.serviceExtra !== serviceTypeSelect.value)
+    block.classList.toggle('hidden', !isMatchingServiceExtra(block.dataset.serviceExtra, activeType))
   })
 
   if (isCompact) {
@@ -16682,16 +16762,18 @@ function applyEditCompactSpecialFields() {
   if (!form) return
 
   const serviceTypeSelect = form.querySelector('select[name="schedule_type"]')
-  if (!serviceTypeSelect) return
+  const serviceReminderTypeSelect = form.querySelector('select[name="service_reminder_type"]')
+  if (!serviceTypeSelect && !serviceReminderTypeSelect) return
 
-  const isCompact = isCompactSpecialScheduleType(serviceTypeSelect.value)
+  const activeType = getServiceScheduleTypeFromForm(form)
+  const isCompact = isCompactSpecialScheduleType(activeType)
 
   form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
     setCompactHidden(block, isCompact)
   })
 
   form.querySelectorAll('[data-service-extra]').forEach(block => {
-    block.classList.toggle('hidden', block.dataset.serviceExtra !== serviceTypeSelect.value)
+    block.classList.toggle('hidden', !isMatchingServiceExtra(block.dataset.serviceExtra, activeType))
   })
 
   if (isCompact) {
@@ -18488,6 +18570,13 @@ function openScheduleModal(defaults = {}) {
             </select>
           </label>
 
+          <label>
+            提醒事項
+            <select name="service_reminder_type" id="serviceReminderTypeSelect">
+              ${serviceReminderOptionsHtml('--')}
+            </select>
+          </label>
+
           <div class="extra-schedule-box compact-hide-for-reminder">
             <label>
               是否有附加行程
@@ -18736,7 +18825,7 @@ function openScheduleModal(defaults = {}) {
               <label>返台日<input name="return_date" type="date"></label>
               <label>返台班機<input name="return_flight" placeholder="返台班機"></label>
               <label>
-                抵台時間
+                返台班機時間
                 ${compactTimeSelectHtml('arrival', '09', '00')}
               </label>
             </div>
@@ -18791,6 +18880,7 @@ function openScheduleModal(defaults = {}) {
   const timeTypeSelect = document.querySelector('#timeTypeSelect')
   const repeatModeSelect = document.querySelector('#repeatModeSelect')
   const serviceTypeSelect = document.querySelector('#serviceTypeSelect')
+  const serviceReminderTypeSelect = document.querySelector('#serviceReminderTypeSelect')
   const hasDocumentsSelect = document.querySelector('#hasDocumentsSelect')
 
   function refreshFormSections() {
@@ -18847,13 +18937,13 @@ function openScheduleModal(defaults = {}) {
   }
 
   function refreshServiceExtras() {
-    const selected = serviceTypeSelect.value
+    const selected = getServiceScheduleTypeFromForm(document.querySelector('#scheduleForm'))
 
     document.querySelectorAll('[data-service-extra]').forEach(block => {
-      block.classList.toggle('hidden', block.dataset.serviceExtra !== selected)
+      block.classList.toggle('hidden', !isMatchingServiceExtra(block.dataset.serviceExtra, selected))
     })
 
-    if (selected === '收送簽文件') {
+    if (selected === '簽收文件' || selected === '收送簽文件') {
       hasDocumentsSelect.value = '是'
     }
 
@@ -18888,9 +18978,17 @@ function openScheduleModal(defaults = {}) {
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
   repeatModeSelect.addEventListener('change', refreshRepeatBlocks)
   serviceTypeSelect.addEventListener('change', () => {
+    if (!isBlankOptionValue(serviceTypeSelect.value) && serviceReminderTypeSelect) serviceReminderTypeSelect.value = '--'
     refreshServiceExtras()
     applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false)
   })
+  if (serviceReminderTypeSelect) {
+    serviceReminderTypeSelect.addEventListener('change', () => {
+      if (!isBlankOptionValue(serviceReminderTypeSelect.value) && serviceTypeSelect) serviceTypeSelect.value = '--'
+      refreshServiceExtras()
+      applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false)
+    })
+  }
   hasDocumentsSelect.addEventListener('change', refreshDocumentsBlock)
 
   const applyScheduleTypeContentBtn = document.querySelector('#applyScheduleTypeContentBtn')
@@ -19031,10 +19129,10 @@ function buildServiceExtraNotes(form, scheduleType) {
   if (scheduleType === '返台提醒') {
     if (form.get('return_date')) notes.push(`返台日：${form.get('return_date')}`)
     if (form.get('return_flight')) notes.push(`返台班機：${form.get('return_flight')}`)
-    notes.push(`抵台時間：${getCompactTime(form, 'arrival')}`)
+    notes.push(`返台時間：${getCompactTime(form, 'arrival')}`)
   }
 
-  if (scheduleType === '住變資訊') {
+  if (normalizeServiceTypeOption(scheduleType) === '住變資訊提供') {
     notes.push(`搬家時間：${getCompactTime(form, 'housing_move')}`)
     if (form.get('housing_note')) notes.push(`搬家地址：${form.get('housing_note')}`)
     notes.push('請記得追蹤租約')
@@ -19069,6 +19167,26 @@ function parseMedicalFollowupInfo(row = {}) {
     minute: timeMatch ? timeMatch[2] : '00',
     registerNo: getNoteValue(row, '掛號號碼') || getFieldNoteValue(row, '掛號號碼') || '',
     staffId: staff?.staff_id || ''
+  }
+}
+
+
+function parseReturnTaiwanReminderInfo(row = {}) {
+  const rawTime = getLineNoteValue(row, '返台班機時間') || getLineNoteValue(row, '返台時間') || getLineNoteValue(row, '抵台時間') || getLineNoteValue(row, '班機時間') || ''
+  const timeMatch = String(rawTime).match(/(\d{1,2}):(\d{2})/)
+  let timeType = '不指定'
+  if (String(rawTime).includes('上午')) timeType = '上午'
+  if (String(rawTime).includes('下午')) timeType = '下午'
+  if (String(rawTime).includes('指定時間')) timeType = '指定時間'
+  if (!['不指定', '上午', '下午', '指定時間'].includes(timeType) && timeMatch) timeType = '指定時間'
+
+  return {
+    date: getLineNoteValue(row, '返台日') || getLineNoteValue(row, '抵台日') || row.start_date || '',
+    flight: getLineNoteValue(row, '返台班機') || getLineNoteValue(row, '抵台班機') || getLineNoteValue(row, '班機') || getLineNoteValue(row, '班機資訊') || '',
+    time: rawTime,
+    timeType,
+    hour: timeMatch ? timeMatch[1].padStart(2, '0') : '09',
+    minute: timeMatch ? timeMatch[2] : '00'
   }
 }
 
@@ -19292,10 +19410,16 @@ function appendNotifySupervisorNote(parts = [], supervisorName = '') {
 
 
 function cleanServiceExtraNotes(noteText = '', scheduleType = '') {
+  const normalizedType = normalizeServiceTypeOption(scheduleType)
   const removeLabelsByType = {
-    '醫療': ['下次回診', '下次執行人', '掛號號碼']
+    '醫療': ['下次回診', '下次執行人', '掛號號碼'],
+    '返台提醒': ['返台日', '抵台日', '返台班機', '抵台班機', '班機', '班機資訊', '返台班機時間', '返台時間', '抵台時間'],
+    '轉出追蹤': ['聘僱聘僱終止日', '聘僱終止日', '轉出到期日'],
+    '逃跑通知': ['逃跑第一天', '逃跑第二天', '逃跑第三天'],
+    '住變資訊提供': ['搬家時間', '搬家地址'],
+    '驗證提醒': ['結薪日', '預計驗證日', '預計離境日']
   }
-  const labels = removeLabelsByType[scheduleType] || []
+  const labels = removeLabelsByType[normalizedType] || []
   if (!labels.length) return String(noteText || '').trim()
 
   return String(noteText || '')
@@ -19731,8 +19855,11 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const end = parseTimeForEdit(row.end_time, '10', '00')
   const editCategoryList = formCategories.includes(row.category) ? formCategories : [...formCategories, row.category].filter(Boolean)
   const categoryOptions = optionHtml(editCategoryList, row.category)
-  const serviceTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.schedule_type || '其他')
-  const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
+  const normalizedEditServiceType = normalizeServiceTypeOption(row.schedule_type || '')
+  const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
+  const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
+  const serviceReminderOptions = serviceReminderOptionsHtml(editIsReminderType ? normalizedEditServiceType : '--')
+  const subTypeOptions = optionHtml(getManagedServiceScheduleTypes(), row.sub_type || '', true)
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
   const managedTodoItemsForEdit = getManagedListOption('todoItems', todoItems)
   const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
@@ -19748,6 +19875,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
   const showTime = ['上午', '下午'].includes(row.time_type)
   const medicalInfo = parseMedicalFollowupInfo(row)
+  const returnTaiwanInfo = parseReturnTaiwanReminderInfo(row)
   const isMaintenance = isVehicleMaintenanceSchedule(row)
   const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
   const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
@@ -19801,6 +19929,13 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             行程類型
             <select name="schedule_type">
               ${serviceTypeOptions}
+            </select>
+          </label>
+
+          <label>
+            提醒事項
+            <select name="service_reminder_type">
+              ${serviceReminderOptions}
             </select>
           </label>
 
@@ -19869,6 +20004,19 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
               </label>
             </div>
             <p class="field-hint">填入後會寫入本次行程備註，並建立 / 更新「下次回診」行程。</p>
+          </div>
+
+
+          <div class="span-2 conditional-service hidden" data-service-extra="返台提醒">
+            <div class="group-title">返台提醒</div>
+            <div class="compact-grid">
+              <label>返台日<input name="return_date" type="date" value="${escapeHtml(returnTaiwanInfo.date || '')}"></label>
+              <label>返台班機<input name="return_flight" value="${escapeHtml(returnTaiwanInfo.flight || '')}" placeholder="返台班機"></label>
+              <label>
+                返台時間
+                ${compactTimeSelectHtmlSelected('arrival', returnTaiwanInfo.timeType, returnTaiwanInfo.hour, returnTaiwanInfo.minute)}
+              </label>
+            </div>
           </div>
         </div>
 
@@ -20063,6 +20211,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const needRecordCheck = document.querySelector('#editNeedServiceRecordCheck')
   const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
   const editServiceTypeSelect = document.querySelector('#editServiceBlock select[name="schedule_type"]')
+  const editServiceReminderTypeSelect = document.querySelector('#editServiceBlock select[name="service_reminder_type"]')
   const editHasExtraScheduleSelect = document.querySelector('#editHasExtraScheduleSelect')
   const editExtraScheduleBlock = document.querySelector('#editExtraScheduleBlock')
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
@@ -20127,7 +20276,18 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   timeTypeSelect.addEventListener('change', refreshEditTimeBlock)
   needRecordCheck.addEventListener('change', refreshEditServiceRecordChecks)
   submittedCheck.addEventListener('change', refreshEditServiceRecordChecks)
-  if (editServiceTypeSelect) editServiceTypeSelect.addEventListener('change', refreshEditServiceBlock)
+  if (editServiceTypeSelect) {
+    editServiceTypeSelect.addEventListener('change', () => {
+      if (!isBlankOptionValue(editServiceTypeSelect.value) && editServiceReminderTypeSelect) editServiceReminderTypeSelect.value = '--'
+      refreshEditServiceBlock()
+    })
+  }
+  if (editServiceReminderTypeSelect) {
+    editServiceReminderTypeSelect.addEventListener('change', () => {
+      if (!isBlankOptionValue(editServiceReminderTypeSelect.value) && editServiceTypeSelect) editServiceTypeSelect.value = '--'
+      refreshEditServiceBlock()
+    })
+  }
   if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
   refreshScheduleModeBlocks('edit')
@@ -20221,21 +20381,21 @@ async function saveEditedSchedule(event, modal, originalRow) {
   let payloadCustomerName = isService ? (form.get('customer_name') || null) : null
   let payloadLocationName = isService ? (form.get('location_name') || null) : null
   let payloadAddress = isService ? (form.get('address') || null) : null
-  let payloadCarNo = isService && !isCompactSpecialScheduleType(form.get('schedule_type')) ? (form.get('car_no') || null) : null
+  let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
 
   if (category === '服務行程') {
-    editScheduleType = form.get('schedule_type') || '其他'
+    editScheduleType = getServiceScheduleTypeFromForm(form)
     editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
     payloadCustomerName = form.get('customer_name') || form.get('title') || null
     payloadTitle = payloadCustomerName || form.get('title') || editScheduleType || '服務行程'
 
-    if (isCompactSpecialScheduleType(editScheduleType)) {
-      editSubTypeNote = null
-    } else {
-      const cleanedNote = cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))
-      const extraNotes = buildServiceExtraNotes(form, editScheduleType)
-      editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form), cleanedNote, ...extraNotes].filter(Boolean), editNotifySupervisorName).join('｜') || null
-    }
+    const cleanedNote = cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))
+    const extraNotes = buildServiceExtraNotes(form, editScheduleType)
+    editSubTypeNote = appendNotifySupervisorNote([
+      buildRepeatNote(form),
+      isCompactSpecialScheduleType(editScheduleType) ? '' : cleanedNote,
+      ...extraNotes
+    ].filter(Boolean), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '公務車保養') {
@@ -20337,9 +20497,9 @@ async function saveEditedSchedule(event, modal, originalRow) {
     location_name: payloadLocationName,
     address: payloadAddress,
     car_no: payloadCarNo,
-    need_service_record: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && form.get('need_service_record') === 'on',
-    service_record_submitted: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) && submitted,
-    service_record_submitted_date: isService && !isCompactSpecialScheduleType(form.get('schedule_type')) ? submittedDate : null
+    need_service_record: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && form.get('need_service_record') === 'on',
+    service_record_submitted: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && submitted,
+    service_record_submitted_date: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? submittedDate : null
   }
 
   const originalAssigneeIds = getActiveAssigneeIds(originalRow)
@@ -20548,14 +20708,14 @@ async function saveSchedule(event, modal) {
   }
 
   if (category === '服務行程') {
-    scheduleType = form.get('schedule_type') || '其他'
+    scheduleType = getServiceScheduleTypeFromForm(form)
     subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null)
     customerName = rawCustomerNameInput || rawTitleInput || null
     locationName = form.get('location_name') || null
     address = form.get('address') || null
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
+    subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (!isCompactSpecialScheduleType(scheduleType)) {
-      subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
       if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
     }
