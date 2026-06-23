@@ -17642,3 +17642,62 @@ button.login-birthday-card:focus-visible {
   text-shadow: none !important;
 }
 /* FOR-e V002-1P-253 END - schedule detail multiline content and return reminder readability */
+
+/* FOR-e V002-1P-254 START - return reminder bigger text and horizontal field day badge */
+/* 返台提醒：提醒返台字體再放大，維持清楚不糊、不擠在一起。 */
+.return-reminder-day-mark.is-return-pre-reminder > span {
+  min-height: 28px !important;
+  padding: 3px 12px !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0.09em !important;
+  font-weight: 1000 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+
+.service-reminder-week-card.is-return-pre-reminder .service-reminder-card-type {
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0.08em !important;
+  font-weight: 1000 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+
+/* 外務日：左側「外務日」字樣固定橫向顯示，不再被窄膠囊擠成直排。 */
+.field-day-reminder-prompt {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+}
+
+.field-day-reminder-badge {
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 20px !important;
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2px 8px !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  letter-spacing: 0 !important;
+}
+
+.field-day-reminder-prompt strong,
+.field-day-reminder-prompt .prompt-title-line {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+/* FOR-e V002-1P-254 END - return reminder bigger text and horizontal field day badge */
