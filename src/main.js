@@ -21,6 +21,15 @@ import './style.css'
 */
 /* FOR-e V002-1P-247 END - card label blue typography */
 
+/* FOR-e V002-1P-248 START - mobile overdue calendar font factory station */
+/*
+  V002-1P-248｜手機逾期通知與駐廠行程
+  - 個人行程表任務逾期 / 超過時間卡片手機不再超出版面。
+  - 手機、平板行事曆卡片字體再放大。
+  - 服務行程新增「駐廠」，並在行事曆卡片顯示灰色駐廠時間 #B7B7B7。
+*/
+/* FOR-e V002-1P-248 END - mobile overdue calendar font factory station */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -36,8 +45,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-247'
-/* V002-1P-247：延續 V002-1P-246，修正卡片標籤字級 / #4E71FF / 項目顯示 / 手機人員欄寬。 */
+const SYSTEM_VERSION = 'V002-1P-248'
+/* V002-1P-248：修正手機逾期通知爆版、手機平板行事曆字級、服務行程新增駐廠與駐廠時間顯示。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -118,7 +127,7 @@ function getScheduleCategoryDisplayLabel(value = '') {
   return text
 }
 const serviceScheduleTypes = [
-  '--', '面談', '上線/教育訓練', '定期/開會', '送工', '銀行', '醫療',
+  '--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '其他'
 ]
 const serviceReminderTypes = [
@@ -134,6 +143,7 @@ const scheduleContentTemplates = [
   { type: '面談', content: '面談對象：\n面談原因：\n處理內容：\n後續追蹤：' },
   { type: '上線/教育訓練', content: '上線/教育訓練內容：\n參與人員：\n注意事項：' },
   { type: '定期/開會', content: '會議主題：\n參與人員：\n會議重點：\n待辦事項：' },
+  { type: '駐廠', content: '駐廠地點：\n駐廠時間：\n駐廠內容：\n後續追蹤：' },
   { type: '送工', content: '送工人員：\n雇主 / 地點：\n送工狀況：\n需追蹤事項：' },
   { type: '銀行', content: '辦理項目：\n銀行名稱：\n辦理結果：\n需補件 / 追蹤：' },
   { type: '醫療', content: '就醫原因：\n醫院 / 診所：\n診療結果：\n下次回診：' },
@@ -295,6 +305,7 @@ const reminderScheduleTypes = [
   '住變資訊',
   '返台提醒',
   '驗證提醒',
+  '駐廠',
   '追蹤提醒事項',
   '追蹤事項',
   '提醒事項',
@@ -326,6 +337,7 @@ function isReminderSchedule(row) {
     '住變',
     '返台',
     '驗證',
+    '駐廠',
     '待確認',
     '待通知',
     '提醒事項',
@@ -354,19 +366,18 @@ function isTodaySchedule(row) {
 }
 
 function getPersonalReminderRows() {
-  const today = todayString()
-  return normalizeRowsForOccurrenceDate(schedules
+  return schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => isActionReminderSchedule(row))
     .filter(row => isReminderSchedule(row))
-    .filter(row => scheduleMatchesActionReminderDate(row, today) || isOverdueSchedule(row)), today)
+    .filter(row => scheduleMatchesActionReminderDate(row, todayString()) || isOverdueSchedule(row))
     .sort((a, b) => {
       const aOverdue = isOverdueSchedule(a)
       const bOverdue = isOverdueSchedule(b)
       if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
-      return String((a.__occurrenceDate || a.start_date) || '').localeCompare(String((b.__occurrenceDate || b.start_date) || ''))
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
     })
 }
 
@@ -379,7 +390,7 @@ function renderPersonalReminderArea() {
         <img src="/icons/reminder-notice.png" alt="提醒">
         <div>
           <strong>待確認 / 待通知提醒</strong>
-          <span>逃跑、轉出、住變、返台、驗證與追蹤提醒事項</span>
+          <span>逃跑、轉出、住變、返台、驗證、駐廠與追蹤提醒事項</span>
         </div>
       </div>
 
@@ -389,7 +400,7 @@ function renderPersonalReminderArea() {
           return `
             <button type="button" class="reminder-alert-card ${overdue ? 'is-overdue' : 'is-today'}" data-view-schedule="${row.schedule_id}">
               <div class="reminder-alert-main">
-                <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || todayString()))}｜${escapeHtml(row.title || '-')}</div>
+                <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
                 <div class="reminder-alert-meta">
                   ${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
                 </div>
@@ -422,7 +433,7 @@ function renderPersonalTodayScheduleNotice(rows = []) {
         ${rows.map(row => `
           <button type="button" class="todo-notice-card ${getAlertItemClass(row)}" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
-              <strong>${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || row.__occurrenceDate || todayString()))}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(getScheduleMetaParts([getCardTimeText(row), getAssigneeNames(row), row.location_name]))}</span>
             </div>
             <em>今日</em>
@@ -1194,6 +1205,7 @@ function isNoCompletionControlSchedule(row) {
     '會議',
     '外訓',
     '活動',
+    '駐廠',
     '部門活動',
     '公司活動',
     '教育訓練'
@@ -1311,6 +1323,7 @@ function isPersonalCalendarForMe(row = {}) {
 function isActionReminderSchedule(row = {}) {
   if (!row) return false
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return true
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return true
   if (isNoCompletionControlSchedule(row)) return false
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
   if (isLeaveOrReturnSchedule(row)) return false
@@ -1679,6 +1692,23 @@ function renderCardTime(row = {}, className = '') {
   return `<span class="${escapeHtml(className)}">${escapeHtml(text)}</span>`
 }
 
+function isFactoryStationSchedule(row = {}) {
+  const direct = [row?.schedule_type, row?.sub_type, row?.category]
+    .map(item => typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(item) : String(item || '').trim())
+  return direct.includes('駐廠')
+}
+
+function getFactoryStationTimeText(row = {}) {
+  if (!isFactoryStationSchedule(row)) return ''
+  const text = getCardTimeText(row)
+  return text ? `駐廠時間：${text}` : ''
+}
+
+function renderFactoryStationTime(row = {}, className = 'factory-station-time') {
+  const text = getFactoryStationTimeText(row)
+  return text ? `<span class="${escapeHtml(className)}">${escapeHtml(text)}</span>` : ''
+}
+
 function isAlertTextSchedule(row = {}) {
   const text = [
     row.category,
@@ -1767,7 +1797,7 @@ function removeNoteLabels(noteText, labels) {
 function getReminderTokens(row) {
   const type = row.schedule_type || ''
   const noteItems = parseNoteTokens(row)
-  const reminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '電表提醒']
+  const reminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '電表提醒', '駐廠']
   const tokens = []
 
   noteItems.forEach(item => {
@@ -9002,6 +9032,7 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 function getScheduleColorDefinitions() {
   return [
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
+    { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#B7B7B7' },
     { key: '待辦事項', label: '待辦事項/一般記事', defaultColor: '#F7DD7D' },
     { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
@@ -9051,6 +9082,7 @@ function getScheduleColorSettings() {
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
     if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
+    if (!saved['駐廠']) saved['駐廠'] = '#B7B7B7'
 
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
@@ -9133,6 +9165,7 @@ function getScheduleColorKey(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
   if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return '駐廠'
   const directReminderColorKey = typeof getServiceReminderTypeFromRow === 'function'
     ? getServiceReminderTypeFromRow(row)
     : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
@@ -10130,13 +10163,13 @@ function getLoginDailyReminderRows() {
   const today = todayString()
   const birthdayRows = getTodayBirthdayRows()
   const personalBirthday = isCurrentUserBirthdayToday()
-  const activeTodayRows = normalizeRowsForOccurrenceDate(uniqueScheduleRows(schedules
+  const activeTodayRows = uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => scheduleMatchesActionReminderDate(row, today))
-    .filter(row => isActionReminderSchedule(row))), today)
+    .filter(row => isActionReminderSchedule(row)))
 
   const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
 
@@ -10168,8 +10201,8 @@ function renderLoginReminderItem(row) {
   return `
     <button type="button" class="login-reminder-item ${getAlertItemClass(row)}" data-login-view-schedule="${row.schedule_id}">
       <div>
-        <strong>${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || row.__occurrenceDate || todayString()))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(getScheduleMetaParts([row.__occurrenceDate || row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
+        <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
+        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
       <em>${isOverdueSchedule(row) ? '逾期' : '查看'}</em>
@@ -12492,30 +12525,11 @@ function createScheduleOccurrenceRow(row = {}, dateKey = '') {
   }
 }
 
-function createReminderOccurrenceRow(row = {}, dateKey = '') {
-  if (!row?.schedule_id || !dateKey) return row
-  return {
-    ...row,
-    __sourceStartDate: row.__sourceStartDate || row.start_date,
-    __sourceEndDate: row.__sourceEndDate || row.end_date,
-    __occurrenceDate: dateKey,
-    __occurrence_date: dateKey,
-    __render_date: dateKey,
-    __occurrenceKey: `${row.schedule_id}:${dateKey}`
-  }
-}
-
 function normalizeRowsForOccurrenceDate(rows = [], dateKey = todayString()) {
   return (rows || []).map(row => {
     if (!row?.schedule_id || !dateKey) return row
     if (isScheduleSeriesLike(row) && scheduleMatchesDateByMode(row, dateKey)) {
       return createScheduleOccurrenceRow(row, dateKey)
-    }
-    if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row) && returnTaiwanReminderMatchesDate(row, dateKey)) {
-      return createReminderOccurrenceRow(row, dateKey)
-    }
-    if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row) && serviceReminderMatchesActionReminderDate(row, dateKey)) {
-      return createReminderOccurrenceRow(row, dateKey)
     }
     return row
   })
@@ -12650,7 +12664,7 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
         ${todayRows.length ? todayRows.map(row => `
           <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
-              <strong>${escapeHtml(getScheduleMetaParts([formatTime(row), getScheduleDisplayType(row), row.title || '-']))}</strong>
+              <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(row.customer_name || row.location_name || getAssigneeNames(row) || '個人待辦')}</span>
             </div>
             <em>查看</em>
@@ -12846,35 +12860,12 @@ function getMonthCalendarGridDates(monthDates = []) {
 
 function getReturnTaiwanReminderDate(row = {}) {
   const noteDate = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台日') : ''
-  return noteDate || row.__sourceStartDate || row.start_date || ''
-}
-
-function getReturnTaiwanPreReminderDate(row = {}) {
-  const returnDate = getReturnTaiwanReminderDate(row)
-  return returnDate ? (getDateKeyOffset(returnDate, -3) || '') : ''
-}
-
-function getReturnTaiwanReminderDisplayType(row = {}, dateKey = '') {
-  const returnDate = getReturnTaiwanReminderDate(row)
-  const reminderDate = getReturnTaiwanPreReminderDate(row)
-  if (dateKey && returnDate && dateKey === returnDate) return '返台確認'
-  if (dateKey && reminderDate && dateKey === reminderDate) return '提醒返台'
-  return '返台提醒'
-}
-
-function getReturnTaiwanReminderStateClass(displayType = '') {
-  const text = String(displayType || '')
-  if (text === '提醒返台') return 'is-return-pre-reminder'
-  if (text === '返台確認') return 'is-return-confirm'
-  return 'is-return-reminder-default'
+  return noteDate || row.start_date || ''
 }
 
 function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
   const returnDate = getReturnTaiwanReminderDate(row)
-  if (returnDate) {
-    const reminderDate = getReturnTaiwanPreReminderDate(row)
-    return dateKey === returnDate || (reminderDate && dateKey === reminderDate)
-  }
+  if (returnDate) return returnDate === dateKey
   return scheduleMatchesDateByMode(row, dateKey)
 }
 
@@ -12913,13 +12904,11 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
   return reminderRows.map(row => {
     const info = getReturnTaiwanReminderInfo(row)
-    const displayType = getReturnTaiwanReminderDisplayType(row, dateKey)
-    const stateClass = getReturnTaiwanReminderStateClass(displayType)
     return `
-      <button type="button" class="return-reminder-day-mark ${stateClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-        <span>${escapeHtml(displayType)}</span>
+      <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+        <span>返台提醒</span>
         <strong>
-          <em>${escapeHtml(info.title || displayType)}</em>
+          <em>${escapeHtml(info.title || '返台提醒')}</em>
           ${info.date ? `<small>返台日：${escapeHtml(info.date)}</small>` : ''}
         </strong>
       </button>
@@ -14753,9 +14742,6 @@ function getServiceReminderDisplayLines(row = {}) {
 
 function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)
-  if (type === '返台提醒') {
-    return getReturnTaiwanReminderDisplayType(row, occurrenceDate)
-  }
   if (type === '驗證提醒') {
     const info = parseVerifyReminderInfo(row)
     if (occurrenceDate && info.leaveDate && occurrenceDate === info.leaveDate) return '離境通知'
@@ -14763,21 +14749,13 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   return type
 }
 
-function getScheduleDisplayTypeForDate(row = {}, dateKey = '') {
-  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    return getServiceReminderDisplayType(row, dateKey || row.__occurrence_date || row.__render_date || row.__occurrenceDate || row.start_date || '')
-  }
-  return getScheduleDisplayType(row)
-}
-
 function renderServiceReminderScheduleCard(row = {}) {
   const occurrenceDate = row.__occurrence_date || row.__render_date || ''
   const type = getServiceReminderDisplayType(row, occurrenceDate)
   const lines = getServiceReminderDisplayLines(row)
-  const returnReminderStateClass = type === '提醒返台' || type === '返台確認' ? getReturnTaiwanReminderStateClass(type) : ''
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${returnReminderStateClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <span class="service-reminder-card-type ${returnReminderStateClass}">${escapeHtml(type)}</span>
+    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
     </button>
@@ -14789,9 +14767,10 @@ function renderWeekScheduleCard(row) {
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return renderServiceReminderScheduleCard(row)
   const contentPreview = getFirstTwoLines(row.description)
   const extra = getDisplaySubTypeExtra(row)
+  const isFactoryStation = isFactoryStationSchedule(row)
   return `
-    <button type="button" class="week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      ${renderCardTime(row, 'week-card-time')}
+    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
       ${renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(row) ? `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
@@ -14909,6 +14888,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
+              ${isFactoryStationSchedule(row) && getFactoryStationTimeText(row) ? `<div class="schedule-meta factory-station-time">${escapeHtml(getFactoryStationTimeText(row))}</div>` : ''}
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
               ${extra ? `<div class="extra-schedule-chip${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</div>` : ''}
@@ -16641,7 +16621,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
         ${showAddressDetail ? `<div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>` : ''}
-        <div class="span-2 schedule-detail-content-row"><span>內容</span><strong class="detail-multiline-text">${escapeHtml(row.description || '-')}</strong></div>
+        <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong>${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
@@ -17206,7 +17186,7 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
 
 
 // V002-1H-5-7-5｜特殊行程類型精準欄位控制
-const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒']
+const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒', '駐廠']
 
 function isCompactSpecialScheduleType(value) {
   return compactSpecialScheduleTypes.includes(normalizeServiceTypeOption(value))
@@ -19782,7 +19762,7 @@ function parseReturnTaiwanReminderInfo(row = {}) {
   if (!['不指定', '上午', '下午', '指定時間'].includes(timeType) && timeMatch) timeType = '指定時間'
 
   return {
-    date: getLineNoteValue(row, '返台日') || getLineNoteValue(row, '抵台日') || row.__sourceStartDate || row.start_date || '',
+    date: getLineNoteValue(row, '返台日') || getLineNoteValue(row, '抵台日') || row.start_date || '',
     flight: getLineNoteValue(row, '返台班機') || getLineNoteValue(row, '抵台班機') || getLineNoteValue(row, '班機') || getLineNoteValue(row, '班機資訊') || '',
     time: rawTime,
     timeType,
@@ -23503,23 +23483,3 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不再使用全公司共用 overview_quick_groups，避免一人設定影響所有人
 */
 /* FOR-e V002-1P-216 END - personal quick groups cross-device sync */
-
-/* FOR-e V002-1P-251 START - return Taiwan reminder date labels */
-/*
-  V002-1P-251｜返台提醒日期顯示邏輯
-  - 返台日前 3 天顯示「提醒返台」
-  - 返台日當天顯示「返台確認」
-  - 保留原返台日資料，不因提醒顯示日覆蓋返台日
-*/
-/* FOR-e V002-1P-251 END - return Taiwan reminder date labels */
-
-
-/*
-  V002-1P-252｜返台提醒顏色微調
-  - 「提醒返台」字樣改白色字
-  - 「返台確認」顏色再淡一階
-
-  V002-1P-253｜查看行程內容換行與返台提醒清晰度
-  - 查看行程時，內容欄位保留原本換行，不再全部連在一起
-  - 返台提醒 / 返台確認文字增加字距與行高，避免字糊在一起
-*/
