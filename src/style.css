@@ -16624,3 +16624,41 @@ button.login-birthday-card:focus-visible {
 /* FOR-e V002-1P-230 START - administrative reminder end date and wrapping */
 /* 行政事務提醒：使用起訖日期顯示，提示文字自動換行。 */
 /* FOR-e V002-1P-230 END - administrative reminder end date and wrapping */
+
+
+/* FOR-e V002-1P-233 START - incident stats dedupe and continuous prompt wrapping */
+/* 連續顯示 / 提示列自動換行，避免一般記事、待辦、外務、會議室、請假 / 返鄉、外訓等長文字被截斷。 */
+.continuation-day-mark,
+.leave-return-day-mark,
+.field-leave-return-prompt,
+.field-training-calendar-prompt,
+.administrative-reminder-day-mark {
+  height: auto !important;
+  min-height: 28px !important;
+  align-items: flex-start !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  border-radius: 12px !important;
+}
+
+.continuation-day-mark strong,
+.leave-return-day-mark strong,
+.field-leave-return-prompt strong,
+.field-training-calendar-text,
+.administrative-reminder-day-mark strong {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.35 !important;
+  display: block !important;
+}
+
+.field-training-calendar-prompt-list,
+.field-week-day-cell .field-training-calendar-prompt-list,
+.month-day-cell .field-training-calendar-prompt-list {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+/* FOR-e V002-1P-233 END - incident stats dedupe and continuous prompt wrapping */

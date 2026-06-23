@@ -7578,7 +7578,7 @@ function getStatsDepartmentGroup(departmentName) {
 }
 
 function getStatsDepartmentOptions() {
-  const names = expandStatsScheduleRows(schedules
+  const names = expandStatsRowsForDepartmentTotals(schedules
     .filter(isVisibleSchedule)
     .filter(row => !isStatsExcludedSchedule(row)))
     .map(getStatsDepartment)
@@ -7634,30 +7634,119 @@ function expandStatsScheduleRows(rows = []) {
   })
 }
 
-function getStatsFilteredSchedules() {
+function getStatsIncidentFamilyId(row = {}) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/來源(?:異況|行程)：([^｜\n]+)/)
+  const sourceId = match?.[1]?.trim()
+  return sourceId || row.schedule_id || [row.category, row.schedule_type, row.title, row.start_date].filter(Boolean).join('__')
+}
+
+function getStatsPrimaryIncidentRow(row = {}) {
+  const familyId = getStatsIncidentFamilyId(row)
+  if (!familyId) return row
+  return schedules.find(item => item?.schedule_id === familyId) || row
+}
+
+function getStatsBaseScheduleRows() {
   const range = getStatsDateRange()
 
-  const baseRows = schedules
+  return schedules
     .filter(isVisibleSchedule)
     .filter(row => !isStatsExcludedSchedule(row))
-
-  return expandStatsScheduleRows(baseRows)
     .filter(row => {
       const date = row.start_date || ''
       if (range.start && date < range.start) return false
       if (range.end && date > range.end) return false
-
-      if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
       if (statsFilters.category !== '全部' && getStatsScheduleType(row) !== statsFilters.category) return false
-
-      if (statsFilters.staffId !== '全部') {
-        if (row.__stats_staff_id) return row.__stats_staff_id === statsFilters.staffId
-        const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
-        if (!assigned) return false
-      }
-
       return true
     })
+}
+
+function expandStatsRowsForDepartmentTotals(rows = []) {
+  const incidentFamilies = new Set()
+  const result = []
+
+  rows.forEach(row => {
+    if (isIncidentSchedule(row)) {
+      const familyId = getStatsIncidentFamilyId(row)
+      if (incidentFamilies.has(familyId)) return
+      incidentFamilies.add(familyId)
+      result.push({
+        ...getStatsPrimaryIncidentRow(row),
+        __stats_incident_family_id: familyId
+      })
+      return
+    }
+
+    result.push(...expandStatsScheduleRows([row]))
+  })
+
+  return result
+}
+
+function expandStatsRowsForPersonTotals(rows = []) {
+  const incidentPersonKeys = new Set()
+  const result = []
+
+  rows.forEach(row => {
+    if (isIncidentSchedule(row)) {
+      const familyId = getStatsIncidentFamilyId(row)
+      const assignees = getStatsAssignees(row)
+      if (!assignees.length) {
+        const key = `${familyId}__unassigned`
+        if (incidentPersonKeys.has(key)) return
+        incidentPersonKeys.add(key)
+        result.push({
+          ...row,
+          __stats_incident_family_id: familyId
+        })
+        return
+      }
+
+      assignees.forEach(assignee => {
+        const staffKey = assignee.staff_id || assignee.staff_name || '未指定'
+        const key = `${familyId}__${staffKey}`
+        if (incidentPersonKeys.has(key)) return
+        incidentPersonKeys.add(key)
+        result.push({
+          ...row,
+          __stats_incident_family_id: familyId,
+          __stats_staff_id: assignee.staff_id || '',
+          __stats_staff_name: assignee.staff_name || '',
+          __stats_department_name: assignee.department_name || '',
+          __stats_position: assignee.position || '',
+          schedule_assignees: [assignee]
+        })
+      })
+      return
+    }
+
+    result.push(...expandStatsScheduleRows([row]))
+  })
+
+  return result
+}
+
+function filterExpandedStatsRows(rows = []) {
+  return rows.filter(row => {
+    if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
+
+    if (statsFilters.staffId !== '全部') {
+      if (row.__stats_staff_id) return row.__stats_staff_id === statsFilters.staffId
+      const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
+      if (!assigned) return false
+    }
+
+    return true
+  })
+}
+
+function getStatsFilteredSchedules() {
+  return filterExpandedStatsRows(expandStatsRowsForDepartmentTotals(getStatsBaseScheduleRows()))
+}
+
+function getStatsFilteredPersonSchedules() {
+  return filterExpandedStatsRows(expandStatsRowsForPersonTotals(getStatsBaseScheduleRows()))
 }
 
 function getStatsFilteredServiceRecords() {
@@ -8072,6 +8161,7 @@ function renderPersonTypeStats(rows) {
 
 function renderStatsDashboard() {
   const rows = getStatsFilteredSchedules()
+  const personRows = getStatsFilteredPersonSchedules()
   const range = getStatsDateRange()
   const typeRows = getStatsCountBy(rows, getStatsScheduleType)
 
@@ -8092,7 +8182,7 @@ function renderStatsDashboard() {
     ${renderStatsMetricCards(rows)}
     ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
     ${renderDepartmentTypeStats(rows)}
-    ${renderPersonTypeStats(rows)}
+    ${renderPersonTypeStats(personRows)}
   `
 }
 /* FOR-e V002-1N-2 END - statistics dashboard clean type stats */
