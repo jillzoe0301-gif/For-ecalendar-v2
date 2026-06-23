@@ -17450,3 +17450,123 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-249 END - sticky schedule table header column and todo notice separator fix */
+
+/* FOR-e V002-1P-250 START - fixed date weekday header and schedule time color */
+/* 行程總覽 / 外務行程 / 會議室：手機、平板、電腦都在表格內捲動，日期＋星期表頭固定。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: auto !important;
+  max-height: calc(100dvh - 220px) !important;
+  min-height: 360px !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+.week-overview-table,
+.field-week-table,
+.meeting-week-table {
+  position: relative !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.week-overview-table thead,
+.field-week-table thead,
+.meeting-week-table thead,
+.week-overview-table thead tr,
+.field-week-table thead tr,
+.meeting-week-table thead tr {
+  position: relative !important;
+  z-index: 300 !important;
+}
+
+.week-overview-table thead tr:first-child th,
+.field-week-table thead tr:first-child th,
+.meeting-week-table thead tr:first-child th {
+  position: sticky !important;
+  top: 0 !important;
+  inset-block-start: 0 !important;
+  z-index: 300 !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.10) !important;
+}
+
+.week-overview-table thead tr:first-child th {
+  background: #f8fafc !important;
+}
+
+.field-week-table thead tr:first-child th {
+  background: #fff8ed !important;
+}
+
+.meeting-week-table thead tr:first-child th {
+  background: #fbf8f1 !important;
+}
+
+.week-overview-table thead tr:first-child th.staff-col,
+.field-week-table thead tr:first-child th.field-staff-col,
+.meeting-week-table thead tr:first-child th.meeting-room-col {
+  left: 0 !important;
+  inset-inline-start: 0 !important;
+  z-index: 360 !important;
+  box-shadow: 8px 8px 16px rgba(15, 23, 42, 0.14) !important;
+}
+
+.week-overview-table tbody th.staff-name-cell,
+.field-week-table tbody th.field-staff-name-cell,
+.meeting-week-table tbody th.meeting-room-name-cell {
+  position: sticky !important;
+  left: 0 !important;
+  inset-inline-start: 0 !important;
+  z-index: 260 !important;
+  background: #ffffff !important;
+  background-clip: padding-box !important;
+  box-shadow: 8px 0 14px rgba(15, 23, 42, 0.10) !important;
+}
+
+.week-overview-table tbody td,
+.field-week-table tbody td,
+.meeting-week-table tbody td {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.week-overview-table .week-schedule-card,
+.field-week-table .field-week-schedule-card,
+.meeting-week-table .meeting-room-card {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* 行程表卡片時間顏色統一。 */
+.week-card-time,
+.field-week-card-time,
+.meeting-room-time,
+.week-schedule-card[style] .week-card-time,
+.field-week-schedule-card[style] .field-week-card-time,
+.meeting-room-card[style] .meeting-room-time {
+  color: #293681 !important;
+  opacity: 1 !important;
+}
+
+@media (max-width: 900px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    max-height: calc(100dvh - 190px) !important;
+    min-height: 320px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    max-height: calc(100dvh - 170px) !important;
+    min-height: 300px !important;
+  }
+}
+/* FOR-e V002-1P-250 END - fixed date weekday header and schedule time color */
