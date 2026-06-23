@@ -16943,3 +16943,120 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-246 END - meeting room title size and todo item continuation background */
+
+/* FOR-e V002-1P-247 START - blue card labels and mobile staff width */
+/* 行事曆卡片：類型 / 提醒 / 待辦項目 / 會議室房間名稱，字級與標題一致，文字統一 #4E71FF。 */
+.week-schedule-card .week-card-type-line,
+.week-schedule-card .service-reminder-card-type,
+.week-schedule-card .week-card-extra,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line {
+  color: #4E71FF !important;
+  font-size: 13.5px !important;
+  line-height: 1.5 !important;
+  font-weight: 950 !important;
+}
+
+.schedule-card .schedule-card-type-line,
+.schedule-title-stack .schedule-card-type-line {
+  color: #4E71FF !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  font-weight: 950 !important;
+}
+
+.service-reminder-week-card .service-reminder-card-type {
+  color: #4E71FF !important;
+}
+
+.reminder-tags span {
+  color: #4E71FF !important;
+  font-weight: 950 !important;
+}
+
+/* 項目：只保留文字，不要外框、底色、左側色條。 */
+.week-card-extra.todo-note-item-chip,
+.extra-schedule-chip.todo-note-item-chip {
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 3px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #4E71FF !important;
+  font-size: 13.5px !important;
+  line-height: 1.5 !important;
+  font-weight: 950 !important;
+}
+
+/* 行程列表中的項目也只保留文字藍色，不顯示膠囊框。 */
+.schedule-card .extra-schedule-chip.todo-note-item-chip {
+  display: block !important;
+  width: 100% !important;
+  color: #4E71FF !important;
+}
+
+@media (max-width: 768px) {
+  .week-schedule-card .week-card-type-line,
+  .week-schedule-card .service-reminder-card-type,
+  .week-schedule-card .week-card-extra,
+  .week-card-extra.todo-note-item-chip,
+  .extra-schedule-chip.todo-note-item-chip,
+  .meeting-room-card .meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-room-line {
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+  }
+
+  /* 手機：行事曆左側人員名稱欄位縮窄。 */
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-staff-name-cell {
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell .calendar-staff-name-text,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-text,
+  .week-overview-table .staff-name-cell strong,
+  .field-week-table .field-staff-name-cell strong {
+    font-size: 18px !important;
+    line-height: 1.18 !important;
+  }
+
+  .week-overview-table .staff-name-cell > span,
+  .field-week-table .field-staff-name-cell > span,
+  .week-overview-table .staff-name-cell .calendar-staff-department,
+  .field-week-table .field-staff-name-cell .calendar-staff-department {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-staff-name-cell {
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 96px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+}
+/* FOR-e V002-1P-247 END - blue card labels and mobile staff width */

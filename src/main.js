@@ -11,6 +11,16 @@ import './style.css'
 */
 /* FOR-e V002-1P-246 END - todo note creator item meeting stats final guard */
 
+/* FOR-e V002-1P-247 START - card label blue typography */
+/*
+  V002-1P-247｜卡片標籤與手機欄寬修正
+  - 行程類型、提醒事項、待辦項目、會議室房間名稱與標題同字級。
+  - 上述標籤文字與項目文字統一為 #4E71FF。
+  - 項目顯示改為「項目：」，不使用【】。
+  - 手機行事曆人員名稱欄位縮窄。
+*/
+/* FOR-e V002-1P-247 END - card label blue typography */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -26,8 +36,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-246'
-/* V002-1P-246：延續 V002-1P-245，修正自己的待辦 / 一般記事指派者顯示、項目標籤、會議室字體與統計一案一算。 */
+const SYSTEM_VERSION = 'V002-1P-247'
+/* V002-1P-247：延續 V002-1P-246，修正卡片標籤字級 / #4E71FF / 項目顯示 / 手機人員欄寬。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -3982,7 +3992,7 @@ function renderSearchResultList(rows, emptyText) {
             <div class="search-result-meta">
               ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
               ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
-              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜【項目】' + escapeHtml(row.sub_type) : ''}
+              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜項目：' + escapeHtml(row.sub_type) : ''}
             </div>
           </div>
 
@@ -16419,7 +16429,7 @@ function getScheduleItemChipClass(row = {}) {
 }
 
 function renderScheduleItemLabel(extra = '') {
-  return `【項目】${escapeHtml(extra)}`
+  return `項目：${escapeHtml(extra)}`
 }
 
 function canManageTodoNoteStatus(row = {}) {
