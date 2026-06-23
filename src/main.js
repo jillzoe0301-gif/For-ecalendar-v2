@@ -6665,6 +6665,25 @@ function renderIncidentTrackingPage() {
   `
 }
 
+function escapeTextForRegex(value = '') {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function getIncidentListTitleText(row = {}) {
+  const rawType = String(row.sub_type || getFieldNoteValue(row, '異況類型') || '異況').trim() || '異況'
+  const rawTitle = String(row.title || '').trim()
+  if (!rawTitle) return rawType
+
+  const normalizedType = rawType.replace(/[\s｜|:：\-—–]+$/g, '')
+  const normalizedTitle = rawTitle.replace(/^\s+/, '')
+  const duplicatePrefixPattern = new RegExp(`^${escapeTextForRegex(normalizedType)}\\s*[｜|:：\\-—–]\\s*`)
+  if (duplicatePrefixPattern.test(normalizedTitle) || normalizedTitle === normalizedType) {
+    return normalizedTitle
+  }
+
+  return `${rawType}｜${rawTitle}`
+}
+
 function renderIncidentList(rows) {
   if (!rows.length) {
     return `<div class="empty-state">目前沒有符合條件的異況追蹤。</div>`
@@ -6683,7 +6702,7 @@ function renderIncidentList(rows) {
             </div>
 
             <div class="incident-main">
-              <div class="incident-title">${escapeHtml(row.sub_type || '異況')}｜${escapeHtml(row.title || '-')} ${renderIncidentUrgencyBadge(row)}</div>
+              <div class="incident-title">${escapeHtml(getIncidentListTitleText(row))} ${renderIncidentUrgencyBadge(row)}</div>
               <div class="incident-meta">
                 負責 / 協助：${escapeHtml(getAssigneeNames(row))}
                 ｜建立者：${escapeHtml(row.creator_name || '-')}
