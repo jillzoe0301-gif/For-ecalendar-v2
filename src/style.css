@@ -16773,3 +16773,10 @@ button.login-birthday-card:focus-visible {
   line-height: 1.35 !important;
 }
 /* FOR-e V002-1P-240 END - service reminder detail cards */
+
+
+/* FOR-e V002-1P-241 START - meter reminder compact service form cleanup */
+.meter-hide-for-reminder.is-compact-hidden {
+  display: none !important;
+}
+/* FOR-e V002-1P-241 END - meter reminder compact service form cleanup */

@@ -14486,7 +14486,7 @@ function getServiceReminderDisplayLines(row = {}) {
   if (type === '電表提醒') {
     const info = parseMeterReminderInfo(row)
     return [
-      info.place ? `雇主/宿舍名：${info.place}` : title,
+      info.place || title || '電表提醒',
       '提醒更新電表!!'
     ].filter(Boolean)
   }
@@ -14652,7 +14652,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               ${extra ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(extra)}</div>` : ''}
               ${isMaintenance ? '' : `<div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>`}
               ${row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim() ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
-              ${row.location_name && !isMaintenance ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
+              ${row.location_name && !isMaintenance && row.category !== '服務行程' ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
               ${reminders.length ? `<div class="reminder-tags">${reminders.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
               ${row.need_service_record ? `<div class="service-record-hint ${isScheduleServiceRecordSubmitted(row) ? 'is-submitted' : 'is-missing'}">${isScheduleServiceRecordSubmitted(row) ? '服務紀錄單已交' : '服務紀錄單未完成'}</div>` : ''}
             </div>
@@ -16324,7 +16324,10 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   if (!row) return
 
   const noCompletionControl = isNoCompletionControlSchedule(row)
-  const showCustomerDetail = row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
+  const serviceReminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  const showCustomerDetail = serviceReminderType !== '電表提醒' && row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
+  const showLocationDetail = row.category !== '服務行程' && Boolean(row.location_name)
+  const showAddressDetail = Boolean(row.address) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供')
   const permissionNote = noCompletionControl
     ? '此類行程只顯示在行事曆，不控管是否已完成。'
     : (canModifySchedule(row)
@@ -16353,8 +16356,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
-        <div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>
-        <div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>
+        ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
+        ${showAddressDetail ? `<div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>` : ''}
         <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong>${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
@@ -16982,6 +16985,21 @@ function applyCreateCompactSpecialFields() {
     block.classList.toggle('hidden', !isMatchingServiceExtra(block.dataset.serviceExtra, activeType))
   })
 
+  form.querySelectorAll('.meter-hide-for-reminder').forEach(block => {
+    setCompactHidden(block, activeType === '電表提醒')
+  })
+
+  if (activeType === '電表提醒') {
+    const locationName = form.querySelector('[name="location_name"]')
+    if (locationName) locationName.value = ''
+    const address = form.querySelector('[name="address"]')
+    if (address) address.value = ''
+    const customerName = form.querySelector('[name="customer_name"]')
+    if (customerName) customerName.value = ''
+    const description = form.querySelector('[name="description"]')
+    if (description) description.value = ''
+  }
+
   if (isCompact) {
     resetCompactHiddenValues(form)
   }
@@ -17005,6 +17023,21 @@ function applyEditCompactSpecialFields() {
   form.querySelectorAll('[data-service-extra]').forEach(block => {
     block.classList.toggle('hidden', !isMatchingServiceExtra(block.dataset.serviceExtra, activeType))
   })
+
+  form.querySelectorAll('.meter-hide-for-reminder').forEach(block => {
+    setCompactHidden(block, activeType === '電表提醒')
+  })
+
+  if (activeType === '電表提醒') {
+    const locationName = form.querySelector('[name="location_name"]')
+    if (locationName) locationName.value = ''
+    const address = form.querySelector('[name="address"]')
+    if (address) address.value = ''
+    const customerName = form.querySelector('[name="customer_name"]')
+    if (customerName) customerName.value = ''
+    const description = form.querySelector('[name="description"]')
+    if (description) description.value = ''
+  }
 
   if (isCompact) {
     resetCompactHiddenValues(form)
@@ -17436,7 +17469,7 @@ function openEditFieldScheduleModal(scheduleId) {
           <div class="inline-check-list">${fieldSpecialReminderChecksHtml(selectedReminders, 'edit_field_special_reminder')}</div>
         </div>
 
-        <label class="span-2">
+        <label class="span-2 edit-common-description-field meter-hide-for-reminder">
           內容
           <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
         </label>
@@ -18847,16 +18880,13 @@ function openScheduleModal(defaults = {}) {
           </label>
         </div>
 
-        <div class="span-2 form-section hidden service-location-top" data-section="service-location">
+        <div class="span-2 form-section hidden service-location-top meter-hide-for-reminder" data-section="service-location">
           <label>
             區域 / 客戶名稱 / 標題
             <input name="customer_name" placeholder="此欄會同時作為服務行程標題，例如：客來喜">
           </label>
 
-          <label>
-            地點
-            <input name="location_name" placeholder="例如：醫院、公司、宿舍">
-          </label>
+          <input type="hidden" name="location_name" value="">
 
           <label class="span-2">
             地址
@@ -18870,11 +18900,11 @@ function openScheduleModal(defaults = {}) {
             <input name="title" placeholder="請輸入標題">
           </label>
 
-          <label>
+          <label class="meter-hide-for-reminder">
             內容
             <textarea name="description" rows="3" placeholder="請輸入內容；可手動輸入，也可依行程類型帶入"></textarea>
           </label>
-          <div class="span-2 schedule-template-row">
+          <div class="span-2 schedule-template-row meter-hide-for-reminder">
             <button type="button" class="secondary-btn" id="applyScheduleTypeContentBtn">帶入對應內容</button>
             <span>依行程類型帶入預設內容；已輸入內容時，按此按鈕才會覆蓋。</span>
           </div>
@@ -20320,16 +20350,13 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </div>
         </div>
 
-        <div class="span-2 service-location-top" id="editServiceLocationBlock">
+        <div class="span-2 service-location-top meter-hide-for-reminder" id="editServiceLocationBlock">
           <label>
             區域 / 客戶名稱 / 標題
             <input name="customer_name" value="${escapeHtml(row.customer_name || '')}">
           </label>
 
-          <label>
-            地點
-            <input name="location_name" value="${escapeHtml(row.location_name || '')}">
-          </label>
+          <input type="hidden" name="location_name" value="">
 
           <label class="span-2">
             地址
@@ -20439,7 +20466,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <input name="title" required value="${escapeHtml(row.title || '')}">
         </label>
 
-        <label class="span-2">
+        <label class="span-2 edit-common-description-field meter-hide-for-reminder">
           內容
           <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
         </label>
@@ -20679,15 +20706,22 @@ async function saveEditedSchedule(event, modal, originalRow) {
   let payloadStartTime = getTimeValue(form, 'start')
   let payloadEndTime = getTimeValue(form, 'end')
   let payloadCustomerName = isService ? (form.get('customer_name') || null) : null
-  let payloadLocationName = isService ? (form.get('location_name') || null) : null
+  let payloadLocationName = null
   let payloadAddress = isService ? (form.get('address') || null) : null
   let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
 
   if (category === '服務行程') {
     editScheduleType = getServiceScheduleTypeFromForm(form)
     editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
-    payloadCustomerName = form.get('customer_name') || form.get('title') || null
+    payloadCustomerName = editScheduleType === '電表提醒'
+      ? (String(form.get('meter_place') || '').trim() || null)
+      : (form.get('customer_name') || form.get('title') || null)
     payloadTitle = payloadCustomerName || form.get('title') || editScheduleType || '服務行程'
+    payloadLocationName = null
+    if (editScheduleType === '電表提醒') {
+      payloadAddress = null
+      payloadDescription = null
+    }
 
     const cleanedNote = cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))
     const extraNotes = buildServiceExtraNotes(form, editScheduleType)
@@ -20863,6 +20897,8 @@ async function saveSchedule(event, modal) {
 
   const rawTitleInput = String(form.get('title') || '').trim()
   const rawCustomerNameInput = String(form.get('customer_name') || '').trim()
+  const earlyServiceType = category === '服務行程' ? getServiceScheduleTypeFromForm(form) : ''
+  const earlyMeterPlace = String(form.get('meter_place') || '').trim()
 
   if (category === '公務車保養' && !form.get('maintenance_start_date')) {
     alert('請填寫保養日期。')
@@ -20870,7 +20906,7 @@ async function saveSchedule(event, modal) {
     return
   }
 
-  if (category === '服務行程' && !rawCustomerNameInput && !rawTitleInput) {
+  if (category === '服務行程' && earlyServiceType !== '電表提醒' && !rawCustomerNameInput && !rawTitleInput) {
     alert('請填寫「區域 / 客戶名稱 / 標題」。')
     saving = false
     return
@@ -21010,10 +21046,13 @@ async function saveSchedule(event, modal) {
   if (category === '服務行程') {
     scheduleType = getServiceScheduleTypeFromForm(form)
     subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null)
-    customerName = rawCustomerNameInput || rawTitleInput || null
-    locationName = form.get('location_name') || null
-    address = form.get('address') || null
+    customerName = scheduleType === '電表提醒'
+      ? (String(form.get('meter_place') || '').trim() || null)
+      : (rawCustomerNameInput || rawTitleInput || null)
+    locationName = null
+    address = scheduleType === '電表提醒' ? null : (form.get('address') || null)
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
+    if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (!isCompactSpecialScheduleType(scheduleType)) {
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
