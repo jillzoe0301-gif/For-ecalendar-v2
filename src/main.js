@@ -1,6 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
+/* FOR-e V002-1P-246 START - todo note creator item meeting stats final guard */
+/*
+  V002-1P-246｜待辦 / 一般記事與統計一案一算保護
+  - 自己建立的待辦事項 / 一般記事不顯示指派者。
+  - 附加項目統一顯示為【項目】。
+  - 會議室卡片房間名稱與標題字級一致。
+  - 統計報表依部門與依執行者都以同一案件只計一次。
+*/
+/* FOR-e V002-1P-246 END - todo note creator item meeting stats final guard */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -16,8 +26,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-204'
-/* V002-1P-204：修正外務明細頁因未定義統計變數造成按鈕無反應，並加上外務明細錯誤保護。 */
+const SYSTEM_VERSION = 'V002-1P-246'
+/* V002-1P-246：延續 V002-1P-245，修正自己的待辦 / 一般記事指派者顯示、項目標籤、會議室字體與統計一案一算。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -7852,6 +7862,34 @@ function getStatsAssignees(row = {}) {
   return [...map.values()]
 }
 
+function getStatsCaseKey(row = {}) {
+  return String(
+    row.__stats_incident_family_id ||
+    row.schedule_id ||
+    [row.category, row.schedule_type, row.title, row.start_date, row.end_date, row.start_time].filter(Boolean).join('__') ||
+    '未指定'
+  )
+}
+
+function uniqueStatsRowsByCase(rows = []) {
+  const map = new Map()
+  rows.forEach(row => {
+    const key = getStatsCaseKey(row)
+    if (!map.has(key)) map.set(key, row)
+  })
+  return [...map.values()]
+}
+
+function getStatsExpandedPersonEntry(row = {}) {
+  const assignee = (row.schedule_assignees || []).find(item => !item.deleted_at && (item.staff_id || item.staff_name)) || {}
+  return {
+    staffId: row.__stats_staff_id || assignee.staff_id || '',
+    staffName: row.__stats_staff_name || assignee.staff_name || '',
+    departmentName: row.__stats_department_name || assignee.department_name || '',
+    position: row.__stats_position || assignee.position || ''
+  }
+}
+
 function expandStatsScheduleRows(rows = []) {
   return rows.flatMap(row => {
     const assignees = getStatsAssignees(row)
@@ -8025,9 +8063,9 @@ function filterExpandedStatsRows(rows = []) {
     if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
 
     if (statsFilters.staffId !== '全部') {
-      if (row.__stats_staff_id) return row.__stats_staff_id === statsFilters.staffId
+      const expandedStaffMatched = row.__stats_staff_id && row.__stats_staff_id === statsFilters.staffId
       const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
-      if (!assigned) return false
+      if (!expandedStaffMatched && !assigned) return false
     }
 
     return true
@@ -8067,8 +8105,14 @@ function getStatsFilteredServiceRecords() {
 
 function getStatsCountBy(rows, getKey) {
   const map = new Map()
+  const counted = new Set()
+
   rows.forEach(row => {
     const key = getKey(row) || '未指定'
+    const countKey = `${key}__${getStatsCaseKey(row)}`
+    if (counted.has(countKey)) return
+    counted.add(countKey)
+
     if (!map.has(key)) {
       map.set(key, {
         key,
@@ -8124,12 +8168,17 @@ function getServiceRecordDeptGroupSummary(records) {
 
 function getStatsTypeByDepartmentGroups(rows) {
   const map = new Map()
+  const counted = new Set()
 
   rows.forEach(row => {
     const group = getStatsDepartmentGroup(getStatsDepartment(row))
     if (!['一部', '二部'].includes(group)) return
 
     const type = getStatsScheduleType(row)
+    const countKey = `${group}__${type}__${getStatsCaseKey(row)}`
+    if (counted.has(countKey)) return
+    counted.add(countKey)
+
     const key = `${group}__${type}`
 
     if (!map.has(key)) {
@@ -8347,45 +8396,30 @@ function renderServiceRecordStatsSection(records) {
 
 function getStatsPersonTypeSummary(rows) {
   const map = new Map()
+  const counted = new Set()
 
   rows.forEach(row => {
     const type = getStatsScheduleType(row)
-    const assignees = (row.schedule_assignees || []).filter(item => !item.deleted_at)
+    const entry = getStatsExpandedPersonEntry(row)
+    const key = entry.staffId || entry.staffName || '未指定'
+    const countKey = `${key}__${getStatsCaseKey(row)}`
+    if (counted.has(countKey)) return
+    counted.add(countKey)
 
-    if (!assignees.length) {
-      const key = '未指定'
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          name: '未指定',
-          department: '-',
-          total: 0,
-          unfinished: 0,
-          overdue: 0,
-          completed: 0,
-          types: new Map()
-        })
-      }
-      updateStatsPersonTypeRow(map.get(key), row, type)
-      return
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: entry.staffName || '未指定',
+        department: entry.departmentName || '-',
+        total: 0,
+        unfinished: 0,
+        overdue: 0,
+        completed: 0,
+        types: new Map()
+      })
     }
 
-    assignees.forEach(assignee => {
-      const key = assignee.staff_id || assignee.staff_name || '未指定'
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          name: assignee.staff_name || '-',
-          department: assignee.department_name || '-',
-          total: 0,
-          unfinished: 0,
-          overdue: 0,
-          completed: 0,
-          types: new Map()
-        })
-      }
-      updateStatsPersonTypeRow(map.get(key), row, type)
-    })
+    updateStatsPersonTypeRow(map.get(key), row, type)
   })
 
   return [...map.values()]
@@ -8453,7 +8487,8 @@ function renderPersonTypeStats(rows) {
 
 
 function renderStatsDashboard() {
-  const rows = getStatsFilteredSchedules()
+  const departmentRows = getStatsFilteredSchedules()
+  const rows = uniqueStatsRowsByCase(departmentRows)
   const personRows = getStatsFilteredPersonSchedules()
   const range = getStatsDateRange()
   const typeRows = getStatsCountBy(rows, getStatsScheduleType)
@@ -8474,7 +8509,7 @@ function renderStatsDashboard() {
     ${renderStatsFilterForm()}
     ${renderStatsMetricCards(rows)}
     ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
-    ${renderDepartmentTypeStats(rows)}
+    ${renderDepartmentTypeStats(departmentRows)}
     ${renderPersonTypeStats(personRows)}
   `
 }
@@ -9709,7 +9744,7 @@ function getExportSchedulesForCurrentPage() {
   if (currentPage === 'meetingRoom') return getCurrentMeetingWeekExportRows()
   if (currentPage === 'incident') return getIncidentRows()
   if (currentPage === 'search') return getSearchResults()
-  if (currentPage === 'stats') return getStatsFilteredSchedules()
+  if (currentPage === 'stats') return uniqueStatsRowsByCase(getStatsFilteredSchedules())
   if (currentPage === 'line') return getLineNotifyRows()
 
   return []
@@ -16370,9 +16405,7 @@ function isOwnTodoOrNoteForCurrentUser(row = {}) {
   if (!isTodoOrNoteSchedule(row)) return false
   const myStaffId = String(currentProfile?.staff_id || '').trim()
   if (!myStaffId) return false
-  if (String(row.creator_staff_id || '').trim() !== myStaffId) return false
-  const activeAssignees = getActiveAssigneeIds(row).map(id => String(id || '').trim()).filter(Boolean)
-  return !activeAssignees.length || activeAssignees.every(id => id === myStaffId)
+  return String(row.creator_staff_id || '').trim() === myStaffId
 }
 
 function shouldShowCreatorName(row = {}) {

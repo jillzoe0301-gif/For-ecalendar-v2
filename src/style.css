@@ -16920,3 +16920,26 @@ button.login-birthday-card:focus-visible {
   margin-bottom: 2px !important;
 }
 /* FOR-e V002-1P-245 END - todo item chip, meeting room label, creator display cleanup */
+
+/* FOR-e V002-1P-246 START - meeting room title size and todo item continuation background */
+/* 會議室卡片：大會議室 / 小會議室等房間名稱要和標題同字級，不被 V002-1P-245 的 inherit 覆蓋。 */
+.meeting-room-card strong.meeting-room-room-line {
+  font-size: 13.5px !important;
+  line-height: 1.5 !important;
+  font-weight: 950 !important;
+}
+
+/* 待辦事項 / 一般記事的【項目】底色維持與連續行程提示相同：淡底＋左側色條＋內框。 */
+.week-card-extra.todo-note-item-chip,
+.extra-schedule-chip.todo-note-item-chip {
+  background: color-mix(in srgb, var(--schedule-accent, #F7DD7D) 18%, #ffffff) !important;
+  border-left: 6px solid var(--schedule-accent, #F7DD7D) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #F7DD7D) 38%, #ffffff) !important;
+}
+
+@media (max-width: 768px) {
+  .meeting-room-card strong.meeting-room-room-line {
+    font-size: 15px !important;
+  }
+}
+/* FOR-e V002-1P-246 END - meeting room title size and todo item continuation background */
