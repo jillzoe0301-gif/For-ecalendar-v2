@@ -354,18 +354,19 @@ function isTodaySchedule(row) {
 }
 
 function getPersonalReminderRows() {
-  return schedules
+  const today = todayString()
+  return normalizeRowsForOccurrenceDate(schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => isActionReminderSchedule(row))
     .filter(row => isReminderSchedule(row))
-    .filter(row => scheduleMatchesActionReminderDate(row, todayString()) || isOverdueSchedule(row))
+    .filter(row => scheduleMatchesActionReminderDate(row, today) || isOverdueSchedule(row)), today)
     .sort((a, b) => {
       const aOverdue = isOverdueSchedule(a)
       const bOverdue = isOverdueSchedule(b)
       if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return String((a.__occurrenceDate || a.start_date) || '').localeCompare(String((b.__occurrenceDate || b.start_date) || ''))
     })
 }
 
@@ -388,9 +389,9 @@ function renderPersonalReminderArea() {
           return `
             <button type="button" class="reminder-alert-card ${overdue ? 'is-overdue' : 'is-today'}" data-view-schedule="${row.schedule_id}">
               <div class="reminder-alert-main">
-                <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
+                <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || todayString()))}｜${escapeHtml(row.title || '-')}</div>
                 <div class="reminder-alert-meta">
-                  ${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
+                  ${escapeHtml(row.__occurrenceDate || row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
                 </div>
                 ${row.customer_name || row.location_name ? `<div class="reminder-alert-meta">${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</div>` : ''}
               </div>
@@ -421,7 +422,7 @@ function renderPersonalTodayScheduleNotice(rows = []) {
         ${rows.map(row => `
           <button type="button" class="todo-notice-card ${getAlertItemClass(row)}" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
-              <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || row.__occurrenceDate || todayString()))}｜${escapeHtml(row.title || '-')}</strong>
               <span>${escapeHtml(getScheduleMetaParts([getCardTimeText(row), getAssigneeNames(row), row.location_name]))}</span>
             </div>
             <em>今日</em>
@@ -10129,13 +10130,13 @@ function getLoginDailyReminderRows() {
   const today = todayString()
   const birthdayRows = getTodayBirthdayRows()
   const personalBirthday = isCurrentUserBirthdayToday()
-  const activeTodayRows = uniqueScheduleRows(schedules
+  const activeTodayRows = normalizeRowsForOccurrenceDate(uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => scheduleMatchesActionReminderDate(row, today))
-    .filter(row => isActionReminderSchedule(row)))
+    .filter(row => isActionReminderSchedule(row))), today)
 
   const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
 
@@ -10167,8 +10168,8 @@ function renderLoginReminderItem(row) {
   return `
     <button type="button" class="login-reminder-item ${getAlertItemClass(row)}" data-login-view-schedule="${row.schedule_id}">
       <div>
-        <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
+        <strong>${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || row.__occurrenceDate || todayString()))}｜${escapeHtml(row.title || '-')}</strong>
+        <span>${escapeHtml(getScheduleMetaParts([row.__occurrenceDate || row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
       <em>${isOverdueSchedule(row) ? '逾期' : '查看'}</em>
@@ -12491,11 +12492,30 @@ function createScheduleOccurrenceRow(row = {}, dateKey = '') {
   }
 }
 
+function createReminderOccurrenceRow(row = {}, dateKey = '') {
+  if (!row?.schedule_id || !dateKey) return row
+  return {
+    ...row,
+    __sourceStartDate: row.__sourceStartDate || row.start_date,
+    __sourceEndDate: row.__sourceEndDate || row.end_date,
+    __occurrenceDate: dateKey,
+    __occurrence_date: dateKey,
+    __render_date: dateKey,
+    __occurrenceKey: `${row.schedule_id}:${dateKey}`
+  }
+}
+
 function normalizeRowsForOccurrenceDate(rows = [], dateKey = todayString()) {
   return (rows || []).map(row => {
     if (!row?.schedule_id || !dateKey) return row
     if (isScheduleSeriesLike(row) && scheduleMatchesDateByMode(row, dateKey)) {
       return createScheduleOccurrenceRow(row, dateKey)
+    }
+    if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row) && returnTaiwanReminderMatchesDate(row, dateKey)) {
+      return createReminderOccurrenceRow(row, dateKey)
+    }
+    if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row) && serviceReminderMatchesActionReminderDate(row, dateKey)) {
+      return createReminderOccurrenceRow(row, dateKey)
     }
     return row
   })
@@ -12826,12 +12846,28 @@ function getMonthCalendarGridDates(monthDates = []) {
 
 function getReturnTaiwanReminderDate(row = {}) {
   const noteDate = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台日') : ''
-  return noteDate || row.start_date || ''
+  return noteDate || row.__sourceStartDate || row.start_date || ''
+}
+
+function getReturnTaiwanPreReminderDate(row = {}) {
+  const returnDate = getReturnTaiwanReminderDate(row)
+  return returnDate ? (getDateKeyOffset(returnDate, -3) || '') : ''
+}
+
+function getReturnTaiwanReminderDisplayType(row = {}, dateKey = '') {
+  const returnDate = getReturnTaiwanReminderDate(row)
+  const reminderDate = getReturnTaiwanPreReminderDate(row)
+  if (dateKey && returnDate && dateKey === returnDate) return '返台確認'
+  if (dateKey && reminderDate && dateKey === reminderDate) return '提醒返台'
+  return '返台提醒'
 }
 
 function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
   const returnDate = getReturnTaiwanReminderDate(row)
-  if (returnDate) return returnDate === dateKey
+  if (returnDate) {
+    const reminderDate = getReturnTaiwanPreReminderDate(row)
+    return dateKey === returnDate || (reminderDate && dateKey === reminderDate)
+  }
   return scheduleMatchesDateByMode(row, dateKey)
 }
 
@@ -12870,11 +12906,12 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
   return reminderRows.map(row => {
     const info = getReturnTaiwanReminderInfo(row)
+    const displayType = getReturnTaiwanReminderDisplayType(row, dateKey)
     return `
       <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-        <span>返台提醒</span>
+        <span>${escapeHtml(displayType)}</span>
         <strong>
-          <em>${escapeHtml(info.title || '返台提醒')}</em>
+          <em>${escapeHtml(info.title || displayType)}</em>
           ${info.date ? `<small>返台日：${escapeHtml(info.date)}</small>` : ''}
         </strong>
       </button>
@@ -14708,11 +14745,21 @@ function getServiceReminderDisplayLines(row = {}) {
 
 function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)
+  if (type === '返台提醒') {
+    return getReturnTaiwanReminderDisplayType(row, occurrenceDate)
+  }
   if (type === '驗證提醒') {
     const info = parseVerifyReminderInfo(row)
     if (occurrenceDate && info.leaveDate && occurrenceDate === info.leaveDate) return '離境通知'
   }
   return type
+}
+
+function getScheduleDisplayTypeForDate(row = {}, dateKey = '') {
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    return getServiceReminderDisplayType(row, dateKey || row.__occurrence_date || row.__render_date || row.__occurrenceDate || row.start_date || '')
+  }
+  return getScheduleDisplayType(row)
 }
 
 function renderServiceReminderScheduleCard(row = {}) {
@@ -19726,7 +19773,7 @@ function parseReturnTaiwanReminderInfo(row = {}) {
   if (!['不指定', '上午', '下午', '指定時間'].includes(timeType) && timeMatch) timeType = '指定時間'
 
   return {
-    date: getLineNoteValue(row, '返台日') || getLineNoteValue(row, '抵台日') || row.start_date || '',
+    date: getLineNoteValue(row, '返台日') || getLineNoteValue(row, '抵台日') || row.__sourceStartDate || row.start_date || '',
     flight: getLineNoteValue(row, '返台班機') || getLineNoteValue(row, '抵台班機') || getLineNoteValue(row, '班機') || getLineNoteValue(row, '班機資訊') || '',
     time: rawTime,
     timeType,
@@ -23447,3 +23494,12 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不再使用全公司共用 overview_quick_groups，避免一人設定影響所有人
 */
 /* FOR-e V002-1P-216 END - personal quick groups cross-device sync */
+
+/* FOR-e V002-1P-251 START - return Taiwan reminder date labels */
+/*
+  V002-1P-251｜返台提醒日期顯示邏輯
+  - 返台日前 3 天顯示「提醒返台」
+  - 返台日當天顯示「返台確認」
+  - 保留原返台日資料，不因提醒顯示日覆蓋返台日
+*/
+/* FOR-e V002-1P-251 END - return Taiwan reminder date labels */
