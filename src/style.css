@@ -17326,3 +17326,127 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-248 END - flat card labels, sticky first columns, mobile overflow fix */
+
+
+/* FOR-e V002-1P-249 START - sticky schedule table header column and todo notice separator fix */
+/* 行程總覽 / 外務行程 / 會議室：手機、平板、電腦皆固定第一列表頭與第一欄。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: auto !important;
+  max-height: calc(100dvh - 260px) !important;
+  min-height: 360px !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.week-overview-table,
+.field-week-table,
+.meeting-week-table {
+  position: relative !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.week-overview-table thead,
+.field-week-table thead,
+.meeting-week-table thead {
+  position: relative !important;
+  z-index: 120 !important;
+}
+
+.week-overview-table thead th,
+.field-week-table thead th,
+.meeting-week-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 120 !important;
+  background: #f8fafc !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08) !important;
+}
+
+.week-overview-table thead th.staff-col,
+.field-week-table thead th.field-staff-col,
+.meeting-week-table thead th.meeting-room-col {
+  left: 0 !important;
+  z-index: 160 !important;
+  box-shadow: 8px 8px 16px rgba(15, 23, 42, 0.12) !important;
+}
+
+.week-overview-table tbody th.staff-name-cell,
+.field-week-table tbody th.field-staff-name-cell,
+.meeting-week-table tbody th.meeting-room-name-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 100 !important;
+  background: #ffffff !important;
+  background-clip: padding-box !important;
+  box-shadow: 8px 0 14px rgba(15, 23, 42, 0.10) !important;
+  overflow: hidden !important;
+}
+
+.week-overview-table tbody td,
+.field-week-table tbody td,
+.meeting-week-table tbody td {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.week-overview-table .week-day-cell,
+.field-week-table .field-week-day-cell,
+.meeting-week-table .meeting-week-day-cell {
+  overflow: hidden !important;
+}
+
+/* 避免行程卡片在水平滑動時蓋到固定第一欄。 */
+.week-overview-table .week-schedule-card,
+.field-week-table .field-week-schedule-card,
+.meeting-week-table .meeting-room-card,
+.week-overview-table .continuation-day-mark,
+.field-week-table .continuation-day-mark,
+.meeting-week-table .continuation-day-mark,
+.week-overview-table .leave-return-day-mark,
+.field-week-table .leave-return-day-mark,
+.week-overview-table .administrative-reminder-day-mark,
+.field-week-table .administrative-reminder-day-mark,
+.week-overview-table .return-reminder-day-mark,
+.field-week-table .return-reminder-day-mark {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* 當日待辦提醒通知：移除待辦 / 一般記事文字最前方多出的分隔直線視覺。 */
+.personal-todo-notice .todo-notice-card,
+.personal-todo-notice .todo-notice-card::before,
+.personal-todo-notice .todo-notice-card strong,
+.personal-todo-notice .todo-notice-card strong::before {
+  border-left: 0 !important;
+  box-shadow: none;
+}
+
+.personal-todo-notice .todo-notice-card strong {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    max-height: calc(100dvh - 230px) !important;
+    min-height: 320px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll {
+    max-height: calc(100dvh - 210px) !important;
+    min-height: 300px !important;
+  }
+}
+/* FOR-e V002-1P-249 END - sticky schedule table header column and todo notice separator fix */

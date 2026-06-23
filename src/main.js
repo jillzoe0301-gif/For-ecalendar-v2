@@ -12630,7 +12630,7 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
         ${todayRows.length ? todayRows.map(row => `
           <button type="button" class="todo-notice-card" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>
             <div>
-              <strong>${escapeHtml(formatTime(row))}｜${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
+              <strong>${escapeHtml(getScheduleMetaParts([formatTime(row), getScheduleDisplayType(row), row.title || '-']))}</strong>
               <span>${escapeHtml(row.customer_name || row.location_name || getAssigneeNames(row) || '個人待辦')}</span>
             </div>
             <em>查看</em>
