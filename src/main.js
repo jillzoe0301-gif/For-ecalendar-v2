@@ -90,7 +90,7 @@ function renderPageIcon(key) {
   return pageIconMap[key] || '•'
 }
 
-const formCategories = ['服務行程', '公務車保養', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+const formCategories = ['服務行程', '公務車保養', '一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
@@ -116,6 +116,7 @@ const scheduleContentTemplates = [
   { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
+const administrativeReminderItems = ['求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = [
@@ -542,6 +543,10 @@ function getManagedDeliveryDocumentItems() {
 
 function getManagedAdministrativeTaskTypeOptions() {
   return getManagedListOption('administrativeTaskTypeOptions', administrativeTaskTypeOptions)
+}
+
+function getManagedAdministrativeReminderItems() {
+  return getManagedListOption('administrativeReminderItems', administrativeReminderItems)
 }
 
 
@@ -1062,7 +1067,11 @@ function isCancelledSchedule(row) {
 
 function isPersonalPrivateSchedule(row = {}) {
   if (isPublicLeaveMeetingActivitySchedule(row)) return false
-  return ['一般記事', '待辦事項'].includes(row?.category)
+  return ['一般記事', '待辦事項', '行政事務提醒'].includes(row?.category)
+}
+
+function isAdministrativeReminderSchedule(row = {}) {
+  return row?.category === '行政事務提醒' || row?.schedule_type === '行政事務提醒'
 }
 
 function canSeePersonalPrivateSchedule(row = {}) {
@@ -1107,6 +1116,7 @@ function isNoCompletionControlSchedule(row) {
   if (isMeetingRoomSchedule(row)) return true
   if (isVehicleMaintenanceSchedule(row)) return true
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return true
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return true
   if (row.category === '請假 / 會議 / 活動 / 外訓') return true
 
   const noCompletionTypes = [
@@ -1230,6 +1240,7 @@ function isPersonalCalendarForMe(row = {}) {
 
 function isActionReminderSchedule(row = {}) {
   if (!row) return false
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return true
   if (isNoCompletionControlSchedule(row)) return false
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
   if (isLeaveOrReturnSchedule(row)) return false
@@ -1243,6 +1254,7 @@ function getContinuationInitial(row = {}) {
     '服務行程': '服',
     '一般記事': '記',
     '待辦事項': '待',
+    '行政事務提醒': '行',
     '請假': '休',
     '返鄉': '返',
     '會議': '會',
@@ -3401,6 +3413,7 @@ function renderApp() {
         serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
         todoItems: parseOptionLines(form.get('todoItems')),
+        administrativeReminderItems: parseOptionLines(form.get('administrativeReminderItems')),
         leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
         serviceDocumentOptions: parseOptionLines(form.get('serviceDocumentOptions')),
         deliveryDocumentItems: parseOptionLines(form.get('deliveryDocumentItems')),
@@ -7479,7 +7492,7 @@ function isStatsExcludedSchedule(row) {
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return true
   if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return true
 
-  const excludedCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
+  const excludedCategories = ['一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
   if (excludedCategories.includes(row.category)) return true
 
   const excludedTypes = ['一般記事', '待辦事項', '請假', '會議', '活動', '外訓', '返鄉', '證件交付', '公務車保養']
@@ -8449,6 +8462,7 @@ function renderOptionsPage() {
           ${optionTextarea('服務行程類型', 'serviceScheduleTypes', optionLinesValue('serviceScheduleTypes', serviceScheduleTypes), '可新增或修改服務行程類型', '例如：醫療')}
           ${scheduleTemplateEditor()}
           ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
+          ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
@@ -8499,6 +8513,7 @@ function getScheduleColorDefinitions() {
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
     { key: '一般記事', label: '一般記事', defaultColor: '#BFC9D1' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#FFD65A' },
+    { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#8CA9FF' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
@@ -8596,6 +8611,7 @@ function getScheduleColorKey(row) {
   if (String(row?.category || '') === '公務車保養' || String(row?.schedule_type || '') === '公務車保養') return '公務車保養'
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
@@ -9192,7 +9208,7 @@ function getCurrentMeetingWeekExportRows() {
 }
 
 function getExportSchedulesForCurrentPage() {
-  const todoCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
   if (currentPage === 'personalSchedule') {
     return schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
@@ -9592,7 +9608,7 @@ function getLoginDailyReminderRows() {
     .filter(row => scheduleMatchesDateByMode(row, today))
     .filter(row => isActionReminderSchedule(row)))
 
-  const todoCategories = ['一般記事', '待辦事項', '證件交付']
+  const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
 
   const todayTodos = activeTodayRows
     .filter(row => todoCategories.includes(row.category))
@@ -12097,7 +12113,7 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
 }
 
 function renderPersonalTodo() {
-  const todoCategories = ['一般記事', '待辦事項', '證件交付']
+  const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
   const myRows = schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
@@ -12278,6 +12294,35 @@ function getMonthCalendarGridDates(monthDates = []) {
   return dates
 }
 
+
+function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
+  if (!staffId || !dateKey) return []
+
+  return uniqueScheduleRows(schedules
+    .filter(isVisibleSchedule)
+    .filter(isAdministrativeReminderSchedule)
+    .filter(row => scheduleMatchesDateByMode(row, dateKey))
+    .filter(row => scheduleBelongsToStaff(row, staffId)))
+    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+}
+
+function getAdministrativeReminderTitle(row = {}) {
+  const item = String(row.sub_type || '').trim()
+  const title = String(row.title || '').trim()
+  if (item && title && !title.includes(item)) return `${item}｜${title}`
+  return title || item || '行政事務提醒'
+}
+
+function renderAdministrativeReminderDayMarks(rows = [], dateKey = '') {
+  if (!rows.length) return ''
+  return uniqueScheduleRows(rows).map(row => `
+    <button type="button" class="administrative-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+      <span>行</span>
+      <strong>${escapeHtml(getAdministrativeReminderTitle(row))}</strong>
+    </button>
+  `).join('')
+}
+
 function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = todayString()) {
   if (!staff || !monthDates.length) return '<div class="empty-state">目前沒有可顯示的個人當月行程。</div>'
 
@@ -12319,6 +12364,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
               ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
               ${birthdayCard}
               ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+              ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
               ${renderContinuationDayMarks(continuousRows, key, 'overview')}
               ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
             </div>
@@ -12370,6 +12416,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                           ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+                    ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
@@ -12427,6 +12474,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                     ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
                           ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+                    ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
@@ -12544,6 +12592,7 @@ function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
 function filterDailyCardsForDate(rows = [], dateKey = '') {
   return rows.filter(row => {
     if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
+    if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return true
     return row.start_date === dateKey
   })
@@ -14678,7 +14727,7 @@ function isScheduleNeedServiceRecord(row = {}) {
   if (!isVisibleSchedule(row)) return false
   if (typeof isCompactSpecialScheduleType === 'function' && isCompactSpecialScheduleType(row.schedule_type)) return false
 
-  const excludedCategories = ['會議室預約', '公務車保養', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const excludedCategories = ['會議室預約', '公務車保養', '一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
   if (excludedCategories.includes(row.category)) return false
 
   return row.need_service_record === true || row.need_submit === true
@@ -16113,7 +16162,7 @@ function minuteOptionsHtml(defaultValue = '00') {
 }
 
 function getAvailableFormCategories() {
-  const personalCategories = ['一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const personalCategories = ['一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
   if (currentPage === 'personalTodo') return personalCategories
   if (!canCreateServiceSchedule()) return personalCategories
   return formCategories
@@ -17942,6 +17991,7 @@ function openScheduleModal(defaults = {}) {
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
   const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
+  const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const supervisorOptions = supervisorSelectOptionsHtml()
@@ -18202,6 +18252,20 @@ function openScheduleModal(defaults = {}) {
           <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
+        <div class="span-2 form-section hidden" data-section="administrative-reminder">
+          <label>
+            提醒項目
+            <select name="administrative_reminder_item">
+              ${administrativeReminderOptions}
+            </select>
+          </label>
+          <label>
+            手動輸入提醒項目
+            <input name="administrative_reminder_item_custom" placeholder="選項沒有時可自行輸入">
+          </label>
+          <p class="field-hint span-2">行政事務提醒只會顯示給本人；日期到時會出現在當日待辦提醒，不需要結案。</p>
+        </div>
+
         <div class="span-2 form-section hidden" data-section="leave-meeting">
           <label>
             類別細項
@@ -18371,6 +18435,7 @@ function openScheduleModal(defaults = {}) {
     if (category !== '公務車保養') form.querySelector('[data-section="common-simple"]')?.classList.remove('hidden')
 
     if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
+    if (category === '行政事務提醒') form.querySelector('[data-section="administrative-reminder"]')?.classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') form.querySelector('[data-section="leave-meeting"]')?.classList.remove('hidden')
     form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (category === '證件交付') form.querySelector('[data-section="document-delivery"]')?.classList.remove('hidden')
@@ -18383,8 +18448,9 @@ function openScheduleModal(defaults = {}) {
       form.querySelector('[data-section="vehicle-maintenance"]')?.classList.remove('hidden')
     }
 
-    form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養')
-    form.querySelector('.notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養')
+    form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
+    form.querySelector('.notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
+    form.querySelector('.schedule-time-group')?.classList.toggle('hidden', category === '行政事務提醒')
 
     const commonTitleField = form.querySelector('.common-title-field')
     if (commonTitleField) commonTitleField.classList.toggle('hidden', category === '服務行程' || category === '公務車保養')
@@ -18399,6 +18465,13 @@ function openScheduleModal(defaults = {}) {
 
   function refreshRepeatBlocks() {
     const mode = repeatModeSelect.value
+    const category = categorySelect?.value || ''
+    if (category === '行政事務提醒') {
+      document.querySelector('#endDateBlock').classList.remove('hidden')
+      document.querySelector('#weekdayBlock').classList.add('hidden')
+      document.querySelector('#monthlyDayBlock').classList.add('hidden')
+      return
+    }
     document.querySelector('#endDateBlock').classList.toggle('hidden', mode === '單日')
     document.querySelector('#weekdayBlock').classList.toggle('hidden', mode !== '每週重複')
     document.querySelector('#monthlyDayBlock').classList.toggle('hidden', mode !== '每月重複')
@@ -18425,6 +18498,7 @@ function openScheduleModal(defaults = {}) {
 
   categorySelect.addEventListener('change', () => {
     refreshFormSections()
+    refreshRepeatBlocks()
     applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false)
   })
 
@@ -19291,6 +19365,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
   const managedTodoItemsForEdit = getManagedListOption('todoItems', todoItems)
+  const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
+  const currentAdministrativeReminderValue = row.category === '行政事務提醒' ? (row.sub_type || getNoteValue(row, '提醒項目') || '') : ''
+  const currentAdministrativeReminderIsManaged = managedAdministrativeReminderItemsForEdit.includes(currentAdministrativeReminderValue)
+  const editAdministrativeReminderOptions = optionHtml(managedAdministrativeReminderItemsForEdit, currentAdministrativeReminderIsManaged ? currentAdministrativeReminderValue : '')
   const currentTodoValue = row.category === '待辦事項' ? (row.sub_type || '') : ''
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
   const editTodoOptions = optionHtml(managedTodoItemsForEdit, currentTodoIsManaged ? currentTodoValue : '')
@@ -19501,6 +19579,20 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
+        <div class="span-2 form-section hidden" id="editAdministrativeReminderBlock">
+          <label>
+            提醒項目
+            <select name="edit_administrative_reminder_item">
+              ${editAdministrativeReminderOptions}
+            </select>
+          </label>
+          <label>
+            手動輸入提醒項目
+            <input name="edit_administrative_reminder_item_custom" value="${escapeHtml(currentAdministrativeReminderIsManaged ? '' : currentAdministrativeReminderValue)}" placeholder="選項沒有時可自行輸入">
+          </label>
+          <p class="field-hint span-2">行政事務提醒只會顯示給本人；日期到時會出現在當日待辦提醒，不需要結案。</p>
+        </div>
+
         <div class="span-2 form-section hidden" id="editLeaveMeetingBlock">
           <label>
             類別細項
@@ -19609,6 +19701,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     const category = categorySelect.value
     const todoBlock = document.querySelector('#editTodoBlock')
     const leaveBlock = document.querySelector('#editLeaveMeetingBlock')
+    const administrativeReminderBlock = document.querySelector('#editAdministrativeReminderBlock')
     const deliveryBlock = document.querySelector('#editDocumentDeliveryBlock')
 
     const editVehicleMaintenanceBlock = document.querySelector('#editVehicleMaintenanceBlock')
@@ -19619,17 +19712,21 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', category !== '服務行程')
     if (editVehicleMaintenanceBlock) editVehicleMaintenanceBlock.classList.toggle('hidden', category !== '公務車保養')
     if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
+    if (administrativeReminderBlock) administrativeReminderBlock.classList.toggle('hidden', category !== '行政事務提醒')
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
-    document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養')
-    document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養')
+    document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
+    document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
+    document.querySelector('.edit-time-type-field')?.classList.toggle('hidden', category === '行政事務提醒')
+    document.querySelector('#editTimeRangeBlock')?.classList.toggle('hidden', category === '行政事務提醒' || !['上午', '下午'].includes(timeTypeSelect.value))
     if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
 
     applyEditCompactSpecialFields()
   }
 
   function refreshEditTimeBlock() {
-    timeBlock.classList.toggle('hidden', !['上午', '下午'].includes(timeTypeSelect.value))
+    const category = categorySelect?.value || ''
+    timeBlock.classList.toggle('hidden', category === '行政事務提醒' || !['上午', '下午'].includes(timeTypeSelect.value))
   }
 
   function refreshEditExtraScheduleBlock() {
@@ -19722,13 +19819,15 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const category = form.get('category')
   const editScope = getScheduleEditScopeValue(form, originalRow)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
-  const editNotifySupervisorName = category === '公務車保養' ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
-  const editExecutorIds = category === '公務車保養'
-    ? getVehicleMaintenanceNotifyStaffIds(form)
-    : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
+  const editNotifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
+  const editExecutorIds = category === '行政事務提醒'
+    ? [currentProfile?.staff_id].filter(Boolean)
+    : (category === '公務車保養'
+      ? getVehicleMaintenanceNotifyStaffIds(form)
+      : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category))
 
   if (!editExecutorIds.length) {
-    alert(category === '公務車保養' ? '請選擇通知車子保養者或通知主管。' : '請至少選擇一位執行者。')
+    alert(category === '公務車保養' ? '請選擇通知車子保養者或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
     return
   }
 
@@ -19822,6 +19921,16 @@ async function saveEditedSchedule(event, modal, originalRow) {
     editScheduleType = '待辦事項'
     editSubType = String(form.get('edit_todo_item_custom') || '').trim() || form.get('edit_todo_item') || null
     editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form)], editNotifySupervisorName).join('｜') || null
+  }
+
+  if (category === '行政事務提醒') {
+    editScheduleType = '行政事務提醒'
+    editSubType = String(form.get('edit_administrative_reminder_item_custom') || '').trim() || form.get('edit_administrative_reminder_item') || null
+    editSubTypeNote = [buildRepeatNote(form), editSubType ? `提醒項目：${editSubType}` : ''].filter(Boolean).join('｜') || null
+    payloadTimeType = '不指定'
+    payloadStartTime = null
+    payloadEndTime = null
+    payloadEndDate = form.get('end_date') || payloadStartDate
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
@@ -19943,12 +20052,14 @@ async function saveSchedule(event, modal) {
     return
   }
 
-  const executorIds = category === '公務車保養'
-    ? getVehicleMaintenanceNotifyStaffIds(form)
-    : getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
+  const executorIds = category === '行政事務提醒'
+    ? [currentProfile?.staff_id].filter(Boolean)
+    : (category === '公務車保養'
+      ? getVehicleMaintenanceNotifyStaffIds(form)
+      : getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category))
 
   if (!executorIds.length) {
-    alert('請至少選擇一位執行者。')
+    alert(category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法建立個人行政事務提醒。' : '請至少選擇一位執行者。')
     saving = false
     return
   }
@@ -19962,7 +20073,9 @@ async function saveSchedule(event, modal) {
     }
   }
 
-  const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
+  const selectedStaff = category === '行政事務提醒'
+    ? [staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || getCurrentProfileStaffRow()].filter(staff => staff?.staff_id)
+    : staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
   const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
   const serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
@@ -19971,16 +20084,18 @@ async function saveSchedule(event, modal) {
   let scheduleType = ''
   let subType = ''
   let subTypeNoteParts = [buildRepeatNote(form)]
-  const notifySupervisorName = category === '公務車保養' ? '' : getStaffNameFromSelect('notify_supervisor_staff')
+  const notifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('notify_supervisor_staff')
   if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
   let locationName = null
   let address = null
   let carNo = null
   let startDateValue = form.get('start_date')
-  let endDate = form.get('repeat_mode') === '單日'
-    ? form.get('start_date')
-    : (form.get('end_date') || form.get('start_date'))
+  let endDate = category === '行政事務提醒'
+    ? (form.get('end_date') || form.get('start_date'))
+    : (form.get('repeat_mode') === '單日'
+      ? form.get('start_date')
+      : (form.get('end_date') || form.get('start_date')))
 
   if (category === '一般記事') {
     scheduleType = '一般記事'
@@ -19989,6 +20104,13 @@ async function saveSchedule(event, modal) {
   if (category === '待辦事項') {
     scheduleType = '待辦事項'
     subType = String(form.get('todo_item_custom') || '').trim() || form.get('todo_item') || null
+  }
+
+  if (category === '行政事務提醒') {
+    scheduleType = '行政事務提醒'
+    subType = String(form.get('administrative_reminder_item_custom') || '').trim() || form.get('administrative_reminder_item') || null
+    if (subType) subTypeNoteParts.push(`提醒項目：${subType}`)
+    form.set('time_type', '不指定')
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
@@ -20085,9 +20207,9 @@ async function saveSchedule(event, modal) {
     description: form.get('description') || null,
     start_date: startDateValue,
     end_date: endDate,
-    time_type: category === '公務車保養' ? '不指定' : form.get('time_type'),
-    start_time: category === '公務車保養' ? null : getTimeValue(form, 'start'),
-    end_time: category === '公務車保養' ? null : getTimeValue(form, 'end'),
+    time_type: ['公務車保養', '行政事務提醒'].includes(category) ? '不指定' : form.get('time_type'),
+    start_time: ['公務車保養', '行政事務提醒'].includes(category) ? null : getTimeValue(form, 'start'),
+    end_time: ['公務車保養', '行政事務提醒'].includes(category) ? null : getTimeValue(form, 'end'),
     customer_name: customerName,
     location_name: locationName,
     address,

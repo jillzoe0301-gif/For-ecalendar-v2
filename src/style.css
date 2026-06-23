@@ -16557,3 +16557,61 @@ button.login-birthday-card:focus-visible {
 /* FOR-e V002-1P-220 START - field calendar leave return prompt and training color */
 /* 外務行程表：請假 / 返鄉只顯示提示，外訓提示沿用外訓色並使用更淡背景。 */
 /* FOR-e V002-1P-220 END - field calendar leave return prompt and training color */
+
+/* FOR-e V002-1P-229 START - administrative reminder */
+.administrative-reminder-day-mark {
+  width: 100%;
+  border: 0;
+  background: color-mix(in srgb, var(--day-accent, #8CA9FF) 16%, #ffffff) !important;
+  border-left: 6px solid var(--day-accent, #8CA9FF);
+  border-radius: 12px;
+  min-height: 28px;
+  padding: 4px 8px;
+  margin: 3px 0 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #8CA9FF) 32%, #ffffff) !important;
+}
+
+.administrative-reminder-day-mark span {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--day-accent, #8CA9FF) !important;
+  color: #ffffff !important;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.administrative-reminder-day-mark strong {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .administrative-reminder-day-mark {
+    min-height: 27px;
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .administrative-reminder-day-mark span {
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+}
+/* FOR-e V002-1P-229 END - administrative reminder */
