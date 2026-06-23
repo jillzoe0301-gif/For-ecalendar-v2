@@ -16641,7 +16641,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
         ${showAddressDetail ? `<div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>` : ''}
-        <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
+        <div class="span-2 schedule-detail-content-row"><span>內容</span><strong class="detail-multiline-text">${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong>${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
@@ -23518,4 +23518,8 @@ function renderServiceRecordDepartmentStatusV2(records) {
   V002-1P-252｜返台提醒顏色微調
   - 「提醒返台」字樣改白色字
   - 「返台確認」顏色再淡一階
+
+  V002-1P-253｜查看行程內容換行與返台提醒清晰度
+  - 查看行程時，內容欄位保留原本換行，不再全部連在一起
+  - 返台提醒 / 返台確認文字增加字距與行高，避免字糊在一起
 */
