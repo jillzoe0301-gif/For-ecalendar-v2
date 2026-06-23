@@ -391,7 +391,7 @@ function renderPersonalReminderArea() {
               <div class="reminder-alert-main">
                 <div class="reminder-alert-title">${escapeHtml(getScheduleDisplayTypeForDate(row, row.__occurrence_date || row.__render_date || todayString()))}｜${escapeHtml(row.title || '-')}</div>
                 <div class="reminder-alert-meta">
-                  ${escapeHtml(row.__occurrenceDate || row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
+                  ${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}｜${escapeHtml(getAssigneeNames(row))}
                 </div>
                 ${row.customer_name || row.location_name ? `<div class="reminder-alert-meta">${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</div>` : ''}
               </div>
@@ -12862,6 +12862,13 @@ function getReturnTaiwanReminderDisplayType(row = {}, dateKey = '') {
   return '返台提醒'
 }
 
+function getReturnTaiwanReminderStateClass(displayType = '') {
+  const text = String(displayType || '')
+  if (text === '提醒返台') return 'is-return-pre-reminder'
+  if (text === '返台確認') return 'is-return-confirm'
+  return 'is-return-reminder-default'
+}
+
 function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
   const returnDate = getReturnTaiwanReminderDate(row)
   if (returnDate) {
@@ -12907,8 +12914,9 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
   return reminderRows.map(row => {
     const info = getReturnTaiwanReminderInfo(row)
     const displayType = getReturnTaiwanReminderDisplayType(row, dateKey)
+    const stateClass = getReturnTaiwanReminderStateClass(displayType)
     return `
-      <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+      <button type="button" class="return-reminder-day-mark ${stateClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
         <span>${escapeHtml(displayType)}</span>
         <strong>
           <em>${escapeHtml(info.title || displayType)}</em>
@@ -14766,9 +14774,10 @@ function renderServiceReminderScheduleCard(row = {}) {
   const occurrenceDate = row.__occurrence_date || row.__render_date || ''
   const type = getServiceReminderDisplayType(row, occurrenceDate)
   const lines = getServiceReminderDisplayLines(row)
+  const returnReminderStateClass = type === '提醒返台' || type === '返台確認' ? getReturnTaiwanReminderStateClass(type) : ''
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <span class="service-reminder-card-type">${escapeHtml(type)}</span>
+    <button type="button" class="week-schedule-card service-reminder-week-card ${returnReminderStateClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      <span class="service-reminder-card-type ${returnReminderStateClass}">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
     </button>
@@ -23503,3 +23512,10 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 保留原返台日資料，不因提醒顯示日覆蓋返台日
 */
 /* FOR-e V002-1P-251 END - return Taiwan reminder date labels */
+
+
+/*
+  V002-1P-252｜返台提醒顏色微調
+  - 「提醒返台」字樣改白色字
+  - 「返台確認」顏色再淡一階
+*/
