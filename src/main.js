@@ -99,14 +99,16 @@ function getScheduleCategoryDisplayLabel(value = '') {
 }
 const serviceScheduleTypes = [
   '--', '面談', '上線/教育訓練', '定期/開會', '送工', '銀行', '醫療',
-  '車禍處理', '結薪', '收', '簽收文件', '宿舍', '其他', '求才拍照'
+  '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '其他'
 ]
 const serviceReminderTypes = [
   '--', '逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒'
 ]
 const legacyServiceReminderAliases = {
   '住變資訊': '住變資訊提供',
-  '收送簽文件': '簽收文件'
+  '收': '收/簽收文件',
+  '簽收文件': '收/簽收文件',
+  '收送簽文件': '收/簽收文件'
 }
 const scheduleContentTemplates = [
   { type: '面談', content: '面談對象：\n面談原因：\n處理內容：\n後續追蹤：' },
@@ -117,8 +119,7 @@ const scheduleContentTemplates = [
   { type: '醫療', content: '就醫原因：\n醫院 / 診所：\n診療結果：\n下次回診：' },
   { type: '車禍處理', content: '事故狀況：\n處理進度：\n聯絡對象：\n後續追蹤：' },
   { type: '結薪', content: '結薪對象：\n結薪期間：\n結薪狀況：\n備註：' },
-  { type: '收', content: '收件項目：\n收件對象：\n處理結果：\n備註：' },
-  { type: '簽收文件', content: '文件項目：\n收 / 送件對象：\n處理結果：\n下次追蹤：' },
+  { type: '收/簽收文件', content: '文件項目：\n收 / 簽收對象：\n處理結果：\n下次追蹤：' },
   { type: '逃跑通知', content: '逃跑狀況：\n通知對象：\n處理進度：\n下次追蹤：' },
   { type: '轉出追蹤', content: '轉出原因：\n轉出進度：\n聯絡對象：\n下次追蹤：' },
   { type: '住變資訊提供', content: '住變地址：\n搬遷狀況：\n租約 / 文件：\n下次追蹤：' },
@@ -8447,12 +8448,18 @@ function parseTemplateLines(value) {
 function getManagedScheduleContentTemplates() {
   const options = getManagedOptions()
   const list = Array.isArray(options.scheduleContentTemplates) ? options.scheduleContentTemplates : scheduleContentTemplates
+  const seen = new Set()
   return (list || [])
     .map(item => ({
-      type: String(item?.type || '').trim(),
+      type: normalizeServiceTypeOption(String(item?.type || '').trim()),
       content: String(item?.content || '').trim()
     }))
     .filter(item => item.type)
+    .filter(item => {
+      if (seen.has(item.type)) return false
+      seen.add(item.type)
+      return true
+    })
 }
 
 function templateLinesValue() {
@@ -8462,7 +8469,7 @@ function templateLinesValue() {
 }
 
 function getScheduleTypeTemplate(type) {
-  const key = String(type || '').trim()
+  const key = normalizeServiceTypeOption(String(type || '').trim())
   if (!key) return ''
   const found = getManagedScheduleContentTemplates().find(item => item.type === key)
   return found?.content || ''
@@ -8830,7 +8837,12 @@ function getScheduleColorDefinitions() {
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
-    { key: '返台提醒', label: '返台提醒', defaultColor: '#67C090' },
+    { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
+    { key: '轉出追蹤', label: '提醒事項｜轉出追蹤', defaultColor: '#F4A261' },
+    { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#9ED3DC' },
+    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#B8E0D2' },
+    { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
+    { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#F7DD7D' },
     { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
     { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
     { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
@@ -8856,6 +8868,9 @@ function getScheduleColorSettings() {
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
     if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
+    ;['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '電表提醒'].forEach(key => {
+      if (!saved[key] && saved['提醒事項']) saved[key] = saved['提醒事項']
+    })
 
     const defaults = getDefaultScheduleColorMap()
     const currentPaletteVersion = localStorage.getItem(scheduleColorPaletteVersionKey)
@@ -8921,6 +8936,10 @@ function getScheduleColorKey(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
   if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
+  const directReminderColorKey = typeof normalizeServiceTypeOption === 'function'
+    ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '')
+    : String(row?.schedule_type || row?.sub_type || '')
+  if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return directReminderColorKey
   if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) return '待辦事項'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
