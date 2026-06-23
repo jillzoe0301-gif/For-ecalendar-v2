@@ -16890,3 +16890,33 @@ button.login-birthday-card:focus-visible {
   word-break: break-word !important;
 }
 /* FOR-e V002-1P-243 END - stacked type/title and reminder prompt layout */
+
+/* FOR-e V002-1P-245 START - todo item chip, meeting room label, creator display cleanup */
+.week-card-extra.todo-note-item-chip,
+.extra-schedule-chip.todo-note-item-chip {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-top: 5px !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  border-left: 6px solid var(--schedule-accent, #F7DD7D) !important;
+  background: color-mix(in srgb, var(--schedule-accent, #F7DD7D) 18%, #ffffff) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #F7DD7D) 38%, #ffffff) !important;
+  color: #0f172a !important;
+  font-weight: 950 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line {
+  display: block !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  font-weight: 950 !important;
+  color: #111827 !important;
+  margin-bottom: 2px !important;
+}
+/* FOR-e V002-1P-245 END - todo item chip, meeting room label, creator display cleanup */

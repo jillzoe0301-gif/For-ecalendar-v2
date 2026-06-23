@@ -3972,7 +3972,7 @@ function renderSearchResultList(rows, emptyText) {
             <div class="search-result-meta">
               ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
               ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
-              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜附加：' + escapeHtml(row.sub_type) : ''}
+              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜【項目】' + escapeHtml(row.sub_type) : ''}
             </div>
           </div>
 
@@ -5008,7 +5008,7 @@ function renderFieldScheduleCard(row) {
       <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
-      ${isNoCompletionControlSchedule(row) ? '' : `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
+      ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -5448,12 +5448,14 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
 
 function renderMeetingRoomCard(row, occurrenceDate = '') {
   const reserverName = getMeetingReserverName(row)
-  const titleText = getScheduleCardTitleText(row)
+  const roomName = String(row.location_name || row.sub_type || '').trim() || '會議室'
+  const titleText = String(row.title || '').trim() || '-'
   const occurrenceAttr = occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
 
   return `
     <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'meeting-room-time')}
+      <strong class="meeting-room-room-line">${escapeHtml(roomName)}</strong>
       <strong>${escapeHtml(titleText)}</strong>
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
@@ -7894,23 +7896,82 @@ function getStatsBaseScheduleRows() {
     })
 }
 
+function getStatsDepartmentEntriesForRow(row = {}) {
+  const departments = new Map()
+
+  getStatsAssignees(row).forEach(assignee => {
+    const departmentName = String(assignee.department_name || '').trim()
+    if (!departmentName) return
+    if (!departments.has(departmentName)) {
+      departments.set(departmentName, {
+        departmentName,
+        staffId: assignee.staff_id || '',
+        staffName: assignee.staff_name || '',
+        position: assignee.position || ''
+      })
+    }
+  })
+
+  const fallbackDepartment = String(row.department_name || getAssigneeDepartmentFallback(row) || '').trim()
+  if (!departments.size && fallbackDepartment) {
+    departments.set(fallbackDepartment, {
+      departmentName: fallbackDepartment,
+      staffId: row.creator_staff_id || '',
+      staffName: row.creator_name || '',
+      position: ''
+    })
+  }
+
+  if (!departments.size) {
+    departments.set('未指定', { departmentName: '未指定', staffId: '', staffName: '', position: '' })
+  }
+
+  return [...departments.values()]
+}
+
 function expandStatsRowsForDepartmentTotals(rows = []) {
-  const incidentFamilies = new Set()
+  const incidentFamilies = new Map()
   const result = []
 
   rows.forEach(row => {
     if (isIncidentSchedule(row)) {
       const familyId = getStatsIncidentFamilyId(row)
-      if (incidentFamilies.has(familyId)) return
-      incidentFamilies.add(familyId)
-      result.push({
-        ...getStatsPrimaryIncidentRow(row),
-        __stats_incident_family_id: familyId
+      if (!incidentFamilies.has(familyId)) {
+        incidentFamilies.set(familyId, {
+          base: getStatsPrimaryIncidentRow(row),
+          departments: new Map()
+        })
+      }
+
+      const family = incidentFamilies.get(familyId)
+      getStatsDepartmentEntriesForRow(row).forEach(entry => {
+        if (!family.departments.has(entry.departmentName)) family.departments.set(entry.departmentName, entry)
       })
       return
     }
 
-    result.push(...expandStatsScheduleRows([row]))
+    getStatsDepartmentEntriesForRow(row).forEach(entry => {
+      result.push({
+        ...row,
+        __stats_department_name: entry.departmentName,
+        __stats_staff_id: entry.staffId,
+        __stats_staff_name: entry.staffName,
+        __stats_position: entry.position
+      })
+    })
+  })
+
+  incidentFamilies.forEach((family, familyId) => {
+    ;[...family.departments.values()].forEach(entry => {
+      result.push({
+        ...family.base,
+        __stats_incident_family_id: familyId,
+        __stats_department_name: entry.departmentName,
+        __stats_staff_id: entry.staffId,
+        __stats_staff_name: entry.staffName,
+        __stats_position: entry.position
+      })
+    })
   })
 
   return result
@@ -9661,7 +9722,7 @@ function getScheduleCsvColumns() {
     { header: '時間', value: row => formatTime(row) },
     { header: '類別', value: row => row.category || '' },
     { header: '行程類型', value: row => row.schedule_type || '' },
-    { header: '附加 / 細項', value: row => row.sub_type || '' },
+    { header: '項目 / 細項', value: row => row.sub_type || '' },
     { header: '標題 / 辦理內容', value: row => row.title || '' },
     { header: '內容', value: row => row.description || '' },
     { header: '區域 / 客戶', value: row => row.customer_name || '' },
@@ -14632,8 +14693,8 @@ function renderWeekScheduleCard(row) {
       ${renderCardTime(row, 'week-card-time')}
       ${renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      ${isNoCompletionControlSchedule(row) ? '' : `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
-      ${extra ? `<span class="week-card-extra">附加：${escapeHtml(extra)}</span>` : ''}
+      ${shouldShowCreatorName(row) ? `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
+      ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</span>` : ''}
     </button>
   `
 }
@@ -14749,7 +14810,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
-              ${extra ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(extra)}</div>` : ''}
+              ${extra ? `<div class="extra-schedule-chip${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</div>` : ''}
               ${isMaintenance ? '' : `<div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>`}
               ${row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim() ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name && !isMaintenance && row.category !== '服務行程' ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
@@ -16305,6 +16366,29 @@ function isTodoOrNoteSchedule(row = {}) {
   return row?.category === '待辦事項' || row?.category === '一般記事'
 }
 
+function isOwnTodoOrNoteForCurrentUser(row = {}) {
+  if (!isTodoOrNoteSchedule(row)) return false
+  const myStaffId = String(currentProfile?.staff_id || '').trim()
+  if (!myStaffId) return false
+  if (String(row.creator_staff_id || '').trim() !== myStaffId) return false
+  const activeAssignees = getActiveAssigneeIds(row).map(id => String(id || '').trim()).filter(Boolean)
+  return !activeAssignees.length || activeAssignees.every(id => id === myStaffId)
+}
+
+function shouldShowCreatorName(row = {}) {
+  if (isNoCompletionControlSchedule(row)) return false
+  if (isOwnTodoOrNoteForCurrentUser(row)) return false
+  return true
+}
+
+function getScheduleItemChipClass(row = {}) {
+  return isTodoOrNoteSchedule(row) ? ' todo-note-item-chip' : ''
+}
+
+function renderScheduleItemLabel(extra = '') {
+  return `【項目】${escapeHtml(extra)}`
+}
+
 function canManageTodoNoteStatus(row = {}) {
   if (!isTodoOrNoteSchedule(row)) return false
   if (row.status === '取消') return false
@@ -16449,10 +16533,10 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
-        <div><span>附加 / 待辦 / 代理</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
+        <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
         ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
-        ${isNoCompletionControlSchedule(row) ? '' : `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>`}
+        ${shouldShowCreatorName(row) ? `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>` : ''}
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
         <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
