@@ -130,9 +130,9 @@ const scheduleContentTemplates = [
   { type: '求才拍照', content: '求才對象：\n拍照地點：\n處理內容：\n備註：' },
   { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
-const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費']
+const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
 const administrativeReminderItems = ['求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
-const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
+const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動', 'TalkTalk']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = [
   '不使用',
@@ -340,7 +340,7 @@ function getPersonalReminderRows() {
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => isActionReminderSchedule(row))
     .filter(row => isReminderSchedule(row))
-    .filter(row => isTodaySchedule(row) || isOverdueSchedule(row))
+    .filter(row => scheduleMatchesActionReminderDate(row, todayString()) || isOverdueSchedule(row))
     .sort((a, b) => {
       const aOverdue = isOverdueSchedule(a)
       const bOverdue = isOverdueSchedule(b)
@@ -566,7 +566,18 @@ function getManagedAdministrativeReminderItems() {
 
 function getManagedTodoItems() {
   const removed = new Set(['提醒事項', '重要通知', '重要事項', '重要事項!'])
-  return getManagedListOption('todoItems', todoItems).filter(item => !removed.has(String(item || '').trim()))
+  const configured = getManagedListOption('todoItems', todoItems)
+  return [...new Set([...todoItems, ...configured]
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .filter(item => !removed.has(item)))]
+}
+
+function getManagedLeaveMeetingTypes() {
+  const configured = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes)
+  return [...new Set([...leaveMeetingTypes, ...configured]
+    .map(item => String(item || '').trim())
+    .filter(Boolean))]
 }
 
 function todoItemOptionsHtml(selectedValue = '') {
@@ -1177,7 +1188,8 @@ function isScheduleTimePassed(row) {
   if (!row?.start_date) return false
 
   const today = todayString()
-  const endDate = row.end_date || row.start_date
+  const serviceDueDate = (typeof getServiceReminderDueDateForTimeCheck === 'function') ? getServiceReminderDueDateForTimeCheck(row) : ''
+  const endDate = serviceDueDate || row.end_date || row.start_date
 
   if (endDate < today) return true
   if (endDate > today) return false
@@ -1308,6 +1320,19 @@ function getContinuationInitial(row = {}) {
   if (map[key]) return map[key]
   const text = key || getScheduleDisplayType(row) || row.title || '續'
   return String(text).trim().slice(0, 1) || '續'
+}
+
+function getContinuationDisplayLabel(row = {}) {
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    return getServiceReminderTypeFromRow(row) || '提醒事項'
+  }
+  if (row.category === '請假 / 會議 / 活動 / 外訓') {
+    return row.sub_type || row.schedule_type || '行事曆'
+  }
+  if (row.category === '待辦事項' || row.category === '一般記事') return '待辦事項/一般記事'
+  if (isMeetingRoomSchedule(row)) return '會議室預約'
+  const key = getScheduleColorKey(row)
+  return key || getScheduleDisplayType(row) || '連續行程'
 }
 
 
@@ -5300,6 +5325,42 @@ function getScheduleCardTitleText(row = {}) {
   return `${getScheduleDisplayType(row)}｜${title}`
 }
 
+function getScheduleTypeTitleParts(row = {}) {
+  const title = String(row.title || row.customer_name || '').trim() || '-'
+  if (isVehicleMaintenanceSchedule(row)) return { type: '公務車保養', title }
+  if (isMeetingRoomSchedule(row)) {
+    return {
+      type: String(row.location_name || row.sub_type || '').trim() || '會議室',
+      title
+    }
+  }
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    return {
+      type: getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row),
+      title: getServiceReminderDisplayLines(row)[0] || title
+    }
+  }
+  return {
+    type: getScheduleDisplayType(row),
+    title
+  }
+}
+
+function renderScheduleTypeTitleStack(row = {}, typeClass = 'schedule-card-type-line', titleTag = 'strong') {
+  const parts = getScheduleTypeTitleParts(row)
+  const safeType = escapeHtml(parts.type || '')
+  const safeTitle = escapeHtml(parts.title || '-')
+  const typeLine = safeType ? `<span class="${typeClass}">${safeType}</span>` : ''
+  return `${typeLine}<${titleTag}>${safeTitle}</${titleTag}>`
+}
+
+function splitPromptTypeTitle(text = '') {
+  const parts = String(text || '').split('｜').map(item => item.trim()).filter(Boolean)
+  if (!parts.length) return { type: '', title: '' }
+  if (parts.length === 1) return { type: parts[0], title: '' }
+  return { type: parts[0], title: parts.slice(1).join('｜') }
+}
+
 function getLineNoteValue(row = {}, label = '') {
   const text = `${row.sub_type_note || ''}\n${row.description || ''}`
   const items = text
@@ -8784,7 +8845,7 @@ function renderOptionsPage() {
           ${scheduleTemplateEditor()}
           ${optionTextarea('待辦項目', 'todoItems', getManagedTodoItems().join('\n'), '每行一個待辦項目；提醒事項與重要通知已移除', '例如：送件')}
           ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
-          ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
+          ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', getManagedLeaveMeetingTypes().join('\n'), '每行一個類別細項', '例如：TalkTalk')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
           ${optionTextarea('通知行政辦理項目', 'administrativeTaskTypeOptions', optionLinesValue('administrativeTaskTypeOptions', administrativeTaskTypeOptions), '異況與外務通知行政時使用，每行一個', '例如：補件')}
@@ -13091,7 +13152,7 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
 
       return `
         <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-          <span>${escapeHtml(getContinuationInitial(row))}</span>
+          <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
           <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
         </button>
       `
@@ -13123,10 +13184,13 @@ function renderFieldDayReminderPrompt(rows = []) {
           : `data-view-schedule="${escapeHtml(row.schedule_id)}"`
         const promptTitle = canEdit ? `${getFieldDayReminderPromptText(row)}｜點擊進入修改 / 刪除` : getFieldDayReminderPromptText(row)
 
+        const promptParts = splitPromptTypeTitle(getFieldDayReminderPromptText(row))
         return `
           <div class="field-day-reminder-prompt" ${getFieldDayPromptColorStyleAttr()} title="${escapeHtml(promptTitle)}" ${promptActionAttr}>
-            <span class="field-day-reminder-badge">外</span>
-            <strong>${escapeHtml(getFieldDayReminderPromptText(row))}</strong>
+            <span class="field-day-reminder-badge">${escapeHtml(promptParts.type || '外務日')}</span>
+            <strong>
+              ${promptParts.title ? `<span class="prompt-title-line">${escapeHtml(promptParts.title)}</span>` : ''}
+            </strong>
           </div>
         `
       }).join('')}
@@ -14528,7 +14592,7 @@ function renderWeekScheduleCard(row) {
   return `
     <button type="button" class="week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderCardTime(row, 'week-card-time')}
-      <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
+      ${renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${isNoCompletionControlSchedule(row) ? '' : `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>`}
       ${extra ? `<span class="week-card-extra">附加：${escapeHtml(extra)}</span>` : ''}
@@ -14644,7 +14708,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
           <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
-              <div class="schedule-title">${escapeHtml(getScheduleCardTitleText(row))}</div>
+              <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
               ${extra ? `<div class="extra-schedule-chip">附加行程：${escapeHtml(extra)}</div>` : ''}
@@ -16808,6 +16872,23 @@ function parseMeterReminderInfo(row = {}) {
   }
 }
 
+function getServiceReminderDueDateForTimeCheck(row = {}) {
+  const type = getServiceReminderTypeFromRow(row)
+  if (!type) return ''
+  if (type === '轉出追蹤') return parseTransferReminderInfo(row).dueDate || row.end_date || row.start_date || ''
+  if (type === '逃跑通知') {
+    const info = parseRunawayReminderInfo(row)
+    return info.day3 || info.day2 || info.day1 || row.end_date || row.start_date || ''
+  }
+  if (type === '驗證提醒') {
+    const info = parseVerifyReminderInfo(row)
+    return info.leaveDate || info.verifyDate || row.end_date || row.start_date || ''
+  }
+  if (type === '住變資訊提供') return parseHousingReminderInfo(row).moveDate || row.end_date || row.start_date || ''
+  if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.end_date || row.start_date || ''
+  return row.end_date || row.start_date || ''
+}
+
 function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
   if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.start_date || ''
   if (type === '住變資訊提供') return parseHousingReminderInfo(row).moveDate || row.start_date || ''
@@ -18723,7 +18804,7 @@ function openScheduleModal(defaults = {}) {
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getScheduleCategoryDisplayLabel(category))}</option>`).join('')
   const todoOptions = todoItemOptionsHtml()
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
-  const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
+  const leaveOptions = getManagedLeaveMeetingTypes().map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const supervisorOptions = supervisorSelectOptionsHtml()
   const weekdayChecks = weekdays.map(([value, label]) => `
@@ -19707,6 +19788,23 @@ function appendNotifySupervisorNote(parts = [], supervisorName = '') {
   return [...parts, `通知主管：${supervisorName}`]
 }
 
+function getReturnTaiwanCascadeCancelTargets(sourceRow = {}) {
+  if (!sourceRow?.schedule_id || typeof isReturnTaiwanReminderSchedule !== 'function' || !isReturnTaiwanReminderSchedule(sourceRow)) return []
+  const sourceId = String(sourceRow.schedule_id || '').trim()
+  return schedules
+    .filter(row => row?.schedule_id && row.schedule_id !== sourceId)
+    .filter(isVisibleSchedule)
+    .filter(isReturnTaiwanReminderSchedule)
+    .filter(row => {
+      const noteText = [row.sub_type_note, row.description, row.title]
+        .filter(Boolean)
+        .join('｜')
+      return noteText.includes(`來源返台提醒：${sourceId}`)
+        || noteText.includes(`來源行程：${sourceId}`)
+        || String(row.source_schedule_id || row.parent_schedule_id || row.linked_schedule_id || '') === sourceId
+    })
+}
+
 
 function cleanServiceExtraNotes(noteText = '', scheduleType = '') {
   const normalizedType = normalizeServiceTypeOption(scheduleType)
@@ -20169,7 +20267,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const currentTodoValue = row.category === '待辦事項' ? (row.sub_type || '') : ''
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
   const editTodoOptions = todoItemOptionsHtml(currentTodoIsManaged ? currentTodoValue : '')
-  const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
+  const editLeaveOptions = optionHtml(getManagedLeaveMeetingTypes(), row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
   const editDeliveryChecks = checkedOptionsHtml(getManagedDeliveryDocumentItems(), editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
@@ -21340,12 +21438,15 @@ function openCancelModal(scheduleId) {
 
 async function cancelSchedule(scheduleId, reason) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
-  const cascadeTargets = getIncidentCascadeCancelTargets(row)
+  const cascadeTargets = [
+    ...getIncidentCascadeCancelTargets(row),
+    ...getReturnTaiwanCascadeCancelTargets(row)
+  ]
 
-  const targetRows = [
+  const targetRows = uniqueScheduleRows([
     ...cascadeTargets,
     row
-  ].filter(Boolean)
+  ].filter(Boolean))
 
   const errors = []
 
