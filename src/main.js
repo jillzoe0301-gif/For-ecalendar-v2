@@ -130,7 +130,7 @@ const scheduleContentTemplates = [
   { type: '求才拍照', content: '求才對象：\n拍照地點：\n處理內容：\n備註：' },
   { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
-const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '重要事項!', '繳費']
+const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費']
 const administrativeReminderItems = ['求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
@@ -564,10 +564,15 @@ function getManagedAdministrativeReminderItems() {
   return getManagedListOption('administrativeReminderItems', administrativeReminderItems)
 }
 
+function getManagedTodoItems() {
+  const removed = new Set(['提醒事項', '重要通知', '重要事項', '重要事項!'])
+  return getManagedListOption('todoItems', todoItems).filter(item => !removed.has(String(item || '').trim()))
+}
+
 function todoItemOptionsHtml(selectedValue = '') {
   const selected = String(selectedValue || '')
   return `<option value="" ${selected ? '' : 'selected'}>--</option>` +
-    getManagedListOption('todoItems', todoItems)
+    getManagedTodoItems()
       .map(item => `<option value="${escapeHtml(item)}" ${selected === item ? 'selected' : ''}>${escapeHtml(item)}</option>`)
       .join('')
 }
@@ -1638,7 +1643,7 @@ function isAlertTextSchedule(row = {}) {
     row.sub_type_note
   ].filter(Boolean).join('｜')
 
-  return ['重要事項', '重要事項!', '追蹤', '追蹤事項', '提醒事項'].some(keyword => text.includes(keyword))
+  return ['追蹤', '追蹤事項'].some(keyword => text.includes(keyword))
 }
 
 function getAlertItemClass(row = {}) {
@@ -4413,6 +4418,10 @@ function scheduleMatchesDateByMode(row, dateKey) {
     return isAdministrativeReminderCalendarDate(row, dateKey)
   }
 
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    return serviceReminderMatchesCalendarDate(row, dateKey)
+  }
+
   const mode = getScheduleModeFromNote(row)
   const endDate = mode === '單日'
     ? startDate
@@ -4467,6 +4476,7 @@ function isAdministrativeReminderDueReminderDate(row = {}, dateKey = '') {
 
 function scheduleMatchesActionReminderDate(row = {}, dateKey = '') {
   if (isAdministrativeReminderSchedule(row)) return isAdministrativeReminderDueReminderDate(row, dateKey)
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return serviceReminderMatchesActionReminderDate(row, dateKey)
   return scheduleMatchesDateByMode(row, dateKey)
 }
 
@@ -8772,7 +8782,7 @@ function renderOptionsPage() {
           ${optionTextarea('服務行程｜行程類型', 'serviceScheduleTypes', getManagedServiceScheduleTypes().join('\n'), '服務行程主要行程類型；-- 代表不指定', '例如：醫療')}
           ${optionTextarea('服務行程｜提醒事項', 'serviceReminderTypes', getManagedServiceReminderTypes().join('\n'), '服務行程提醒事項；-- 代表不指定', '例如：返台提醒')}
           ${scheduleTemplateEditor()}
-          ${optionTextarea('待辦項目', 'todoItems', optionLinesValue('todoItems', todoItems), '每行一個待辦項目', '例如：送件')}
+          ${optionTextarea('待辦項目', 'todoItems', getManagedTodoItems().join('\n'), '每行一個待辦項目；提醒事項與重要通知已移除', '例如：送件')}
           ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', optionLinesValue('leaveMeetingTypes', leaveMeetingTypes), '每行一個類別細項', '例如：請假')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
@@ -8936,9 +8946,9 @@ function getScheduleColorKey(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
   if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
-  const directReminderColorKey = typeof normalizeServiceTypeOption === 'function'
-    ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '')
-    : String(row?.schedule_type || row?.sub_type || '')
+  const directReminderColorKey = typeof getServiceReminderTypeFromRow === 'function'
+    ? getServiceReminderTypeFromRow(row)
+    : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
   if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return directReminderColorKey
   if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) return '待辦事項'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
@@ -14443,8 +14453,78 @@ function getSchedulesForStaffDate(staffId, dateKey) {
   })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
+
+function getServiceReminderDisplayLines(row = {}) {
+  const type = getServiceReminderTypeFromRow(row)
+  const title = String(row.title || row.customer_name || type || '提醒事項').trim()
+  if (type === '返台提醒') {
+    const info = getReturnTaiwanReminderInfo(row)
+    return [
+      title,
+      info.date ? `返台日：${info.date}` : '',
+      info.flight ? `返台班機：${info.flight}` : '',
+      info.time ? `返台時間：${info.time}` : ''
+    ].filter(Boolean)
+  }
+  if (type === '驗證提醒') {
+    const info = parseVerifyReminderInfo(row)
+    return [
+      title,
+      info.salaryDate ? `結薪日：${info.salaryDate}` : '',
+      info.verifyDate ? `驗證日：${info.verifyDate}` : '',
+      info.leaveDate ? `離境日：${info.leaveDate}` : ''
+    ].filter(Boolean)
+  }
+  if (type === '住變資訊提供') {
+    const info = parseHousingReminderInfo(row)
+    return [
+      title,
+      info.moveDate ? `搬遷日期：${info.moveDate}` : '',
+      info.address ? `地址：${info.address}` : ''
+    ].filter(Boolean)
+  }
+  if (type === '電表提醒') {
+    const info = parseMeterReminderInfo(row)
+    return [
+      info.place ? `雇主/宿舍名：${info.place}` : title,
+      '提醒更新電表!!'
+    ].filter(Boolean)
+  }
+  if (type === '轉出追蹤') {
+    const info = parseTransferReminderInfo(row)
+    return [
+      title,
+      info.endDate ? `聘僱終止日：${info.endDate}` : '',
+      info.dueDate ? `轉出到期日：${info.dueDate}` : ''
+    ].filter(Boolean)
+  }
+  if (type === '逃跑通知') {
+    const info = parseRunawayReminderInfo(row)
+    return [
+      title,
+      info.day1 ? `逃跑第一天：${info.day1}` : '',
+      info.day2 ? `逃跑第二天：${info.day2}` : '',
+      info.day3 ? `逃跑第三天：${info.day3}` : ''
+    ].filter(Boolean)
+  }
+  return [title]
+}
+
+function renderServiceReminderScheduleCard(row = {}) {
+  const type = getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)
+  const lines = getServiceReminderDisplayLines(row)
+  return `
+    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      <span class="service-reminder-card-type">${escapeHtml(type)}</span>
+      <strong>${escapeHtml(lines[0] || type)}</strong>
+      ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
+    </button>
+  `
+}
+
 function renderWeekScheduleCard(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return renderServiceReminderScheduleCard(row)
   const contentPreview = getFirstTwoLines(row.description)
   const extra = getDisplaySubTypeExtra(row)
   return `
@@ -16631,6 +16711,137 @@ function serviceReminderOptionsHtml(selectedValue = '') {
 function isServiceReminderType(value = '') {
   const normalized = normalizeServiceTypeOption(value)
   return !isBlankOptionValue(normalized) && getManagedServiceReminderTypes().includes(normalized)
+}
+
+function getServiceReminderTypeFromRow(row = {}) {
+  if (!row) return ''
+  const managed = getManagedServiceReminderTypes().filter(item => item !== '--')
+  const direct = [row.schedule_type, row.sub_type].map(normalizeServiceTypeOption)
+  const directMatch = direct.find(value => managed.includes(value))
+  if (directMatch) return directMatch
+
+  const text = [row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  const textMatch = managed.find(type => text.includes(type) || (legacyServiceReminderAliases[type] && text.includes(legacyServiceReminderAliases[type])))
+  if (textMatch) return normalizeServiceTypeOption(textMatch)
+  if (/住變資訊/.test(text)) return '住變資訊提供'
+  return ''
+}
+
+function isServiceReminderSchedule(row = {}) {
+  return Boolean(getServiceReminderTypeFromRow(row))
+}
+
+function getReminderNoteValue(row = {}, labels = []) {
+  const labelList = Array.isArray(labels) ? labels : [labels]
+  for (const label of labelList) {
+    const value = getLineNoteValue(row, label)
+    if (value) return value
+  }
+  return ''
+}
+
+function parseCompactTimeParts(rawValue = '', fallbackType = '不指定') {
+  const raw = String(rawValue || '').trim()
+  const timeMatch = raw.match(/(\d{1,2}):(\d{2})/)
+  let timeType = fallbackType || '不指定'
+  if (raw.includes('上午')) timeType = '上午'
+  else if (raw.includes('下午')) timeType = '下午'
+  else if (raw.includes('指定時間')) timeType = '指定時間'
+  else if (timeMatch) timeType = '指定時間'
+  return {
+    time: raw,
+    timeType,
+    hour: timeMatch ? timeMatch[1].padStart(2, '0') : '09',
+    minute: timeMatch ? timeMatch[2] : '00'
+  }
+}
+
+function parseRunawayReminderInfo(row = {}) {
+  return {
+    day1: getReminderNoteValue(row, ['逃跑第一天']),
+    day2: getReminderNoteValue(row, ['逃跑第二天']),
+    day3: getReminderNoteValue(row, ['逃跑第三天'])
+  }
+}
+
+function parseTransferReminderInfo(row = {}) {
+  return {
+    endDate: getReminderNoteValue(row, ['聘僱終止日', '聘僱聘僱終止日']),
+    dueDate: getReminderNoteValue(row, ['轉出到期日'])
+  }
+}
+
+function parseHousingReminderInfo(row = {}) {
+  const rawTime = getReminderNoteValue(row, ['搬遷時間', '搬家時間'])
+  const timeParts = parseCompactTimeParts(rawTime)
+  return {
+    moveDate: getReminderNoteValue(row, ['搬遷日期', '搬家日期', '搬遷日']) || row.start_date || '',
+    address: getReminderNoteValue(row, ['地址', '搬遷地址', '搬家地址', '住變地址']),
+    time: rawTime,
+    timeType: timeParts.timeType,
+    hour: timeParts.hour,
+    minute: timeParts.minute
+  }
+}
+
+function parseVerifyReminderInfo(row = {}) {
+  return {
+    salaryDate: getReminderNoteValue(row, ['結薪日', '最後工作日']),
+    verifyDate: getReminderNoteValue(row, ['驗證日', '預計驗證日']),
+    leaveDate: getReminderNoteValue(row, ['離境日', '預計離境日'])
+  }
+}
+
+function parseMeterReminderInfo(row = {}) {
+  return {
+    place: getReminderNoteValue(row, ['雇主/宿舍名', '雇主 / 宿舍名', '宿舍名']) || row.customer_name || row.title || '',
+    message: '提醒更新電表!!'
+  }
+}
+
+function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
+  if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.start_date || ''
+  if (type === '住變資訊提供') return parseHousingReminderInfo(row).moveDate || row.start_date || ''
+  if (type === '轉出追蹤') return parseTransferReminderInfo(row).dueDate || row.start_date || ''
+  if (type === '逃跑通知') return parseRunawayReminderInfo(row).day1 || row.start_date || ''
+  if (type === '驗證提醒') return parseVerifyReminderInfo(row).verifyDate || row.start_date || ''
+  return row.start_date || ''
+}
+
+function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
+  const type = getServiceReminderTypeFromRow(row)
+  if (!type || !dateKey) return false
+  if (type === '逃跑通知') {
+    const info = parseRunawayReminderInfo(row)
+    const dates = [info.day1, info.day2, info.day3].filter(Boolean)
+    return dates.length ? dates.includes(dateKey) : dateKey === row.start_date
+  }
+  if (type === '轉出追蹤') {
+    const info = parseTransferReminderInfo(row)
+    const dates = [row.start_date, info.dueDate].filter(Boolean)
+    return dates.includes(dateKey)
+  }
+  if (type === '住變資訊提供') {
+    const moveDate = parseHousingReminderInfo(row).moveDate
+    return (moveDate || row.start_date) === dateKey
+  }
+  if (type === '返台提醒') return returnTaiwanReminderMatchesDate(row, dateKey)
+  return dateKey === (row.start_date || '')
+}
+
+function serviceReminderMatchesActionReminderDate(row = {}, dateKey = '') {
+  const type = getServiceReminderTypeFromRow(row)
+  if (!type || !dateKey) return false
+  if (type === '轉出追蹤') {
+    const due = parseTransferReminderInfo(row).dueDate
+    if (due) {
+      const reminderStart = getDateKeyOffset(due, -14) || due
+      return dateKey >= reminderStart && dateKey <= due
+    }
+  }
+  return serviceReminderMatchesCalendarDate(row, dateKey)
 }
 
 function optionHtml(items, selectedValue = '', includeEmpty = false) {
@@ -18844,20 +19055,21 @@ function openScheduleModal(defaults = {}) {
               <label>返台日<input name="return_date" type="date"></label>
               <label>返台班機<input name="return_flight" placeholder="返台班機"></label>
               <label>
-                返台班機時間
+                返台時間
                 ${compactTimeSelectHtml('arrival', '09', '00')}
               </label>
             </div>
           </div>
 
           <div class="span-2 conditional-service hidden" data-service-extra="住變資訊">
-            <div class="group-title">住變資訊</div>
+            <div class="group-title">住變資訊提供</div>
             <div class="compact-grid">
+              <label>搬遷日期<input name="housing_move_date" type="date" value="${defaultDate}"></label>
               <label>
-                搬家時間
+                搬遷時間
                 ${compactTimeSelectHtml('housing_move', '09', '00')}
               </label>
-              <label class="span-2">搬家地址<input name="housing_note" placeholder="請輸入搬家地址"></label>
+              <label class="span-2">地址<input name="housing_note" placeholder="請輸入搬遷地址"></label>
               <div class="span-2 notice compact-special-note">請記得追蹤租約</div>
             </div>
           </div>
@@ -18866,8 +19078,16 @@ function openScheduleModal(defaults = {}) {
             <div class="group-title">驗證提醒</div>
             <div class="compact-grid">
               <label>結薪日<input name="verify_last_work_date" type="date"></label>
-              <label>預計驗證日<input name="verify_date" type="date"></label>
-              <label>預計離境日<input name="verify_leave_date" type="date"></label>
+              <label>驗證日<input name="verify_date" type="date"></label>
+              <label>離境日<input name="verify_leave_date" type="date"></label>
+            </div>
+          </div>
+
+          <div class="span-2 conditional-service hidden" data-service-extra="電表提醒">
+            <div class="group-title">電表提醒</div>
+            <div class="compact-grid">
+              <label class="span-2">雇主/宿舍名<input name="meter_place" placeholder="請輸入雇主或宿舍名"></label>
+              <div class="span-2 notice compact-special-note">提醒更新電表!!</div>
             </div>
           </div>
 
@@ -19141,7 +19361,7 @@ function buildServiceExtraNotes(form, scheduleType) {
   }
 
   if (scheduleType === '轉出追蹤') {
-    if (form.get('transfer_end_date')) notes.push(`聘僱聘僱終止日：${form.get('transfer_end_date')}`)
+    if (form.get('transfer_end_date')) notes.push(`聘僱終止日：${form.get('transfer_end_date')}`)
     if (form.get('transfer_due_date')) notes.push(`轉出到期日：${form.get('transfer_due_date')}`)
   }
 
@@ -19152,9 +19372,16 @@ function buildServiceExtraNotes(form, scheduleType) {
   }
 
   if (normalizeServiceTypeOption(scheduleType) === '住變資訊提供') {
-    notes.push(`搬家時間：${getCompactTime(form, 'housing_move')}`)
-    if (form.get('housing_note')) notes.push(`搬家地址：${form.get('housing_note')}`)
+    if (form.get('housing_move_date')) notes.push(`搬遷日期：${form.get('housing_move_date')}`)
+    notes.push(`搬遷時間：${getCompactTime(form, 'housing_move')}`)
+    if (form.get('housing_note')) notes.push(`地址：${form.get('housing_note')}`)
     notes.push('請記得追蹤租約')
+  }
+
+  if (scheduleType === '電表提醒') {
+    const place = String(form.get('meter_place') || '').trim()
+    if (place) notes.push(`雇主/宿舍名：${place}`)
+    notes.push('提醒方式：提醒更新電表!!')
   }
 
   if (scheduleType === '驗證提醒') {
@@ -19435,8 +19662,9 @@ function cleanServiceExtraNotes(noteText = '', scheduleType = '') {
     '返台提醒': ['返台日', '抵台日', '返台班機', '抵台班機', '班機', '班機資訊', '返台班機時間', '返台時間', '抵台時間'],
     '轉出追蹤': ['聘僱聘僱終止日', '聘僱終止日', '轉出到期日'],
     '逃跑通知': ['逃跑第一天', '逃跑第二天', '逃跑第三天'],
-    '住變資訊提供': ['搬家時間', '搬家地址'],
-    '驗證提醒': ['結薪日', '預計驗證日', '預計離境日']
+    '住變資訊提供': ['搬遷日期', '搬家日期', '搬遷時間', '搬家時間', '地址', '搬遷地址', '搬家地址'],
+    '驗證提醒': ['結薪日', '驗證日', '預計驗證日', '離境日', '預計離境日'],
+    '電表提醒': ['雇主/宿舍名', '雇主 / 宿舍名', '宿舍名', '提醒方式']
   }
   const labels = removeLabelsByType[normalizedType] || []
   if (!labels.length) return String(noteText || '').trim()
@@ -19874,13 +20102,13 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const end = parseTimeForEdit(row.end_time, '10', '00')
   const editCategoryList = formCategories.includes(row.category) ? formCategories : [...formCategories, row.category].filter(Boolean)
   const categoryOptions = optionHtml(editCategoryList, row.category)
-  const normalizedEditServiceType = normalizeServiceTypeOption(row.schedule_type || '')
+  const normalizedEditServiceType = getServiceReminderTypeFromRow(row) || normalizeServiceTypeOption(row.schedule_type || '')
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
   const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
   const serviceReminderOptions = serviceReminderOptionsHtml(editIsReminderType ? normalizedEditServiceType : '--')
   const subTypeOptions = optionHtml(getManagedServiceScheduleTypes(), row.sub_type || '', true)
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
-  const managedTodoItemsForEdit = getManagedListOption('todoItems', todoItems)
+  const managedTodoItemsForEdit = getManagedTodoItems()
   const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
   const currentAdministrativeReminderValue = row.category === '行政事務提醒' ? (row.sub_type || getNoteValue(row, '提醒項目') || '') : ''
   const currentAdministrativeReminderIsManaged = managedAdministrativeReminderItemsForEdit.includes(currentAdministrativeReminderValue)
@@ -19895,6 +20123,11 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const showTime = ['上午', '下午'].includes(row.time_type)
   const medicalInfo = parseMedicalFollowupInfo(row)
   const returnTaiwanInfo = parseReturnTaiwanReminderInfo(row)
+  const runawayInfo = parseRunawayReminderInfo(row)
+  const transferInfo = parseTransferReminderInfo(row)
+  const housingInfo = parseHousingReminderInfo(row)
+  const verifyInfo = parseVerifyReminderInfo(row)
+  const meterInfo = parseMeterReminderInfo(row)
   const isMaintenance = isVehicleMaintenanceSchedule(row)
   const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
   const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
@@ -20035,6 +20268,54 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
                 返台時間
                 ${compactTimeSelectHtmlSelected('arrival', returnTaiwanInfo.timeType, returnTaiwanInfo.hour, returnTaiwanInfo.minute)}
               </label>
+            </div>
+          </div>
+
+
+          <div class="span-2 conditional-service hidden" data-service-extra="逃跑通知">
+            <div class="group-title">逃跑通知日期</div>
+            <div class="compact-grid">
+              <label>逃跑第一天<input name="runaway_day1" type="date" value="${escapeHtml(runawayInfo.day1 || '')}"></label>
+              <label>逃跑第二天<input name="runaway_day2" type="date" value="${escapeHtml(runawayInfo.day2 || '')}"></label>
+              <label>逃跑第三天<input name="runaway_day3" type="date" value="${escapeHtml(runawayInfo.day3 || '')}"></label>
+            </div>
+          </div>
+
+          <div class="span-2 conditional-service hidden" data-service-extra="轉出追蹤">
+            <div class="group-title">轉出追蹤日期</div>
+            <div class="compact-grid">
+              <label>聘僱終止日<input name="transfer_end_date" type="date" value="${escapeHtml(transferInfo.endDate || '')}"></label>
+              <label>轉出到期日<input name="transfer_due_date" type="date" value="${escapeHtml(transferInfo.dueDate || '')}"></label>
+            </div>
+          </div>
+
+          <div class="span-2 conditional-service hidden" data-service-extra="住變資訊">
+            <div class="group-title">住變資訊提供</div>
+            <div class="compact-grid">
+              <label>搬遷日期<input name="housing_move_date" type="date" value="${escapeHtml(housingInfo.moveDate || '')}"></label>
+              <label>
+                搬遷時間
+                ${compactTimeSelectHtmlSelected('housing_move', housingInfo.timeType, housingInfo.hour, housingInfo.minute)}
+              </label>
+              <label class="span-2">地址<input name="housing_note" value="${escapeHtml(housingInfo.address || '')}" placeholder="請輸入搬遷地址"></label>
+              <div class="span-2 notice compact-special-note">請記得追蹤租約</div>
+            </div>
+          </div>
+
+          <div class="span-2 conditional-service hidden" data-service-extra="驗證提醒">
+            <div class="group-title">驗證提醒</div>
+            <div class="compact-grid">
+              <label>結薪日<input name="verify_last_work_date" type="date" value="${escapeHtml(verifyInfo.salaryDate || '')}"></label>
+              <label>驗證日<input name="verify_date" type="date" value="${escapeHtml(verifyInfo.verifyDate || '')}"></label>
+              <label>離境日<input name="verify_leave_date" type="date" value="${escapeHtml(verifyInfo.leaveDate || '')}"></label>
+            </div>
+          </div>
+
+          <div class="span-2 conditional-service hidden" data-service-extra="電表提醒">
+            <div class="group-title">電表提醒</div>
+            <div class="compact-grid">
+              <label class="span-2">雇主/宿舍名<input name="meter_place" value="${escapeHtml(meterInfo.place || '')}" placeholder="請輸入雇主或宿舍名"></label>
+              <div class="span-2 notice compact-special-note">提醒更新電表!!</div>
             </div>
           </div>
         </div>

@@ -16738,3 +16738,38 @@ button.login-birthday-card:focus-visible {
   color: #374151;
 }
 /* FOR-e V002-1P-238 END - service type split and return reminder card details */
+
+/* FOR-e V002-1P-240 START - service reminder detail cards */
+.service-reminder-week-card {
+  background: color-mix(in srgb, var(--schedule-accent, #FF8080) 14%, #ffffff) !important;
+  border-color: var(--schedule-accent, #FF8080) !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-align: left !important;
+}
+
+.service-reminder-week-card .service-reminder-card-type {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--schedule-accent, #FF8080);
+  color: #111827;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.service-reminder-week-card strong,
+.service-reminder-week-card .week-card-preview {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.35 !important;
+}
+/* FOR-e V002-1P-240 END - service reminder detail cards */
