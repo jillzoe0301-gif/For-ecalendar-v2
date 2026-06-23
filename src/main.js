@@ -90,7 +90,7 @@ function renderPageIcon(key) {
   return pageIconMap[key] || '•'
 }
 
-const formCategories = ['服務行程', '公務車保養', '一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
+const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
@@ -547,6 +547,14 @@ function getManagedAdministrativeTaskTypeOptions() {
 
 function getManagedAdministrativeReminderItems() {
   return getManagedListOption('administrativeReminderItems', administrativeReminderItems)
+}
+
+function todoItemOptionsHtml(selectedValue = '') {
+  const selected = String(selectedValue || '')
+  return `<option value="" ${selected ? '' : 'selected'}>--</option>` +
+    getManagedListOption('todoItems', todoItems)
+      .map(item => `<option value="${escapeHtml(item)}" ${selected === item ? 'selected' : ''}>${escapeHtml(item)}</option>`)
+      .join('')
 }
 
 
@@ -1074,6 +1082,14 @@ function isAdministrativeReminderSchedule(row = {}) {
   return row?.category === '行政事務提醒' || row?.schedule_type === '行政事務提醒'
 }
 
+function isReturnTaiwanReminderSchedule(row = {}) {
+  if (!row) return false
+  const typeText = [row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  return /返台提醒|返台日|返台班機/.test(typeText)
+}
+
 function canSeePersonalPrivateSchedule(row = {}) {
   if (!isPersonalPrivateSchedule(row)) return true
   return isMine(row)
@@ -1087,6 +1103,7 @@ function isVisibleSchedule(row) {
 function isPromptOnlySchedule(row = {}) {
   if (!row) return false
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return true
+  if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return true
   return false
 }
 
@@ -6132,6 +6149,66 @@ async function createIncidentTrackingSchedule(parentRow, trackingTitle, tracking
   return schedule
 }
 
+function isIncidentSupervisorTrackingSchedule(row = {}) {
+  const note = String(row?.sub_type_note || '')
+  const title = String(row?.title || '')
+  const subtype = String(row?.sub_type || '')
+  return (
+    note.includes('通知主管追蹤') ||
+    note.includes('主管追蹤：') ||
+    note.includes('統計排除：主管追蹤') ||
+    subtype === '通知主管追蹤' ||
+    title.startsWith('通知主管追蹤')
+  )
+}
+
+function incidentSupervisorTrackingBoxHtml(prefix = 'incident_supervisor_tracking') {
+  return `
+    <div class="span-2 admin-notify-box supervisor-tracking-box">
+      <div class="field-title">通知主管追蹤</div>
+      <div class="compact-grid">
+        <label>
+          通知主管
+          <select name="${prefix}_staff_id">
+            ${supervisorSelectOptionsHtml()}
+          </select>
+        </label>
+        <label class="span-2">
+          追蹤內容（非必填）
+          <input name="${prefix}_detail" placeholder="例如：請主管協助追蹤此異況後續處理">
+        </label>
+      </div>
+      <p class="field-hint">若選擇主管，會建立一筆主管追蹤行程；此追蹤不列入統計報表。</p>
+    </div>
+  `
+}
+
+async function createIncidentSupervisorTrackingSchedule(parentRow = {}, supervisorStaffId = '', detail = '', followDate = '', followTime = '', sourceLabel = '') {
+  const supervisor = staffList.find(staff => staff.staff_id === supervisorStaffId)
+  if (!supervisor) throw new Error('請選擇通知主管。')
+
+  const content = String(detail || '').trim() || [
+    `請協助追蹤：${parentRow.title || parentRow.customer_name || '異況追蹤'}`,
+    parentRow.customer_name ? `客戶 / 工人：${parentRow.customer_name}` : '',
+    parentRow.description ? `內容：${String(parentRow.description || '').split('\n').slice(0, 2).join(' / ')}` : ''
+  ].filter(Boolean).join('\n')
+
+  return createIncidentTrackingSchedule(
+    parentRow,
+    '通知主管追蹤',
+    content,
+    followDate || parentRow.start_date || todayString(),
+    followTime || '',
+    [supervisorStaffId],
+    [
+      `通知主管追蹤：${supervisor.name || ''}`,
+      '統計排除：主管追蹤',
+      sourceLabel
+    ].filter(Boolean).join('｜')
+  )
+}
+
+
 function incidentStaffOptionsHtml(selectedStaffId = '全部') {
   return `<option value="全部" ${selectedStaffId === '全部' ? 'selected' : ''}>全部人員</option>` +
     staffList.map(staff => `
@@ -6924,6 +7001,8 @@ function openIncidentNextTrackingModal(scheduleId) {
           </div>
         </div>
 
+        ${incidentSupervisorTrackingBoxHtml('incident_next_supervisor_tracking')}
+
         <div class="modal-actions span-2">
           <button type="button" class="secondary-btn" id="cancelIncidentNextModalBtn">取消</button>
           <button type="submit" class="primary-btn">儲存追蹤</button>
@@ -6953,6 +7032,8 @@ async function saveIncidentNextTracking(event, modal, row) {
     const adminTaskType = form.get('admin_task_type') || ''
     const adminStaffId = form.get('admin_staff_id') || ''
     const adminTaskDetail = String(form.get('admin_task_detail') || '').trim()
+    const supervisorTrackingStaffId = form.get('incident_next_supervisor_tracking_staff_id') || ''
+    const supervisorTrackingDetail = String(form.get('incident_next_supervisor_tracking_detail') || '').trim()
 
     if (!trackingContent) {
       alert('請輸入追蹤內容。')
@@ -6968,6 +7049,12 @@ async function saveIncidentNextTracking(event, modal, row) {
 
     if ((adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
       alert('若要通知行政辦理，請選擇通知項目與通知行政。')
+      saving = false
+      return
+    }
+
+    if (supervisorTrackingDetail && !supervisorTrackingStaffId) {
+      alert('若要通知主管追蹤，請選擇通知主管。')
       saving = false
       return
     }
@@ -7012,6 +7099,23 @@ async function saveIncidentNextTracking(event, modal, row) {
         })
       } catch (adminError) {
         alert('追蹤已建立，但通知行政待辦建立失敗：' + (adminError?.message || adminError))
+        saving = false
+        return
+      }
+    }
+
+    if (supervisorTrackingStaffId) {
+      try {
+        await createIncidentSupervisorTrackingSchedule(
+          row,
+          supervisorTrackingStaffId,
+          supervisorTrackingDetail || trackingContent,
+          nextFollowDate,
+          nextTime,
+          `異況${trackingTitle}通知主管追蹤`
+        )
+      } catch (supervisorError) {
+        alert('追蹤已建立，但通知主管追蹤建立失敗：' + (supervisorError?.message || supervisorError))
         saving = false
         return
       }
@@ -7320,6 +7424,8 @@ function openIncidentModal() {
           </div>
         </div>
 
+        ${incidentSupervisorTrackingBoxHtml('incident_supervisor_tracking')}
+
         ${incidentServiceRecordFieldsHtml()}
 
         <div class="modal-actions span-2">
@@ -7363,9 +7469,17 @@ async function saveIncident(event, modal) {
     const adminTaskType = form.get('admin_task_type') || ''
     const adminStaffId = form.get('admin_staff_id') || ''
     const adminTaskDetail = String(form.get('admin_task_detail') || '').trim()
+    const supervisorTrackingStaffId = form.get('incident_supervisor_tracking_staff_id') || ''
+    const supervisorTrackingDetail = String(form.get('incident_supervisor_tracking_detail') || '').trim()
 
     if ((adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
       alert('若要通知行政辦理，請選擇通知項目與通知行政。')
+      saving = false
+      return
+    }
+
+    if (supervisorTrackingDetail && !supervisorTrackingStaffId) {
+      alert('若要通知主管追蹤，請選擇通知主管。')
       saving = false
       return
     }
@@ -7472,6 +7586,33 @@ async function saveIncident(event, modal) {
       return
     }
 
+    if (supervisorTrackingStaffId) {
+      try {
+        await createIncidentSupervisorTrackingSchedule(
+          {
+            ...schedule,
+            sub_type: incidentType,
+            customer_name: customerName || null,
+            title: payload.title,
+            description: form.get('description') || '',
+            need_service_record: payload.need_service_record,
+            department_id: payload.department_id,
+            department_name: payload.department_name,
+            start_date: form.get('next_follow_date')
+          },
+          supervisorTrackingStaffId,
+          supervisorTrackingDetail || form.get('description') || '',
+          form.get('next_follow_date'),
+          nextTime,
+          '新增異況通知主管追蹤'
+        )
+      } catch (supervisorError) {
+        alert('異況已建立，但通知主管追蹤建立失敗：' + (supervisorError?.message || supervisorError))
+        saving = false
+        return
+      }
+    }
+
     await supabase.from('audit_logs').insert({
       operated_by_profile_id: currentProfile.profile_id,
       operated_by_staff_id: currentProfile.staff_id,
@@ -7543,6 +7684,7 @@ function getStatsDateRange() {
 
 function isStatsExcludedSchedule(row) {
   if (!row) return true
+  if (typeof isIncidentSupervisorTrackingSchedule === 'function' && isIncidentSupervisorTrackingSchedule(row)) return true
   if (isPromptOnlySchedule(row)) return true
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return true
   if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return true
@@ -8672,6 +8814,7 @@ function getScheduleColorDefinitions() {
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
+    { key: '返台提醒', label: '返台提醒', defaultColor: '#F7DD7D' },
     { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
     { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
     { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
@@ -8758,6 +8901,7 @@ function getScheduleColorKey(row) {
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
+  if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
@@ -12441,6 +12585,49 @@ function getMonthCalendarGridDates(monthDates = []) {
 }
 
 
+function getReturnTaiwanReminderDate(row = {}) {
+  const noteDate = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台日') : ''
+  return noteDate || row.start_date || ''
+}
+
+function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
+  const returnDate = getReturnTaiwanReminderDate(row)
+  if (returnDate) return returnDate === dateKey
+  return scheduleMatchesDateByMode(row, dateKey)
+}
+
+function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
+  if (!staffId || !dateKey) return []
+
+  return uniqueScheduleRows(schedules
+    .filter(isVisibleSchedule)
+    .filter(isReturnTaiwanReminderSchedule)
+    .filter(row => returnTaiwanReminderMatchesDate(row, dateKey))
+    .filter(row => scheduleBelongsToStaff(row, staffId)))
+    .sort((a, b) => String(getReturnTaiwanReminderDate(a) || '').localeCompare(String(getReturnTaiwanReminderDate(b) || '')))
+}
+
+function getReturnTaiwanReminderTitle(row = {}) {
+  const title = String(row.title || '').trim()
+  const fallback = String(row.sub_type || row.schedule_type || '').trim() || '返台提醒'
+  const timeText = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台班機時間') : ''
+  const flightText = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '返台班機') : ''
+  const displayTitle = title || flightText || fallback
+  return [displayTitle, timeText].filter(Boolean).join('｜')
+}
+
+function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
+  const reminderRows = uniqueScheduleRows(rows).filter(isReturnTaiwanReminderSchedule)
+  if (!reminderRows.length) return ''
+
+  return reminderRows.map(row => `
+    <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+      <span>提</span>
+      <strong>${escapeHtml(getReturnTaiwanReminderTitle(row))}</strong>
+    </button>
+  `).join('')
+}
+
 function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
 
@@ -12511,6 +12698,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
               ${birthdayCard}
               ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
               ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
+              ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
               ${renderContinuationDayMarks(continuousRows, key, 'overview')}
               ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
             </div>
@@ -12563,6 +12751,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                           ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
+                    ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
@@ -12621,6 +12810,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                           ${birthdayCard}
                     ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
                     ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
+                    ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
                     ${renderContinuationDayMarks(continuousRows, key, 'overview')}
                     ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
@@ -12739,6 +12929,7 @@ function filterDailyCardsForDate(rows = [], dateKey = '') {
   return rows.filter(row => {
     if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
     if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return false
+    if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return true
     return row.start_date === dateKey
   })
@@ -16308,7 +16499,7 @@ function minuteOptionsHtml(defaultValue = '00') {
 }
 
 function getAvailableFormCategories() {
-  const personalCategories = ['一般記事', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  const personalCategories = ['待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
   if (currentPage === 'personalTodo') return personalCategories
   if (!canCreateServiceSchedule()) return personalCategories
   return formCategories
@@ -18136,7 +18327,7 @@ function openScheduleModal(defaults = {}) {
   const defaultDate = defaults.date || todayString()
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
-  const todoOptions = getManagedListOption('todoItems', todoItems).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
+  const todoOptions = todoItemOptionsHtml()
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
@@ -19506,7 +19697,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
   const start = parseTimeForEdit(row.start_time, '09', '00')
   const end = parseTimeForEdit(row.end_time, '10', '00')
-  const categoryOptions = optionHtml(formCategories, row.category)
+  const editCategoryList = formCategories.includes(row.category) ? formCategories : [...formCategories, row.category].filter(Boolean)
+  const categoryOptions = optionHtml(editCategoryList, row.category)
   const serviceTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.schedule_type || '其他')
   const subTypeOptions = optionHtml(getManagedListOption('serviceScheduleTypes', serviceScheduleTypes), row.sub_type || '', true)
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
@@ -19517,7 +19709,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const editAdministrativeReminderOptions = optionHtml(managedAdministrativeReminderItemsForEdit, currentAdministrativeReminderIsManaged ? currentAdministrativeReminderValue : '')
   const currentTodoValue = row.category === '待辦事項' ? (row.sub_type || '') : ''
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
-  const editTodoOptions = optionHtml(managedTodoItemsForEdit, currentTodoIsManaged ? currentTodoValue : '')
+  const editTodoOptions = todoItemOptionsHtml(currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveOptions = optionHtml(leaveMeetingTypes, row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
   const editDeliveryChecks = checkedOptionsHtml(getManagedDeliveryDocumentItems(), editDeliveryItems, 'edit_delivery_items')
@@ -20172,7 +20364,7 @@ async function saveSchedule(event, modal) {
   }
   const availableFormCategories = getAvailableFormCategories()
   if (!availableFormCategories.includes(category)) {
-    alert('此頁面只能新增一般記事、待辦事項、請假 / 會議 / 活動 / 外訓。')
+    alert('此頁面只能新增待辦事項、行政事務提醒、請假 / 會議 / 活動 / 外訓。')
     saving = false
     return
   }
