@@ -16669,8 +16669,8 @@ button.login-birthday-card:focus-visible {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  border: 1px solid var(--day-accent, #F7DD7D);
-  background: color-mix(in srgb, var(--day-accent, #F7DD7D) 22%, #ffffff 78%);
+  border: 1px solid var(--day-accent, #67C090);
+  background: color-mix(in srgb, var(--day-accent, #67C090) 22%, #ffffff 78%);
   color: #3f3f1f;
   border-radius: 13px;
   padding: 5px 8px;
@@ -16686,12 +16686,14 @@ button.login-birthday-card:focus-visible {
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  width: 22px;
+  width: auto;
+  min-width: 54px;
   height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
-  background: var(--day-accent, #F7DD7D);
-  color: #5f4b00;
-  font-size: 12px;
+  background: var(--day-accent, #67C090);
+  color: #0f3f30;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
 }

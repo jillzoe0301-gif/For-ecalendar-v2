@@ -91,6 +91,12 @@ function renderPageIcon(key) {
 }
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
+
+function getScheduleCategoryDisplayLabel(value = '') {
+  const text = String(value || '').trim()
+  if (text === '待辦事項' || text === '一般記事') return '待辦事項/一般記事'
+  return text
+}
 const serviceScheduleTypes = [
   '面談', '上線 / 教育訓練', '定期 / 開會', '送工', '銀行', '醫療',
   '車禍處理', '結薪', '收送簽文件', '逃跑通知', '轉出追蹤',
@@ -5255,7 +5261,8 @@ function isMeetingRoomSchedule(row) {
 
 function getScheduleDisplayType(row = {}) {
   if (isMeetingRoomSchedule(row)) return '會議室預約'
-  return row?.schedule_type || row?.category || '-'
+  const rawType = row?.schedule_type || row?.category || '-'
+  return getScheduleCategoryDisplayLabel(rawType)
 }
 
 
@@ -8798,8 +8805,7 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 function getScheduleColorDefinitions() {
   return [
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
-    { key: '一般記事', label: '一般記事', defaultColor: '#BFC9D1' },
-    { key: '待辦事項', label: '待辦事項', defaultColor: '#FFD65A' },
+    { key: '待辦事項', label: '待辦事項/一般記事', defaultColor: '#F7DD7D' },
     { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
@@ -8814,7 +8820,7 @@ function getScheduleColorDefinitions() {
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
-    { key: '返台提醒', label: '返台提醒', defaultColor: '#F7DD7D' },
+    { key: '返台提醒', label: '返台提醒', defaultColor: '#67C090' },
     { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
     { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
     { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
@@ -8836,7 +8842,10 @@ function getScheduleColorSettings() {
 
     const saved = remoteSaved || localSaved || {}
     delete saved['請假 / 會議 / 活動 / 外訓']
+    delete saved['一般記事']
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
+    if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
+    if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
 
     const defaults = getDefaultScheduleColorMap()
     const currentPaletteVersion = localStorage.getItem(scheduleColorPaletteVersionKey)
@@ -8902,6 +8911,7 @@ function getScheduleColorKey(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '行政事務提醒'
   if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
+  if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) return '待辦事項'
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
@@ -12622,7 +12632,7 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
   return reminderRows.map(row => `
     <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-      <span>提</span>
+      <span>返台提醒</span>
       <strong>${escapeHtml(getReturnTaiwanReminderTitle(row))}</strong>
     </button>
   `).join('')
@@ -16512,7 +16522,7 @@ function serviceTypeOptionsHtml(includeEmpty = false) {
 
 function optionHtml(items, selectedValue = '', includeEmpty = false) {
   const empty = includeEmpty ? `<option value="">無</option>` : ''
-  return empty + items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
+  return empty + items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${escapeHtml(getScheduleCategoryDisplayLabel(item))}</option>`).join('')
 }
 
 
@@ -18326,7 +18336,7 @@ function openScheduleModal(defaults = {}) {
   const defaultStaffId = defaults.staffId || currentProfile.staff_id || ''
   const defaultDate = defaults.date || todayString()
   const availableFormCategories = getAvailableFormCategories()
-  const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${category}</option>`).join('')
+  const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getScheduleCategoryDisplayLabel(category))}</option>`).join('')
   const todoOptions = todoItemOptionsHtml()
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveOptions = getManagedListOption('leaveMeetingTypes', leaveMeetingTypes).map(item => `<option value="${item}">${item}</option>`).join('')
