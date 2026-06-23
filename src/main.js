@@ -5336,7 +5336,9 @@ function getScheduleTypeTitleParts(row = {}) {
   }
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
     return {
-      type: getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row),
+      type: typeof getServiceReminderDisplayType === 'function'
+        ? getServiceReminderDisplayType(row, row.__occurrence_date || row.__render_date || '')
+        : (getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)),
       title: getServiceReminderDisplayLines(row)[0] || title
     }
   }
@@ -8909,11 +8911,14 @@ function getScheduleColorDefinitions() {
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
     { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
-    { key: '轉出追蹤', label: '提醒事項｜轉出追蹤', defaultColor: '#F4A261' },
-    { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#9ED3DC' },
-    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#B8E0D2' },
+    { key: '轉出追蹤', label: '提醒事項｜轉出追蹤', defaultColor: '#FF8080' },
+    { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
+    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF8080' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
-    { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#F7DD7D' },
+    { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
+    { key: 'TalkTalk', label: '請假 / 會議 / 活動 / 外訓｜TalkTalk', defaultColor: '#5E7AC4' },
+    { key: '產文件', label: '待辦項目｜產文件', defaultColor: '#F7DD7D' },
+    { key: '用印申請', label: '待辦項目｜用印申請', defaultColor: '#F7DD7D' },
     { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
     { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
     { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
@@ -8939,9 +8944,23 @@ function getScheduleColorSettings() {
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
     if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
-    ;['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '電表提醒'].forEach(key => {
-      if (!saved[key] && saved['提醒事項']) saved[key] = saved['提醒事項']
+
+    const serviceReminderColorDefaults = {
+      '逃跑通知': '#FF8080',
+      '轉出追蹤': '#FF8080',
+      '住變資訊提供': '#FF8080',
+      '驗證提醒': '#FF8080',
+      '返台提醒': '#67C090',
+      '電表提醒': '#BBD5DA'
+    }
+    const legacyServiceReminderColors = new Set(['#F4A261', '#9ED3DC', '#B8E0D2', '#F7DD7D'])
+    Object.entries(serviceReminderColorDefaults).forEach(([key, color]) => {
+      const current = String(saved[key] || '').toUpperCase()
+      if (!saved[key] || legacyServiceReminderColors.has(current)) saved[key] = color
     })
+    if (!saved['TalkTalk']) saved['TalkTalk'] = saved['會議'] || '#5E7AC4'
+    if (!saved['產文件']) saved['產文件'] = saved['待辦事項'] || '#F7DD7D'
+    if (!saved['用印申請']) saved['用印申請'] = saved['待辦事項'] || '#F7DD7D'
 
     const defaults = getDefaultScheduleColorMap()
     const currentPaletteVersion = localStorage.getItem(scheduleColorPaletteVersionKey)
@@ -9011,7 +9030,11 @@ function getScheduleColorKey(row) {
     ? getServiceReminderTypeFromRow(row)
     : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
   if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return directReminderColorKey
-  if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) return '待辦事項'
+  if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) {
+    const todoSubtype = String(row?.sub_type || '').trim()
+    if (['產文件', '用印申請'].includes(todoSubtype)) return todoSubtype
+    return '待辦事項'
+  }
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
 
@@ -13057,6 +13080,11 @@ function filterDailyCardsForDate(rows = [], dateKey = '') {
     if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return true
     return row.start_date === dateKey
+  }).map(row => {
+    if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+      return { ...row, __occurrence_date: dateKey }
+    }
+    return row
   })
 }
 
@@ -14572,8 +14600,18 @@ function getServiceReminderDisplayLines(row = {}) {
   return [title]
 }
 
-function renderServiceReminderScheduleCard(row = {}) {
+function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)
+  if (type === '驗證提醒') {
+    const info = parseVerifyReminderInfo(row)
+    if (occurrenceDate && info.leaveDate && occurrenceDate === info.leaveDate) return '離境通知'
+  }
+  return type
+}
+
+function renderServiceReminderScheduleCard(row = {}) {
+  const occurrenceDate = row.__occurrence_date || row.__render_date || ''
+  const type = getServiceReminderDisplayType(row, occurrenceDate)
   const lines = getServiceReminderDisplayLines(row)
   return `
     <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
