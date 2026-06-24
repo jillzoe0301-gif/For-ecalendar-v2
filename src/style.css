@@ -19096,3 +19096,71 @@ button.login-birthday-card:focus-visible {
 }
 /* V002-1P-270 END - line notify dropdown clear single copy */
 
+/* V002-1P-272 START - service admin quick groups completed admin reminder */
+.service-admin-notify-field,
+.edit-service-admin-notify-field {
+  min-width: 0 !important;
+}
+
+.service-admin-notify-field select,
+.edit-service-admin-notify-field select {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 行政事務提醒：提醒項目顯示在標題上方。 */
+#scheduleForm[data-current-category="行政事務提醒"] [data-section="administrative-reminder"],
+#editScheduleForm[data-current-category="行政事務提醒"] #editAdministrativeReminderBlock {
+  order: -20 !important;
+}
+
+#scheduleForm[data-current-category="行政事務提醒"] [data-section="common-simple"],
+#editScheduleForm[data-current-category="行政事務提醒"] .edit-common-title-field {
+  order: -10 !important;
+}
+
+#scheduleForm[data-current-category="行政事務提醒"] [data-section="administrative-reminder"] select,
+#editScheduleForm[data-current-category="行政事務提醒"] #editAdministrativeReminderBlock select {
+  font-weight: 800 !important;
+}
+
+/* 已完成行程更明顯呈現結束狀態。 */
+.schedule-card.is-completed,
+.search-result-row.is-completed,
+.week-schedule-card.is-completed,
+.field-week-schedule-card.is-completed,
+.meeting-room-card.is-completed,
+.field-detail-row.is-completed,
+.incident-row.is-completed,
+.assigned-tracking-row.is-completed {
+  background: #e5e7eb !important;
+  border-color: #cbd5e1 !important;
+  color: #6b7280 !important;
+  opacity: 0.82 !important;
+  filter: grayscale(0.25) !important;
+  box-shadow: none !important;
+}
+
+.schedule-card.is-completed *,
+.search-result-row.is-completed *,
+.week-schedule-card.is-completed *,
+.field-week-schedule-card.is-completed *,
+.meeting-room-card.is-completed *,
+.field-detail-row.is-completed *,
+.incident-row.is-completed *,
+.assigned-tracking-row.is-completed * {
+  color: #6b7280 !important;
+}
+
+.schedule-card.is-completed .status-pill,
+.search-result-row.is-completed .status-pill,
+.week-schedule-card.is-completed .status-pill,
+.field-week-schedule-card.is-completed .status-pill,
+.meeting-room-card.is-completed .status-pill,
+.incident-row.is-completed .status-pill,
+.assigned-tracking-row.is-completed .status-pill {
+  background: #d1d5db !important;
+  color: #4b5563 !important;
+  border-color: #cbd5e1 !important;
+}
+/* V002-1P-272 END - service admin quick groups completed admin reminder */

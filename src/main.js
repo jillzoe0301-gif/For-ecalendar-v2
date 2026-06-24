@@ -190,7 +190,7 @@ const scheduleContentTemplates = [
   { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
-const administrativeReminderItems = ['求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
+const administrativeReminderItems = ['--', '求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
 const leaveMeetingTypes = ['請假', '返鄉', '會議', '外訓', '部門活動', '公司活動', 'TalkTalk']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = [
@@ -622,7 +622,11 @@ function getManagedAdministrativeTaskTypeOptions() {
 }
 
 function getManagedAdministrativeReminderItems() {
-  return getManagedListOption('administrativeReminderItems', administrativeReminderItems)
+  const configured = getManagedListOption('administrativeReminderItems', administrativeReminderItems)
+  return ['--', ...configured]
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .filter((item, index, array) => array.indexOf(item) === index)
 }
 
 function getManagedTodoItems() {
@@ -5557,6 +5561,10 @@ function getScheduleCardTitleText(row = {}) {
 function getScheduleTypeTitleParts(row = {}) {
   const title = String(row.title || row.customer_name || '').trim() || '-'
   if (isVehicleMaintenanceSchedule(row)) return { type: '公務車保養', title }
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
+    const reminderItem = String(row.sub_type || getNoteValue(row, '提醒項目') || '--').trim() || '--'
+    return { type: reminderItem, title }
+  }
   if (isMeetingRoomSchedule(row)) {
     return {
       type: String(row.location_name || row.sub_type || '').trim() || '會議室',
@@ -14361,10 +14369,62 @@ function saveOverviewQuickGroupsPreference() {
   return overviewQuickGroups
 }
 
+function normalizeOverviewQuickGroupNameText(value = '') {
+  return String(value || '').replace(/\s+/g, '').trim()
+}
+
+function getOverviewQuickGroupStaffPool() {
+  const rows = [
+    ...(typeof getOverviewBaseStaffRows === 'function' ? getOverviewBaseStaffRows() : []),
+    ...(Array.isArray(staffList) ? staffList : []),
+    ...(Array.isArray(allStaffList) ? allStaffList : []),
+    ...(typeof getUserManageRows === 'function' ? getUserManageRows() : [])
+  ]
+
+  const map = new Map()
+  rows.forEach(row => {
+    const staffId = normalizeStaffId(row?.staff_id || row?.staffId || row?.id || '')
+    if (!staffId) return
+    if (row?.deleted_at || row?.deletedAt || row?.is_deleted === true) return
+    const current = map.get(staffId) || {}
+    map.set(staffId, { ...current, ...row, staff_id: staffId })
+  })
+
+  return sortStaffRowsByFilter([...map.values()], { sortBy: 'display_order', sortDir: 'asc' })
+}
+
+function getOverviewQuickGroupStaffIdsByNames(names = []) {
+  const wanted = new Set((names || []).map(normalizeOverviewQuickGroupNameText).filter(Boolean))
+  if (!wanted.size) return []
+  return getOverviewQuickGroupStaffPool()
+    .filter(staff => {
+      const name = normalizeOverviewQuickGroupNameText(staff.name || staff.staff_name || staff.full_name || staff.display_name || '')
+      return wanted.has(name)
+    })
+    .map(staff => normalizeStaffId(staff.staff_id))
+    .filter(Boolean)
+}
+
+function getAdministrativeQuickGroupStaffIds() {
+  return getOverviewQuickGroupStaffPool()
+    .filter(staff => {
+      const name = String(staff.name || '').trim()
+      const positionText = [staff.position, staff.position_name, staff.title, staff.role]
+        .filter(Boolean)
+        .join('｜')
+      const departmentText = String(staff.department_name || '')
+      return name === '徐嘉陽' || positionText.includes('行政') || positionText.includes('海外行政') || departmentText.includes('營運處')
+    })
+    .map(staff => normalizeStaffId(staff.staff_id))
+    .filter(Boolean)
+}
+
 function getOverviewBuiltInQuickGroups() {
   return [
     { id: 'all', name: '全部', builtIn: true, staffIds: [] },
-    { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) }
+    { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) },
+    { id: 'admin-staff', name: '行政群', builtIn: true, staffIds: getAdministrativeQuickGroupStaffIds() },
+    { id: 'cat-sister-group', name: '貓姐群', builtIn: true, staffIds: getOverviewQuickGroupStaffIdsByNames(['貓姐']) }
   ]
 }
 
@@ -19694,6 +19754,7 @@ function openScheduleModal(defaults = {}) {
   const leaveOptions = getManagedLeaveMeetingTypes().map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const supervisorOptions = supervisorSelectOptionsHtml()
+  const serviceAdminOptions = administrativeStaffOptionsHtml()
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
@@ -19822,6 +19883,13 @@ function openScheduleModal(defaults = {}) {
             提醒事項
             <select name="service_reminder_type" id="serviceReminderTypeSelect">
               ${serviceReminderOptionsHtml('--')}
+            </select>
+          </label>
+
+          <label class="service-admin-notify-field compact-hide-for-reminder">
+            通知行政
+            <select name="service_admin_staff_id">
+              ${serviceAdminOptions}
             </select>
           </label>
 
@@ -20526,7 +20594,7 @@ function getAdministrativeStaffRows() {
         .filter(Boolean)
         .join('｜')
       const departmentText = String(staff.department_name || '')
-      return positionText.includes('行政') || positionText.includes('海外行政') || departmentText.includes('營運處')
+      return positionText.includes('行政') || positionText.includes('海外行政') || departmentText.includes('營運處') || String(staff.name || '').trim() === '徐嘉陽'
     })
     .sort((a, b) => {
       const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
@@ -20555,6 +20623,53 @@ function getStaffNameById(staffId = '') {
 function administrativeTaskTypeOptionsHtml(selected = '') {
   const items = getManagedAdministrativeTaskTypeOptions()
   return `<option value="" ${!selected ? 'selected' : ''}>不通知行政</option>` + items.map(item => `<option value="${escapeHtml(item)}" ${selected === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')
+}
+
+
+function cleanServiceAdminNotifyNote(noteText = '') {
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith('通知行政：'))
+    .join('｜')
+}
+
+function appendServiceAdminNotifyNote(parts = [], adminName = '') {
+  const cleaned = (parts || [])
+    .map(item => cleanServiceAdminNotifyNote(item))
+    .filter(Boolean)
+  if (adminName) cleaned.push(`通知行政：${adminName}`)
+  return cleaned
+}
+
+function hasExistingServiceAdministrativeTodo(sourceScheduleId = '', adminStaffId = '') {
+  const sourceId = String(sourceScheduleId || '').trim()
+  const staffId = String(adminStaffId || '').trim()
+  if (!sourceId || !staffId) return false
+
+  return (schedules || []).some(row => {
+    if (!row || row.status === '取消') return false
+    if (row.category !== '待辦事項') return false
+    const note = String(row.sub_type_note || '')
+    if (!note.includes(`來源行程：${sourceId}`)) return false
+    if (!note.includes('服務行程通知行政')) return false
+    return getActiveAssigneeIds(row).includes(staffId)
+  })
+}
+
+async function maybeCreateServiceAdministrativeTodo(sourceRow = {}, scheduleType = '', taskDetail = '', adminStaffId = '', options = {}) {
+  const staffId = String(adminStaffId || '').trim()
+  if (!staffId) return null
+
+  if (sourceRow.schedule_id && hasExistingServiceAdministrativeTodo(sourceRow.schedule_id, staffId)) return null
+
+  const typeText = String(scheduleType || sourceRow.schedule_type || '服務行程通知').trim() || '服務行程通知'
+  return createAdministrativeTodoSchedule(sourceRow, typeText, taskDetail || sourceRow.description || sourceRow.title || '', staffId, {
+    sourceLabel: '服務行程通知行政',
+    startDate: options.startDate || sourceRow.start_date || todayString(),
+    extraNote: options.extraNote || '由服務行程「通知行政」欄位建立。'
+  })
 }
 
 async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', taskDetail = '', adminStaffId = '', options = {}) {
@@ -21169,6 +21284,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const isMaintenance = isVehicleMaintenanceSchedule(row)
   const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
   const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
+  const editServiceAdminStaffId = row.category === '服務行程' ? getStaffIdByDisplayName(getNoteValue(row, '通知行政')) : ''
+  const editServiceAdminOptions = administrativeStaffOptionsHtml(editServiceAdminStaffId)
   const isMaintenanceActiveIds = getActiveAssigneeIds(row)
   const maintenanceCarValue = row.car_no || row.customer_name || row.sub_type || '不使用'
   const maintenanceCarOptions = optionHtml(getManagedListOption('carOptions', carOptions), maintenanceCarValue)
@@ -21226,6 +21343,13 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             提醒事項
             <select name="service_reminder_type">
               ${serviceReminderOptions}
+            </select>
+          </label>
+
+          <label class="edit-service-admin-notify-field compact-hide-for-reminder">
+            通知行政
+            <select name="edit_service_admin_staff_id">
+              ${editServiceAdminOptions}
             </select>
           </label>
 
@@ -21689,6 +21813,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editScope = getScheduleEditScopeValue(form, originalRow)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
   const editNotifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
+  const editServiceAdminStaffId = category === '服務行程' ? String(form.get('edit_service_admin_staff_id') || '') : ''
+  const editServiceAdminName = editServiceAdminStaffId ? getStaffNameById(editServiceAdminStaffId) : ''
   const editExecutorIds = category === '行政事務提醒'
     ? [currentProfile?.staff_id].filter(Boolean)
     : (category === '公務車保養'
@@ -21735,13 +21861,13 @@ async function saveEditedSchedule(event, modal, originalRow) {
       payloadDescription = null
     }
 
-    const cleanedNote = cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))
+    const cleanedNote = cleanServiceAdminNotifyNote(cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType))))
     const extraNotes = buildServiceExtraNotes(form, editScheduleType)
-    editSubTypeNote = appendNotifySupervisorNote([
+    editSubTypeNote = appendNotifySupervisorNote(appendServiceAdminNotifyNote([
       buildRepeatNote(form),
       isCompactSpecialScheduleType(editScheduleType) ? '' : cleanedNote,
       ...extraNotes
-    ].filter(Boolean), editNotifySupervisorName).join('｜') || null
+    ].filter(Boolean), editServiceAdminName), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '公務車保養') {
@@ -21867,6 +21993,21 @@ async function saveEditedSchedule(event, modal, originalRow) {
   if (isService) {
     await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)
     await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)
+
+    if (editServiceAdminStaffId) {
+      try {
+        await maybeCreateServiceAdministrativeTodo(
+          { ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId },
+          editScheduleType || '服務行程通知',
+          payloadDescription || payloadTitle || '',
+          editServiceAdminStaffId,
+          { startDate: payloadStartDate || editedSchedulePayload.start_date || originalRow.start_date }
+        )
+      } catch (serviceAdminError) {
+        console.error(serviceAdminError)
+        alert('行程已修改，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))
+      }
+    }
   }
 
   await supabase.from('audit_logs').insert({
@@ -21963,6 +22104,8 @@ async function saveSchedule(event, modal) {
   let subType = ''
   let subTypeNoteParts = [buildRepeatNote(form)]
   const notifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('notify_supervisor_staff')
+  const serviceAdminStaffId = category === '服務行程' ? String(form.get('service_admin_staff_id') || '') : ''
+  const serviceAdminName = serviceAdminStaffId ? getStaffNameById(serviceAdminStaffId) : ''
   if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
   let locationName = null
@@ -22066,6 +22209,7 @@ async function saveSchedule(event, modal) {
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
+    if (serviceAdminName) subTypeNoteParts.push(`通知行政：${serviceAdminName}`)
     if (!isCompactSpecialScheduleType(scheduleType)) {
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
       if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
@@ -22137,6 +22281,21 @@ async function saveSchedule(event, modal) {
     return
   }
 
+
+  if (category === '服務行程' && serviceAdminStaffId) {
+    try {
+      await maybeCreateServiceAdministrativeTodo(
+        { ...schedulePayload, schedule_id: schedule.schedule_id },
+        scheduleType || '服務行程通知',
+        form.get('description') || schedulePayload.title || '',
+        serviceAdminStaffId,
+        { startDate: schedulePayload.start_date }
+      )
+    } catch (serviceAdminError) {
+      console.error(serviceAdminError)
+      alert('服務行程已建立，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))
+    }
+  }
   if (needServiceRecord) {
     const serviceRows = selectedStaff.map(staff => ({
       schedule_id: schedule.schedule_id,
