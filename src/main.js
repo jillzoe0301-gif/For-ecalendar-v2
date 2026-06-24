@@ -3740,9 +3740,12 @@ function renderApp() {
     input.addEventListener('change', () => {
       const checkedIds = [...document.querySelectorAll('[data-line-select-row]:checked')].map(item => item.value)
       const allIds = [...document.querySelectorAll('[data-line-select-row]')].map(item => item.value)
+      const nextSelectedIds = checkedIds.length === 0
+        ? ['__none__']
+        : (checkedIds.length === allIds.length ? [] : checkedIds)
       lineNotifyState = {
         ...lineNotifyState,
-        selectedIds: checkedIds.length === allIds.length ? [] : checkedIds
+        selectedIds: nextSelectedIds
       }
       renderApp()
     })
@@ -3788,6 +3791,34 @@ function renderApp() {
     openLineShareBtn.addEventListener('click', () => {
       const text = document.querySelector('#lineMessageText')?.value || ''
       openLineAppOrShare(text)
+    })
+  }
+
+  const copyLinePreviewArea = document.querySelector('[data-copy-line-preview]')
+  if (copyLinePreviewArea) {
+    copyLinePreviewArea.addEventListener('click', async () => {
+      const lineMessageTextarea = document.querySelector('#lineMessageText')
+      const text = lineMessageTextarea?.value || ''
+      if (!text.trim()) {
+        alert('目前沒有可複製的 LINE 訊息。')
+        return
+      }
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text)
+        } else if (lineMessageTextarea) {
+          lineMessageTextarea.focus()
+          lineMessageTextarea.select()
+          document.execCommand('copy')
+        } else {
+          throw new Error('clipboard unavailable')
+        }
+        alert('LINE 訊息已複製。')
+      } catch (err) {
+        console.error(err)
+        alert('無法自動複製，請手動選取文字複製。')
+      }
     })
   }
 
@@ -9635,30 +9666,32 @@ function renderLineNotifySchedulePicker(rows = []) {
   if (!rows.length) return '<div class="empty-state">目前沒有可選擇的 LINE 通知行程。</div>'
 
   const selected = getLineNotifySelectedIdSet(rows)
-  const useAll = !selected.size
-  const summaryText = useAll ? `下拉選單內全部 ${rows.length} 筆` : `已選 ${selected.size} / ${rows.length} 筆`
+  const rawSelectedIds = lineNotifyState.selectedIds || []
+  const noneSelected = rawSelectedIds.includes('__none__')
+  const useAll = !noneSelected && !selected.size
+  const summaryText = noneSelected ? `已取消全部勾選（0 / ${rows.length} 筆）` : (useAll ? `下拉選單內全部 ${rows.length} 筆` : `已選 ${selected.size} / ${rows.length} 筆`)
 
   return `
     <section class="line-select-card line-select-dropdown-card">
       <div class="line-select-head">
         <div>
           <strong>選擇要通知的行程</strong>
-          <span>${useAll ? '目前會通知清單內全部行程；展開後可改成只通知指定項目。' : `已選 ${selected.size} 筆，只通知已選行程。`}</span>
+          <span>${noneSelected ? '目前不通知任何行程；可重新勾選指定項目，或按全部通知恢復。' : (useAll ? '目前會通知清單內全部行程；展開後可改成只通知指定項目。' : `已選 ${selected.size} 筆，只通知已選行程。`)}</span>
         </div>
         <div class="line-select-actions">
           <button type="button" class="secondary-btn" id="selectAllLineRowsBtn">全部通知</button>
-          <button type="button" class="secondary-btn" id="clearLineRowsBtn">清除選取</button>
+          <button type="button" class="secondary-btn" id="clearLineRowsBtn">一鍵取消勾選</button>
         </div>
       </div>
 
-      <details class="line-select-dropdown">
+      <details class="line-select-dropdown ${noneSelected ? 'is-none-selected' : ''}">
         <summary>
           <span>${escapeHtml(summaryText)}</span>
           <strong>展開選擇</strong>
         </summary>
         <div class="line-select-list">
           ${rows.map(row => {
-            const checked = useAll || selected.has(row.schedule_id)
+            const checked = !noneSelected && (useAll || selected.has(row.schedule_id))
             return `
               <label class="line-select-row">
                 <input type="checkbox" data-line-select-row value="${escapeHtml(row.schedule_id)}" ${checked ? 'checked' : ''}>
@@ -9791,8 +9824,11 @@ function renderLineNotificationPage() {
     </section>
 
     <section class="line-preview-list">
-      <div class="section-title-row">
-        <h4>本次通知資料預覽</h4>
+      <div class="section-title-row line-preview-copy-row" data-copy-line-preview title="點選可複製 LINE 訊息內容">
+        <div>
+          <h4>本次通知資料預覽</h4>
+          <small class="line-preview-copy-hint">點選此列可直接複製 LINE 訊息內容</small>
+        </div>
         <span>${selectedRows.length} / ${rows.length} 筆</span>
       </div>
       ${renderScheduleList(selectedRows, '目前沒有符合條件的通知資料。', true)}
