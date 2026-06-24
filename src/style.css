@@ -17505,3 +17505,161 @@ button.login-birthday-card:focus-visible {
 /* FOR-e V002-1P-256 UPDATE END - continuous and field day auto wrapping */
 /* FOR-e V002-1P-251 END - clean calendar chips and continuous layout */
 
+/* FOR-e V002-1P-257 START - calendar full height horizontal scroll time return reminder */
+/* 行事曆下方不限制高度：手機、平板、電腦都可看完整行程表，並保留左右滑動。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll,
+.personal-month-calendar {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-x: contain !important;
+}
+
+.week-overview-table,
+.field-week-table,
+.meeting-week-table,
+.personal-month-calendar-head,
+.personal-month-calendar-grid {
+  height: auto !important;
+  max-height: none !important;
+}
+
+.week-day-cell,
+.field-week-day-cell,
+.meeting-week-day-cell,
+.month-day-cell {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.continuation-day-mark,
+.field-day-reminder-prompt,
+.return-reminder-day-mark,
+.administrative-reminder-day-mark {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.week-card-time:not(.factory-station-time),
+.field-week-card-time,
+.meeting-room-time,
+.service-reminder-time,
+.continuation-day-time {
+  display: block !important;
+  color: #333D6D !important;
+  font-weight: 950 !important;
+  line-height: 1.38 !important;
+  margin: 0 0 3px !important;
+}
+
+.week-card-time.factory-station-time,
+.factory-station-time {
+  color: #B7B7B7 !important;
+}
+
+/* 返台日前三天：顯示返台提醒，文字加大且白色。 */
+.return-reminder-day-mark.is-return-reminder {
+  background: var(--day-accent, #67C090) !important;
+  border-color: var(--day-accent, #67C090) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #67C090) 72%, #ffffff) !important;
+}
+
+.return-reminder-day-mark.is-return-reminder > span {
+  background: color-mix(in srgb, var(--day-accent, #67C090) 82%, #000000) !important;
+  color: #ffffff !important;
+  font-size: 14.5px !important;
+  font-weight: 950 !important;
+  min-height: 24px !important;
+}
+
+.return-reminder-day-mark.is-return-reminder > strong,
+.return-reminder-day-mark.is-return-reminder strong em,
+.return-reminder-day-mark.is-return-reminder strong small {
+  color: #ffffff !important;
+}
+
+/* 返台日當天：顯示返台確認，顏色淡兩階。 */
+.return-reminder-day-mark.is-return-confirm {
+  background: color-mix(in srgb, var(--day-accent, #67C090) 12%, #ffffff 88%) !important;
+  border-color: color-mix(in srgb, var(--day-accent, #67C090) 28%, #ffffff 72%) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #67C090) 18%, #ffffff 82%) !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > span {
+  background: color-mix(in srgb, var(--day-accent, #67C090) 34%, #ffffff 66%) !important;
+  color: #334155 !important;
+  font-size: 13.5px !important;
+  font-weight: 950 !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > strong,
+.return-reminder-day-mark.is-return-confirm strong em,
+.return-reminder-day-mark.is-return-confirm strong small {
+  color: #334155 !important;
+}
+
+/* 重要事項的連續行程字體縮小，避免再次撐高或跑版。 */
+.continuation-day-mark.is-important-continuation .continuation-day-type-line {
+  font-size: 14.5px !important;
+  line-height: 1.25 !important;
+  min-height: 22px !important;
+  padding: 2px 8px !important;
+}
+
+.continuation-day-mark.is-important-continuation strong {
+  font-size: 14.5px !important;
+  line-height: 1.32 !important;
+}
+
+.continuation-day-mark.is-important-continuation .continuation-day-time {
+  font-size: 13.5px !important;
+  line-height: 1.32 !important;
+}
+
+@media (max-width: 1024px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .personal-month-calendar {
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .personal-month-calendar {
+    width: 100% !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+
+  .return-reminder-day-mark.is-return-reminder > span {
+    font-size: 14px !important;
+  }
+
+  .continuation-day-mark.is-important-continuation .continuation-day-type-line,
+  .continuation-day-mark.is-important-continuation strong {
+    font-size: 14px !important;
+  }
+
+  .continuation-day-mark.is-important-continuation .continuation-day-time {
+    font-size: 13px !important;
+  }
+}
+/* FOR-e V002-1P-257 END - calendar full height horizontal scroll time return reminder */
+

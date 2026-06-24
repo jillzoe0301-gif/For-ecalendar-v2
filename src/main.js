@@ -12992,10 +12992,25 @@ function getReturnTaiwanReminderDate(row = {}) {
   return noteDate || row.start_date || ''
 }
 
-function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
+function getReturnTaiwanReminderStatusForDate(row = {}, dateKey = '') {
   const returnDate = getReturnTaiwanReminderDate(row)
-  if (returnDate) return returnDate === dateKey
-  return scheduleMatchesDateByMode(row, dateKey)
+  if (!dateKey) return ''
+
+  if (returnDate) {
+    const reminderStart = typeof getDateKeyOffset === 'function'
+      ? (getDateKeyOffset(returnDate, -3) || returnDate)
+      : returnDate
+
+    if (dateKey === returnDate) return 'confirm'
+    if (dateKey >= reminderStart && dateKey < returnDate) return 'reminder'
+    return ''
+  }
+
+  return scheduleMatchesDateByMode(row, dateKey) ? 'reminder' : ''
+}
+
+function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
+  return Boolean(getReturnTaiwanReminderStatusForDate(row, dateKey))
 }
 
 function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
@@ -13033,12 +13048,24 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
   return reminderRows.map(row => {
     const info = getReturnTaiwanReminderInfo(row)
+    const status = typeof getReturnTaiwanReminderStatusForDate === 'function'
+      ? getReturnTaiwanReminderStatusForDate(row, dateKey)
+      : 'reminder'
+    const isConfirm = status === 'confirm'
+    const label = isConfirm ? '返台確認' : '返台提醒'
+    const statusClass = isConfirm ? 'is-return-confirm' : 'is-return-reminder'
+    const details = [
+      info.date ? `返台日：${info.date}` : '',
+      isConfirm && info.time ? `返台時間：${info.time}` : '',
+      info.flight ? `班機：${info.flight}` : ''
+    ].filter(Boolean)
+
     return `
-      <button type="button" class="return-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-        <span>返台提醒</span>
+      <button type="button" class="return-reminder-day-mark ${statusClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+        <span>${label}</span>
         <strong>
-          <em>${escapeHtml(info.title || '返台提醒')}</em>
-          ${info.date ? `<small>返台日：${escapeHtml(info.date)}</small>` : ''}
+          <em>${escapeHtml(info.title || label)}</em>
+          ${details.map(item => `<small>${escapeHtml(item)}</small>`).join('')}
         </strong>
       </button>
     `
@@ -13430,6 +13457,19 @@ function renderLeaveReturnDayMark(rows = [], dateKey = '', variant = 'overview')
   `
 }
 
+function getContinuationDayMarkClass(row = {}) {
+  const text = [
+    getContinuationDisplayLabel(row),
+    row.schedule_type,
+    row.sub_type,
+    row.title,
+    row.description,
+    row.sub_type_note
+  ].filter(Boolean).join('｜')
+
+  return /重要事項|重要事項!|重要/.test(text) ? ' is-important-continuation' : ''
+}
+
 function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview') {
   const targetRows = uniqueScheduleRows(rows).filter(row => isContinuousDateSchedule(row) && !isLeaveOrReturnSchedule(row))
   const activeIndexes = targetRows
@@ -13450,7 +13490,7 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
       const continuationTimeText = getContinuationDisplayTimeText(row)
 
       return `
-        <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+        <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark${getContinuationDayMarkClass(row)}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
           <span class="continuation-day-inline-title">
             <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
             <strong>${escapeHtml(getContinuationDisplayTitle(row))}</strong>
@@ -14893,8 +14933,8 @@ function renderServiceReminderScheduleCard(row = {}) {
   if (isFactoryStation) {
     return `
       <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-        ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
+        ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
       </button>
     `
@@ -14902,6 +14942,7 @@ function renderServiceReminderScheduleCard(row = {}) {
 
   return `
     <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -14917,8 +14958,8 @@ function renderWeekScheduleCard(row) {
   const isFactoryStation = isFactoryStationSchedule(row)
   return `
     <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
+      ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(row) ? `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</span>` : ''}
