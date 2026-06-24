@@ -9636,12 +9636,32 @@ function getLineNotifyRows() {
   return []
 }
 
+function getLineNotifyContentText(row = {}) {
+  const rawContent = String(row.description || row.content || row.memo || '').trim()
+  if (!rawContent) return ''
+
+  return rawContent
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
 function formatLineScheduleItem(row, index) {
+  const number = Number.isFinite(Number(index)) ? `${Number(index) + 1}. ` : ''
+  const dateText = String(row.start_date || '-').trim()
+  const timeText = String(formatTime(row) || '').trim()
+  const scheduleTimeText = [dateText, timeText].filter(Boolean).join(' ').trim()
+  const contentText = getLineNotifyContentText(row)
+  const contentLine = contentText
+    ? `內容：${contentText.includes('\n') ? `\n${contentText}` : contentText}`
+    : ''
+
   const parts = [
-    `${index + 1}. ${row.start_date || '-'} ${formatTime(row)}`,
+    `${number}${scheduleTimeText}`,
     `${getScheduleDisplayType(row)}｜${row.title || '-'}`,
+    contentLine,
     `執行者：${getAssigneeNames(row) || '-'}`,
-    row.customer_name ? `客戶 / 區域：${row.customer_name}` : '',
     row.location_name ? `地點：${row.location_name}` : '',
     `狀態：${getScheduleStatusLabel(row)}`
   ].filter(Boolean)
