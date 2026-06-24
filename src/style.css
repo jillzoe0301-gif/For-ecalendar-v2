@@ -17296,3 +17296,266 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-248 END - mobile overdue calendar font factory station */
+
+/* FOR-e V002-1P-249 START - inline calendar labels desktop font polish */
+/* 外務日：文字橫向顯示，與標題同一排。 */
+.field-day-reminder-prompt,
+.week-day-cell .field-day-reminder-prompt,
+.field-week-day-cell .field-day-reminder-prompt,
+.month-day-cell .field-day-reminder-prompt {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.field-day-reminder-badge,
+.week-day-cell .field-day-reminder-badge,
+.field-week-day-cell .field-day-reminder-badge,
+.month-day-cell .field-day-reminder-badge {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 52% !important;
+  height: auto !important;
+  min-height: 22px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+.field-day-reminder-prompt strong,
+.field-day-reminder-prompt .prompt-title-line,
+.week-day-cell .field-day-reminder-prompt strong,
+.field-week-day-cell .field-day-reminder-prompt strong,
+.month-day-cell .field-day-reminder-prompt strong,
+.week-day-cell .field-day-reminder-prompt .prompt-title-line,
+.field-week-day-cell .field-day-reminder-prompt .prompt-title-line,
+.month-day-cell .field-day-reminder-prompt .prompt-title-line {
+  flex: 1 1 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+/* 駐廠：類型與標題同一排，時間另列並使用指定灰色。 */
+.calendar-card-inline-title,
+.factory-station-inline-title {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 2px !important;
+  text-align: left !important;
+}
+
+.calendar-card-inline-title .week-card-type-line,
+.calendar-card-inline-title .service-reminder-card-type,
+.factory-station-inline-title .week-card-type-line,
+.factory-station-inline-title .service-reminder-card-type {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 50% !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 15.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 950 !important;
+}
+
+.calendar-card-inline-title strong,
+.factory-station-inline-title strong {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  font-size: 15.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 950 !important;
+}
+
+.factory-station-time,
+.week-schedule-card .factory-station-time,
+.service-reminder-week-card .factory-station-time,
+.schedule-card .factory-station-time {
+  display: block !important;
+  width: 100% !important;
+  color: #B7B7B7 !important;
+  font-size: 14.5px !important;
+  line-height: 1.45 !important;
+  font-weight: 950 !important;
+}
+
+/* 桌機版行事曆：整體字級加大，與手機 / 平板可讀性一致。 */
+.week-overview-table thead th strong,
+.field-week-table thead th strong,
+.meeting-week-table thead th strong,
+.week-overview-table .staff-name-cell strong,
+.field-week-table .field-staff-name-cell strong,
+.meeting-week-table .meeting-room-name-cell strong,
+.calendar-staff-name-text {
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+  font-weight: 950 !important;
+}
+
+.week-overview-table thead th span,
+.field-week-table thead th span,
+.meeting-week-table thead th span,
+.week-overview-table .staff-name-cell span,
+.field-week-table .field-staff-name-cell span,
+.meeting-week-table .meeting-room-name-cell span {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card {
+  font-size: 14.5px !important;
+  line-height: 1.5 !important;
+}
+
+.week-schedule-card strong,
+.field-week-schedule-card strong,
+.meeting-room-card strong,
+.week-schedule-card .week-card-type-line,
+.week-schedule-card .service-reminder-card-type,
+.week-schedule-card .week-card-extra,
+.field-day-reminder-prompt,
+.field-day-reminder-badge,
+.field-day-reminder-prompt strong,
+.field-day-reminder-prompt .prompt-title-line,
+.continuation-day-mark .continuation-day-type-line,
+.leave-return-day-mark > span,
+.return-reminder-day-mark > span,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.week-card-extra.todo-note-item-chip,
+.extra-schedule-chip.todo-note-item-chip {
+  font-size: 15.5px !important;
+  line-height: 1.4 !important;
+  font-weight: 950 !important;
+}
+
+.week-card-time,
+.field-week-card-time,
+.meeting-room-time,
+.week-card-preview,
+.field-week-card-preview,
+.meeting-room-meta,
+.meeting-room-preview {
+  font-size: 14.5px !important;
+  line-height: 1.45 !important;
+}
+
+/* 人員名稱旁的「外」字改黑色。 */
+.field-worker-badge,
+.week-overview-table .staff-name-cell .field-worker-badge,
+.field-week-table .field-staff-name-cell .field-worker-badge {
+  color: #000000 !important;
+}
+
+@media (max-width: 1024px) {
+  .week-schedule-card strong,
+  .field-week-schedule-card strong,
+  .meeting-room-card strong,
+  .week-schedule-card .week-card-type-line,
+  .week-schedule-card .service-reminder-card-type,
+  .week-schedule-card .week-card-extra,
+  .field-day-reminder-badge,
+  .field-day-reminder-prompt strong,
+  .field-day-reminder-prompt .prompt-title-line,
+  .continuation-day-mark .continuation-day-type-line,
+  .leave-return-day-mark > span,
+  .return-reminder-day-mark > span,
+  .calendar-card-inline-title .week-card-type-line,
+  .calendar-card-inline-title .service-reminder-card-type,
+  .calendar-card-inline-title strong,
+  .meeting-room-card .meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-room-line,
+  .week-card-extra.todo-note-item-chip,
+  .extra-schedule-chip.todo-note-item-chip {
+    font-size: 17px !important;
+    line-height: 1.42 !important;
+  }
+
+  .week-card-time,
+  .field-week-card-time,
+  .meeting-room-time,
+  .week-card-preview,
+  .field-week-card-preview,
+  .meeting-room-meta,
+  .meeting-room-preview,
+  .factory-station-time {
+    font-size: 15.5px !important;
+    line-height: 1.48 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .field-day-reminder-prompt {
+    gap: 5px !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }
+
+  .field-day-reminder-badge,
+  .field-day-reminder-prompt strong,
+  .field-day-reminder-prompt .prompt-title-line {
+    font-size: 15px !important;
+  }
+
+  .calendar-card-inline-title,
+  .factory-station-inline-title {
+    gap: 5px !important;
+  }
+
+  .calendar-card-inline-title .week-card-type-line,
+  .calendar-card-inline-title .service-reminder-card-type,
+  .factory-station-inline-title .week-card-type-line,
+  .factory-station-inline-title .service-reminder-card-type {
+    max-width: 46% !important;
+    font-size: 17px !important;
+  }
+
+  .calendar-card-inline-title strong,
+  .factory-station-inline-title strong {
+    font-size: 17px !important;
+  }
+}
+/* FOR-e V002-1P-249 END - inline calendar labels desktop font polish */

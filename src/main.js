@@ -30,6 +30,17 @@ import './style.css'
 */
 /* FOR-e V002-1P-248 END - mobile overdue calendar font factory station */
 
+
+/* FOR-e V002-1P-249 START - inline calendar labels desktop font polish */
+/*
+  V002-1P-249｜行事曆顯示項目與桌機字級調整
+  - 外務日提示改為橫向，與標題同一排。
+  - 駐廠提示改為與標題同一排，並補上駐廠時間。
+  - 行事曆顯示項目與桌機版字體整體加大。
+  - 人員名稱旁的「外」字改為黑色。
+*/
+/* FOR-e V002-1P-249 END - inline calendar labels desktop font polish */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -45,8 +56,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-248'
-/* V002-1P-248：修正手機逾期通知爆版、手機平板行事曆字級、服務行程新增駐廠與駐廠時間顯示。 */
+const SYSTEM_VERSION = 'V002-1P-249'
+/* V002-1P-249：外務日 / 駐廠同排顯示、駐廠補時間、桌機行事曆字級放大、外務徽章字色修正。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1700,7 +1711,9 @@ function isFactoryStationSchedule(row = {}) {
 
 function getFactoryStationTimeText(row = {}) {
   if (!isFactoryStationSchedule(row)) return ''
-  const text = getCardTimeText(row)
+  const noteTime = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '駐廠時間') : ''
+  const compactNoteTime = typeof getNoteValue === 'function' ? getNoteValue(row, '駐廠時間') : ''
+  const text = String(noteTime || compactNoteTime || getCardTimeText(row) || '').trim()
   return text ? `駐廠時間：${text}` : ''
 }
 
@@ -5405,6 +5418,14 @@ function renderScheduleTypeTitleStack(row = {}, typeClass = 'schedule-card-type-
   const safeTitle = escapeHtml(parts.title || '-')
   const typeLine = safeType ? `<span class="${typeClass}">${safeType}</span>` : ''
   return `${typeLine}<${titleTag}>${safeTitle}</${titleTag}>`
+}
+
+function renderScheduleTypeTitleInline(row = {}, typeClass = 'schedule-card-type-line', titleTag = 'strong', wrapperClass = 'calendar-card-inline-title') {
+  const parts = getScheduleTypeTitleParts(row)
+  const safeType = escapeHtml(parts.type || '')
+  const safeTitle = escapeHtml(parts.title || '-')
+  const typeLine = safeType ? `<span class="${typeClass}">${safeType}</span>` : ''
+  return `<span class="${escapeHtml(wrapperClass)}">${typeLine}<${titleTag}>${safeTitle}</${titleTag}></span>`
 }
 
 function splitPromptTypeTitle(text = '') {
@@ -14753,6 +14774,19 @@ function renderServiceReminderScheduleCard(row = {}) {
   const occurrenceDate = row.__occurrence_date || row.__render_date || ''
   const type = getServiceReminderDisplayType(row, occurrenceDate)
   const lines = getServiceReminderDisplayLines(row)
+  const isFactoryStation = isFactoryStationSchedule(row) || type === '駐廠'
+  const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
+
+  if (isFactoryStation) {
+    return `
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+        ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
+        ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
+        ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
+      </button>
+    `
+  }
+
   return `
     <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
@@ -14770,8 +14804,8 @@ function renderWeekScheduleCard(row) {
   const isFactoryStation = isFactoryStationSchedule(row)
   return `
     <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
-      ${renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(row) ? `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</span>` : ''}
