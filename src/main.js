@@ -1822,7 +1822,7 @@ function getFactoryStationTimeText(row = {}) {
   const noteTime = typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '駐廠時間') : ''
   const compactNoteTime = typeof getNoteValue === 'function' ? getNoteValue(row, '駐廠時間') : ''
   const text = String(noteTime || compactNoteTime || getCardTimeText(row) || '').trim()
-  return text ? `駐廠時間：${text}` : ''
+  return text ? text : ''
 }
 
 function renderFactoryStationTime(row = {}, className = 'factory-station-time') {
@@ -14988,7 +14988,7 @@ function renderServiceReminderScheduleCard(row = {}) {
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
         ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -15013,7 +15013,7 @@ function renderWeekScheduleCard(row) {
   const extra = getDisplaySubTypeExtra(row)
   const isFactoryStation = isFactoryStationSchedule(row)
   return `
-    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
       ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
