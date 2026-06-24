@@ -17632,29 +17632,26 @@ function fieldPurposeChecksHtml(selectedItems = [], inputName = 'field_purpose')
   const otherText = getFieldPurposeOtherTextFromValues(rawSelected)
   const options = getManagedListOption('fieldPurposeOptions', fieldPurposeOptions)
   const selectedText = rawSelected.length ? rawSelected.join('、') : '可複選'
-  const hasOtherOption = options.some(item => normalizeFieldPurposeOptionValue(item) === '其他')
   const otherSelected = selected.has('其他') || Boolean(otherText)
 
   return `
     <div class="field-purpose-check-list" data-field-purpose-list aria-label="外務目的複選">
       ${options.map(item => {
         const normalizedItem = normalizeFieldPurposeOptionValue(item)
+        const isOther = normalizedItem === '其他'
         return `
-          <label class="inline-check field-purpose-check">
+          <label class="inline-check field-purpose-check ${isOther ? 'field-purpose-check-other' : ''}">
             <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(normalizedItem) ? 'checked' : ''}>
             <span>${escapeHtml(item)}</span>
+            ${isOther ? `
+              <span class="field-purpose-other-row ${otherSelected ? '' : 'hidden'}" data-field-purpose-other-row>
+                <input type="text" name="${inputName}_other" value="${escapeHtml(otherText)}" placeholder="請輸入其他目的" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+              </span>
+            ` : ''}
           </label>
         `
       }).join('')}
     </div>
-    ${hasOtherOption ? `
-      <div class="field-purpose-other-row ${otherSelected ? '' : 'hidden'}" data-field-purpose-other-row>
-        <label>
-          其他目的
-          <input type="text" name="${inputName}_other" value="${escapeHtml(otherText)}" placeholder="請輸入其他外務目的">
-        </label>
-      </div>
-    ` : ''}
     <p class="field-hint field-purpose-hint">目前目的：${escapeHtml(selectedText)}</p>
   `
 }

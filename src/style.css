@@ -18024,3 +18024,192 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-259 END - field purpose other special expanded */
 
+
+/* FOR-e V002-1P-260 START - field purpose special mobile date layout */
+#fieldScheduleForm .field-purpose-check-list,
+#editFieldScheduleForm .field-purpose-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+#fieldScheduleForm .field-purpose-check,
+#editFieldScheduleForm .field-purpose-check,
+#fieldScheduleForm .field-special-expanded-list .field-special-check,
+#editFieldScheduleForm .field-special-expanded-list .field-special-check {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+  font-weight: 850 !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+}
+
+#fieldScheduleForm .field-purpose-check input[type="checkbox"],
+#editFieldScheduleForm .field-purpose-check input[type="checkbox"],
+#fieldScheduleForm .field-special-expanded-list .field-special-check input[type="checkbox"],
+#editFieldScheduleForm .field-special-expanded-list .field-special-check input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+#fieldScheduleForm .field-purpose-check-other,
+#editFieldScheduleForm .field-purpose-check-other {
+  flex: 1 1 320px !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 100% !important;
+  border-radius: 999px !important;
+}
+
+#fieldScheduleForm .field-purpose-check-other .field-purpose-other-row,
+#editFieldScheduleForm .field-purpose-check-other .field-purpose-other-row {
+  flex: 1 1 180px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 150px !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+#fieldScheduleForm .field-purpose-check-other .field-purpose-other-row.hidden,
+#editFieldScheduleForm .field-purpose-check-other .field-purpose-other-row.hidden {
+  display: none !important;
+}
+
+#fieldScheduleForm .field-purpose-check-other .field-purpose-other-row input,
+#editFieldScheduleForm .field-purpose-check-other .field-purpose-other-row input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  font-size: 15px !important;
+  box-sizing: border-box !important;
+}
+
+#fieldScheduleForm .field-special-expanded-list,
+#editFieldScheduleForm .field-special-expanded-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 8px 0 0 !important;
+}
+
+#fieldScheduleForm .field-special-expanded-list .field-special-check,
+#editFieldScheduleForm .field-special-expanded-list .field-special-check {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 9px 10px !important;
+  white-space: normal !important;
+  text-align: left !important;
+}
+
+#fieldScheduleForm .field-special-expanded-list .field-special-check span,
+#editFieldScheduleForm .field-special-expanded-list .field-special-check span {
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 768px) {
+  .modal-panel,
+  .modal-panel *,
+  #scheduleForm,
+  #fieldScheduleForm,
+  #meetingRoomForm,
+  #editScheduleForm,
+  #editFieldScheduleForm,
+  #meetingRoomEditForm {
+    box-sizing: border-box !important;
+  }
+
+  .modal-panel form,
+  .modal-panel label,
+  .modal-panel .form-grid,
+  .modal-panel .inner-grid,
+  .modal-panel .service-grid,
+  .modal-panel .block-group,
+  .modal-panel .schedule-mode-box,
+  .modal-panel .schedule-date-cycle-group,
+  .modal-panel .field-mode-time-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .modal-panel .form-grid,
+  .modal-panel .inner-grid,
+  .modal-panel .service-grid,
+  .modal-panel .compact-grid,
+  .modal-panel .field-mode-time-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .modal-panel .span-2,
+  .modal-panel .form-grid .span-2,
+  .modal-panel .inner-grid .span-2 {
+    grid-column: 1 / -1 !important;
+    min-width: 0 !important;
+  }
+
+  .modal-panel input,
+  .modal-panel select,
+  .modal-panel textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-panel input[type="date"],
+  .modal-panel input[type="time"] {
+    display: block !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    font-size: 16px !important;
+  }
+
+  #fieldScheduleForm .field-purpose-check-other,
+  #editFieldScheduleForm .field-purpose-check-other {
+    flex-basis: 100% !important;
+  }
+
+  #fieldScheduleForm .field-special-expanded-list,
+  #editFieldScheduleForm .field-special-expanded-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  #fieldScheduleForm .field-special-expanded-list .field-special-check,
+  #editFieldScheduleForm .field-special-expanded-list .field-special-check {
+    padding: 8px 6px !important;
+    font-size: 14px !important;
+  }
+}
+/* FOR-e V002-1P-260 END - field purpose special mobile date layout */
+
