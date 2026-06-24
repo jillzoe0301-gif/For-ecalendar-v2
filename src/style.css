@@ -18264,3 +18264,206 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-262 END - incident supervisor notify field */
+
+/* === V002-1P-263 mobile modal date field center fix START === */
+/*
+  目的：修正手機版新增行程 Modal 中，開始日期 / 結束日期超出欄位，
+  以及 iOS Safari 日期欄位文字無法上下置中的問題。
+  原因：日期 input 在手機瀏覽器有內建最小寬度與內距，
+  搭配原本表單 grid / card 的 min-width 時，會撐出父層。
+*/
+@media (max-width: 768px) {
+  .modal,
+  .modal-panel,
+  .modal-content,
+  .dialog,
+  .dialog-panel,
+  .form-modal,
+  .schedule-modal,
+  .event-modal,
+  .field-modal,
+  .meeting-room-modal,
+  .room-modal {
+    width: min(100%, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .modal-body,
+  .dialog-body,
+  .form-body,
+  .form-section,
+  .form-card,
+  .section-card,
+  .schedule-form,
+  .event-form,
+  .field-form,
+  .room-form,
+  .meeting-room-form,
+  .calendar-form,
+  .service-form,
+  .date-section,
+  .period-section,
+  .repeat-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .form-grid,
+  .form-row,
+  .form-two-col,
+  .form-2col,
+  .two-col,
+  .grid-2,
+  .date-grid,
+  .date-row,
+  .date-range-row,
+  .period-grid,
+  .schedule-period-grid,
+  .repeat-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  .form-grid > *,
+  .form-row > *,
+  .form-two-col > *,
+  .form-2col > *,
+  .two-col > *,
+  .grid-2 > *,
+  .date-grid > *,
+  .date-row > *,
+  .date-range-row > *,
+  .period-grid > *,
+  .schedule-period-grid > *,
+  .repeat-grid > *,
+  .form-field,
+  .field,
+  .control-field,
+  .input-field,
+  .date-field,
+  .date-control,
+  .field-control {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    line-height: 64px !important;
+    padding: 0 14px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    vertical-align: middle !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value {
+    height: 64px !important;
+    line-height: 64px !important;
+    min-height: 64px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: center !important;
+  }
+
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="time"]::-webkit-datetime-edit,
+  input[type="datetime-local"]::-webkit-datetime-edit {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 64px !important;
+    line-height: 64px !important;
+    padding: 0 !important;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 64px !important;
+    line-height: 64px !important;
+    padding: 0 !important;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="date"]::-webkit-datetime-edit-year-field,
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field,
+  input[type="time"]::-webkit-datetime-edit-hour-field,
+  input[type="time"]::-webkit-datetime-edit-minute-field {
+    line-height: 64px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .modal,
+  .modal-panel,
+  .modal-content,
+  .dialog,
+  .dialog-panel,
+  .form-modal,
+  .schedule-modal,
+  .event-modal,
+  .field-modal,
+  .meeting-room-modal,
+  .room-modal {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    height: 62px !important;
+    min-height: 62px !important;
+    line-height: 62px !important;
+    font-size: 17px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value,
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="time"]::-webkit-datetime-edit,
+  input[type="datetime-local"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+    height: 62px !important;
+    min-height: 62px !important;
+    line-height: 62px !important;
+  }
+}
+/* === V002-1P-263 mobile modal date field center fix END === */
