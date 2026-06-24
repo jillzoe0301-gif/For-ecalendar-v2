@@ -17831,3 +17831,34 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-259 END - strict calendar card time and type colors */
 
+
+/* FOR-e V002-1P-260 START - return reminder darker and continuous chip text black */
+/* 返台提醒：維持淡色系，但比 V258 再加深，避免提醒太淡看不清楚。 */
+.return-reminder-day-mark.is-return-reminder,
+.week-day-cell .return-reminder-day-mark.is-return-reminder,
+.field-week-day-cell .return-reminder-day-mark.is-return-reminder,
+.month-day-cell .return-reminder-day-mark.is-return-reminder,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-reminder {
+  background: color-mix(in srgb, var(--day-accent, #67C090) 30%, #ffffff 70%) !important;
+  border-color: color-mix(in srgb, var(--day-accent, #67C090) 54%, #ffffff 46%) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #67C090) 38%, #ffffff 62%) !important;
+}
+
+.return-reminder-day-mark.is-return-reminder > span,
+.week-day-cell .return-reminder-day-mark.is-return-reminder > span,
+.field-week-day-cell .return-reminder-day-mark.is-return-reminder > span,
+.month-day-cell .return-reminder-day-mark.is-return-reminder > span,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-reminder > span {
+  background: color-mix(in srgb, var(--day-accent, #67C090) 82%, #ffffff 18%) !important;
+  color: #ffffff !important;
+}
+
+/* 連續行程：橢圓框框內的項目文字改黑色，覆蓋 V259 的上方類型藍色規則。 */
+.continuation-day-mark .continuation-day-type-line,
+.week-day-cell .continuation-day-mark .continuation-day-type-line,
+.field-week-day-cell .continuation-day-mark .continuation-day-type-line,
+.month-day-cell .continuation-day-mark .continuation-day-type-line,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-type-line {
+  color: #000000 !important;
+}
+/* FOR-e V002-1P-260 END - return reminder darker and continuous chip text black */
