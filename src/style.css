@@ -17112,14 +17112,14 @@ button.login-birthday-card:focus-visible {
 .schedule-card .factory-station-time {
   display: block !important;
   width: 100% !important;
-  color: #B7B7B7 !important;
+  color: #C7C8CC !important;
   font-size: 14.5px !important;
   line-height: 1.45 !important;
   font-weight: 950 !important;
 }
 
 .factory-station-week-card {
-  border-color: #B7B7B7 !important;
+  border-color: #C7C8CC !important;
 }
 
 /* 連續行程：只讓「項目」有橢圓背景；標題與時間同排，空間不足時自動換行。 */
@@ -17564,7 +17564,7 @@ button.login-birthday-card:focus-visible {
 
 .week-card-time.factory-station-time,
 .factory-station-time {
-  color: #B7B7B7 !important;
+  color: #C7C8CC !important;
 }
 
 /* 返台日前三天那一天：顯示返台提醒；背景改淡色，標籤文字加大且白色。 */
@@ -18492,4 +18492,82 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* V002-1P-264 END - schedule detail multiline view */
+
+/* V002-1P-265 START - factory station continuous background color */
+:root {
+  --factory-station-color: #C7C8CC;
+  --factory-station-soft-bg: #F3F4F6;
+}
+
+/* 駐廠：用連續行程一致的膠囊背景呈現，標題不加背景。 */
+.factory-station-week-card,
+.week-schedule-card.factory-station-week-card,
+.service-reminder-week-card.factory-station-week-card,
+.week-day-cell .factory-station-week-card,
+.month-day-cell .factory-station-week-card,
+.field-week-day-cell .factory-station-week-card,
+.meeting-week-day-cell .factory-station-week-card {
+  --day-accent: #C7C8CC !important;
+  border-color: #C7C8CC !important;
+  background: #F3F4F6 !important;
+}
+
+.factory-station-inline-title .week-card-type-line,
+.factory-station-inline-title .service-reminder-card-type,
+.factory-station-week-card .week-card-type-line,
+.factory-station-week-card .service-reminder-card-type,
+.week-schedule-card.factory-station-week-card .week-card-type-line,
+.week-schedule-card.factory-station-week-card .service-reminder-card-type,
+.service-reminder-week-card.factory-station-week-card .week-card-type-line,
+.service-reminder-week-card.factory-station-week-card .service-reminder-card-type {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: fit-content !important;
+  max-width: 48% !important;
+  min-width: 0 !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 2px 9px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #C7C8CC !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  font-weight: 950 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 駐廠時間色系同步改為 #C7C8CC。 */
+.factory-station-time,
+.week-schedule-card .factory-station-time,
+.service-reminder-week-card .factory-station-time,
+.schedule-card .factory-station-time,
+.factory-station-week-card .week-card-time.factory-station-time {
+  color: #C7C8CC !important;
+  font-weight: 950 !important;
+}
+
+/* 駐廠標題維持純文字，不套膠囊背景。 */
+.factory-station-inline-title strong,
+.factory-station-week-card strong {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 768px) {
+  .factory-station-inline-title .week-card-type-line,
+  .factory-station-inline-title .service-reminder-card-type,
+  .factory-station-week-card .week-card-type-line,
+  .factory-station-week-card .service-reminder-card-type {
+    max-width: 52% !important;
+    min-height: 26px !important;
+    padding: 2px 10px !important;
+  }
+}
+/* V002-1P-265 END - factory station continuous background color */
 

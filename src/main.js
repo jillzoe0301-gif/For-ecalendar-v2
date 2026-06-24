@@ -35,7 +35,7 @@ import './style.css'
   V002-1P-248｜手機逾期通知與駐廠行程
   - 個人行程表任務逾期 / 超過時間卡片手機不再超出版面。
   - 手機、平板行事曆卡片字體再放大。
-  - 服務行程新增「駐廠」，並在行事曆卡片顯示灰色駐廠時間 #B7B7B7。
+  - 服務行程新增「駐廠」，並在行事曆卡片顯示灰色駐廠時間 #C7C8CC。
 */
 /* FOR-e V002-1P-248 END - mobile overdue calendar font factory station */
 
@@ -9217,7 +9217,7 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 function getScheduleColorDefinitions() {
   return [
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
-    { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#B7B7B7' },
+    { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#C7C8CC' },
     { key: '待辦事項', label: '待辦事項/一般記事', defaultColor: '#F7DD7D' },
     { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
@@ -9267,7 +9267,7 @@ function getScheduleColorSettings() {
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
     if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
-    if (!saved['駐廠']) saved['駐廠'] = '#B7B7B7'
+    if (!saved['駐廠']) saved['駐廠'] = '#C7C8CC'
 
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
