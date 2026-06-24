@@ -18213,3 +18213,54 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-261 END - field purpose special mobile date fix */
 
+/* FOR-e V002-1P-262 START - incident supervisor notify field */
+#incidentForm .supervisor-tracking-box,
+#editIncidentForm .supervisor-tracking-box,
+#incidentNextTrackingForm .supervisor-tracking-box {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#incidentForm .supervisor-tracking-box .compact-grid,
+#editIncidentForm .supervisor-tracking-box .compact-grid,
+#incidentNextTrackingForm .supervisor-tracking-box .compact-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#incidentForm .supervisor-tracking-box label,
+#editIncidentForm .supervisor-tracking-box label,
+#incidentNextTrackingForm .supervisor-tracking-box label {
+  min-width: 0 !important;
+}
+
+#incidentForm .supervisor-tracking-box select,
+#incidentForm .supervisor-tracking-box input,
+#editIncidentForm .supervisor-tracking-box select,
+#editIncidentForm .supervisor-tracking-box input,
+#incidentNextTrackingForm .supervisor-tracking-box select,
+#incidentNextTrackingForm .supervisor-tracking-box input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 640px) {
+  #incidentForm .supervisor-tracking-box .compact-grid,
+  #editIncidentForm .supervisor-tracking-box .compact-grid,
+  #incidentNextTrackingForm .supervisor-tracking-box .compact-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #incidentForm .supervisor-tracking-box .compact-grid .span-2,
+  #editIncidentForm .supervisor-tracking-box .compact-grid .span-2,
+  #incidentNextTrackingForm .supervisor-tracking-box .compact-grid .span-2 {
+    grid-column: 1 / -1 !important;
+  }
+}
+/* FOR-e V002-1P-262 END - incident supervisor notify field */

@@ -6434,7 +6434,7 @@ function isIncidentSupervisorTrackingSchedule(row = {}) {
   )
 }
 
-function incidentSupervisorTrackingBoxHtml(prefix = 'incident_supervisor_tracking') {
+function incidentSupervisorTrackingBoxHtml(prefix = 'incident_supervisor_tracking', selectedStaffId = '', selectedDetail = '') {
   return `
     <div class="span-2 admin-notify-box supervisor-tracking-box">
       <div class="field-title">通知主管追蹤</div>
@@ -6442,12 +6442,12 @@ function incidentSupervisorTrackingBoxHtml(prefix = 'incident_supervisor_trackin
         <label>
           通知主管
           <select name="${prefix}_staff_id">
-            ${supervisorSelectOptionsHtml()}
+            ${supervisorSelectOptionsHtml(selectedStaffId)}
           </select>
         </label>
         <label class="span-2">
           追蹤內容（非必填）
-          <input name="${prefix}_detail" placeholder="例如：請主管協助追蹤此異況後續處理">
+          <input name="${prefix}_detail" value="${escapeHtml(selectedDetail || '')}" placeholder="例如：請主管協助追蹤此異況後續處理">
         </label>
       </div>
       <p class="field-hint">若選擇主管，會建立一筆主管追蹤行程；此追蹤不列入統計報表。</p>
@@ -6604,6 +6604,18 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
   const adminTaskType = form.get('admin_task_type') || ''
   const adminStaffName = getStaffNameById(form.get('admin_staff_id') || '')
   const adminTaskDetail = form.get('admin_task_detail') || ''
+  const supervisorStaffName = getStaffNameById(
+    form.get('incident_supervisor_tracking_staff_id') ||
+    form.get('edit_incident_supervisor_tracking_staff_id') ||
+    form.get('incident_next_supervisor_tracking_staff_id') ||
+    ''
+  )
+  const supervisorTrackingDetail = String(
+    form.get('incident_supervisor_tracking_detail') ||
+    form.get('edit_incident_supervisor_tracking_detail') ||
+    form.get('incident_next_supervisor_tracking_detail') ||
+    ''
+  ).trim()
 
   return [
     `異況類型：${incidentType}`,
@@ -6616,6 +6628,8 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
     adminTaskType ? `通知行政辦理：${adminTaskType}` : '',
     adminStaffName ? `通知行政：${adminStaffName}` : '',
     adminTaskDetail ? `行政通知內容：${adminTaskDetail}` : '',
+    supervisorStaffName ? `通知主管：${supervisorStaffName}` : '',
+    supervisorTrackingDetail ? `主管通知內容：${supervisorTrackingDetail}` : '',
     form.get('need_service_record') === 'on' ? '服務紀錄單：需要' : '服務紀錄單：不需要',
     form.get('service_record_submitted') === 'on' ? `服務紀錄單狀態：已繳交${form.get('service_record_submitted_date') ? '｜繳交日期：' + form.get('service_record_submitted_date') : ''}` : ''
   ].filter(Boolean)
@@ -7430,6 +7444,9 @@ function openEditIncidentModal(scheduleId) {
   const incidentType = row.sub_type || getFieldNoteValue(row, '異況類型') || '其他'
   const incidentUrgency = getIncidentUrgencyFromRow(row)
   const incidentDate = getFieldNoteValue(row, '發生日期') || row.start_date || todayString()
+  const incidentSupervisorTrackingName = getFieldNoteValue(row, '通知主管') || getFieldNoteValue(row, '通知主管追蹤') || ''
+  const incidentSupervisorTrackingStaffId = getStaffIdByDisplayName(incidentSupervisorTrackingName)
+  const incidentSupervisorTrackingDetail = getFieldNoteValue(row, '主管通知內容') || getFieldNoteValue(row, '通知主管內容') || ''
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -7485,6 +7502,8 @@ function openEditIncidentModal(scheduleId) {
 
         ${renderIncidentTrackingHistory(row, true)}
 
+        ${incidentSupervisorTrackingBoxHtml('edit_incident_supervisor_tracking', incidentSupervisorTrackingStaffId, incidentSupervisorTrackingDetail)}
+
         <label class="span-2">
           新增追蹤內容
           <textarea name="new_tracking_content" rows="4" placeholder="輸入後會新增為第${chineseTrackingNumber(getIncidentTrackingEntries(row).length + 1)}次追蹤；若只是調整下次追蹤日期，可先空白。"></textarea>
@@ -7534,6 +7553,14 @@ async function saveEditedIncident(event, modal, originalRow) {
       .filter(staff => assistantIds.includes(staff.staff_id))
       .map(staff => staff.name)
     const newTrackingContent = String(form.get('new_tracking_content') || '').trim()
+    const supervisorTrackingStaffId = form.get('edit_incident_supervisor_tracking_staff_id') || ''
+    const supervisorTrackingDetail = String(form.get('edit_incident_supervisor_tracking_detail') || '').trim()
+
+    if (supervisorTrackingDetail && !supervisorTrackingStaffId) {
+      alert('若要通知主管追蹤，請選擇通知主管。')
+      saving = false
+      return
+    }
     const nextDescription = newTrackingContent
       ? appendIncidentTrackingEntry(originalRow, todayString(), '', newTrackingContent)
       : originalRow.description
@@ -7588,6 +7615,35 @@ async function saveEditedIncident(event, modal, originalRow) {
       responsibleStaff,
       selectedIds
     })
+
+    if (supervisorTrackingStaffId) {
+      try {
+        await createIncidentSupervisorTrackingSchedule(
+          {
+            ...originalRow,
+            ...payload,
+            schedule_id: originalRow.schedule_id,
+            sub_type: incidentType,
+            customer_name: customerName || null,
+            title: payload.title,
+            description: supervisorTrackingDetail || newTrackingContent || originalRow.description || '',
+            need_service_record: payload.need_service_record,
+            department_id: payload.department_id,
+            department_name: payload.department_name,
+            start_date: payload.start_date
+          },
+          supervisorTrackingStaffId,
+          supervisorTrackingDetail || newTrackingContent || originalRow.description || '',
+          form.get('next_follow_date'),
+          nextTime,
+          '修改異況通知主管追蹤'
+        )
+      } catch (supervisorError) {
+        alert('異況已修改，但通知主管追蹤建立失敗：' + (supervisorError?.message || supervisorError))
+        saving = false
+        return
+      }
+    }
 
     await supabase.from('audit_logs').insert({
       operated_by_profile_id: currentProfile.profile_id,
