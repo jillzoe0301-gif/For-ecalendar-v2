@@ -41,6 +41,15 @@ import './style.css'
 */
 /* FOR-e V002-1P-249 END - inline calendar labels desktop font polish */
 
+/* FOR-e V002-1P-250 START - continuous schedule inline item time */
+/*
+  V002-1P-250｜連續行程顯示修正
+  - 上線/教育訓練的連續行程項目顯示為「上線」。
+  - 連續行程的項目、標題、時間改為同一排顯示。
+  - 連續行程項目名稱優先對應原本行程類型、項目名稱或會議室名稱。
+*/
+/* FOR-e V002-1P-250 END - continuous schedule inline item time */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -56,8 +65,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-249'
-/* V002-1P-249：外務日 / 駐廠同排顯示、駐廠補時間、桌機行事曆字級放大、外務徽章字色修正。 */
+const SYSTEM_VERSION = 'V002-1P-250'
+/* V002-1P-250：連續行程同排顯示項目、標題與時間；項目名稱回到原本類型 / 項目，並將上線/教育訓練顯示為上線。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1367,17 +1376,92 @@ function getContinuationInitial(row = {}) {
   return String(text).trim().slice(0, 1) || '續'
 }
 
+function normalizeContinuationItemText(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const compact = text.replace(/[\s／/]+/g, '')
+  if (compact === '上線教育訓練' || compact.includes('上線教育訓練')) return '上線'
+  return text
+}
+
+function getFirstMeaningfulContinuationValue(row = {}, candidates = []) {
+  const genericValues = new Set([
+    '',
+    '-',
+    '請假 / 會議 / 活動 / 外訓',
+    '待辦事項/一般記事',
+    '待辦事項',
+    '一般記事',
+    '服務行程',
+    '行事曆',
+    '連續行程'
+  ])
+
+  for (const candidate of candidates) {
+    const normalized = normalizeContinuationItemText(candidate)
+    if (normalized && !genericValues.has(normalized)) return normalized
+  }
+
+  for (const candidate of candidates) {
+    const normalized = normalizeContinuationItemText(candidate)
+    if (normalized) return normalized
+  }
+
+  return ''
+}
+
 function getContinuationDisplayLabel(row = {}) {
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    return getServiceReminderTypeFromRow(row) || '提醒事項'
+    return normalizeContinuationItemText(getServiceReminderTypeFromRow(row) || '提醒事項')
   }
+
+  if (isMeetingRoomSchedule(row)) {
+    return getFirstMeaningfulContinuationValue(row, [
+      row.location_name,
+      row.sub_type,
+      row.schedule_type,
+      '會議室預約'
+    ]) || '會議室預約'
+  }
+
+  if (row.category === '待辦事項' || row.category === '一般記事') {
+    return getFirstMeaningfulContinuationValue(row, [
+      row.sub_type,
+      row.schedule_type,
+      row.category,
+      getScheduleColorKey(row)
+    ]) || '待辦事項'
+  }
+
   if (row.category === '請假 / 會議 / 活動 / 外訓') {
-    return row.sub_type || row.schedule_type || '行事曆'
+    return getFirstMeaningfulContinuationValue(row, [
+      row.sub_type,
+      row.schedule_type,
+      getScheduleColorKey(row),
+      getScheduleDisplayType(row)
+    ]) || '行事曆'
   }
-  if (row.category === '待辦事項' || row.category === '一般記事') return '待辦事項/一般記事'
-  if (isMeetingRoomSchedule(row)) return '會議室預約'
-  const key = getScheduleColorKey(row)
-  return key || getScheduleDisplayType(row) || '連續行程'
+
+  return getFirstMeaningfulContinuationValue(row, [
+    row.sub_type,
+    row.schedule_type,
+    row.category,
+    getScheduleColorKey(row),
+    getScheduleDisplayType(row)
+  ]) || '連續行程'
+}
+
+function getContinuationDisplayTitle(row = {}) {
+  const rawTitle = String(row.title || row.customer_name || '').trim()
+  const compactTitle = rawTitle.replace(/[\s／/]+/g, '')
+  if (compactTitle === '上線教育訓練') return '上線'
+  if (rawTitle) return rawTitle
+  return getContinuationDisplayLabel(row) || getScheduleDisplayType(row) || '連續行程'
+}
+
+function getContinuationDisplayTimeText(row = {}) {
+  const timeText = getCardTimeText(row)
+  return timeText ? `時間：${timeText}` : ''
 }
 
 
@@ -13339,10 +13423,15 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
         return index < maxActiveIndex ? '<div class="continuation-day-placeholder" aria-hidden="true"></div>' : ''
       }
 
+      const continuationTimeText = getContinuationDisplayTimeText(row)
+
       return `
         <button type="button" class="continuation-day-mark ${variant}-continuation-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-          <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
-          <strong>${escapeHtml(row.title || getScheduleDisplayType(row) || '連續行程')}</strong>
+          <span class="continuation-day-inline-title">
+            <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
+            <strong>${escapeHtml(getContinuationDisplayTitle(row))}</strong>
+            ${continuationTimeText ? `<span class="continuation-day-time">${escapeHtml(continuationTimeText)}</span>` : ''}
+          </span>
         </button>
       `
     })
