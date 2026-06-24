@@ -17763,3 +17763,71 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-258 END - return reminder exact day and card color tuning */
 
+/* FOR-e V002-1P-259 START - strict calendar card time and type colors */
+/*
+  前兩版時間色沒有生效的原因：舊版 [style] 卡片選擇器也用了 !important，
+  例如 .week-schedule-card[style] .week-card-time， specificity 比單純 .week-card-time 高。
+  這裡用同等或更高 specificity 的最後保護規則，避免再被舊 CSS 覆蓋。
+*/
+.schedule-card[style] .schedule-card-list-time,
+.schedule-card .schedule-card-list-time,
+.week-schedule-card[style] .week-card-time:not(.factory-station-time),
+.week-schedule-card[style] .week-card-time.service-reminder-time,
+.service-reminder-week-card[style] .week-card-time.service-reminder-time,
+.field-week-schedule-card[style] .field-week-card-time,
+.meeting-room-card[style] .meeting-room-time,
+.week-schedule-card .week-card-time:not(.factory-station-time),
+.week-schedule-card .week-card-time.service-reminder-time,
+.service-reminder-week-card .week-card-time.service-reminder-time,
+.field-week-schedule-card .field-week-card-time,
+.meeting-room-card .meeting-room-time,
+.continuation-day-mark .continuation-day-time,
+.week-day-cell .continuation-day-mark .continuation-day-time,
+.field-week-day-cell .continuation-day-mark .continuation-day-time,
+.month-day-cell .continuation-day-mark .continuation-day-time,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-time {
+  color: #4A4466 !important;
+}
+
+/* 卡片上方的行程類型：行程總覽、提醒事項、會議室、列表卡、連續行程項目都統一藍色。 */
+.schedule-card[style] .schedule-card-type-line,
+.schedule-card .schedule-card-type-line,
+.schedule-title-stack .schedule-card-type-line,
+.week-schedule-card[style] .week-card-type-line,
+.week-schedule-card[style] .service-reminder-card-type,
+.service-reminder-week-card[style] .service-reminder-card-type,
+.week-schedule-card .week-card-type-line,
+.week-schedule-card .service-reminder-card-type,
+.service-reminder-week-card .service-reminder-card-type,
+.calendar-card-inline-title .week-card-type-line,
+.calendar-card-inline-title .service-reminder-card-type,
+.factory-station-inline-title .week-card-type-line,
+.factory-station-inline-title .service-reminder-card-type,
+.meeting-room-card[style] .meeting-room-room-line,
+.meeting-room-card[style] strong.meeting-room-room-line,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.continuation-day-mark .continuation-day-type-line,
+.week-day-cell .continuation-day-mark .continuation-day-type-line,
+.field-week-day-cell .continuation-day-mark .continuation-day-type-line,
+.month-day-cell .continuation-day-mark .continuation-day-type-line,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-type-line {
+  color: #4E71FF !important;
+}
+
+/* 卡片下方的行程類型 / 項目 / 標籤：與上方行程類型分色。 */
+.week-schedule-card[style] .week-card-extra,
+.week-schedule-card[style] .week-card-extra.todo-note-item-chip,
+.week-schedule-card .week-card-extra,
+.week-schedule-card .week-card-extra.todo-note-item-chip,
+.schedule-card[style] .extra-schedule-chip,
+.schedule-card[style] .extra-schedule-chip.todo-note-item-chip,
+.schedule-card .extra-schedule-chip,
+.schedule-card .extra-schedule-chip.todo-note-item-chip,
+.extra-schedule-chip,
+.extra-schedule-chip.todo-note-item-chip,
+.reminder-tags span {
+  color: #A03A13 !important;
+}
+/* FOR-e V002-1P-259 END - strict calendar card time and type colors */
+

@@ -15074,7 +15074,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         return `
           <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
             <div class="schedule-card-main">
-              <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? '｜' + escapeHtml(timeText) : ''}</div>
+              <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
               ${isFactoryStationSchedule(row) && getFactoryStationTimeText(row) ? `<div class="schedule-meta factory-station-time">${escapeHtml(getFactoryStationTimeText(row))}</div>` : ''}
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
