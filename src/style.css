@@ -18929,3 +18929,89 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-277 END - incident follow type left inline only */
+
+/* V002-1P-278 follow type left inline overview meetingroom gray */
+.for-e-v278-incident-follow-modal .for-e-v278-follow-options-row,
+.for-e-v278-follow-options-row {
+  width: 100% !important;
+  max-width: 520px !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  justify-content: start !important;
+  justify-items: stretch !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.for-e-v278-follow-type-option,
+.for-e-v278-incident-follow-modal .for-e-v277-follow-type-option {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 50px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
+  border: 1px solid #d8e1f4 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #172033 !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+}
+
+.for-e-v278-follow-type-option input[type='radio'],
+.for-e-v278-follow-type-option input[type='checkbox'],
+.for-e-v278-incident-follow-modal .for-e-v277-follow-type-option input[type='radio'],
+.for-e-v278-incident-follow-modal .for-e-v277-follow-type-option input[type='checkbox'] {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px !important;
+  margin: 0 !important;
+}
+
+.for-e-v278-meeting-room-past-gray {
+  background: #eceef2 !important;
+  border-color: #c5c9d3 !important;
+  color: #777f8f !important;
+  box-shadow: none !important;
+  filter: grayscale(0.9) !important;
+  opacity: 0.70 !important;
+}
+
+.for-e-v278-meeting-room-past-gray *,
+.for-e-v278-meeting-room-past-gray .week-card-time,
+.for-e-v278-meeting-room-past-gray .calendar-card-time,
+.for-e-v278-meeting-room-past-gray .schedule-time,
+.for-e-v278-meeting-room-past-gray .meeting-room-name {
+  color: #737b8a !important;
+}
+
+@media (max-width: 640px) {
+  .for-e-v278-incident-follow-modal .for-e-v278-follow-options-row,
+  .for-e-v278-follow-options-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    max-width: 100% !important;
+  }
+
+  .for-e-v278-follow-type-option,
+  .for-e-v278-incident-follow-modal .for-e-v277-follow-type-option {
+    min-height: 48px !important;
+    padding: 9px 10px !important;
+    font-size: 14px !important;
+  }
+}
+/* end V002-1P-278 follow type left inline overview meetingroom gray */
+

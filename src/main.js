@@ -24462,3 +24462,288 @@ function renderServiceRecordDepartmentStatusV2(records) {
   - 不再使用全公司共用 overview_quick_groups，避免一人設定影響所有人
 */
 /* FOR-e V002-1P-216 END - personal quick groups cross-device sync */
+
+;(() => {
+  const PATCH_ID = 'FOR_E_V002_1P_278_FOLLOW_TYPE_OVERVIEW_MEETINGROOM_GRAY'
+  if (window[PATCH_ID]) return
+  window[PATCH_ID] = true
+
+  const pad2 = (value) => String(value || '').padStart(2, '0')
+  const cleanText = (value) => String(value || '').replace(/\s+/g, ' ').trim()
+  const rawText = (el) => (el?.innerText || el?.textContent || '').trim()
+  const textOf = (el) => cleanText(rawText(el))
+
+  const todayKey = () => {
+    const now = new Date()
+    return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
+  }
+  const dateKeyFromDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+  const currentWeekMonday = () => {
+    const now = new Date()
+    const day = now.getDay() || 7
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1)
+    monday.setHours(0, 0, 0, 0)
+    return monday
+  }
+  const weekdayOffsets = {
+    '週一': 0, '星期一': 0, '一': 0,
+    '週二': 1, '星期二': 1, '二': 1,
+    '週三': 2, '星期三': 2, '三': 2,
+    '週四': 3, '星期四': 3, '四': 3,
+    '週五': 4, '星期五': 4, '五': 4,
+    '週六': 5, '星期六': 5, '六': 5,
+    '週日': 6, '星期日': 6, '週天': 6, '星期天': 6, '日': 6
+  }
+  const dateKeyFromWeekday = (value) => {
+    const text = String(value || '')
+    const key = Object.keys(weekdayOffsets).find((label) => text.includes(label))
+    if (!key) return ''
+    const base = currentWeekMonday()
+    base.setDate(base.getDate() + weekdayOffsets[key])
+    return dateKeyFromDate(base)
+  }
+  const toDateKey = (value) => {
+    const text = String(value || '').trim()
+    if (!text) return ''
+    const ymd = text.match(/(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/)
+    if (ymd) return `${ymd[1]}-${pad2(ymd[2])}-${pad2(ymd[3])}`
+    const md = text.match(/(?:^|[^0-9])(\d{1,2})\s*[-/.月]\s*(\d{1,2})(?:\s*日)?(?:[^0-9]|$)/)
+    if (md) {
+      const now = new Date()
+      return `${now.getFullYear()}-${pad2(md[1])}-${pad2(md[2])}`
+    }
+    return dateKeyFromWeekday(text)
+  }
+  const compareDateKey = (a, b) => a && b ? String(a).localeCompare(String(b)) : 0
+  const nowMinutes = () => {
+    const now = new Date()
+    return now.getHours() * 60 + now.getMinutes()
+  }
+  const normalizeHour = (hour, mark) => {
+    let h = Number(hour)
+    const m = String(mark || '')
+    if (/下午|晚上/.test(m) && h < 12) h += 12
+    if (/上午|早上/.test(m) && h === 12) h = 0
+    if (/中午/.test(m) && h < 11) h += 12
+    return h
+  }
+  const parseEndMinutes = (value) => {
+    const text = String(value || '').replace(/：/g, ':').replace(/－|～|—|–/g, '-')
+    const range = text.match(/(上午|早上|中午|下午|晚上)?\s*(\d{1,2})\s*:\s*(\d{2})\s*-\s*(上午|早上|中午|下午|晚上)?\s*(\d{1,2})\s*:\s*(\d{2})/)
+    if (range) {
+      const endMark = range[4] || range[1] || ''
+      return normalizeHour(range[5], endMark) * 60 + Number(range[6])
+    }
+    return null
+  }
+  const rectOf = (el) => {
+    const rect = el?.getBoundingClientRect?.()
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null
+    return rect
+  }
+  const elementDateKey = (el) => {
+    if (!el) return ''
+    const keys = ['date', 'day', 'dayKey', 'weekDate', 'scheduleDate', 'renderDate', 'occurrenceDate', 'occurrence_date', 'startDate']
+    for (const key of keys) {
+      const value = el.dataset?.[key]
+      const dateKey = toDateKey(value)
+      if (dateKey) return dateKey
+    }
+    const attrs = ['data-date', 'data-day', 'data-day-key', 'data-week-date', 'data-schedule-date', 'data-render-date', 'data-occurrence-date', 'aria-label', 'title']
+    for (const attr of attrs) {
+      const dateKey = toDateKey(el.getAttribute?.(attr))
+      if (dateKey) return dateKey
+    }
+    return toDateKey(rawText(el).slice(0, 150))
+  }
+  const dateFromHeaderByColumn = (card) => {
+    const cell = card.closest?.('td, th, [role="gridcell"], .week-cell, .overview-week-cell, .calendar-cell, .calendar-day, .meeting-room-cell')
+    if (!cell) return ''
+    let node = cell
+    for (let i = 0; i < 5 && node; i += 1) {
+      const found = elementDateKey(node)
+      if (found) return found
+      node = node.parentElement
+    }
+
+    const row = cell.parentElement
+    const cells = Array.from(row?.children || [])
+    const columnIndex = cells.indexOf(cell)
+    if (columnIndex < 0) return ''
+
+    const table = cell.closest?.('table, [role="table"], .week-table, .overview-table, .calendar-table, .meeting-room-table')
+    if (table) {
+      const headerRows = Array.from(table.querySelectorAll('thead tr, tr, .week-header-row, .calendar-header-row, .table-header-row')).slice(0, 6)
+      for (const headerRow of headerRows) {
+        const headers = Array.from(headerRow.children || [])
+        let logicalIndex = 0
+        for (const header of headers) {
+          const span = Number(header.getAttribute?.('colspan') || header.colSpan || 1) || 1
+          if (columnIndex >= logicalIndex && columnIndex < logicalIndex + span) {
+            const found = elementDateKey(header) || dateKeyFromWeekday(rawText(header))
+            if (found) return found
+          }
+          logicalIndex += span
+        }
+      }
+    }
+
+    // 沒有表頭日期時，以目前當周欄位位置推估：第 0 欄通常是人員欄，後面為週一～週日。
+    const guessedIndex = Math.max(0, Math.min(6, columnIndex - 1))
+    const monday = currentWeekMonday()
+    monday.setDate(monday.getDate() + guessedIndex)
+    return dateKeyFromDate(monday)
+  }
+  const dateFromHeaderByGeometry = (card) => {
+    const cardRect = rectOf(card)
+    if (!cardRect) return ''
+    const centerX = cardRect.left + cardRect.width / 2
+    const headers = Array.from(document.querySelectorAll('th, [role="columnheader"], .week-header, .calendar-header, .day-header, .overview-day-header, .meeting-room-header, .table-header, [data-date], [data-week-date]'))
+      .map((node) => {
+        const rect = rectOf(node)
+        if (!rect) return null
+        const dateKey = elementDateKey(node) || dateKeyFromWeekday(rawText(node))
+        if (!dateKey) return null
+        const inside = centerX >= rect.left - 10 && centerX <= rect.right + 10
+        const distance = inside ? 0 : Math.min(Math.abs(centerX - rect.left), Math.abs(centerX - rect.right))
+        const verticalDistance = Math.abs(cardRect.top - rect.bottom)
+        return { dateKey, distance, verticalDistance }
+      })
+      .filter(Boolean)
+      .filter((item) => item.verticalDistance < window.innerHeight)
+      .sort((a, b) => (a.distance - b.distance) || (a.verticalDistance - b.verticalDistance))
+    return headers[0]?.dateKey || ''
+  }
+  const dateKeyForCard = (card) => {
+    let node = card
+    for (let i = 0; i < 8 && node; i += 1) {
+      const found = elementDateKey(node)
+      if (found) return found
+      node = node.parentElement
+    }
+    return dateFromHeaderByColumn(card) || dateFromHeaderByGeometry(card)
+  }
+  const isMeetingRoomText = (text) => {
+    const value = cleanText(text)
+    if (!/\d{1,2}\s*[:：]\s*\d{2}/.test(value)) return false
+    return /會議室|大會議室|小會議室|會議室預約|716|715/.test(value)
+  }
+  const tooLargeForCard = (el) => {
+    const rect = rectOf(el)
+    if (!rect) return true
+    return rect.width > 560 || rect.height > 320 || textOf(el).length > 320
+  }
+  const cardElementFor = (el) => {
+    const preferred = el.closest?.('[data-schedule-id], [data-event-id], .week-card, .calendar-card, .schedule-card, .meeting-card, .meeting-room-card, .overview-card, .day-card, .event-card, .calendar-event, .schedule-item, .continuation-day-mark')
+    if (preferred && !tooLargeForCard(preferred)) return preferred
+    let best = el
+    let node = el
+    for (let i = 0; i < 6 && node?.parentElement; i += 1) {
+      const parent = node.parentElement
+      if (!isMeetingRoomText(textOf(parent))) break
+      if (tooLargeForCard(parent)) break
+      best = parent
+      node = parent
+    }
+    return best
+  }
+  const shouldGrayMeetingRoom = (card) => {
+    if (!isMeetingRoomText(textOf(card))) return false
+    const dateKey = dateKeyForCard(card)
+    if (!dateKey) return false
+    const cmp = compareDateKey(dateKey, todayKey())
+    if (cmp < 0) return true
+    if (cmp > 0) return false
+    const end = parseEndMinutes(rawText(card))
+    return end != null && end <= nowMinutes()
+  }
+  const applyMeetingRoomOverviewGray = () => {
+    const nodes = Array.from(document.querySelectorAll('[data-schedule-id], [data-event-id], .week-card, .calendar-card, .schedule-card, .meeting-card, .meeting-room-card, .overview-card, .day-card, .event-card, .calendar-event, .schedule-item, .continuation-day-mark, td > div, td article, td li'))
+    const seen = new Set()
+    nodes.forEach((node) => {
+      if (!isMeetingRoomText(textOf(node))) return
+      const card = cardElementFor(node)
+      if (!card || seen.has(card)) return
+      seen.add(card)
+      if (shouldGrayMeetingRoom(card)) {
+        card.classList.add('for-e-v278-meeting-room-past-gray')
+        card.setAttribute('data-for-e-meetingroom-past-gray', 'V278')
+      } else if (card.getAttribute('data-for-e-meetingroom-past-gray') === 'V278') {
+        card.classList.remove('for-e-v278-meeting-room-past-gray')
+        card.removeAttribute('data-for-e-meetingroom-past-gray')
+      }
+    })
+  }
+
+  const optionNodeFromInput = (input) => input.closest?.('label, .option, .radio, .checkbox, [role="radio"], [role="checkbox"]') || input.parentElement
+  const isIncidentFollowModal = (modal) => /異況/.test(textOf(modal)) && /下一次追蹤類型|下次追蹤類型|單純紀錄|不顯示在待辦/.test(textOf(modal))
+  const isFollowTypeOption = (node) => {
+    const text = textOf(node)
+    if (/單純紀錄|不顯示在待辦/.test(text)) return true
+    return /^追蹤$/.test(text) || (/追蹤/.test(text) && !/日期|時間|內容|對象|執行|下一次|下次/.test(text) && text.length <= 10)
+  }
+  const commonParent = (items) => {
+    if (!items.length) return null
+    let node = items[0]
+    while (node) {
+      if (items.every((item) => node.contains(item))) return node
+      node = node.parentElement
+    }
+    return null
+  }
+  const applyFollowTypeLayout = () => {
+    document.querySelectorAll('[role="dialog"], dialog, .modal, .dialog, .modal-content, .popup-panel, .drawer, .side-panel').forEach((modal) => {
+      if (!isIncidentFollowModal(modal)) return
+      modal.classList.add('for-e-v278-incident-follow-modal')
+      const inputs = Array.from(modal.querySelectorAll('input[type="radio"], input[type="checkbox"]'))
+      const options = []
+      inputs.forEach((input) => {
+        const option = optionNodeFromInput(input)
+        if (option && isFollowTypeOption(option) && !options.includes(option)) options.push(option)
+      })
+      if (options.length < 2) return
+      const pair = options.slice(0, 2)
+      pair.forEach((option) => {
+        option.classList.add('for-e-v278-follow-type-option')
+        option.classList.add('for-e-v277-follow-type-option')
+      })
+      let wrapper = pair[0].closest('.for-e-v278-follow-options-row') || pair[0].closest('.for-e-v277-follow-options-row')
+      const parent = commonParent(pair)
+      const parentText = textOf(parent)
+      if (!wrapper || /下次追蹤日期|下次追蹤時間|執行對象|追蹤內容/.test(parentText)) {
+        wrapper = document.createElement('div')
+        wrapper.className = 'for-e-v278-follow-options-row'
+        pair[0].parentElement?.insertBefore(wrapper, pair[0])
+        pair.forEach((option) => wrapper.appendChild(option))
+      } else {
+        wrapper.classList.add('for-e-v278-follow-options-row')
+      }
+    })
+  }
+
+  const applyPatch = () => {
+    applyFollowTypeLayout()
+    applyMeetingRoomOverviewGray()
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyPatch, { once: true })
+  } else {
+    applyPatch()
+  }
+
+  let queued = false
+  const queueApply = () => {
+    if (queued) return
+    queued = true
+    window.requestAnimationFrame(() => {
+      queued = false
+      applyPatch()
+    })
+  }
+  const observer = new MutationObserver(queueApply)
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+  window.addEventListener('resize', queueApply)
+  window.setInterval(applyPatch, 1800)
+})()
+
