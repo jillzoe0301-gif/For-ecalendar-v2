@@ -1268,6 +1268,93 @@ function isScheduleTimePassed(row) {
   return getMeetingTimeMinutes(endTimeText) <= nowMinutes
 }
 
+function getDateStringFromAnyValue(value = '') {
+  if (!value) return ''
+  const text = String(value || '')
+  const matched = text.match(/\d{4}-\d{2}-\d{2}/)
+  return matched ? matched[0] : ''
+}
+
+function getScheduleCompletedDateValues(row = {}) {
+  const values = []
+  const keys = [
+    'completed_date', 'completion_date', 'done_date', 'finish_date',
+    'completed_at', 'completedAt', 'finished_at', 'finish_at',
+    'completed_dates', 'completion_dates', 'done_dates', 'finished_dates',
+    'completed_occurrence_dates', 'completedOccurrences', 'completed_occurrences'
+  ]
+
+  keys.forEach(key => {
+    const raw = row?.[key]
+    if (!raw) return
+    if (Array.isArray(raw)) values.push(...raw)
+    else if (typeof raw === 'object') values.push(...Object.keys(raw).filter(item => raw[item]))
+    else values.push(...String(raw).split(/[，,、|｜\s]+/))
+  })
+
+  const note = String(row?.sub_type_note || row?.note || row?.description || '')
+  ;[...note.matchAll(/(?:完成日期|已完成|完成日|完成時間)[:：]?\s*(\d{4}-\d{2}-\d{2})/g)].forEach(match => values.push(match[1]))
+
+  return values
+    .map(getDateStringFromAnyValue)
+    .filter(Boolean)
+    .filter((item, index, array) => array.indexOf(item) === index)
+}
+
+function isScheduleCompletedOnDate(row = {}, dateKey = '') {
+  const targetDate = getDateStringFromAnyValue(dateKey)
+  const statusText = String(row?.status || '').trim()
+  if (['已完成', '完成', '已結案', '結案'].includes(statusText)) return true
+  if (row?.is_completed === true || row?.completed === true) return true
+  if (!targetDate) return false
+
+  const completedDates = getScheduleCompletedDateValues(row)
+  if (completedDates.includes(targetDate)) return true
+
+  const completedAt = getDateStringFromAnyValue(row?.completed_at || row?.completedAt || '')
+  return Boolean(completedAt && completedAt === targetDate)
+}
+
+function getOccurrenceEndMinutes(row = {}) {
+  const timeText = String(row?.end_time || row?.start_time || '').trim()
+  if (!timeText) return null
+  const minutes = getMeetingTimeMinutes(timeText)
+  return Number.isFinite(minutes) ? minutes : null
+}
+
+function isPastOccurrenceTime(row = {}, dateKey = '') {
+  const targetDate = getDateStringFromAnyValue(dateKey || row?.__occurrence_date || row?.__render_date || row?.start_date)
+  if (!targetDate) return false
+  const today = todayString()
+  if (targetDate < today) return true
+  if (targetDate > today) return false
+  const endMinutes = getOccurrenceEndMinutes(row)
+  if (endMinutes == null) return false
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  return endMinutes <= nowMinutes
+}
+
+function isMeetingFixedSchedule(row = {}) {
+  const text = [row?.category, row?.schedule_type, row?.sub_type, row?.title, row?.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  const isMeetingType = (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) || /會議/.test(text)
+  if (!isMeetingType) return false
+  const repeatMode = String(row?.repeat_mode || row?.schedule_mode || '').trim()
+  if (repeatMode && repeatMode !== '單日') return true
+  if (typeof isContinuousDateSchedule === 'function' && isContinuousDateSchedule(row)) return true
+  if (row?.end_date && row?.start_date && row.end_date !== row.start_date) return true
+  return /行程模式[:：]\s*(?!單日)|每週|每月|重複|固定|定期|連續/.test(text)
+}
+
+function shouldGrayScheduleOnDate(row = {}, dateKey = '') {
+  const targetDate = getDateStringFromAnyValue(dateKey || row?.__occurrence_date || row?.__render_date || row?.start_date)
+  if (isScheduleCompletedOnDate(row, targetDate)) return true
+  if (isMeetingFixedSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
+  return false
+}
+
 function shouldDisplayAutoCompleted(row) {
   return isNoCompletionControlSchedule(row) && isScheduleTimePassed(row)
 }
@@ -5696,9 +5783,11 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
   const roomName = String(row.location_name || row.sub_type || '').trim() || '會議室'
   const titleText = String(row.title || '').trim() || '-'
   const occurrenceAttr = occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
+  const meetingOccurrenceDate = occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date
+  const meetingOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, meetingOccurrenceDate)) ? 'is-completed' : ''
 
   return `
-    <button type="button" class="meeting-room-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="meeting-room-card ${meetingOccurrenceCompletedClass || (getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : '')} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'meeting-room-time')}
       <strong class="meeting-room-room-line">${escapeHtml(roomName)}</strong>
       <strong>${escapeHtml(titleText)}</strong>
@@ -13710,10 +13799,11 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
         return ''
       }
 
+      const continuationCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, dateKey)) ? ' is-completed' : ''
       const continuationTimeText = getContinuationDisplayTimeText(row)
 
       return `
-        <button type="button" class="continuation-day-mark calendar-continuation-first-row ${variant}-continuation-day-mark${getContinuationDayMarkClass(row)} ${typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row) ? 'factory-station-continuation factory-station-week-card' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+        <button type="button" class="continuation-day-mark${continuationCompletedClass} calendar-continuation-first-row ${variant}-continuation-day-mark${getContinuationDayMarkClass(row)} ${typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row) ? 'factory-station-continuation factory-station-week-card' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
           <span class="continuation-day-inline-title">
             <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
             <strong>${escapeHtml(getContinuationDisplayTitle(row))}</strong>
@@ -14423,16 +14513,20 @@ function getOverviewBuiltInQuickGroups() {
   return [
     { id: 'all', name: '全部', builtIn: true, staffIds: [] },
     { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) },
-    { id: 'admin-staff', name: '行政群', builtIn: true, staffIds: getAdministrativeQuickGroupStaffIds() },
-    { id: 'cat-sister-group', name: '貓姐群', builtIn: true, staffIds: getOverviewQuickGroupStaffIdsByNames(['貓姐']) }
-  ]
+    { id: 'admin-staff', name: '行政群', builtIn: true, staffIds: getAdministrativeQuickGroupStaffIds() },]
+}
+
+function isHiddenOverviewQuickGroup(group = {}) {
+  const id = String(group?.id || '').trim()
+  const name = String(group?.name || '').trim()
+  return id === 'cat-sister-group' || name === '貓姐群'
 }
 
 function getOverviewQuickGroupRows() {
   return [
     ...getOverviewBuiltInQuickGroups(),
     ...(overviewQuickGroups.groups || [])
-  ]
+  ].filter(group => !isHiddenOverviewQuickGroup(group))
 }
 
 function getOverviewQuickGroupById(groupId = '') {
@@ -15243,6 +15337,8 @@ function renderWeekScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
   const extra = getDisplaySubTypeExtra(row)
   const isFactoryStation = isFactoryStationSchedule(row)
+  const weekOccurrenceDate = row.__occurrence_date || row.__render_date || row.start_date
+  const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, weekOccurrenceDate)) ? 'is-completed' : ''
   return `
     <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}

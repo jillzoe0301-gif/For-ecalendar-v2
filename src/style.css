@@ -1465,58 +1465,6 @@ label {
   grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
 }
 
-.audit-list {
-  display: grid;
-  gap: 8px;
-}
-
-.audit-row {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 12px;
-  background: #fff;
-}
-
-.audit-time {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.audit-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.audit-action {
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid #c7d2fe;
-  background: #eef2ff;
-  color: var(--blue);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.audit-note {
-  color: #374151;
-  line-height: 1.6;
-}
-
-.audit-meta {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 4px;
-}
-
 @media (max-width: 768px) {
   .audit-filter-row,
   .audit-row {
@@ -1710,10 +1658,6 @@ label {
   object-position: left center;
 }
 
-.sidebar .brand-subtitle {
-  margin-left: 8px;
-}
-
 /* Unified status pill base */
 .status-pill,
 .record-status-pill,
@@ -1784,26 +1728,6 @@ label {
   border: 1px solid var(--blue);
 }
 
-.secondary-btn,
-.small-secondary-btn {
-  background: #eef2ff;
-  color: var(--blue);
-  border: 1px solid #c7d2fe;
-}
-
-.danger-btn,
-.small-danger-btn {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.small-record-btn {
-  background: #fff7cc;
-  color: #92400e;
-  border: 1px solid #fde68a;
-}
-
 
 /* V002-1H overview weekly table and sidebar logo refinement */
 .sidebar .brand {
@@ -1827,10 +1751,6 @@ label {
   display: block;
   object-fit: contain;
   object-position: left center;
-}
-
-.sidebar .brand-subtitle {
-  margin-left: 8px;
 }
 
 .week-overview-scroll {
@@ -2415,12 +2335,6 @@ label.record-modal-check {
   min-height: 74px !important;
 }
 
-.vehicle-doc-row .document-section {
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-}
-
 /* 公務車 / 是否有證件 下拉欄位高度一致 */
 .service-grid select,
 .vehicle-doc-row select {
@@ -2748,11 +2662,6 @@ label.record-modal-check {
 
 #extraScheduleBlock {
   margin-top: 10px !important;
-}
-
-#extraScheduleBlock.hidden,
-#editExtraScheduleBlock.hidden {
-  display: none !important;
 }
 
 /* FOR-e V002-1H-5-7-5 START */
@@ -3494,18 +3403,6 @@ label.record-modal-check {
   gap: 5px !important;
 }
 
-.field-special-icon {
-  width: 16px !important;
-  height: 16px !important;
-  object-fit: contain !important;
-  flex: 0 0 auto !important;
-}
-
-.field-special-badge .field-special-icon {
-  width: 14px !important;
-  height: 14px !important;
-}
-
 .field-special-badges {
   display: flex;
   flex-wrap: wrap;
@@ -4020,23 +3917,6 @@ label.record-modal-check {
 .meeting-week-day-cell.is-today {
   position: relative;
   box-shadow: inset 0 0 0 2px #C08552 !important;
-}
-
-.meeting-week-table thead th.is-today:not(.is-holiday),
-.meeting-week-day-cell.is-today:not(.is-holiday) {
-  background: #ffffff !important;
-  box-shadow: inset 0 0 0 2px #C08552 !important;
-}
-
-.meeting-week-table thead th.is-today.is-holiday,
-.meeting-week-day-cell.is-today.is-holiday {
-  background: #EFE9E3 !important;
-  box-shadow: inset 0 0 0 2px #C08552 !important;
-}
-
-.meeting-week-table thead th.is-today strong {
-  background: #C08552 !important;
-  color: #ffffff !important;
 }
 
 .field-mode-time-box {
@@ -5848,7 +5728,7 @@ label.record-modal-check {
 }
 /* FOR-e V002-1M-2-3 END - service record statistics style */
 
-/* FOR-e V002-1P-1 START - options sr todo incident urgency */
+
 .option-group-body {
   align-items: start !important;
 }
@@ -5957,9 +5837,8 @@ label.record-modal-check {
     min-width: 620px;
   }
 }
-/* FOR-e V002-1P-1 END - options sr todo incident urgency */
 
-/* FOR-e V002-1P-2 START - sidebar icons */
+
 .menu-btn {
   display: flex !important;
   align-items: center;
@@ -6009,9 +5888,8 @@ label.record-modal-check {
   place-items: center;
   gap: 2px;
 }
-/* FOR-e V002-1P-2 END - sidebar icons */
 
-/* FOR-e V002-1P-2-1 START - real icon files */
+
 .nav-icon-img {
   width: 18px;
   height: 18px;
@@ -6033,14 +5911,7 @@ label.record-modal-check {
   height: 16px;
   margin: 0 auto 2px;
 }
-/* FOR-e V002-1P-2-1 END - real icon files */
 
-/* FOR-e V002-1P-2-3 START - left align sidebar buttons */
-/*
-  V002-1P-2-3｜左側按鈕靠左對齊
-  - ICON、文字統一靠左
-  - 避免 button 內容被置中
-*/
 
 .desktop-menu .menu-btn {
   justify-content: flex-start !important;
@@ -6060,16 +5931,7 @@ label.record-modal-check {
 .sidebar .desktop-menu {
   text-align: left !important;
 }
-/* FOR-e V002-1P-2-3 END - left align sidebar buttons */
 
-/* FOR-e V002-1P-3 START - nav icon visual polish */
-/*
-  V002-1P-3｜ICON 大小、間距、視覺一致化
-  - 左側按鈕全部靠左
-  - ICON 固定大小與位置
-  - active / hover 狀態更乾淨
-  - 手機底部選單 ICON 大小同步
-*/
 
 .desktop-menu .menu-btn {
   min-height: 42px !important;
@@ -6166,9 +6028,8 @@ label.record-modal-check {
   line-height: 1.1 !important;
   font-weight: 800 !important;
 }
-/* FOR-e V002-1P-3 END - nav icon visual polish */
 
-/* FOR-e V002-1P-4 START - users account page */
+
 .users-filter-panel {
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
@@ -6287,9 +6148,8 @@ label.record-modal-check {
     grid-column: span 1;
   }
 }
-/* FOR-e V002-1P-4 END - users account page */
 
-/* FOR-e V002-1P-5 START - field staff checkbox */
+
 .users-filter-panel-field-staff {
   grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto !important;
 }
@@ -6356,9 +6216,8 @@ label.record-modal-check {
     grid-column: span 1;
   }
 }
-/* FOR-e V002-1P-5 END - field staff checkbox */
 
-/* FOR-e V002-1P-5-1 START - compact field staff toggle */
+
 .users-table-field-staff .users-table-head,
 .users-table-field-staff .users-table-row {
   grid-template-columns: minmax(150px, 1.25fr) minmax(125px, 0.9fr) minmax(145px, 1fr) minmax(105px, 0.75fr) 54px minmax(76px, 0.55fr) !important;
@@ -6436,9 +6295,8 @@ label.record-modal-check {
     min-width: 720px;
   }
 }
-/* FOR-e V002-1P-5-1 END - compact field staff toggle */
 
-/* FOR-e V002-1P-6 START - color settings page */
+
 .color-settings-grid {
   display: grid;
   gap: 12px;
@@ -6536,9 +6394,8 @@ label.record-modal-check {
     text-align: left;
   }
 }
-/* FOR-e V002-1P-6 END - color settings page */
 
-/* FOR-e V002-1P-6-1 START - white schedule background with accent */
+
 /* 行程卡片白底為主，顏色只做左側標示 */
 .schedule-card[style],
 .week-schedule-card[style],
@@ -6594,9 +6451,8 @@ label.record-modal-check {
   color: #64748b !important;
   opacity: 1 !important;
 }
-/* FOR-e V002-1P-6-1 END - white schedule background with accent */
 
-/* FOR-e V002-1P-6-2 START - colored border restore text */
+
 /* 行程卡片：白底為主，顏色改為整張外框，文字恢復原本規則 */
 .schedule-card[style],
 .week-schedule-card[style],
@@ -6654,13 +6510,7 @@ label.record-modal-check {
   border-left-width: 1.5px !important;
 }
 
-.color-preview-card span {
-  color: #64748b !important;
-  opacity: 1 !important;
-}
-/* FOR-e V002-1P-6-2 END - colored border restore text */
 
-/* FOR-e V002-1P-6-3 START - card border reminders todo */
 .schedule-card[style],
 .week-schedule-card[style],
 .field-week-schedule-card[style],
@@ -6793,9 +6643,8 @@ label.record-modal-check {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-6-3 END - card border reminders todo */
 
-/* FOR-e V002-1P-6-5 START - reminder color and color picker align */
+
 .color-setting-row label {
   justify-content: flex-start !important;
   gap: 10px !important;
@@ -6829,9 +6678,8 @@ label.record-modal-check {
     min-width: 120px;
   }
 }
-/* FOR-e V002-1P-6-5 END - reminder color and color picker align */
 
-/* FOR-e V002-1P-6-6 START - overdue meeting repeat color layout */
+
 .personal-overdue-task-area {
   display: grid;
   gap: 10px;
@@ -7037,9 +6885,8 @@ label.record-modal-check {
     grid-template-columns: 1fr !important;
   }
 }
-/* FOR-e V002-1P-6-6 END - overdue meeting repeat color layout */
 
-/* FOR-e V002-1P-6-7 START - color picker bigger overdue red */
+
 /* 顏色設定：顏色選擇框加大 */
 .color-settings-header,
 .color-setting-row-clean {
@@ -7112,9 +6959,8 @@ label.record-modal-check {
     grid-template-columns: 1fr !important;
   }
 }
-/* FOR-e V002-1P-6-7 END - color picker bigger overdue red */
 
-/* FOR-e V002-1P-7 START - users add edit staff */
+
 .users-table-account-manage .users-table-head,
 .users-table-account-manage .users-table-row {
   grid-template-columns: minmax(150px, 1.25fr) minmax(125px, 0.9fr) minmax(145px, 1fr) minmax(105px, 0.75fr) 54px minmax(76px, 0.55fr) 78px !important;
@@ -7188,9 +7034,8 @@ label.record-modal-check {
     min-width: 860px;
   }
 }
-/* FOR-e V002-1P-7 END - users add edit staff */
 
-/* FOR-e V002-1P-8 START - no completion position select color header align */
+
 /* 顏色設定：表頭文字與下方內容欄位對齊 */
 .color-settings-header {
   align-items: center !important;
@@ -7234,9 +7079,8 @@ label.record-modal-check {
 .user-account-modal select[name="position"] {
   width: 100%;
 }
-/* FOR-e V002-1P-8 END - no completion position select color header align */
 
-/* FOR-e V002-1P-9 START - line notification page */
+
 .line-notify-panel {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
@@ -7322,9 +7166,8 @@ label.record-modal-check {
     flex: 1;
   }
 }
-/* FOR-e V002-1P-9 END - line notification page */
 
-/* FOR-e V002-1P-10 START - line target and color column center */
+
 /* 顏色設定：顏色欄位置中對齊表頭 */
 .color-settings-header span:nth-child(2) {
   justify-self: center !important;
@@ -7347,9 +7190,8 @@ label.record-modal-check {
   margin-right: auto !important;
   display: block !important;
 }
-/* FOR-e V002-1P-10 END - line target and color column center */
 
-/* FOR-e V002-1P-11 START - common csv export */
+
 .export-csv-btn {
   border-color: #cbd5e1 !important;
   background: #ffffff !important;
@@ -7360,9 +7202,8 @@ label.record-modal-check {
   background: #f8fafc !important;
   color: #111827 !important;
 }
-/* FOR-e V002-1P-11 END - common csv export */
 
-/* FOR-e V002-1P-12 START - export filters mobile color preview */
+
 .export-csv-modal {
   width: min(720px, 100%);
 }
@@ -7434,9 +7275,8 @@ label.record-modal-check {
     width: 100% !important;
   }
 }
-/* FOR-e V002-1P-12 END - export filters mobile color preview */
 
-/* FOR-e V002-1P-13 START - audit detail and filters */
+
 .audit-filter-panel .audit-filter-row {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -7511,9 +7351,8 @@ label.record-modal-check {
     justify-content: flex-start;
   }
 }
-/* FOR-e V002-1P-13 END - audit detail and filters */
 
-/* FOR-e V002-1P-15 START - users department summary */
+
 /* 人員 / 帳號：部門統計自動列出每個部門 */
 .users-department-summary-grid {
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
@@ -7538,9 +7377,8 @@ label.record-modal-check {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* FOR-e V002-1P-15 END - users department summary */
 
-/* FOR-e V002-1P-17 START - login account status reset */
+
 /* 人員 / 帳號：登入帳號欄與重設密碼 */
 .users-table-login-manage .users-table-head,
 .users-table-login-manage .users-table-row {
@@ -7627,9 +7465,8 @@ label.record-modal-check {
     min-width: 1020px;
   }
 }
-/* FOR-e V002-1P-17 END - login account status reset */
 
-/* FOR-e V002-1P-18 START - create login account */
+
 .users-create-login-btn {
   min-width: 48px;
   color: #3155d4 !important;
@@ -7670,9 +7507,8 @@ label.record-modal-check {
   line-height: 1.45;
   font-weight: 800;
 }
-/* FOR-e V002-1P-18 END - create login account */
 
-/* FOR-e V002-1P-19 START - merged shared options and login reminder */
+
 .login-reminder-modal {
   width: min(860px, 100%);
 }
@@ -7845,9 +7681,8 @@ label.record-modal-check {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-19 END - merged shared options and login reminder */
 
-/* FOR-e V002-1P-20 START - login function check */
+
 #checkLoginFunctionBtn {
   border-color: #c7d2fe !important;
   background: #eef5ff !important;
@@ -7858,23 +7693,13 @@ label.record-modal-check {
 #checkLoginFunctionBtn:hover {
   background: #dbeafe !important;
 }
-/* FOR-e V002-1P-20 END - login function check */
 
-/* FOR-e V002-1P-22 START - staff not found fix */
+
 .login-account-modal .notice {
   border-color: #facc15 !important;
 }
-/* FOR-e V002-1P-22 END - staff not found fix */
 
-/* FOR-e V002-1P-23 START - robust login staff lookup */
-/* V002-1P-23：建立登入帳號錯誤提示強化 */
-/* FOR-e V002-1P-23 END - robust login staff lookup */
 
-/* FOR-e V002-1P-24 START - login no staff hard fail */
-/* V002-1P-24：建立登入帳號 staff fallback 強化 */
-/* FOR-e V002-1P-24 END - login no staff hard fail */
-
-/* FOR-e V002-1P-29 START - password recovery page */
 .password-recovery-card h1 {
   margin-bottom: 6px;
 }
@@ -7905,9 +7730,8 @@ label.record-modal-check {
   opacity: 0.7;
   cursor: not-allowed;
 }
-/* FOR-e V002-1P-29 END - password recovery page */
 
-/* FOR-e V002-1P-30 START - password 4 chars hint */
+
 .password-hint-box {
   display: grid;
   gap: 3px;
@@ -7929,10 +7753,8 @@ label.record-modal-check {
   font-size: 12px;
   font-weight: 850;
 }
-/* FOR-e V002-1P-30 END - password 4 chars hint */
 
-/* FOR-e V002-1P-31 START - role based permissions */
-/* V002-1P-31：權限狀態提示 */
+
 .permission-chip {
   display: inline-flex;
   align-items: center;
@@ -7952,9 +7774,8 @@ button:disabled,
   cursor: not-allowed !important;
   opacity: 0.55 !important;
 }
-/* FOR-e V002-1P-31 END - role based permissions */
 
-/* FOR-e V002-1P-33 START - delete user reset password position custom */
+
 .small-danger-btn {
   display: inline-flex;
   align-items: center;
@@ -7988,15 +7809,7 @@ button:disabled,
   font-weight: 950;
   letter-spacing: 0.08em;
 }
-/* FOR-e V002-1P-33 END - delete user reset password position custom */
 
-/* FOR-e V002-1P-38 START - mobile layout polish */
-/*
-  V002-1P-38｜手機版整體收尾
-  - 手機版表單、彈窗、工具列、表格、週曆橫向滑動優化
-  - 手機版不顯示匯出 CSV
-  - 避免 input 點擊時被手機瀏覽器自動放大
-*/
 
 @media (max-width: 900px) {
   input,
@@ -8403,9 +8216,8 @@ button:disabled,
     font-size: 10px !important;
   }
 }
-/* FOR-e V002-1P-38 END - mobile layout polish */
 
-/* FOR-e V002-1P-39 START - user account view permissions */
+
 /* 人員 / 帳號權限與操作按鈕整理 */
 .users-table-permission-view .users-table-head,
 .users-table-permission-view .users-table-row {
@@ -8516,9 +8328,8 @@ button:disabled,
     min-width: 1120px;
   }
 }
-/* FOR-e V002-1P-39 END - user account view permissions */
 
-/* FOR-e V002-1P-40 START - own password and mobile cards */
+
 .self-password-btn {
   border-color: #c7d2fe !important;
   background: #eef5ff !important;
@@ -8674,9 +8485,8 @@ button:disabled,
     max-width: 160px !important;
   }
 }
-/* FOR-e V002-1P-40 END - own password and mobile cards */
 
-/* FOR-e V002-1P-41 START - overview filters medical mobile width */
+
 .overview-filter-panel {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) auto auto;
@@ -8815,9 +8625,8 @@ button:disabled,
     max-width: 206px !important;
   }
 }
-/* FOR-e V002-1P-41 END - overview filters medical mobile width */
 
-/* FOR-e V002-1P-42 START - overview multi select persist */
+
 .overview-filter-panel-multi {
   grid-template-columns: minmax(210px, 1fr) minmax(260px, 1.2fr) auto !important;
   align-items: stretch !important;
@@ -8898,10 +8707,8 @@ button:disabled,
     min-height: 142px;
   }
 }
-/* FOR-e V002-1P-42 END - overview multi select persist */
 
-/* FOR-e V002-1P-43 START - overview field compact multiselect */
-/* V002-1P-43：行程總覽 / 外務行程精簡複選 */
+
 .overview-filter-panel-compact {
   display: grid;
   gap: 8px;
@@ -9060,10 +8867,8 @@ button:disabled,
     min-height: 40px;
   }
 }
-/* FOR-e V002-1P-43 END - overview field compact multiselect */
 
-/* FOR-e V002-1P-44 START - multiselect sort bind button */
-/* V002-1P-44：複選項目靠左且一行顯示 */
+
 .compact-check-panel {
   text-align: left !important;
 }
@@ -9153,11 +8958,8 @@ button:disabled,
     grid-template-columns: 1fr !important;
   }
 }
-/* FOR-e V002-1P-44 END - multiselect sort bind button */
 
 
-/* FOR-e V002-1P-45 START - filter polish and incident fix */
-/* V002-1P-45｜行程總覽 / 外務行程篩選列質感優化、下拉選項同列靠左 */
 .overview-filter-panel-compact {
   gap: 10px !important;
   padding: 14px !important;
@@ -9354,9 +9156,8 @@ button:disabled,
     min-height: 42px !important;
   }
 }
-/* FOR-e V002-1P-45 END - filter polish and incident fix */
 
-/* FOR-e V002-1P-46 START - company cars and field open fix */
+
 .option-management-form [data-option-editor="carOptions"] .option-line-row input {
   font-family: ui-monospace, "Noto Sans TC", system-ui, sans-serif;
   letter-spacing: 0.01em;
@@ -9371,9 +9172,8 @@ button:disabled,
   font-weight: 900;
   line-height: 1.6;
 }
-/* FOR-e V002-1P-46 END - company cars and field open fix */
 
-/* FOR-e V002-1P-47 START - system health check */
+
 .health-summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -9503,9 +9303,8 @@ button:disabled,
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-47 END - system health check */
 
-/* FOR-e V002-1P-49 START - health tools */
+
 .health-toolbar-actions {
   flex-wrap: wrap;
 }
@@ -9541,9 +9340,8 @@ button:disabled,
     width: 100%;
   }
 }
-/* FOR-e V002-1P-49 END - health tools */
 
-/* FOR-e V002-1P-50 START - role permission matrix */
+
 .role-permission-section,
 .current-role-permission-box {
   margin-top: 16px;
@@ -9686,9 +9484,8 @@ button:disabled,
     min-width: 860px;
   }
 }
-/* FOR-e V002-1P-50 END - role permission matrix */
 
-/* FOR-e V002-1P-52 START - launch test checklist */
+
 .launch-test-section {
   margin-top: 16px;
   padding: 16px;
@@ -9816,9 +9613,8 @@ button:disabled,
     width: 100%;
   }
 }
-/* FOR-e V002-1P-52 END - launch test checklist */
 
-/* FOR-e V002-1P-55 START - mobile permission finish */
+
 html,
 body {
   max-width: 100%;
@@ -10055,9 +9851,8 @@ body {
     flex: 1 1 100%;
   }
 }
-/* FOR-e V002-1P-55 END - mobile permission finish */
 
-/* FOR-e V002-1P-56 START - rebind account hide deleted */
+
 .user-action-btn.is-rebind {
   background: #fff7ed;
   border-color: #fed7aa;
@@ -10075,9 +9870,8 @@ body {
     min-width: 1170px;
   }
 }
-/* FOR-e V002-1P-56 END - rebind account hide deleted */
 
-/* FOR-e V002-1P-57 START - account binding audit */
+
 .account-binding-section {
   margin-top: 16px;
   padding: 16px;
@@ -10193,9 +9987,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-57 END - account binding audit */
 
-/* FOR-e V002-1P-58 START - launch readiness summary */
+
 .launch-readiness-card {
   display: grid;
   gap: 14px;
@@ -10375,9 +10168,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-58 END - launch readiness summary */
 
-/* FOR-e V002-1P-59 START - launch backup exports */
+
 .launch-backup-section {
   margin: 14px 0 16px;
   padding: 16px;
@@ -10464,9 +10256,8 @@ body {
     width: 100%;
   }
 }
-/* FOR-e V002-1P-59 END - launch backup exports */
 
-/* FOR-e V002-1P-60 START - data integrity audit */
+
 .data-integrity-section {
   margin-top: 16px;
   padding: 16px;
@@ -10607,9 +10398,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-60 END - data integrity audit */
 
-/* FOR-e V002-1P-61 START - role test panel */
+
 .role-test-section {
   margin-top: 16px;
   padding: 16px;
@@ -10766,9 +10556,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-61 END - role test panel */
 
-/* FOR-e V002-1P-62 START - final acceptance report */
+
 .final-acceptance-section {
   display: grid;
   gap: 14px;
@@ -10955,9 +10744,8 @@ body {
     width: 100%;
   }
 }
-/* FOR-e V002-1P-62 END - final acceptance report */
 
-/* FOR-e V002-1P-63 START - mobile font hide account */
+
 @media (max-width: 768px) {
   body {
     font-size: 17px;
@@ -11114,9 +10902,8 @@ body {
     min-width: 70px;
   }
 }
-/* FOR-e V002-1P-63 END - mobile font hide account */
 
-/* FOR-e V002-1P-64 START - mobile nav icon size */
+
 @media (max-width: 768px) {
   .mobile-nav {
     gap: 9px;
@@ -11178,9 +10965,8 @@ body {
     min-height: 24px;
   }
 }
-/* FOR-e V002-1P-64 END - mobile nav icon size */
 
-/* FOR-e V002-1P-74 START - compact options page */
+
 /* 選項管理：乾淨簡約版 */
 .option-page-notice {
   margin-bottom: 10px !important;
@@ -11362,9 +11148,8 @@ body {
     width: 100%;
   }
 }
-/* FOR-e V002-1P-74 END - compact options page */
 
-/* FOR-e V002-1P-75 START - schedule template editor */
+
 .schedule-template-editor-box {
   grid-column: 1 / -1;
   border-color: #c7d2fe !important;
@@ -11541,9 +11326,8 @@ body {
     width: 100% !important;
   }
 }
-/* FOR-e V002-1P-75 END - schedule template editor */
 
-/* FOR-e V002-1P-76 START - option spacing template width */
+
 /* 選項管理：清楚舒展版 */
 .option-management-form {
   gap: 14px !important;
@@ -11724,9 +11508,8 @@ body {
     width: 100% !important;
   }
 }
-/* FOR-e V002-1P-76 END - option spacing template width */
 
-/* FOR-e V002-1P-77 START - schedule template half layout */
+
 /* 選項管理：整體再放鬆，不要太擠 */
 .option-management-form {
   gap: 16px !important;
@@ -11770,11 +11553,6 @@ body {
 /* 行程類型對應內容：畫面左右各半 */
 .schedule-template-editor-box {
   grid-column: 1 / -1;
-}
-
-.schedule-template-list {
-  gap: 12px !important;
-  max-height: 600px;
 }
 
 .schedule-template-row {
@@ -11857,20 +11635,11 @@ body {
     width: 100% !important;
   }
 }
-/* FOR-e V002-1P-77 END - schedule template half layout */
 
-/* FOR-e V002-1P-78 START - options 2-3 columns template 10cm */
+
 /* 選項管理：一排只放 2～3 個管理區塊，避免太擠 */
 .option-management-form {
   gap: 18px !important;
-}
-
-.option-group-card {
-  border-radius: 18px !important;
-}
-
-.option-group-head {
-  padding: 14px 16px 10px !important;
 }
 
 .option-group-body {
@@ -11896,20 +11665,6 @@ body {
 .option-line-row {
   grid-template-columns: minmax(0, 1fr) 36px 36px 36px !important;
   gap: 8px !important;
-}
-
-.option-line-row input {
-  height: 40px !important;
-  min-height: 40px !important;
-  font-size: 14px !important;
-}
-
-.option-line-move-btn,
-.option-line-remove-btn {
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 40px !important;
-  min-height: 40px !important;
 }
 
 @media (max-width: 1320px) {
@@ -12047,9 +11802,8 @@ body {
     width: 100% !important;
   }
 }
-/* FOR-e V002-1P-78 END - options 2-3 columns template 10cm */
 
-/* FOR-e V002-1P-80 START - login logo polish */
+
 /* 登入頁品牌區：置中、乾淨、正式版 */
 .login-page {
   background:
@@ -12130,9 +11884,8 @@ body {
   width: 150px !important;
   height: auto !important;
 }
-/* FOR-e V002-1P-80 END - login logo polish */
 
-/* FOR-e V002-1P-81 START - meeting participants multiselect */
+
 .meeting-participant-box {
   border: 1px solid rgba(81, 112, 255, .18);
   background: #f8fbff;
@@ -12237,9 +11990,8 @@ body {
     max-height: 240px;
   }
 }
-/* FOR-e V002-1P-81 END - meeting participants multiselect */
 
-/* FOR-e V002-1P-82 START - meeting dropdown auto completed */
+
 /* 會議室參與部門 / 參與人員：下拉複選，靠左，不佔版面 */
 .meeting-participant-box {
   padding: 10px 12px !important;
@@ -12427,9 +12179,8 @@ body {
     box-shadow: none;
   }
 }
-/* FOR-e V002-1P-82 END - meeting dropdown auto completed */
 
-/* FOR-e V002-1P-83 START - personal active today meeting dropdown */
+
 /* 會議室下拉複選：checkbox 與文字同一排、靠左、不跨行 */
 .meeting-dropdown-option {
   display: flex !important;
@@ -12488,9 +12239,8 @@ body {
 .personal-today-schedule-notice .todo-notice-card em {
   color: #3155d4 !important;
 }
-/* FOR-e V002-1P-83 END - personal active today meeting dropdown */
 
-/* FOR-e V002-1P-84 START - login daily popup restored style */
+
 .login-reminder-note {
   margin: 10px 0 0;
   padding: 9px 12px;
@@ -12501,9 +12251,8 @@ body {
   line-height: 1.5;
   font-weight: 850;
 }
-/* FOR-e V002-1P-84 END - login daily popup restored style */
 
-/* FOR-e V002-1P-87 START - service record assigned popup */
+
 .assigned-reminder-backdrop .assigned-reminder-modal {
   max-width: 620px;
 }
@@ -12522,9 +12271,8 @@ body {
   color: #166534 !important;
   border-color: #86efac !important;
 }
-/* FOR-e V002-1P-87 END - service record assigned popup */
 
-/* FOR-e V002-1P-88 START - user modal and medical followup */
+
 .medical-followup-inline-box {
   border: 1px solid rgba(81, 112, 255, .22);
   border-radius: 16px;
@@ -12546,9 +12294,8 @@ body {
   font-size: 12px;
   line-height: 1.5;
 }
-/* FOR-e V002-1P-88 END - user modal and medical followup */
 
-/* FOR-e V002-1P-89 START - private notes and mobile popup */
+
 /* 手機登入提醒彈窗：按鈕固定可點、內容可捲動 */
 .has-login-reminder-open {
   overflow: hidden;
@@ -12649,9 +12396,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-89 END - private notes and mobile popup */
 
-/* FOR-e V002-1P-90 START - todo custom filter persist */
+
 /* 待辦事項選項 + 手動輸入欄位 */
 [data-section="todo"] {
   align-items: start;
@@ -12660,10 +12406,8 @@ body {
 #editTodoBlock {
   align-items: start;
 }
-/* FOR-e V002-1P-90 END - todo custom filter persist */
 
-/* FOR-e V002-1P-91 START - todo custom meeting department */
-/* V002-1P-91：會議行程部門選擇與待辦手動輸入 */
+
 .department-assignee-box {
   border: 1px solid rgba(81, 112, 255, .18);
   border-radius: 16px;
@@ -12703,9 +12447,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
-/* FOR-e V002-1P-91 END - todo custom meeting department */
 
-/* FOR-e V002-1P-92 START - restore meeting participants */
+
 /* 會議室與會部門 / 與會人員：恢復下拉複選並保持同排靠左 */
 .meeting-participant-box {
   padding: 10px 12px !important;
@@ -12750,9 +12493,8 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
-/* FOR-e V002-1P-92 END - restore meeting participants */
 
-/* FOR-e V002-1P-93 START - meeting assignee type and remember login */
+
 /* 登入頁：記住帳號及密碼 */
 .remember-login-check {
   display: inline-flex !important;
@@ -12777,9 +12519,8 @@ body {
 .remember-login-check span {
   line-height: 1.3;
 }
-/* FOR-e V002-1P-93 END - meeting assignee type and remember login */
 
-/* FOR-e V002-1P-94 START - meeting assignee safe sync remember line */
+
 /* 登入頁：記住帳號及密碼同一排 */
 .login-card .remember-login-check {
   width: 100%;
@@ -12820,9 +12561,8 @@ body {
   white-space: nowrap !important;
   cursor: pointer;
 }
-/* FOR-e V002-1P-94 END - meeting assignee safe sync remember line */
 
-/* FOR-e V002-1P-95 START - edit repeat mode */
+
 .edit-schedule-mode-box {
   border-color: #c7d2fe;
   background: #f8fbff;
@@ -12831,17 +12571,15 @@ body {
 .edit-schedule-mode-box .inline-check-list {
   gap: 8px;
 }
-/* FOR-e V002-1P-95 END - edit repeat mode */
 
-/* FOR-e V002-1P-96 START - meeting repeat edit and schedule display */
+
 /* 會議室修改週期區塊 */
 #meetingRoomEditForm .edit-schedule-mode-box {
   border-color: #d6c7b4;
   background: #fbf8f1;
 }
-/* FOR-e V002-1P-96 END - meeting repeat edit and schedule display */
 
-/* FOR-e V002-1P-103 START - stable rebuild fixes */
+
 .summary-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
@@ -12870,9 +12608,8 @@ body {
 .checkbox-list .check-row input:checked + span {
   font-weight: 950;
 }
-/* FOR-e V002-1P-103 END - stable rebuild fixes */
 
-/* FOR-e V002-1P-104 START - schedule card text align */
+
 /* 行程卡片文字放大並統一靠左 */
 .schedule-card,
 .week-schedule-card,
@@ -13001,9 +12738,8 @@ body {
     font-size: 13.5px !important;
   }
 }
-/* FOR-e V002-1P-104 END - schedule card text align */
 
-/* FOR-e V002-1P-105 START - calendar cards strict left align */
+
 /* 三個行事曆卡片：所有文字強制靠左 */
 .week-day-cell .week-schedule-card,
 .field-week-day-cell .field-week-schedule-card,
@@ -13078,9 +12814,8 @@ body {
     text-align: left !important;
   }
 }
-/* FOR-e V002-1P-105 END - calendar cards strict left align */
 
-/* FOR-e V002-1P-106 START - birthday calendar public leave */
+
 .birthday-card,
 .field-birthday-card {
   display: flex;
@@ -13134,9 +12869,8 @@ body {
 .field-week-day-cell .field-birthday-card * {
   text-align: left !important;
 }
-/* FOR-e V002-1P-106 END - birthday calendar public leave */
 
-/* FOR-e V002-1P-107 START - cake holidays leave bg */
+
 /* 生日提醒改用 CAKE 圖示 */
 .birthday-card-icon {
   width: 28px !important;
@@ -13169,9 +12903,8 @@ body {
 .field-birthday-card * {
   text-align: left !important;
 }
-/* FOR-e V002-1P-107 END - cake holidays leave bg */
 
-/* FOR-e V002-1P-108 START - birthday text only */
+
 .birthday-card strong,
 .field-birthday-card strong {
   margin-top: 0 !important;
@@ -13183,9 +12916,8 @@ body {
   align-items: center;
   min-height: 30px;
 }
-/* FOR-e V002-1P-108 END - birthday text only */
 
-/* FOR-e V002-1P-109 START - birthday month day only */
+
 .field-hint {
   display: block;
   margin-top: 4px;
@@ -13193,9 +12925,8 @@ body {
   font-size: 12px;
   font-weight: 800;
 }
-/* FOR-e V002-1P-109 END - birthday month day only */
 
-/* FOR-e V002-1P-110 START - overview personal periods auto close */
+
 /* 行程總覽個人檢視模式 */
 .compact-filter-control.is-disabled-filter {
   opacity: 0.62;
@@ -13231,10 +12962,7 @@ body {
 .field-week-schedule-card.is-completed {
   opacity: 0.72;
 }
-/* FOR-e V002-1P-110 END - overview personal periods auto close */
 
-/* FOR-e V002-1P-135 START - selective fixes from v110 */
-/* V002-1P-135｜精選功能樣式 */
 
 /* 行程總覽月份列，不干擾原篩選欄位 */
 .overview-month-row {
@@ -13540,10 +13268,8 @@ body {
     min-height: 140px;
   }
 }
-/* FOR-e V002-1P-135 END - selective fixes from v110 */
 
-/* FOR-e V002-1P-136 START - month controls outside filters and 4px borders */
-/* V002-1P-136｜月份控制移出篩選列 */
+
 .toolbar-month-control {
   display: inline-grid;
   grid-template-rows: 14px 42px;
@@ -13663,10 +13389,7 @@ body {
     width: 100%;
   }
 }
-/* FOR-e V002-1P-136 END - month controls outside filters and 4px borders */
 
-/* FOR-e V002-1P-137 START - palette and overview filter polish */
-/* V002-1P-137｜配色更新與行程總覽篩選微調 */
 
 /* 行程總覽篩選列：部門窄一點、套用與全部同排 */
 @media (min-width: 920px) {
@@ -13724,13 +13447,8 @@ body {
   background: #ffffff;
   text-transform: uppercase;
 }
-/* FOR-e V002-1P-137 END - palette and overview filter polish */
 
-/* FOR-e V002-1P-138 START - training leave tracking color fix */
-/* V002-1P-138｜色碼微調備註
-   新色票由 src/main.js 的 getScheduleColorDefinitions 控制。
-   此處保留卡片外框 4px，避免被舊樣式覆蓋。
-*/
+
 .schedule-card[style],
 .week-schedule-card[style],
 .field-week-schedule-card[style],
@@ -13740,15 +13458,7 @@ body {
   border-color: var(--schedule-accent, #4E71FF) !important;
   background: #ffffff !important;
 }
-/* FOR-e V002-1P-138 END - training leave tracking color fix */
 
-/* FOR-e V002-1P-168 START - cleanup old override blocks */
-/*
-  V002-1P-168｜清理舊覆蓋區塊
-  - 已將 V161 / V164 / V165 / V167 的有效樣式合併成單一區塊
-  - 移除舊版本標記，避免後續 CSS 互相覆蓋造成跑版
-  - 保留目前功能：搜尋欄、LINE 下拉、異況粉色系、節日背景、外務 / 會議室修正、公務車保養樣式
-*/
 
 /* 複選清單搜尋 */
 .choice-search-input {
@@ -14458,23 +14168,6 @@ label.is-filter-hidden {
   box-shadow: inset 0 0 0 2px #C08552 !important;
 }
 
-.meeting-week-table thead th.is-today:not(.is-holiday),
-.meeting-week-day-cell.is-today:not(.is-holiday) {
-  background: #ffffff !important;
-  box-shadow: inset 0 0 0 2px #C08552 !important;
-}
-
-.meeting-week-table thead th.is-today.is-holiday,
-.meeting-week-day-cell.is-today.is-holiday {
-  background: #EFE9E3 !important;
-  box-shadow: inset 0 0 0 2px #C08552 !important;
-}
-
-.meeting-week-table thead th.is-today strong {
-  background: #C08552 !important;
-  color: #ffffff !important;
-}
-
 /* 外務非當日不顯示今日框線；保留淡背景即可 */
 .field-week-day-cell.is-field-day:not(.is-today):not(.is-holiday),
 .field-personal-month-calendar .month-day-cell.is-field-day:not(.is-today):not(.is-holiday) {
@@ -14498,20 +14191,11 @@ label.is-filter-hidden {
   border-color: #FAAB78 !important;
 }
 
-.field-week-table thead th.is-today strong,
-.field-personal-month-calendar .month-day-cell.is-today .month-day-header strong {
-  background: #FAAB78 !important;
-  color: #111827 !important;
-}
-
 /* LINE 按鈕不要換行 */
 #openLineShareBtn {
   white-space: nowrap;
 }
-/* FOR-e V002-1P-168 END - cleanup old override blocks */
 
-/* FOR-e V002-1P-171 START - overview quick groups cleanup */
-/* V002-1P-171｜行程總覽快速人員群組、外務徽章與假日框線 */
 
 /* 獨立快速群組切換列：放在篩選列下方，不影響原本篩選列 */
 .overview-quick-group-bar {
@@ -14698,10 +14382,8 @@ label.is-filter-hidden {
     padding-bottom: 2px;
   }
 }
-/* FOR-e V002-1P-171 END - overview quick groups cleanup */
 
-/* FOR-e V002-1P-172 START - quick group buttons fix */
-/* V002-1P-172｜快速人員群組按鈕 */
+
 .overview-group-chip {
   cursor: pointer;
 }
@@ -14710,10 +14392,8 @@ label.is-filter-hidden {
   cursor: not-allowed;
   opacity: 0.6;
 }
-/* FOR-e V002-1P-172 END - quick group buttons fix */
 
-/* FOR-e V002-1P-173 START - quick group staff list fix */
-/* V002-1P-173｜管理快速人員群組人員清單 */
+
 .overview-group-staff-option {
   display: flex !important;
   align-items: center !important;
@@ -14752,11 +14432,8 @@ label.is-filter-hidden {
   font-style: normal;
   font-weight: 800;
 }
-/* FOR-e V002-1P-173 END - quick group staff list fix */
 
 
-/* FOR-e V002-1P-174 START - quick group staff source fallback */
-/* V002-1P-174｜快速群組管理人員來源保底修正 */
 .overview-group-staff-empty {
   display: grid !important;
   justify-items: start;
@@ -14777,10 +14454,8 @@ label.is-filter-hidden {
   font-weight: 800;
   line-height: 1.5;
 }
-/* FOR-e V002-1P-174 END - quick group staff source fallback */
 
-/* FOR-e V002-1P-175 START - quick group staff dropdown */
-/* V002-1P-175｜快速人員群組管理：選擇人員改為下拉選單 */
+
 .overview-group-person-field {
   position: relative;
   overflow: visible;
@@ -14865,9 +14540,8 @@ label.is-filter-hidden {
     max-height: 280px;
   }
 }
-/* FOR-e V002-1P-175 END - quick group staff dropdown */
 
-/* FOR-e V002-1P-176 START - recurring edit scope and meeting title display */
+
 .edit-series-scope-box {
   border-color: #c7d2fe;
   background: #f8fbff;
@@ -14906,10 +14580,8 @@ label.is-filter-hidden {
 .meeting-room-card strong {
   word-break: break-word;
 }
-/* FOR-e V002-1P-176 END - recurring edit scope and meeting title display */
 
 
-/* FOR-e V002-1P-187 START - mobile month value vertical center */
 @media (max-width: 768px) {
   .page-toolbar .overview-toolbar-actions,
   .page-toolbar .field-toolbar-actions,
@@ -15081,9 +14753,8 @@ label.is-filter-hidden {
     grid-column: auto !important;
   }
 }
-/* FOR-e V002-1P-187 END - mobile month value vertical center */
 
-/* FOR-e V002-1P-191 START - tablet layout reset and stable equal columns */
+
 /*
   平板版只吃 769px～1180px。
   這段會取代前幾版平板篩選列設定，避免自然寬度 / 固定格線互相覆蓋。
@@ -15483,9 +15154,8 @@ label.is-filter-hidden {
     color: var(--blue) !important;
   }
 }
-/* FOR-e V002-1P-191 END - tablet layout reset and stable equal columns */
 
-/* FOR-e V002-1P-192 START - compact logout button */
+
 .logout-btn {
   width: auto;
   min-width: 96px;
@@ -15521,9 +15191,8 @@ label.is-filter-hidden {
     align-self: center !important;
   }
 }
-/* FOR-e V002-1P-192 END - compact logout button */
 
-/* FOR-e V002-1P-203 START - meeting first column sticky and tablet field-day prompt containment */
+
 /* 會議室：表頭第一欄固定，與左側會議室名稱欄位同步 sticky。 */
 .meeting-week-table thead th.meeting-room-col {
   position: sticky !important;
@@ -15649,10 +15318,8 @@ label.is-filter-hidden {
     line-height: 1.35;
   }
 }
-/* FOR-e V002-1P-203 END - meeting first column sticky and tablet field-day prompt containment */
 
 
-/* FOR-e V002-1P-202 START - incident admin todo display and filters */
 .incident-admin-todo-panel {
   margin-top: 8px;
   padding: 10px;
@@ -15765,9 +15432,8 @@ label.is-filter-hidden {
     width: 100%;
   }
 }
-/* FOR-e V002-1P-202 END - incident admin todo display and filters */
 
-/* FOR-e V002-1P-202-1 START - incident filter column alignment */
+
 #incidentFilterForm.incident-filter {
   grid-template-columns: minmax(150px, 1fr) minmax(120px, 0.8fr) minmax(150px, 0.9fr) minmax(220px, 1.5fr) auto;
 }
@@ -15805,9 +15471,8 @@ label.is-filter-hidden {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
-/* FOR-e V002-1P-202-1 END - incident filter column alignment */
 
-/* FOR-e V002-1P-205 START - birthday wish modal */
+
 button.birthday-card,
 button.field-birthday-card,
 button.login-birthday-card {
@@ -16023,13 +15688,11 @@ button.field-birthday-card:focus-visible {
     justify-self: stretch;
   }
 }
-/* FOR-e V002-1P-205 END - birthday wish modal */
-/* FOR-e V002-1P-206 START - birthday wish privacy note */
+
+
 /* V206 只新增 .birthday-wish-private-note，並保留 V205 生日祝福視窗樣式。 */
-/* FOR-e V002-1P-206 END - birthday wish privacy note */
 
 
-/* FOR-e V002-1P-207 START - field detail action stack */
 .field-detail-action-stack {
   display: grid;
   grid-template-columns: 1fr;
@@ -16068,9 +15731,8 @@ button.field-birthday-card:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-/* FOR-e V002-1P-207 END - field detail action stack */
 
-/* FOR-e V002-1P-210 START - birthday softer background and accent */
+
 .birthday-card,
 .field-birthday-card,
 .login-birthday-card,
@@ -16118,10 +15780,8 @@ button.login-birthday-card:focus-visible {
   border-color: var(--birthday-accent, #8CA9FF) !important;
   color: #ffffff !important;
 }
-/* FOR-e V002-1P-210 END - birthday softer background and accent */
 
 
-/* FOR-e V002-1P-211 START - option color UI and calendar text polish */
 /* 篩選列與工具列的小字全部隱藏：檢視範圍、排序、順序、顯示月份、檢視。 */
 .overview-filter-panel-compact .compact-field-label,
 .field-filter-panel-compact .compact-field-label,
@@ -16176,10 +15836,8 @@ button.login-birthday-card:focus-visible {
   background: var(--field-day-prompt-bg, #fff7ed) !important;
   border-color: var(--field-day-prompt-border, #FFAE6E) !important;
 }
-/* FOR-e V002-1P-211 END - option color UI and calendar text polish */
 
 
-/* FOR-e V002-1P-212 START - continuous today border and calendar staff font repair */
 /* 連續行程落在今日時，保留今日外框，不被連續行程細條或反色背景覆蓋。 */
 .week-day-cell.is-today.has-continuation-mark,
 .week-day-cell.is-today.is-leave-day,
@@ -16233,10 +15891,8 @@ button.login-birthday-card:focus-visible {
   font-size: 16px !important;
   line-height: 1.35 !important;
 }
-/* FOR-e V002-1P-212 END - continuous today border and calendar staff font repair */
 
 
-/* FOR-e V002-1P-213 START - field today border, personal occurrence, field detail actions, staff font repair */
 /* 外務行程當日欄位外框固定顯示，避免外務日反色背景或卡片覆蓋。 */
 .field-week-day-cell.is-today,
 .field-week-day-cell.is-today.is-field-day,
@@ -16288,9 +15944,8 @@ button.login-birthday-card:focus-visible {
   line-height: 1.35 !important;
   font-weight: 750 !important;
 }
-/* FOR-e V002-1P-213 END - field today border, personal occurrence, field detail actions, staff font repair */
 
-/* FOR-e V002-1P-214 START - overview field-day today frame and staff name hierarchy fix */
+
 /* 行程總覽：今天欄位無論是否為外務日 / 連續行程，都要保留今日藍框。 */
 .week-overview-table td.week-day-cell.is-today,
 .week-overview-table td.week-day-cell.is-today.is-field-day,
@@ -16375,10 +16030,8 @@ button.login-birthday-card:focus-visible {
   height: 24px !important;
   line-height: 24px !important;
 }
-/* FOR-e V002-1P-214 END - overview field-day today frame and staff name hierarchy fix */
 
 
-/* FOR-e V002-1P-215 START - overview quick groups and overview field day background fix */
 /* 行程總覽：外務日 / 外務背景日期要反淡橘底，即使當天有今日藍框也不能被蓋掉。 */
 .week-overview-table td.week-day-cell.is-field-day,
 .week-overview-table td.week-day-cell.is-today.is-field-day,
@@ -16426,10 +16079,8 @@ button.login-birthday-card:focus-visible {
   font-weight: 750 !important;
   color: #64748b !important;
 }
-/* FOR-e V002-1P-215 END - overview quick groups and overview field day background fix */
 
 
-/* FOR-e V002-1P-217 START - field form external training hint */
 .field-training-hint {
   border: 1px solid #fbbf24;
   background: #fff7ed;
@@ -16477,10 +16128,8 @@ button.login-birthday-card:focus-visible {
   color: #92400e;
   line-height: 1.45;
 }
-/* FOR-e V002-1P-217 END - field form external training hint */
 
 
-/* FOR-e V002-1P-219 START - field calendar training prompt */
 .field-training-calendar-prompt-list {
   display: grid;
   gap: 4px;
@@ -16551,14 +16200,11 @@ button.login-birthday-card:focus-visible {
     font-size: 11px;
   }
 }
-/* FOR-e V002-1P-219 END - field calendar training prompt */
 
 
-/* FOR-e V002-1P-220 START - field calendar leave return prompt and training color */
 /* 外務行程表：請假 / 返鄉只顯示提示，外訓提示沿用外訓色並使用更淡背景。 */
-/* FOR-e V002-1P-220 END - field calendar leave return prompt and training color */
 
-/* FOR-e V002-1P-229 START - administrative reminder */
+
 .administrative-reminder-day-mark {
   width: 100%;
   border: 0;
@@ -16618,15 +16264,11 @@ button.login-birthday-card:focus-visible {
     font-size: 11px;
   }
 }
-/* FOR-e V002-1P-229 END - administrative reminder */
 
 
-/* FOR-e V002-1P-230 START - administrative reminder end date and wrapping */
 /* 行政事務提醒：使用起訖日期顯示，提示文字自動換行。 */
-/* FOR-e V002-1P-230 END - administrative reminder end date and wrapping */
 
 
-/* FOR-e V002-1P-233 START - incident stats dedupe and continuous prompt wrapping */
 /* 連續顯示 / 提示列自動換行，避免一般記事、待辦、外務、會議室、請假 / 返鄉、外訓等長文字被截斷。 */
 .continuation-day-mark,
 .leave-return-day-mark,
@@ -16661,9 +16303,8 @@ button.login-birthday-card:focus-visible {
   max-width: 100% !important;
   min-width: 0 !important;
 }
-/* FOR-e V002-1P-233 END - incident stats dedupe and continuous prompt wrapping */
 
-/* FOR-e V002-1P-235 START - return reminder prompt and merged todo styles */
+
 .return-reminder-day-mark {
   width: 100%;
   display: flex;
@@ -16713,9 +16354,8 @@ button.login-birthday-card:focus-visible {
 .return-reminder-day-mark:hover {
   filter: brightness(0.98);
 }
-/* FOR-e V002-1P-235 END - return reminder prompt and merged todo styles */
 
-/* FOR-e V002-1P-238 START - service type split and return reminder card details */
+
 .return-reminder-day-mark strong em,
 .return-reminder-day-mark strong small {
   display: block;
@@ -16737,9 +16377,8 @@ button.login-birthday-card:focus-visible {
   font-weight: 800;
   color: #374151;
 }
-/* FOR-e V002-1P-238 END - service type split and return reminder card details */
 
-/* FOR-e V002-1P-240 START - service reminder detail cards */
+
 .service-reminder-week-card {
   background: color-mix(in srgb, var(--schedule-accent, #FF8080) 14%, #ffffff) !important;
   border-color: var(--schedule-accent, #FF8080) !important;
@@ -16772,16 +16411,13 @@ button.login-birthday-card:focus-visible {
   word-break: break-word !important;
   line-height: 1.35 !important;
 }
-/* FOR-e V002-1P-240 END - service reminder detail cards */
 
 
-/* FOR-e V002-1P-241 START - meter reminder compact service form cleanup */
 .meter-hide-for-reminder.is-compact-hidden {
   display: none !important;
 }
-/* FOR-e V002-1P-241 END - meter reminder compact service form cleanup */
 
-/* FOR-e V002-1P-243 START - stacked type/title and reminder prompt layout */
+
 .week-card-type-line,
 .schedule-card-type-line {
   display: block;
@@ -16889,16 +16525,7 @@ button.login-birthday-card:focus-visible {
   overflow-wrap: anywhere !important;
   word-break: break-word !important;
 }
-/* FOR-e V002-1P-243 END - stacked type/title and reminder prompt layout */
 
-/* FOR-e V002-1P-251 START - clean calendar chips and continuous layout */
-/* FOR-e V002-1P-256 UPDATE - continuous and field day auto wrapping */
-/*
-  整理 V002-1P-245～250 後段重複 CSS：
-  1) 一般行程、會議室、待辦 / 一般記事的類型與項目文字不再顯示橢圓底。
-  2) 連續行程只保留「項目」橢圓背景，標題與時間為純文字。
-  3) 手機逾期通知、手機欄寬、駐廠時間、外務日橫排、桌機字級整合在同一區塊，避免舊區塊互相覆蓋。
-*/
 
 /* 一般行程 / 會議室 / 待辦一般記事：類型與項目只留文字，不留橢圓背景。 */
 .week-card-type-line,
@@ -17502,10 +17129,8 @@ button.login-birthday-card:focus-visible {
     font-size: 17px !important;
   }
 }
-/* FOR-e V002-1P-256 UPDATE END - continuous and field day auto wrapping */
-/* FOR-e V002-1P-251 END - clean calendar chips and continuous layout */
 
-/* FOR-e V002-1P-257 START - calendar full height horizontal scroll time return reminder */
+
 /* 行事曆下方不限制高度：手機、平板、電腦都可看完整行程表，並保留左右滑動。 */
 .week-overview-scroll,
 .field-week-scroll,
@@ -17661,9 +17286,8 @@ button.login-birthday-card:focus-visible {
     font-size: 12px !important;
   }
 }
-/* FOR-e V002-1P-257 END - calendar full height horizontal scroll time return reminder */
 
-/* FOR-e V002-1P-258 START - return reminder exact day and card color tuning */
+
 /* 卡片時間與項目色：統一最後保護，避免舊區塊回蓋。 */
 .week-card-time:not(.factory-station-time),
 .field-week-card-time,
@@ -17761,9 +17385,8 @@ button.login-birthday-card:focus-visible {
     font-size: 16px !important;
   }
 }
-/* FOR-e V002-1P-258 END - return reminder exact day and card color tuning */
 
-/* FOR-e V002-1P-259 START - strict calendar card time and type colors */
+
 /*
   前兩版時間色沒有生效的原因：舊版 [style] 卡片選擇器也用了 !important，
   例如 .week-schedule-card[style] .week-card-time， specificity 比單純 .week-card-time 高。
@@ -17829,10 +17452,8 @@ button.login-birthday-card:focus-visible {
 .reminder-tags span {
   color: #A03A13 !important;
 }
-/* FOR-e V002-1P-259 END - strict calendar card time and type colors */
 
 
-/* FOR-e V002-1P-260 START - return reminder darker and continuous chip text black */
 /* 返台提醒：維持淡色系，但比 V258 再加深，避免提醒太淡看不清楚。 */
 .return-reminder-day-mark.is-return-reminder,
 .week-day-cell .return-reminder-day-mark.is-return-reminder,
@@ -17861,10 +17482,8 @@ button.login-birthday-card:focus-visible {
 .meeting-week-day-cell .continuation-day-mark .continuation-day-type-line {
   color: #000000 !important;
 }
-/* FOR-e V002-1P-260 END - return reminder darker and continuous chip text black */
 
 
-/* FOR-e V002-1P-258 START - field purpose edit layout */
 .field-purpose-box {
   padding: 10px 12px;
   border: 1px solid #dbe4ff;
@@ -17931,10 +17550,8 @@ button.login-birthday-card:focus-visible {
     white-space: normal;
   }
 }
-/* FOR-e V002-1P-258 END - field purpose edit layout */
 
 
-/* FOR-e V002-1P-261 START - field purpose special mobile date fix */
 #fieldScheduleForm,
 #editFieldScheduleForm,
 #scheduleForm,
@@ -18211,9 +17828,8 @@ button.login-birthday-card:focus-visible {
     font-size: 16px !important;
   }
 }
-/* FOR-e V002-1P-261 END - field purpose special mobile date fix */
 
-/* FOR-e V002-1P-262 START - incident supervisor notify field */
+
 #incidentForm .supervisor-tracking-box,
 #editIncidentForm .supervisor-tracking-box,
 #incidentNextTrackingForm .supervisor-tracking-box {
@@ -18263,9 +17879,8 @@ button.login-birthday-card:focus-visible {
     grid-column: 1 / -1 !important;
   }
 }
-/* FOR-e V002-1P-262 END - incident supervisor notify field */
 
-/* === V002-1P-263 mobile modal date field center fix START === */
+
 /*
   目的：修正手機版新增行程 Modal 中，開始日期 / 結束日期超出欄位，
   以及 iOS Safari 日期欄位文字無法上下置中的問題。
@@ -18466,9 +18081,8 @@ button.login-birthday-card:focus-visible {
     line-height: 62px !important;
   }
 }
-/* === V002-1P-263 mobile modal date field center fix END === */
 
-/* V002-1P-264 START - schedule detail multiline view */
+
 .detail-panel .detail-grid .schedule-detail-text-preserve,
 .detail-panel .detail-grid .span-2 > strong {
   display: block !important;
@@ -18491,9 +18105,8 @@ button.login-birthday-card:focus-visible {
     line-height: 1.75 !important;
   }
 }
-/* V002-1P-264 END - schedule detail multiline view */
 
-/* V002-1P-267 START - card time factory station effective fix */
+
 :root {
   --for-e-card-time-color: #021A54;
   --factory-station-color: #C7C8CC;
@@ -18678,9 +18291,8 @@ button.login-birthday-card:focus-visible {
     padding: 2px 9px !important;
   }
 }
-/* V002-1P-267 END - card time factory station effective fix */
 
-/* V002-1P-268 START - calendar card wrap sticky continuation factory fix */
+
 :root {
   --for-e-calendar-card-font-size: 13px;
   --for-e-card-time-color: #021A54;
@@ -18888,25 +18500,6 @@ button.login-birthday-card:focus-visible {
   box-shadow: inset 0 0 0 1px rgba(199, 200, 204, 0.32) !important;
 }
 
-.factory-station-continuation .continuation-day-inline-title,
-.factory-station-week-card .calendar-card-inline-title,
-.factory-station-inline-title {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  flex-wrap: wrap !important;
-  gap: 4px 7px !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
 .factory-station-continuation .continuation-day-type-line,
 .continuation-day-mark[style*="#C7C8CC"] .continuation-day-type-line,
 .factory-station-inline-title .week-card-type-line,
@@ -18960,9 +18553,8 @@ button.login-birthday-card:focus-visible {
     z-index: 85 !important;
   }
 }
-/* V002-1P-268 END - calendar card wrap sticky continuation factory fix */
 
-/* V002-1P-270 START - line notify dropdown clear single copy */
+
 .line-select-dropdown-tools {
   display: flex !important;
   align-items: center !important;
@@ -19094,9 +18686,8 @@ button.login-birthday-card:focus-visible {
     width: 100% !important;
   }
 }
-/* V002-1P-270 END - line notify dropdown clear single copy */
 
-/* V002-1P-272 START - service admin quick groups completed admin reminder */
+
 .service-admin-notify-field,
 .edit-service-admin-notify-field {
   min-width: 0 !important;
@@ -19163,4 +18754,59 @@ button.login-birthday-card:focus-visible {
   color: #4b5563 !important;
   border-color: #cbd5e1 !important;
 }
-/* V002-1P-272 END - service admin quick groups completed admin reminder */
+
+
+/* FOR-e active completed calendar styles START */
+/* 連續行程與固定會議已結束視覺：灰底、灰字、淡邊框。 */
+.continuation-day-mark.is-completed,
+.week-schedule-card.is-completed,
+.field-week-schedule-card.is-completed,
+.meeting-room-card.is-completed,
+.schedule-card.is-completed,
+.search-result-row.is-completed,
+.field-detail-row.is-completed,
+.incident-row.is-completed,
+.assigned-tracking-row.is-completed {
+  background: #eeeeee !important;
+  border-color: #d1d5db !important;
+  color: #777777 !important;
+  box-shadow: none !important;
+  opacity: 0.78 !important;
+}
+
+.continuation-day-mark.is-completed *,
+.week-schedule-card.is-completed *,
+.field-week-schedule-card.is-completed *,
+.meeting-room-card.is-completed *,
+.schedule-card.is-completed *,
+.search-result-row.is-completed *,
+.field-detail-row.is-completed *,
+.incident-row.is-completed *,
+.assigned-tracking-row.is-completed * {
+  color: #777777 !important;
+}
+
+.continuation-day-mark.is-completed .continuation-day-type-line,
+.continuation-day-mark.is-completed .continuation-day-chip,
+.continuation-day-mark.is-completed .continuation-day-type-line > span,
+.continuation-day-mark.is-completed .week-card-type-line,
+.continuation-day-mark.is-completed .calendar-card-inline-title .week-card-type-line {
+  background: #d6d6d6 !important;
+  color: #666666 !important;
+  border-color: #c9c9c9 !important;
+}
+
+/* 駐廠連續行程維持淡灰底與邊框，但完成後仍明顯反灰。 */
+.continuation-day-mark.factory-station-continuation:not(.is-completed),
+.continuation-day-mark.factory-station-week-card:not(.is-completed) {
+  background: #f7f8fa !important;
+  border: 1px solid #d9dade !important;
+  border-left: 4px solid #c7c8cc !important;
+}
+
+.continuation-day-mark.factory-station-continuation:not(.is-completed) .continuation-day-type-line,
+.continuation-day-mark.factory-station-week-card:not(.is-completed) .continuation-day-type-line {
+  background: #c7c8cc !important;
+  color: #333333 !important;
+}
+/* FOR-e active completed calendar styles END */
