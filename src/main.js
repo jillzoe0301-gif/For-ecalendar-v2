@@ -7396,9 +7396,20 @@ function openIncidentNextTrackingModal(scheduleId) {
           <span>目前下次追蹤：${escapeHtml(row.start_date || '-')}｜${escapeHtml(formatTime(row))}</span>
         </div>
 
+
+
+        <div class="span-2 incident-next-mode-box">
+          <div class="field-title">下一次追蹤類型</div>
+          <div class="inline-radio-group incident-next-mode-options">
+            <label><input type="radio" name="incident_next_mode" value="tracking" checked> 追蹤</label>
+            <label><input type="radio" name="incident_next_mode" value="record"> 單純紀錄（不顯示在待辦）</label>
+          </div>
+          <p class="field-hint">選「單純紀錄」時，只寫入異況紀錄，不建立個人待辦 / 追蹤行程。</p>
+        </div>
+
         <label>
           下次追蹤日期
-          <input name="next_follow_date" type="date" required value="${row.start_date || todayString()}">
+          <input name="next_follow_date" type="date" value="${row.start_date || todayString()}">
         </label>
 
         <label class="span-2">
@@ -7465,6 +7476,8 @@ async function saveIncidentNextTracking(event, modal, row) {
 
   try {
     const form = new FormData(event.target)
+    const incidentNextMode = form.get('incident_next_mode') || 'tracking'
+    const isRecordOnly = incidentNextMode === 'record'
     const nextTime = getFieldSingleTimeValue(form, 'incident_follow_next')
     const nextFollowDate = form.get('next_follow_date')
     const trackingContent = String(form.get('tracking_content') || '').trim()
@@ -7481,38 +7494,54 @@ async function saveIncidentNextTracking(event, modal, row) {
       return
     }
 
-    if (!targetIds.length) {
+    if (!isRecordOnly && !nextFollowDate) {
+      alert('請選擇下次追蹤日期。')
+      saving = false
+      return
+    }
+
+    if (!isRecordOnly && !targetIds.length) {
       alert('請至少選擇一位執行對象。')
       saving = false
       return
     }
 
-    if ((adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
+    if (!isRecordOnly && (adminTaskType || adminTaskDetail || adminStaffId) && !(adminTaskType && adminStaffId)) {
       alert('若要通知行政辦理，請選擇通知項目與通知行政。')
       saving = false
       return
     }
 
-    if (supervisorTrackingDetail && !supervisorTrackingStaffId) {
+    if (!isRecordOnly && supervisorTrackingDetail && !supervisorTrackingStaffId) {
       alert('若要通知主管追蹤，請選擇通知主管。')
       saving = false
       return
     }
 
     const nextIndex = getIncidentTrackingEntries(row).length + 1
-    const trackingTitle = `第${chineseTrackingNumber(nextIndex)}次追蹤`
+    const trackingTitle = `第${chineseTrackingNumber(nextIndex)}次${isRecordOnly ? '紀錄' : '追蹤'}`
     const targetNames = staffList.filter(staff => targetIds.includes(staff.staff_id)).map(staff => staff.name).join('、')
-    const nextDescription = appendIncidentTrackingEntry(row, todayString(), '', `${trackingContent}\n執行對象：${targetNames}`)
+    const entryBody = [
+      trackingContent,
+      isRecordOnly ? '類型：單純紀錄' : (targetNames ? `執行對象：${targetNames}` : '')
+    ].filter(Boolean).join('\n')
+    const nextDescription = appendIncidentTrackingEntry(row, todayString(), '', entryBody)
     const currentNote = String(row.sub_type_note || '')
     const noteParts = currentNote.split('｜').map(item => item.trim()).filter(Boolean)
-    const cleanedNoteParts = noteParts.filter(item => !item.startsWith('下次追蹤：') && !item.startsWith('下次執行對象：'))
-    cleanedNoteParts.push(`下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
-    cleanedNoteParts.push(`下次執行對象：${targetNames}`)
+    const cleanedNoteParts = noteParts.filter(item => !item.startsWith('下次追蹤：') && !item.startsWith('下次執行對象：') && !item.startsWith('最後紀錄：'))
 
-    const { error } = await supabase
-      .from('schedules')
-      .update({
-        description: nextDescription,
+    const updatePayload = {
+      description: nextDescription,
+      sub_type_note: cleanedNoteParts.join('｜')
+    }
+
+    if (isRecordOnly) {
+      cleanedNoteParts.push(`最後紀錄：${todayString()}`)
+      updatePayload.sub_type_note = cleanedNoteParts.join('｜')
+    } else {
+      cleanedNoteParts.push(`下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+      cleanedNoteParts.push(`下次執行對象：${targetNames}`)
+      Object.assign(updatePayload, {
         start_date: nextFollowDate,
         end_date: nextFollowDate,
         time_type: getFieldTimeTypeFromForm(form, 'incident_follow_next'),
@@ -7521,43 +7550,50 @@ async function saveIncidentNextTracking(event, modal, row) {
         sub_type_note: cleanedNoteParts.join('｜'),
         status: '未完成'
       })
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .update(updatePayload)
       .eq('schedule_id', row.schedule_id)
 
     if (error) {
-      alert('新增下次追蹤失敗：' + error.message)
+      alert((isRecordOnly ? '新增紀錄失敗：' : '新增下次追蹤失敗：') + error.message)
       saving = false
       return
     }
 
-    await createIncidentTrackingSchedule(row, trackingTitle, trackingContent, nextFollowDate, nextTime, targetIds, `母案件下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
+    if (!isRecordOnly) {
+      await createIncidentTrackingSchedule(row, trackingTitle, trackingContent, nextFollowDate, nextTime, targetIds, `母案件下次追蹤：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`)
 
-    if (adminTaskType && adminStaffId) {
-      try {
-        await createAdministrativeTodoSchedule(row, adminTaskType, adminTaskDetail || trackingContent, adminStaffId, {
-          sourceLabel: `異況${trackingTitle}通知行政辦理`,
-          startDate: todayString()
-        })
-      } catch (adminError) {
-        alert('追蹤已建立，但通知行政待辦建立失敗：' + (adminError?.message || adminError))
-        saving = false
-        return
+      if (adminTaskType && adminStaffId) {
+        try {
+          await createAdministrativeTodoSchedule(row, adminTaskType, adminTaskDetail || trackingContent, adminStaffId, {
+            sourceLabel: `異況${trackingTitle}通知行政辦理`,
+            startDate: todayString()
+          })
+        } catch (adminError) {
+          alert('追蹤已建立，但通知行政待辦建立失敗：' + (adminError?.message || adminError))
+          saving = false
+          return
+        }
       }
-    }
 
-    if (supervisorTrackingStaffId) {
-      try {
-        await createIncidentSupervisorTrackingSchedule(
-          row,
-          supervisorTrackingStaffId,
-          supervisorTrackingDetail || trackingContent,
-          nextFollowDate,
-          nextTime,
-          `異況${trackingTitle}通知主管追蹤`
-        )
-      } catch (supervisorError) {
-        alert('追蹤已建立，但通知主管追蹤建立失敗：' + (supervisorError?.message || supervisorError))
-        saving = false
-        return
+      if (supervisorTrackingStaffId) {
+        try {
+          await createIncidentSupervisorTrackingSchedule(
+            row,
+            supervisorTrackingStaffId,
+            supervisorTrackingDetail || trackingContent,
+            nextFollowDate,
+            nextTime,
+            `異況${trackingTitle}通知主管追蹤`
+          )
+        } catch (supervisorError) {
+          alert('追蹤已建立，但通知主管追蹤建立失敗：' + (supervisorError?.message || supervisorError))
+          saving = false
+          return
+        }
       }
     }
 
@@ -7565,10 +7601,12 @@ async function saveIncidentNextTracking(event, modal, row) {
       operated_by_profile_id: currentProfile.profile_id,
       operated_by_staff_id: currentProfile.staff_id,
       operated_by_name: currentProfile.name || currentProfile.email,
-      action_type: '新增追蹤',
+      action_type: isRecordOnly ? '新增紀錄' : '新增追蹤',
       source_type: 'schedule',
       source_id: row.schedule_id,
-      note: `V002-1L-5 新增下次追蹤並上行程：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`
+      note: isRecordOnly
+        ? 'V002-1P-275 新增異況單純紀錄，不建立待辦'
+        : `V002-1P-275 新增下次追蹤並上行程：${nextFollowDate}${nextTime ? ' ' + nextTime : ''}`
     })
 
     modal.remove()
