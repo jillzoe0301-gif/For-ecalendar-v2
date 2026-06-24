@@ -17862,3 +17862,73 @@ button.login-birthday-card:focus-visible {
   color: #000000 !important;
 }
 /* FOR-e V002-1P-260 END - return reminder darker and continuous chip text black */
+
+
+/* FOR-e V002-1P-258 START - field purpose edit layout */
+.field-purpose-box {
+  padding: 10px 12px;
+  border: 1px solid #dbe4ff;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.field-purpose-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  width: 100%;
+  text-align: left !important;
+}
+
+.field-purpose-check-list .field-purpose-check,
+#fieldScheduleForm .field-purpose-check-list .field-purpose-check,
+#editFieldScheduleForm .field-purpose-check-list .field-purpose-check {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 7px 10px !important;
+  text-align: left !important;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.field-purpose-check-list .field-purpose-check input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 4px 0 0 !important;
+}
+
+.field-purpose-check-list .field-purpose-check span {
+  flex: 0 1 auto !important;
+  display: inline !important;
+  text-align: left !important;
+  line-height: 1.2 !important;
+}
+
+.field-purpose-hint {
+  margin: 6px 0 0;
+  text-align: left;
+}
+
+.field-edit-actions {
+  justify-content: flex-end !important;
+}
+
+.field-edit-actions .danger-btn {
+  margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  .field-purpose-check-list .field-purpose-check {
+    white-space: normal;
+  }
+}
+/* FOR-e V002-1P-258 END - field purpose edit layout */

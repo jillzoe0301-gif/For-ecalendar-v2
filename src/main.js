@@ -2068,7 +2068,7 @@ async function findStaffForProfile(profile) {
       .eq('staff_id', staffId)
       .maybeSingle()
 
-    if (!error && data) return data
+    if (!error && data) return normalizeStaffRowsForDisplay([data])[0]
   }
 
   if (profile?.name) {
@@ -2081,7 +2081,7 @@ async function findStaffForProfile(profile) {
       .limit(1)
       .maybeSingle()
 
-    if (!error && data) return data
+    if (!error && data) return normalizeStaffRowsForDisplay([data])[0]
   }
 
   return null
@@ -3032,7 +3032,7 @@ async function loadStaff() {
     return
   }
 
-  allStaffList = data || []
+  allStaffList = normalizeStaffRowsForDisplay(data || [])
   staffList = allStaffList.filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
 }
 
@@ -5311,7 +5311,7 @@ function getFieldDetailRows() {
 
       if (fieldDetailFilters.purpose !== '全部') {
         const purposeText = row.sub_type || getFieldNoteValue(row, '外務目的') || ''
-        if (purposeText !== fieldDetailFilters.purpose) return false
+        if (!splitFieldPurposeValues(purposeText).includes(fieldDetailFilters.purpose)) return false
       }
 
       if (fieldDetailFilters.location) {
@@ -16377,7 +16377,7 @@ async function createDepartmentRow(departmentName = '') {
   let lastError = null
   for (const payload of payloads) {
     const { data, error } = await tryInsertDepartment(payload)
-    if (!error && data) return data
+    if (!error && data) return normalizeStaffRowsForDisplay([data])[0]
     lastError = error
   }
 
@@ -17561,6 +17561,143 @@ function optionHtmlForItems(items, selectedValue = '') {
   return items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${item}</option>`).join('')
 }
 
+
+/* FOR-e V002-1P-258 START - field purpose multi select and staff position normalization */
+function normalizeStaffPositionForDisplay(staff = {}) {
+  const name = String(staff?.name || '').trim()
+  if (name === '徐嘉陽') return '行政主任'
+  if (name === '蔡佩珊') return '行政組長'
+  return staff?.position || staff?.position_name || ''
+}
+
+function normalizeStaffRowsForDisplay(rows = []) {
+  return (rows || []).map(staff => {
+    const position = normalizeStaffPositionForDisplay(staff)
+    if (!position) return staff
+    return { ...staff, position, position_name: position }
+  })
+}
+
+function splitFieldPurposeValues(value = '') {
+  return [...new Set(String(value || '')
+    .split(/[、,，／/]+/)
+    .map(item => item.trim())
+    .filter(Boolean))]
+}
+
+function getFieldPurposeValuesFromRow(row = {}) {
+  const value = row?.sub_type || getFieldNoteValue(row, '外務目的') || '外務日'
+  const values = splitFieldPurposeValues(value)
+  return values.length ? values : ['外務日']
+}
+
+function getSelectedFieldPurposeValues(form, fieldName = 'field_purpose') {
+  if (!form) return []
+  const values = form.getAll(fieldName).length ? form.getAll(fieldName) : [form.get(fieldName)]
+  return [...new Set(values.map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function getSelectedFieldPurposeText(form, fieldName = 'field_purpose') {
+  const values = getSelectedFieldPurposeValues(form, fieldName)
+  return values.length ? values.join('、') : ''
+}
+
+function fieldPurposeChecksHtml(selectedItems = [], inputName = 'field_purpose') {
+  const selected = new Set((selectedItems || []).map(item => String(item || '').trim()).filter(Boolean))
+  const options = getManagedListOption('fieldPurposeOptions', fieldPurposeOptions)
+  const selectedText = selected.size ? [...selected].join('、') : '可複選'
+  return `
+    <div class="field-purpose-check-list" data-field-purpose-list aria-label="外務目的複選">
+      ${options.map(item => `
+        <label class="inline-check field-purpose-check">
+          <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(item) ? 'checked' : ''}>
+          <span>${escapeHtml(item)}</span>
+        </label>
+      `).join('')}
+    </div>
+    <p class="field-hint field-purpose-hint">目前目的：${escapeHtml(selectedText)}</p>
+  `
+}
+
+function getFieldNextActionFromRow(row = {}) {
+  const note = String(row?.sub_type_note || '')
+  const match = note.match(/(下次領件|下次送審)：(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/)
+  if (!match) return { type: '', date: '', hour: '', minute: '00', time: '' }
+  const time = match[3] || ''
+  return {
+    type: match[1],
+    date: match[2],
+    time,
+    hour: time ? time.slice(0, 2) : '',
+    minute: time ? time.slice(3, 5) : '00'
+  }
+}
+
+function getFieldNextStaffIdFromRow(row = {}) {
+  const staffText = getFieldNoteValue(row, '下次人員')
+  if (!staffText) return ''
+  const normalized = String(staffText).split('｜')[0].trim()
+  const staff = staffList.find(item => item.name === normalized || String(staffText).includes(item.name))
+  return staff?.staff_id || ''
+}
+
+async function createFollowupFieldScheduleFromEdit(basePayload = {}, form, options = {}) {
+  const nextType = options.nextType || ''
+  const nextDate = options.nextDate || ''
+  const nextStaffId = options.nextStaffId || ''
+  const nextFieldTime = options.nextFieldTime || ''
+  if (!(nextType && nextDate && nextStaffId)) return { error: null }
+
+  const nextStaff = staffList.find(staff => staff.staff_id === nextStaffId)
+  if (!nextStaff) return { error: new Error('找不到下次外務人員。') }
+
+  const purpose = options.purpose || basePayload.sub_type || '外務'
+  const locationName = options.locationName || basePayload.location_name || ''
+  const address = options.address || basePayload.address || ''
+  const sourceDate = options.sourceDate || basePayload.start_date || todayString()
+  const originalRow = options.originalRow || {}
+
+  const nextPayload = buildScheduleInsertPayload(originalRow, {
+    ...basePayload,
+    department_id: nextStaff.department_id || basePayload.department_id,
+    department_name: nextStaff.department_name || basePayload.department_name,
+    sub_type: nextType,
+    sub_type_note: [
+      `外務目的：${nextType}`,
+      `來源外務：${sourceDate}｜${purpose}`,
+      locationName ? `地點：${locationName}` : '',
+      address ? `地址：${address}` : ''
+    ].filter(Boolean).join('｜'),
+    title: `${nextType}${locationName ? '｜' + locationName : '｜外務'}`,
+    description: `由 ${sourceDate} ${purpose} 修改時建立的下次外務行程。${basePayload.description ? '\n' + basePayload.description : ''}`,
+    start_date: nextDate,
+    end_date: nextDate,
+    time_type: getFieldTimeTypeFromForm(form, 'edit_next'),
+    start_time: getFieldDbTimeValue(nextFieldTime),
+    end_time: null,
+    status: '未完成'
+  })
+
+  const { schedule, error } = await insertSchedulePayload(nextPayload)
+  if (error) return { error }
+
+  const { error: assigneeError } = await syncScheduleAssigneesSafely(schedule?.schedule_id || '', [nextStaff.staff_id], { replaceExisting: true })
+  if (assigneeError) return { error: assigneeError }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '新增',
+    source_type: 'schedule',
+    source_id: schedule?.schedule_id || '',
+    note: `V002-1P-258 修改外務時自動建立${nextType}行程`
+  })
+
+  return { error: null, schedule }
+}
+/* FOR-e V002-1P-258 END - field purpose multi select and staff position normalization */
+
 function fieldLocationOptionsHtml() {
   return `<option value="">手動輸入 / 不指定</option>` + getManagedLocationOptions().map(item => `
     <option value="${escapeHtml(item.name)}" data-address="${escapeHtml(item.address)}">${escapeHtml(item.name)}</option>
@@ -17882,7 +18019,8 @@ function openEditFieldScheduleModal(scheduleId) {
 
   const start = parseTimeForEdit(row.start_time, '', '00')
   const selectedIds = new Set(getAssigneeIds(row))
-  const purpose = row.sub_type || getFieldNoteValue(row, '外務目的') || '外務日'
+  const selectedPurposeValues = getFieldPurposeValuesFromRow(row)
+  const purpose = selectedPurposeValues.join('、') || '外務日'
   const selectedReminders = getFieldSpecialRemindersFromRow(row)
   const cashNote = getFieldNoteValue(row, '現金')
   const sealNote = getFieldNoteValue(row, '印章')
@@ -17890,6 +18028,8 @@ function openEditFieldScheduleModal(scheduleId) {
   const fieldResult = getFieldResultFromRow(row)
   const supplementDetail = getFieldNoteValue(row, '補件項目')
   const abnormalDetail = getFieldNoteValue(row, '異常項目')
+  const nextAction = getFieldNextActionFromRow(row)
+  const nextStaffId = getFieldNextStaffIdFromRow(row)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -17913,15 +18053,14 @@ function openEditFieldScheduleModal(scheduleId) {
           </div>
         </div>
 
-        <label>
-          日期
-          <input name="start_date" type="date" required value="${row.start_date || todayString()}">
-        </label>
+        ${editScheduleModeFieldsHtml(row)}
 
-        <label>
+        <label class="span-2">
           時間
           ${fieldTimeSelectHtml('edit_field', row.start_time ? start.hour : '', row.start_time ? start.minute : '00', row.time_type || '不指定')}
         </label>
+
+        ${editSeriesScopeFieldsHtml(row, row.start_date || todayString(), 'field')}
 
         <div class="span-2 field-training-hint hidden" data-field-training-hint></div>
 
@@ -17944,12 +18083,10 @@ function openEditFieldScheduleModal(scheduleId) {
           </label>
         </div>
 
-        <label>
-          目的
-          <select name="field_purpose">
-            ${optionHtmlForItems(getManagedListOption('fieldPurposeOptions', fieldPurposeOptions), purpose)}
-          </select>
-        </label>
+        <div class="span-2 field-purpose-box">
+          <div class="field-title">目的（可複選）</div>
+          ${fieldPurposeChecksHtml(selectedPurposeValues, 'field_purpose')}
+        </div>
 
         <div class="field-special-box">
           <div class="field-title">特殊提醒（可複選）</div>
@@ -17985,7 +18122,40 @@ function openEditFieldScheduleModal(scheduleId) {
           <div class="field-result-reminder-note">此行程狀態維持未完成，請持續追蹤處理。</div>
         </div>` : ''}
 
-        <div class="modal-actions span-2">
+        <div class="span-2 field-next-box">
+          <div class="field-title">下次領件 / 送審</div>
+          <div class="compact-grid">
+            <label>
+              下次類型
+              <select name="next_action_type">
+                <option value="" ${!nextAction.type ? 'selected' : ''}>無</option>
+                <option value="下次領件" ${nextAction.type === '下次領件' ? 'selected' : ''}>下次領件</option>
+                <option value="下次送審" ${nextAction.type === '下次送審' ? 'selected' : ''}>下次送審</option>
+              </select>
+            </label>
+
+            <label>
+              下次日期
+              <input name="next_action_date" type="date" value="${escapeHtml(nextAction.date || '')}">
+            </label>
+
+            <label>
+              下次時間
+              ${fieldTimeSelectHtml('edit_next', nextAction.hour || '', nextAction.minute || '00')}
+            </label>
+
+            <label>
+              下次人員
+              <select name="next_staff_id">
+                ${fieldStaffSelectOptionsHtml(nextStaffId)}
+              </select>
+            </label>
+          </div>
+          <p class="field-hint">若填寫下次類型、日期與人員，儲存修改後會自動建立下一筆外務行程；下次時間可不填。</p>
+        </div>
+
+        <div class="modal-actions span-2 field-edit-actions">
+          ${isFieldDayReminderSchedule(row) ? '<button type="button" class="danger-btn" id="deleteEditFieldModalBtn">刪除外務日</button>' : ''}
           <button type="button" class="secondary-btn" id="cancelEditFieldModalBtn">取消</button>
           <button type="submit" class="primary-btn">儲存外務修改</button>
         </div>
@@ -17997,6 +18167,11 @@ function openEditFieldScheduleModal(scheduleId) {
   initSearchableChoicePanels(modal)
   initFieldSpecialDropdowns(modal)
   bindFieldTrainingHint(modal, '#editFieldScheduleForm', 'edit_field_executor', row.schedule_id)
+  refreshScheduleModeBlocks('edit')
+  const editFieldRepeatModeSelect = document.querySelector('#editRepeatModeSelect')
+  if (editFieldRepeatModeSelect) {
+    editFieldRepeatModeSelect.addEventListener('change', () => refreshScheduleModeBlocks('edit'))
+  }
 
   const locationSelect = document.querySelector('#editFieldLocationSelect')
   if (locationSelect) {
@@ -18005,6 +18180,13 @@ function openEditFieldScheduleModal(scheduleId) {
 
   document.querySelector('#closeEditFieldModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditFieldModalBtn').addEventListener('click', () => modal.remove())
+  const deleteEditFieldModalBtn = document.querySelector('#deleteEditFieldModalBtn')
+  if (deleteEditFieldModalBtn) {
+    deleteEditFieldModalBtn.addEventListener('click', () => {
+      modal.remove()
+      openCancelModal(row.schedule_id)
+    })
+  }
   document.querySelector('#editFieldScheduleForm').addEventListener('submit', event => saveEditedFieldSchedule(event, modal, row))
 }
 
@@ -18025,10 +18207,21 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
 
     const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
     const firstStaff = selectedStaff[0]
-    const purpose = form.get('field_purpose') || '外務日'
+    const purpose = getSelectedFieldPurposeText(form, 'field_purpose') || '外務日'
     const locationName = form.get('location_name') || ''
     const address = form.get('address') || ''
     const fieldTime = getFieldSingleTimeValue(form, 'edit_field')
+    const nextType = form.get('next_action_type') || ''
+    const nextDate = form.get('next_action_date') || ''
+    const nextStaffId = form.get('next_staff_id') || ''
+    const nextFieldTime = getFieldSingleTimeValue(form, 'edit_next')
+
+    if ((nextType || nextDate || nextStaffId || nextFieldTime) && !(nextType && nextDate && nextStaffId)) {
+      alert('若要建立下次領件 / 送審行程，請完整填寫下次類型、下次日期與下次人員；下次時間可不填。')
+      saving = false
+      return
+    }
+
     const specialReminders = [...document.querySelectorAll('input[name="edit_field_special_reminder"]:checked')].map(input => input.value)
     const existingResult = getFieldResultFromRow(originalRow)
     const supplementDetail = getFieldNoteValue(originalRow, '補件項目')
@@ -18041,6 +18234,8 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       form.get('seal_note') ? `印章：${form.get('seal_note')}` : '',
       form.get('document_note') ? `證件：${form.get('document_note')}` : '',
       specialReminders.length ? `特殊提醒：${specialReminders.join('、')}` : '',
+      nextType && nextDate ? `${nextType}：${nextDate}${nextFieldTime ? ' ' + nextFieldTime : ''}` : '',
+      nextStaffId ? `下次人員：${getFieldStaffName(nextStaffId)}` : '',
       existingResult ? `外務結果：${existingResult}` : '',
       supplementDetail ? `補件項目：${supplementDetail}` : '',
       abnormalDetail ? `異常項目：${abnormalDetail}` : ''
@@ -18064,26 +18259,37 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       address: address || null
     }
 
-    const { error } = await supabase
-      .from('schedules')
-      .update(payload)
-      .eq('schedule_id', originalRow.schedule_id)
+    const editScope = getScheduleEditScopeValue(form, originalRow)
+    const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || payload.start_date)
+    const originalAssigneeIds = getActiveAssigneeIds(originalRow)
+    const scopedResult = await applyScopedScheduleEdit(originalRow, payload, {
+      scope: editScope,
+      occurrenceDate: editOccurrenceDate,
+      syncEditedAssignees: scheduleId => syncScheduleAssigneesSafely(scheduleId, executorIds, { replaceExisting: true }),
+      syncOriginalAssignees: scheduleId => syncScheduleAssigneesSafely(scheduleId, originalAssigneeIds, { replaceExisting: true })
+    })
 
-    if (error) {
-      alert('修改外務行程失敗：' + error.message)
+    if (scopedResult.error) {
+      alert((scopedResult.assigneeError ? '外務行程已修改，但外務人員同步失敗：' : '修改外務行程失敗：') + scopedResult.error.message)
       saving = false
       return
     }
 
-    const { error: assigneeError } = await supabase.rpc('update_schedule_assignees', {
-      target_schedule_id: originalRow.schedule_id,
-      staff_ids_value: executorIds
+    const nextCreateResult = await createFollowupFieldScheduleFromEdit(payload, form, {
+      originalRow,
+      purpose,
+      locationName,
+      address,
+      nextType,
+      nextDate,
+      nextFieldTime,
+      nextStaffId,
+      sourceDate: payload.start_date,
+      editedScheduleId: scopedResult.editedScheduleId || originalRow.schedule_id
     })
 
-    if (assigneeError) {
-      alert('外務行程已修改，但外務人員同步失敗：' + assigneeError.message)
-      saving = false
-      return
+    if (nextCreateResult?.error) {
+      alert('外務行程已修改，但下次領件 / 送審行程建立失敗：' + nextCreateResult.error.message)
     }
 
     await supabase.from('audit_logs').insert({
@@ -18093,7 +18299,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
       action_type: '修改',
       source_type: 'schedule',
       source_id: originalRow.schedule_id,
-      note: 'V002-1I-2-4 修改外務行程'
+      note: `V002-1P-258 修改外務行程｜範圍：${editScope}`
     })
 
     modal.remove()
@@ -18898,12 +19104,10 @@ function openFieldScheduleModal(defaults = {}) {
           </label>
         </div>
 
-        <label>
-          目的
-          <select name="field_purpose">
-            ${optionHtmlForItems(getManagedListOption('fieldPurposeOptions', fieldPurposeOptions))}
-          </select>
-        </label>
+        <div class="span-2 field-purpose-box">
+          <div class="field-title">目的（可複選）</div>
+          ${fieldPurposeChecksHtml([], 'field_purpose')}
+        </div>
 
         <div class="field-special-box field-special-compact-box">
           <div class="field-title">特殊提醒</div>
@@ -19024,7 +19228,7 @@ async function saveFieldSchedule(event, modal) {
 
     const selectedStaff = staffList.filter(staff => executorIds.includes(staff.staff_id))
     const firstStaff = selectedStaff[0]
-    const purpose = form.get('field_purpose') || '外務日'
+    const purpose = getSelectedFieldPurposeText(form, 'field_purpose') || '外務日'
     const locationName = form.get('location_name') || ''
     const address = form.get('address') || ''
     const fieldTime = getFieldSingleTimeValue(form, 'field')
