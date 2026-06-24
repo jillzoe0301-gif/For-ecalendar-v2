@@ -5311,7 +5311,7 @@ function getFieldDetailRows() {
 
       if (fieldDetailFilters.purpose !== '全部') {
         const purposeText = row.sub_type || getFieldNoteValue(row, '外務目的') || ''
-        if (!splitFieldPurposeValues(purposeText).includes(fieldDetailFilters.purpose)) return false
+        if (!fieldPurposeMatchesFilter(purposeText, fieldDetailFilters.purpose)) return false
       }
 
       if (fieldDetailFilters.location) {
@@ -17591,10 +17591,34 @@ function getFieldPurposeValuesFromRow(row = {}) {
   return values.length ? values : ['外務日']
 }
 
+function normalizeFieldPurposeOptionValue(value = '') {
+  const text = String(value || '').trim()
+  return /^其他[:：]/.test(text) ? '其他' : text
+}
+
+function getFieldPurposeOtherTextFromValues(values = []) {
+  const found = (values || [])
+    .map(item => String(item || '').trim())
+    .find(item => /^其他[:：]/.test(item))
+  return found ? found.replace(/^其他[:：]\s*/, '').trim() : ''
+}
+
 function getSelectedFieldPurposeValues(form, fieldName = 'field_purpose') {
   if (!form) return []
-  const values = form.getAll(fieldName).length ? form.getAll(fieldName) : [form.get(fieldName)]
-  return [...new Set(values.map(item => String(item || '').trim()).filter(Boolean))]
+  const rawValues = form.getAll(fieldName).length ? form.getAll(fieldName) : [form.get(fieldName)]
+  const otherText = String(form.get(`${fieldName}_other`) || '').trim()
+  const values = rawValues.map(item => String(item || '').trim()).filter(Boolean)
+  const result = []
+
+  values.forEach(item => {
+    if (normalizeFieldPurposeOptionValue(item) === '其他') {
+      result.push(otherText ? `其他：${otherText}` : '其他')
+      return
+    }
+    result.push(item)
+  })
+
+  return [...new Set(result)]
 }
 
 function getSelectedFieldPurposeText(form, fieldName = 'field_purpose') {
@@ -17603,20 +17627,71 @@ function getSelectedFieldPurposeText(form, fieldName = 'field_purpose') {
 }
 
 function fieldPurposeChecksHtml(selectedItems = [], inputName = 'field_purpose') {
-  const selected = new Set((selectedItems || []).map(item => String(item || '').trim()).filter(Boolean))
+  const rawSelected = (selectedItems || []).map(item => String(item || '').trim()).filter(Boolean)
+  const selected = new Set(rawSelected.map(normalizeFieldPurposeOptionValue).filter(Boolean))
+  const otherText = getFieldPurposeOtherTextFromValues(rawSelected)
   const options = getManagedListOption('fieldPurposeOptions', fieldPurposeOptions)
-  const selectedText = selected.size ? [...selected].join('、') : '可複選'
+  const selectedText = rawSelected.length ? rawSelected.join('、') : '可複選'
+  const hasOtherOption = options.some(item => normalizeFieldPurposeOptionValue(item) === '其他')
+  const otherSelected = selected.has('其他') || Boolean(otherText)
+
   return `
     <div class="field-purpose-check-list" data-field-purpose-list aria-label="外務目的複選">
-      ${options.map(item => `
-        <label class="inline-check field-purpose-check">
-          <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(item) ? 'checked' : ''}>
-          <span>${escapeHtml(item)}</span>
-        </label>
-      `).join('')}
+      ${options.map(item => {
+        const normalizedItem = normalizeFieldPurposeOptionValue(item)
+        return `
+          <label class="inline-check field-purpose-check">
+            <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(normalizedItem) ? 'checked' : ''}>
+            <span>${escapeHtml(item)}</span>
+          </label>
+        `
+      }).join('')}
     </div>
+    ${hasOtherOption ? `
+      <div class="field-purpose-other-row ${otherSelected ? '' : 'hidden'}" data-field-purpose-other-row>
+        <label>
+          其他目的
+          <input type="text" name="${inputName}_other" value="${escapeHtml(otherText)}" placeholder="請輸入其他外務目的">
+        </label>
+      </div>
+    ` : ''}
     <p class="field-hint field-purpose-hint">目前目的：${escapeHtml(selectedText)}</p>
   `
+}
+
+function initFieldPurposeOtherInputs(root = document) {
+  if (!root) return
+  root.querySelectorAll('[data-field-purpose-list]').forEach(list => {
+    const box = list.closest('.field-purpose-box') || list.parentElement
+    if (!box) return
+    const otherInput = [...list.querySelectorAll('input[type="checkbox"]')]
+      .find(input => normalizeFieldPurposeOptionValue(input.value) === '其他')
+    const otherRow = box.querySelector('[data-field-purpose-other-row]')
+    const otherTextInput = otherRow ? otherRow.querySelector('input[type="text"]') : null
+    if (!otherInput || !otherRow) return
+
+    const syncOtherRow = () => {
+      if (otherInput.checked) {
+        otherRow.classList.remove('hidden')
+      } else {
+        otherRow.classList.add('hidden')
+        if (otherTextInput) otherTextInput.value = ''
+      }
+    }
+
+    otherInput.addEventListener('change', syncOtherRow)
+    syncOtherRow()
+  })
+}
+
+function fieldPurposeMatchesFilter(purposeText = '', filterValue = '') {
+  if (!filterValue) return true
+  const values = splitFieldPurposeValues(purposeText)
+  return values.some(item => {
+    const text = String(item || '').trim()
+    if (filterValue === '其他') return normalizeFieldPurposeOptionValue(text) === '其他'
+    return text === filterValue
+  })
 }
 
 function getFieldNextActionFromRow(row = {}) {
@@ -17752,23 +17827,17 @@ function getFieldDbTimeValue(timeValue) {
 
 function fieldSpecialReminderChecksHtml(selectedItems = [], inputName = 'field_special_reminder') {
   const selected = new Set((selectedItems || []).map(normalizeFieldSpecialReminder))
-  const selectedText = [...selected].length ? [...selected].map(getFieldSpecialReminderDisplay).join('、') : '未選擇'
+  const options = getManagedListOption('fieldSpecialReminderOptions', fieldSpecialReminderOptions)
 
   return `
-    <details class="field-special-dropdown" data-field-special-dropdown>
-      <summary>
-        <span class="field-special-dropdown-main">選擇特殊提醒</span>
-        <span class="field-special-dropdown-value">${escapeHtml(selectedText)}</span>
-      </summary>
-      <div class="field-special-dropdown-panel">
-        ${getManagedListOption('fieldSpecialReminderOptions', fieldSpecialReminderOptions).map(item => `
-          <label class="inline-check field-special-check">
-            <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
-            <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
-          </label>
-        `).join('')}
-      </div>
-    </details>
+    <div class="field-special-expanded-list" data-field-special-expanded-list>
+      ${options.map(item => `
+        <label class="inline-check field-special-check">
+          <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(normalizeFieldSpecialReminder(item)) ? 'checked' : ''}>
+          <span>${renderFieldSpecialReminderIcon(item)} ${getFieldSpecialReminderDisplay(item)}</span>
+        </label>
+      `).join('')}
+    </div>
   `
 }
 
@@ -17788,6 +17857,7 @@ function initFieldSpecialDropdowns(root = document) {
     refreshFieldSpecialDropdownLabel(dropdown)
     dropdown.addEventListener('change', () => refreshFieldSpecialDropdownLabel(dropdown))
   })
+  initFieldPurposeOtherInputs(root)
 }
 
 function getFieldStaffName(staffId) {

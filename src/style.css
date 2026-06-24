@@ -17932,3 +17932,95 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-258 END - field purpose edit layout */
+
+
+/* FOR-e V002-1P-259 START - field purpose other special expanded */
+.field-purpose-other-row {
+  margin-top: 10px !important;
+  padding: 10px 12px !important;
+  border: 1px dashed #c7d2fe !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+}
+
+.field-purpose-other-row.hidden {
+  display: none !important;
+}
+
+.field-purpose-other-row label {
+  display: grid !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  color: #1f2937 !important;
+  font-weight: 850 !important;
+  text-align: left !important;
+}
+
+.field-purpose-other-row input {
+  width: 100% !important;
+  min-height: 40px !important;
+}
+
+.field-special-box,
+.field-special-compact-box {
+  text-align: left !important;
+}
+
+.field-special-expanded-list,
+#fieldScheduleForm .field-special-expanded-list,
+#editFieldScheduleForm .field-special-expanded-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 8px 0 0 !important;
+  text-align: left !important;
+}
+
+.field-special-expanded-list .field-special-check,
+#fieldScheduleForm .field-special-expanded-list .field-special-check,
+#editFieldScheduleForm .field-special-expanded-list .field-special-check {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 7px 10px !important;
+  border: 1px solid #dbe4ff !important;
+  border-radius: 999px !important;
+  background: #f8fbff !important;
+  color: #1f2937 !important;
+  font-weight: 850 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+
+.field-special-expanded-list .field-special-check input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 4px 0 0 !important;
+}
+
+.field-special-expanded-list .field-special-check span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  line-height: 1.2 !important;
+  text-align: left !important;
+}
+
+@media (max-width: 768px) {
+  .field-special-expanded-list .field-special-check,
+  #fieldScheduleForm .field-special-expanded-list .field-special-check,
+  #editFieldScheduleForm .field-special-expanded-list .field-special-check {
+    white-space: normal !important;
+  }
+}
+/* FOR-e V002-1P-259 END - field purpose other special expanded */
+
