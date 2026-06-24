@@ -1420,6 +1420,7 @@ function getFirstMeaningfulContinuationValue(row = {}, candidates = []) {
 }
 
 function getContinuationDisplayLabel(row = {}) {
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return '駐廠'
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
     return normalizeContinuationItemText(getServiceReminderTypeFromRow(row) || '提醒事項')
   }
@@ -1484,6 +1485,10 @@ function getContinuationDisplayTitle(row = {}) {
 }
 
 function getContinuationDisplayTimeText(row = {}) {
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) {
+    const factoryTime = typeof getFactoryStationTimeText === 'function' ? getFactoryStationTimeText(row) : ''
+    if (factoryTime) return factoryTime
+  }
   const timeText = getCardTimeText(row)
   return timeText ? `時間：${timeText}` : ''
 }
@@ -1808,7 +1813,8 @@ function getCardTimeText(row = {}) {
 function renderCardTime(row = {}, className = '') {
   const text = getCardTimeText(row)
   if (!text) return ''
-  return `<span class="${escapeHtml(className)}">${escapeHtml(text)}</span>`
+  const mergedClassName = [className, 'for-e-card-time'].filter(Boolean).join(' ')
+  return `<span class="${escapeHtml(mergedClassName)}">${escapeHtml(text)}</span>`
 }
 
 function isFactoryStationSchedule(row = {}) {

@@ -18493,7 +18493,7 @@ button.login-birthday-card:focus-visible {
 }
 /* V002-1P-264 END - schedule detail multiline view */
 
-/* V002-1P-266 START - calendar card time factory station style */
+/* V002-1P-267 START - card time factory station effective fix */
 :root {
   --for-e-card-time-color: #021A54;
   --factory-station-color: #C7C8CC;
@@ -18501,29 +18501,27 @@ button.login-birthday-card:focus-visible {
   --factory-station-border: #D9DADE;
 }
 
-/* 行程卡片上的時間統一改成 #021A54。 */
+/* 全部行事曆卡片時間：使用更穩定的 class + 局部 contains selector，避免 selector 對不到。 */
+.for-e-card-time,
+.week-schedule-card .for-e-card-time,
+.week-schedule-card [class*="time"],
+.field-week-schedule-card [class*="time"],
+.meeting-room-card [class*="time"],
+.month-schedule-card [class*="time"],
+.personal-schedule-card [class*="time"],
+.continuation-day-mark [class*="time"],
 .week-card-time,
-.week-schedule-card .week-card-time,
-.service-reminder-week-card .week-card-time,
-.service-reminder-time,
 .field-week-card-time,
-.field-week-schedule-card .field-week-card-time,
 .meeting-room-time,
-.meeting-room-card .meeting-room-time,
 .schedule-card-time,
 .calendar-card-time,
+.service-reminder-time,
 .continuation-day-time,
-.personal-schedule-card .schedule-time,
-.personal-schedule-card .week-card-time,
-.month-schedule-card .week-card-time,
-.factory-station-time,
-.week-card-time.factory-station-time,
-.factory-station-week-card .factory-station-time {
+.factory-station-time {
   color: #021A54 !important;
-  font-weight: 950 !important;
 }
 
-/* 駐廠：整張卡片像連續休假一樣有淡色背景框。 */
+/* 一般駐廠卡片：像連續休假一樣有整張淡色背景框。 */
 .factory-station-week-card,
 .continuous-like-week-card.factory-station-week-card,
 .week-schedule-card.factory-station-week-card,
@@ -18549,7 +18547,54 @@ button.login-birthday-card:focus-visible {
   white-space: normal !important;
 }
 
-/* 駐廠項目 chip：跟連續休假的「休」一樣，只讓項目本身有橢圓背景。 */
+/* 連續日期中的駐廠：前一版沒有套到的真正位置。 */
+.factory-station-continuation.continuation-day-mark,
+.continuation-day-mark.factory-station-continuation,
+.week-day-cell .factory-station-continuation,
+.field-week-day-cell .factory-station-continuation,
+.month-day-cell .factory-station-continuation,
+.meeting-week-day-cell .factory-station-continuation {
+  --day-accent: #C7C8CC !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  margin: 3px 0 5px !important;
+  padding: 4px 6px !important;
+  gap: 0 !important;
+  border: 1px solid #D9DADE !important;
+  border-left: 5px solid #C7C8CC !important;
+  border-radius: 14px !important;
+  background: #F7F8FA !important;
+  box-shadow: inset 0 0 0 1px rgba(199, 200, 204, 0.32) !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.factory-station-continuation .continuation-day-inline-title,
+.factory-station-week-card .calendar-card-inline-title,
+.factory-station-inline-title {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 4px 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 駐廠項目 chip：只讓「駐廠」本身有橢圓背景。 */
+.factory-station-continuation .continuation-day-type-line,
 .factory-station-inline-title .week-card-type-line,
 .factory-station-inline-title .service-reminder-card-type,
 .factory-station-week-card .week-card-type-line,
@@ -18580,36 +18625,29 @@ button.login-birthday-card:focus-visible {
   text-overflow: ellipsis !important;
 }
 
-/* 駐廠標題純文字，不能整段套膠囊背景。 */
-.factory-station-inline-title,
-.factory-station-week-card .calendar-card-inline-title {
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: 4px 6px !important;
-  min-width: 0 !important;
-}
-
+/* 駐廠標題與時間：標題純文字，時間只顯示時間且為 #021A54。 */
+.factory-station-continuation strong,
 .factory-station-inline-title strong,
 .factory-station-week-card strong,
 .factory-station-week-card .week-card-title,
 .factory-station-week-card .calendar-card-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   color: #0f172a !important;
-  min-width: 0 !important;
   white-space: normal !important;
   overflow-wrap: anywhere !important;
 }
 
-/* 駐廠時間只顯示時間文字，並使用 #021A54。 */
 .factory-station-time,
 .week-card-time.factory-station-time,
-.factory-station-week-card .factory-station-time {
-  display: block !important;
-  width: 100% !important;
-  margin: 0 0 4px !important;
+.factory-station-week-card .factory-station-time,
+.factory-station-continuation .continuation-day-time {
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
@@ -18630,6 +18668,7 @@ button.login-birthday-card:focus-visible {
     border-radius: 13px !important;
   }
 
+  .factory-station-continuation .continuation-day-type-line,
   .factory-station-inline-title .week-card-type-line,
   .factory-station-inline-title .service-reminder-card-type,
   .factory-station-week-card .week-card-type-line,
@@ -18639,5 +18678,5 @@ button.login-birthday-card:focus-visible {
     padding: 2px 9px !important;
   }
 }
-/* V002-1P-266 END - calendar card time factory station style */
+/* V002-1P-267 END - card time factory station effective fix */
 
