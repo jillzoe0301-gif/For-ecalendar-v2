@@ -16891,96 +16891,31 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-243 END - stacked type/title and reminder prompt layout */
 
-/* FOR-e V002-1P-245 START - todo item chip, meeting room label, creator display cleanup */
-.week-card-extra.todo-note-item-chip,
-.extra-schedule-chip.todo-note-item-chip {
-  display: block !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin-top: 5px !important;
-  padding: 4px 8px !important;
-  border-radius: 12px !important;
-  border-left: 6px solid var(--schedule-accent, #F7DD7D) !important;
-  background: color-mix(in srgb, var(--schedule-accent, #F7DD7D) 18%, #ffffff) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #F7DD7D) 38%, #ffffff) !important;
-  color: #0f172a !important;
-  font-weight: 950 !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
+/* FOR-e V002-1P-251 START - clean calendar chips and continuous layout */
+/*
+  整理 V002-1P-245～250 後段重複 CSS：
+  1) 一般行程、會議室、待辦 / 一般記事的類型與項目文字不再顯示橢圓底。
+  2) 連續行程只保留「項目」橢圓背景，標題與時間為純文字。
+  3) 手機逾期通知、手機欄寬、駐廠時間、外務日橫排、桌機字級整合在同一區塊，避免舊區塊互相覆蓋。
+*/
 
+/* 一般行程 / 會議室 / 待辦一般記事：類型與項目只留文字，不留橢圓背景。 */
+.week-card-type-line,
+.service-reminder-card-type,
+.schedule-card-type-line,
 .meeting-room-card .meeting-room-room-line,
-.meeting-room-card strong.meeting-room-room-line {
-  display: block !important;
-  font-size: inherit !important;
-  line-height: inherit !important;
-  font-weight: 950 !important;
-  color: #111827 !important;
-  margin-bottom: 2px !important;
-}
-/* FOR-e V002-1P-245 END - todo item chip, meeting room label, creator display cleanup */
-
-/* FOR-e V002-1P-246 START - meeting room title size and todo item continuation background */
-/* 會議室卡片：大會議室 / 小會議室等房間名稱要和標題同字級，不被 V002-1P-245 的 inherit 覆蓋。 */
-.meeting-room-card strong.meeting-room-room-line {
-  font-size: 13.5px !important;
-  line-height: 1.5 !important;
-  font-weight: 950 !important;
-}
-
-/* 待辦事項 / 一般記事的【項目】底色維持與連續行程提示相同：淡底＋左側色條＋內框。 */
+.meeting-room-card strong.meeting-room-room-line,
 .week-card-extra.todo-note-item-chip,
-.extra-schedule-chip.todo-note-item-chip {
-  background: color-mix(in srgb, var(--schedule-accent, #F7DD7D) 18%, #ffffff) !important;
-  border-left: 6px solid var(--schedule-accent, #F7DD7D) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--schedule-accent, #F7DD7D) 38%, #ffffff) !important;
-}
-
-@media (max-width: 768px) {
-  .meeting-room-card strong.meeting-room-room-line {
-    font-size: 15px !important;
-  }
-}
-/* FOR-e V002-1P-246 END - meeting room title size and todo item continuation background */
-
-/* FOR-e V002-1P-247 START - blue card labels and mobile staff width */
-/* 行事曆卡片：類型 / 提醒 / 待辦項目 / 會議室房間名稱，字級與標題一致，文字統一 #4E71FF。 */
-.week-schedule-card .week-card-type-line,
-.week-schedule-card .service-reminder-card-type,
-.week-schedule-card .week-card-extra,
-.meeting-room-card .meeting-room-room-line,
-.meeting-room-card strong.meeting-room-room-line {
-  color: #4E71FF !important;
-  font-size: 13.5px !important;
-  line-height: 1.5 !important;
-  font-weight: 950 !important;
-}
-
-.schedule-card .schedule-card-type-line,
-.schedule-title-stack .schedule-card-type-line {
-  color: #4E71FF !important;
-  font-size: inherit !important;
-  line-height: inherit !important;
-  font-weight: 950 !important;
-}
-
-.service-reminder-week-card .service-reminder-card-type {
-  color: #4E71FF !important;
-}
-
-.reminder-tags span {
-  color: #4E71FF !important;
-  font-weight: 950 !important;
-}
-
-/* 項目：只保留文字，不要外框、底色、左側色條。 */
-.week-card-extra.todo-note-item-chip,
-.extra-schedule-chip.todo-note-item-chip {
+.extra-schedule-chip.todo-note-item-chip,
+.schedule-card .extra-schedule-chip.todo-note-item-chip,
+.week-schedule-card .week-card-extra.todo-note-item-chip {
   display: block !important;
-  width: 100% !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   min-height: 0 !important;
-  margin: 3px 0 0 !important;
+  height: auto !important;
+  margin: 0 0 2px !important;
   padding: 0 !important;
   border: 0 !important;
   border-left: 0 !important;
@@ -16988,80 +16923,358 @@ button.login-birthday-card:focus-visible {
   background: transparent !important;
   box-shadow: none !important;
   color: #4E71FF !important;
-  font-size: 13.5px !important;
-  line-height: 1.5 !important;
+  font-size: 15.5px !important;
+  line-height: 1.38 !important;
+  font-weight: 950 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.week-schedule-card .week-card-type-line,
+.week-schedule-card .service-reminder-card-type,
+.week-schedule-card .week-card-extra,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line {
+  color: #4E71FF !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.schedule-card .schedule-card-type-line,
+.schedule-title-stack .schedule-card-type-line,
+.reminder-tags span {
+  color: #4E71FF !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
   font-weight: 950 !important;
 }
 
-/* 行程列表中的項目也只保留文字藍色，不顯示膠囊框。 */
-.schedule-card .extra-schedule-chip.todo-note-item-chip {
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card {
+  font-size: 15.5px !important;
+  line-height: 1.45 !important;
+}
+
+.week-schedule-card strong,
+.field-week-schedule-card strong,
+.meeting-room-card strong {
+  font-size: 15.5px !important;
+  line-height: 1.4 !important;
+  font-weight: 950 !important;
+}
+
+.week-card-time,
+.field-week-card-time,
+.meeting-room-time,
+.week-card-preview,
+.field-week-card-preview,
+.meeting-room-meta,
+.meeting-room-preview {
+  font-size: 14.5px !important;
+  line-height: 1.45 !important;
+}
+
+/* 外務日：橫向顯示，與標題同排；名字旁的外字維持黑色。 */
+.field-day-reminder-prompt,
+.week-day-cell .field-day-reminder-prompt,
+.field-week-day-cell .field-day-reminder-prompt,
+.month-day-cell .field-day-reminder-prompt {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.field-day-reminder-badge,
+.week-day-cell .field-day-reminder-badge,
+.field-week-day-cell .field-day-reminder-badge,
+.month-day-cell .field-day-reminder-badge {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 46% !important;
+  height: auto !important;
+  min-height: 22px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 15.5px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+.field-day-reminder-prompt strong,
+.field-day-reminder-prompt .prompt-title-line,
+.week-day-cell .field-day-reminder-prompt strong,
+.field-week-day-cell .field-day-reminder-prompt strong,
+.month-day-cell .field-day-reminder-prompt strong,
+.week-day-cell .field-day-reminder-prompt .prompt-title-line,
+.field-week-day-cell .field-day-reminder-prompt .prompt-title-line,
+.month-day-cell .field-day-reminder-prompt .prompt-title-line {
+  flex: 1 1 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  font-size: 15.5px !important;
+  line-height: 1.25 !important;
+  font-weight: 950 !important;
+}
+
+.field-worker-badge,
+.week-overview-table .staff-name-cell .field-worker-badge,
+.field-week-table .field-staff-name-cell .field-worker-badge {
+  color: #000000 !important;
+}
+
+/* 駐廠：類型與標題同排，時間另列灰色。 */
+.calendar-card-inline-title,
+.factory-station-inline-title {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 2px !important;
+  text-align: left !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.calendar-card-inline-title .week-card-type-line,
+.calendar-card-inline-title .service-reminder-card-type,
+.factory-station-inline-title .week-card-type-line,
+.factory-station-inline-title .service-reminder-card-type {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 46% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  font-size: 15.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 950 !important;
+}
+
+.calendar-card-inline-title strong,
+.factory-station-inline-title strong {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  font-size: 15.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 950 !important;
+}
+
+.factory-station-time,
+.week-schedule-card .factory-station-time,
+.service-reminder-week-card .factory-station-time,
+.schedule-card .factory-station-time {
   display: block !important;
   width: 100% !important;
-  color: #4E71FF !important;
+  color: #B7B7B7 !important;
+  font-size: 14.5px !important;
+  line-height: 1.45 !important;
+  font-weight: 950 !important;
 }
 
-@media (max-width: 768px) {
-  .week-schedule-card .week-card-type-line,
-  .week-schedule-card .service-reminder-card-type,
-  .week-schedule-card .week-card-extra,
-  .week-card-extra.todo-note-item-chip,
-  .extra-schedule-chip.todo-note-item-chip,
-  .meeting-room-card .meeting-room-room-line,
-  .meeting-room-card strong.meeting-room-room-line {
-    font-size: 15px !important;
-    line-height: 1.45 !important;
-  }
-
-  /* 手機：行事曆左側人員名稱欄位縮窄。 */
-  .week-overview-table .staff-col,
-  .week-overview-table .staff-name-cell,
-  .staff-name-cell,
-  .field-week-table .field-staff-col,
-  .field-week-table .field-staff-name-cell,
-  .field-staff-name-cell {
-    width: 108px !important;
-    min-width: 108px !important;
-    max-width: 108px !important;
-    padding-left: 7px !important;
-    padding-right: 7px !important;
-  }
-
-  .week-overview-table .staff-name-cell .calendar-staff-name-title,
-  .field-week-table .field-staff-name-cell .calendar-staff-name-title,
-  .week-overview-table .staff-name-cell .calendar-staff-name-text,
-  .field-week-table .field-staff-name-cell .calendar-staff-name-text,
-  .week-overview-table .staff-name-cell strong,
-  .field-week-table .field-staff-name-cell strong {
-    font-size: 18px !important;
-    line-height: 1.18 !important;
-  }
-
-  .week-overview-table .staff-name-cell > span,
-  .field-week-table .field-staff-name-cell > span,
-  .week-overview-table .staff-name-cell .calendar-staff-department,
-  .field-week-table .field-staff-name-cell .calendar-staff-department {
-    font-size: 12px !important;
-    line-height: 1.25 !important;
-  }
+.factory-station-week-card {
+  border-color: #B7B7B7 !important;
 }
 
-@media (max-width: 560px) {
-  .week-overview-table .staff-col,
-  .week-overview-table .staff-name-cell,
-  .staff-name-cell,
-  .field-week-table .field-staff-col,
-  .field-week-table .field-staff-name-cell,
-  .field-staff-name-cell {
-    width: 96px !important;
-    min-width: 96px !important;
-    max-width: 96px !important;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
-  }
+/* 連續行程：只讓「項目」有橢圓背景；標題與時間純文字同排。 */
+.continuation-day-mark,
+.week-day-cell .continuation-day-mark,
+.field-week-day-cell .continuation-day-mark,
+.month-day-cell .continuation-day-mark,
+.meeting-week-day-cell .continuation-day-mark {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  margin: 3px 0 5px !important;
+  padding: 4px 4px !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
 }
-/* FOR-e V002-1P-247 END - blue card labels and mobile staff width */
 
-/* FOR-e V002-1P-248 START - mobile overdue calendar font factory station */
+.continuation-day-mark .continuation-day-inline-title,
+.week-day-cell .continuation-day-mark .continuation-day-inline-title,
+.field-week-day-cell .continuation-day-mark .continuation-day-inline-title,
+.month-day-cell .continuation-day-mark .continuation-day-inline-title,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-inline-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex: 1 1 auto !important;
+  flex-wrap: nowrap !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #111827 !important;
+  line-height: 1.35 !important;
+}
+
+.continuation-day-mark .continuation-day-type-line,
+.week-day-cell .continuation-day-mark .continuation-day-type-line,
+.field-week-day-cell .continuation-day-mark .continuation-day-type-line,
+.month-day-cell .continuation-day-mark .continuation-day-type-line,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-type-line {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: fit-content !important;
+  max-width: 48% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 2px 9px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--day-accent, #4E71FF) !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  font-size: 17px !important;
+  font-weight: 950 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+
+.continuation-day-mark strong,
+.week-day-cell .continuation-day-mark strong,
+.field-week-day-cell .continuation-day-mark strong,
+.month-day-cell .continuation-day-mark strong,
+.meeting-week-day-cell .continuation-day-mark strong {
+  display: inline !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #111827 !important;
+  font-size: 17px !important;
+  font-weight: 950 !important;
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+
+.continuation-day-mark .continuation-day-time,
+.week-day-cell .continuation-day-mark .continuation-day-time,
+.field-week-day-cell .continuation-day-mark .continuation-day-time,
+.month-day-cell .continuation-day-mark .continuation-day-time,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-time {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-size: 15.5px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+}
+
+/* 特別處理重要事項：不要再讓整條連續行程被舊 span 背景撐成整塊膠囊。 */
+.continuation-day-mark .continuation-day-inline-title > span:not(.continuation-day-type-line):not(.continuation-day-time) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.continuation-day-mark[style*="#EBD6FB"] .continuation-day-inline-title,
+.continuation-day-mark[style*="#EBD6FB"] .continuation-day-time {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+
+.continuation-day-placeholder {
+  min-height: 34px !important;
+  margin: 3px 0 5px !important;
+}
+
 /* 手機個人行程表：任務逾期通知 / 超過時間卡片不可超出版面。 */
 .personal-overdue-task-area,
 .personal-todo-notice,
@@ -17114,313 +17327,6 @@ button.login-birthday-card:focus-visible {
   word-break: break-word !important;
 }
 
-/* 駐廠：駐廠時間以指定灰色顯示。 */
-.factory-station-time,
-.week-schedule-card .factory-station-time,
-.schedule-card .factory-station-time {
-  color: #B7B7B7 !important;
-  font-weight: 950 !important;
-}
-
-.factory-station-week-card {
-  border-color: #B7B7B7 !important;
-}
-
-/* 手機、平板行事曆：卡片文字再放大一級，維持可讀性。 */
-@media (max-width: 1024px) {
-  .week-schedule-card,
-  .field-week-schedule-card,
-  .meeting-room-card {
-    padding: 10px 11px !important;
-  }
-
-  .week-overview-table thead th strong,
-  .field-week-table thead th strong,
-  .meeting-week-table thead th strong,
-  .staff-name-cell strong,
-  .field-staff-name-cell strong,
-  .meeting-room-name-cell strong,
-  .calendar-staff-name-text {
-    font-size: 15.5px !important;
-    line-height: 1.35 !important;
-  }
-
-  .week-overview-table thead th span,
-  .field-week-table thead th span,
-  .meeting-week-table thead th span,
-  .staff-name-cell span,
-  .field-staff-name-cell span,
-  .meeting-room-name-cell span {
-    font-size: 13px !important;
-    line-height: 1.35 !important;
-  }
-
-  .week-schedule-card strong,
-  .field-week-schedule-card strong,
-  .meeting-room-card strong,
-  .week-schedule-card .week-card-type-line,
-  .week-schedule-card .service-reminder-card-type,
-  .meeting-room-card .meeting-room-room-line,
-  .meeting-room-card strong.meeting-room-room-line,
-  .week-card-extra.todo-note-item-chip,
-  .extra-schedule-chip.todo-note-item-chip {
-    font-size: 16px !important;
-    line-height: 1.5 !important;
-  }
-
-  .week-card-time,
-  .field-week-card-time,
-  .meeting-room-time,
-  .week-card-preview,
-  .field-week-card-preview,
-  .meeting-room-meta,
-  .meeting-room-preview,
-  .factory-station-time {
-    font-size: 14.5px !important;
-    line-height: 1.55 !important;
-  }
-}
-
-@media (max-width: 768px) {
-  .overdue-task-title {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    justify-items: start !important;
-  }
-
-  .overdue-task-title em {
-    width: fit-content !important;
-    max-width: 100% !important;
-    white-space: normal !important;
-  }
-
-  .overdue-task-card,
-  .todo-notice-card,
-  .reminder-alert-card {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .service-record-reminder-card {
-    align-items: flex-start !important;
-  }
-
-  .week-overview-table thead th strong,
-  .field-week-table thead th strong,
-  .meeting-week-table thead th strong,
-  .staff-name-cell strong,
-  .field-staff-name-cell strong,
-  .meeting-room-name-cell strong,
-  .calendar-staff-name-text {
-    font-size: 16px !important;
-    line-height: 1.35 !important;
-  }
-
-  .week-overview-table thead th span,
-  .field-week-table thead th span,
-  .meeting-week-table thead th span,
-  .staff-name-cell span,
-  .field-staff-name-cell span,
-  .meeting-room-name-cell span {
-    font-size: 13.5px !important;
-    line-height: 1.35 !important;
-  }
-
-  .week-schedule-card strong,
-  .field-week-schedule-card strong,
-  .meeting-room-card strong,
-  .week-schedule-card .week-card-type-line,
-  .week-schedule-card .service-reminder-card-type,
-  .meeting-room-card .meeting-room-room-line,
-  .meeting-room-card strong.meeting-room-room-line,
-  .week-card-extra.todo-note-item-chip,
-  .extra-schedule-chip.todo-note-item-chip {
-    font-size: 16.5px !important;
-    line-height: 1.45 !important;
-  }
-
-  .week-card-time,
-  .field-week-card-time,
-  .meeting-room-time,
-  .week-card-preview,
-  .field-week-card-preview,
-  .meeting-room-meta,
-  .meeting-room-preview,
-  .factory-station-time {
-    font-size: 15px !important;
-    line-height: 1.5 !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .page,
-  .main,
-  .content,
-  .personal-overdue-task-area,
-  .personal-todo-notice,
-  .personal-reminder-area,
-  .service-record-reminder-area {
-    max-width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  .overdue-task-title,
-  .overdue-task-card,
-  .todo-notice-card,
-  .reminder-alert-card,
-  .service-record-reminder-card {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
-
-  .week-schedule-card strong,
-  .field-week-schedule-card strong,
-  .meeting-room-card strong,
-  .week-schedule-card .week-card-type-line,
-  .week-schedule-card .service-reminder-card-type,
-  .meeting-room-card .meeting-room-room-line,
-  .meeting-room-card strong.meeting-room-room-line,
-  .week-card-extra.todo-note-item-chip,
-  .extra-schedule-chip.todo-note-item-chip {
-    font-size: 17px !important;
-  }
-
-  .week-card-time,
-  .field-week-card-time,
-  .meeting-room-time,
-  .week-card-preview,
-  .field-week-card-preview,
-  .meeting-room-meta,
-  .meeting-room-preview,
-  .factory-station-time {
-    font-size: 15.5px !important;
-  }
-}
-/* FOR-e V002-1P-248 END - mobile overdue calendar font factory station */
-
-/* FOR-e V002-1P-249 START - inline calendar labels desktop font polish */
-/* 外務日：文字橫向顯示，與標題同一排。 */
-.field-day-reminder-prompt,
-.week-day-cell .field-day-reminder-prompt,
-.field-week-day-cell .field-day-reminder-prompt,
-.month-day-cell .field-day-reminder-prompt {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 7px !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  overflow: hidden !important;
-}
-
-.field-day-reminder-badge,
-.week-day-cell .field-day-reminder-badge,
-.field-week-day-cell .field-day-reminder-badge,
-.month-day-cell .field-day-reminder-badge {
-  flex: 0 0 auto !important;
-  display: inline-flex !important;
-  width: auto !important;
-  min-width: max-content !important;
-  max-width: 52% !important;
-  height: auto !important;
-  min-height: 22px !important;
-  padding: 2px 8px !important;
-  border-radius: 999px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  font-size: 14px !important;
-  line-height: 1.25 !important;
-  font-weight: 950 !important;
-}
-
-.field-day-reminder-prompt strong,
-.field-day-reminder-prompt .prompt-title-line,
-.week-day-cell .field-day-reminder-prompt strong,
-.field-week-day-cell .field-day-reminder-prompt strong,
-.month-day-cell .field-day-reminder-prompt strong,
-.week-day-cell .field-day-reminder-prompt .prompt-title-line,
-.field-week-day-cell .field-day-reminder-prompt .prompt-title-line,
-.month-day-cell .field-day-reminder-prompt .prompt-title-line {
-  flex: 1 1 auto !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
-  font-size: 14px !important;
-  line-height: 1.25 !important;
-  font-weight: 950 !important;
-}
-
-/* 駐廠：類型與標題同一排，時間另列並使用指定灰色。 */
-.calendar-card-inline-title,
-.factory-station-inline-title {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 7px !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  margin: 0 0 2px !important;
-  text-align: left !important;
-}
-
-.calendar-card-inline-title .week-card-type-line,
-.calendar-card-inline-title .service-reminder-card-type,
-.factory-station-inline-title .week-card-type-line,
-.factory-station-inline-title .service-reminder-card-type {
-  flex: 0 0 auto !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  width: auto !important;
-  min-width: max-content !important;
-  max-width: 50% !important;
-  margin: 0 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  font-size: 15.5px !important;
-  line-height: 1.35 !important;
-  font-weight: 950 !important;
-}
-
-.calendar-card-inline-title strong,
-.factory-station-inline-title strong {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  font-size: 15.5px !important;
-  line-height: 1.35 !important;
-  font-weight: 950 !important;
-}
-
-.factory-station-time,
-.week-schedule-card .factory-station-time,
-.service-reminder-week-card .factory-station-time,
-.schedule-card .factory-station-time {
-  display: block !important;
-  width: 100% !important;
-  color: #B7B7B7 !important;
-  font-size: 14.5px !important;
-  line-height: 1.45 !important;
-  font-weight: 950 !important;
-}
-
-/* 桌機版行事曆：整體字級加大，與手機 / 平板可讀性一致。 */
 .week-overview-table thead th strong,
 .field-week-table thead th strong,
 .meeting-week-table thead th strong,
@@ -17443,69 +17349,19 @@ button.login-birthday-card:focus-visible {
   line-height: 1.35 !important;
 }
 
-.week-schedule-card,
-.field-week-schedule-card,
-.meeting-room-card {
-  font-size: 14.5px !important;
-  line-height: 1.5 !important;
-}
-
-.week-schedule-card strong,
-.field-week-schedule-card strong,
-.meeting-room-card strong,
-.week-schedule-card .week-card-type-line,
-.week-schedule-card .service-reminder-card-type,
-.week-schedule-card .week-card-extra,
-.field-day-reminder-prompt,
-.field-day-reminder-badge,
-.field-day-reminder-prompt strong,
-.field-day-reminder-prompt .prompt-title-line,
-.continuation-day-mark .continuation-day-type-line,
-.leave-return-day-mark > span,
-.return-reminder-day-mark > span,
-.meeting-room-card .meeting-room-room-line,
-.meeting-room-card strong.meeting-room-room-line,
-.week-card-extra.todo-note-item-chip,
-.extra-schedule-chip.todo-note-item-chip {
-  font-size: 15.5px !important;
-  line-height: 1.4 !important;
-  font-weight: 950 !important;
-}
-
-.week-card-time,
-.field-week-card-time,
-.meeting-room-time,
-.week-card-preview,
-.field-week-card-preview,
-.meeting-room-meta,
-.meeting-room-preview {
-  font-size: 14.5px !important;
-  line-height: 1.45 !important;
-}
-
-/* 人員名稱旁的「外」字改黑色。 */
-.field-worker-badge,
-.week-overview-table .staff-name-cell .field-worker-badge,
-.field-week-table .field-staff-name-cell .field-worker-badge {
-  color: #000000 !important;
-}
-
 @media (max-width: 1024px) {
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card {
+    padding: 10px 11px !important;
+    font-size: 16px !important;
+  }
+
   .week-schedule-card strong,
   .field-week-schedule-card strong,
   .meeting-room-card strong,
-  .week-schedule-card .week-card-type-line,
-  .week-schedule-card .service-reminder-card-type,
-  .week-schedule-card .week-card-extra,
-  .field-day-reminder-badge,
-  .field-day-reminder-prompt strong,
-  .field-day-reminder-prompt .prompt-title-line,
-  .continuation-day-mark .continuation-day-type-line,
-  .leave-return-day-mark > span,
-  .return-reminder-day-mark > span,
-  .calendar-card-inline-title .week-card-type-line,
-  .calendar-card-inline-title .service-reminder-card-type,
-  .calendar-card-inline-title strong,
+  .week-card-type-line,
+  .service-reminder-card-type,
   .meeting-room-card .meeting-room-room-line,
   .meeting-room-card strong.meeting-room-room-line,
   .week-card-extra.todo-note-item-chip,
@@ -17525,19 +17381,103 @@ button.login-birthday-card:focus-visible {
     font-size: 15.5px !important;
     line-height: 1.48 !important;
   }
+
+  .continuation-day-mark .continuation-day-type-line,
+  .continuation-day-mark strong {
+    font-size: 17.5px !important;
+  }
+
+  .continuation-day-mark .continuation-day-time {
+    font-size: 16px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-staff-name-cell {
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+
+  .overdue-task-title {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: start !important;
+  }
+
+  .overdue-task-title em {
+    width: fit-content !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+  }
+
+  .overdue-task-card,
+  .todo-notice-card,
+  .reminder-alert-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .service-record-reminder-card {
+    align-items: flex-start !important;
+  }
+
+  .continuation-day-mark .continuation-day-inline-title {
+    gap: 4px !important;
+  }
+
+  .continuation-day-mark .continuation-day-type-line {
+    max-width: 46% !important;
+    font-size: 17px !important;
+  }
+
+  .continuation-day-mark strong {
+    font-size: 17px !important;
+  }
+
+  .continuation-day-mark .continuation-day-time {
+    font-size: 15.5px !important;
+  }
 }
 
 @media (max-width: 560px) {
-  .field-day-reminder-prompt {
-    gap: 5px !important;
-    padding-left: 5px !important;
-    padding-right: 5px !important;
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-staff-name-cell {
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 96px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
   }
 
-  .field-day-reminder-badge,
-  .field-day-reminder-prompt strong,
-  .field-day-reminder-prompt .prompt-title-line {
-    font-size: 15px !important;
+  .page,
+  .main,
+  .content,
+  .personal-overdue-task-area,
+  .personal-todo-notice,
+  .personal-reminder-area,
+  .service-record-reminder-area {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .overdue-task-title,
+  .overdue-task-card,
+  .todo-notice-card,
+  .reminder-alert-card,
+  .service-record-reminder-card {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
   }
 
   .calendar-card-inline-title,
@@ -17548,130 +17488,18 @@ button.login-birthday-card:focus-visible {
   .calendar-card-inline-title .week-card-type-line,
   .calendar-card-inline-title .service-reminder-card-type,
   .factory-station-inline-title .week-card-type-line,
-  .factory-station-inline-title .service-reminder-card-type {
+  .factory-station-inline-title .service-reminder-card-type,
+  .field-day-reminder-badge {
     max-width: 46% !important;
     font-size: 17px !important;
   }
 
   .calendar-card-inline-title strong,
-  .factory-station-inline-title strong {
+  .factory-station-inline-title strong,
+  .field-day-reminder-prompt strong,
+  .field-day-reminder-prompt .prompt-title-line {
     font-size: 17px !important;
   }
 }
-/* FOR-e V002-1P-249 END - inline calendar labels desktop font polish */
+/* FOR-e V002-1P-251 END - clean calendar chips and continuous layout */
 
-/* FOR-e V002-1P-250 START - continuous schedule inline item time */
-/* 連續行程：項目、標題、時間同一排；字體加大，項目名稱回到原本行程類型 / 項目名稱。 */
-.continuation-day-mark {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: 100% !important;
-  min-height: 38px !important;
-  padding: 6px 9px !important;
-  gap: 0 !important;
-  text-align: left !important;
-  white-space: normal !important;
-  box-sizing: border-box !important;
-}
-
-.continuation-day-mark .continuation-day-inline-title {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  flex-wrap: wrap !important;
-  gap: 5px 7px !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  line-height: 1.35 !important;
-}
-
-.continuation-day-mark .continuation-day-type-line {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 auto !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  height: auto !important;
-  min-height: 23px !important;
-  margin: 0 !important;
-  padding: 2px 8px !important;
-  border-radius: 999px !important;
-  background: var(--day-accent, #4E71FF) !important;
-  color: #0f172a !important;
-  font-size: 16.5px !important;
-  font-weight: 950 !important;
-  line-height: 1.25 !important;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
-}
-
-.continuation-day-mark strong {
-  display: inline !important;
-  flex: 0 1 auto !important;
-  min-width: 0 !important;
-  margin: 0 !important;
-  color: #111827 !important;
-  font-size: 16.5px !important;
-  font-weight: 950 !important;
-  line-height: 1.35 !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-
-.continuation-day-mark .continuation-day-time {
-  display: inline-flex !important;
-  align-items: center !important;
-  flex: 0 0 auto !important;
-  color: #475569 !important;
-  font-size: 15.5px !important;
-  font-weight: 900 !important;
-  line-height: 1.35 !important;
-  white-space: nowrap !important;
-}
-
-@media (max-width: 1024px) {
-  .continuation-day-mark {
-    min-height: 40px !important;
-    padding: 7px 9px !important;
-  }
-
-  .continuation-day-mark .continuation-day-type-line,
-  .continuation-day-mark strong {
-    font-size: 17.5px !important;
-    line-height: 1.35 !important;
-  }
-
-  .continuation-day-mark .continuation-day-time {
-    font-size: 16px !important;
-    line-height: 1.35 !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .continuation-day-mark {
-    min-height: 40px !important;
-    padding: 6px 7px !important;
-  }
-
-  .continuation-day-mark .continuation-day-inline-title {
-    gap: 4px 6px !important;
-  }
-
-  .continuation-day-mark .continuation-day-type-line,
-  .continuation-day-mark strong {
-    font-size: 17px !important;
-  }
-
-  .continuation-day-mark .continuation-day-time {
-    font-size: 15.5px !important;
-  }
-}
-/* FOR-e V002-1P-250 END - continuous schedule inline item time */

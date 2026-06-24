@@ -1,6 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
 
+/* FOR-e V002-1P-251 START - clean calendar chips and continuous layout */
+/*
+  V002-1P-251｜行事曆膠囊標籤整理與連續行程跑版修正
+  - 一般行程、會議室、待辦 / 一般記事的項目文字不使用橢圓背景。
+  - 連續行程只保留項目橢圓背景，標題與時間維持純文字同排顯示。
+  - 整理 V002-1P-245～250 後段重複 CSS，改為單一覆蓋區塊避免互相覆蓋。
+*/
+/* FOR-e V002-1P-251 END - clean calendar chips and continuous layout */
+
 /* FOR-e V002-1P-246 START - todo note creator item meeting stats final guard */
 /*
   V002-1P-246｜待辦 / 一般記事與統計一案一算保護
@@ -65,8 +74,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-250'
-/* V002-1P-250：連續行程同排顯示項目、標題與時間；項目名稱回到原本類型 / 項目，並將上線/教育訓練顯示為上線。 */
+const SYSTEM_VERSION = 'V002-1P-251'
+/* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
@@ -1452,10 +1461,25 @@ function getContinuationDisplayLabel(row = {}) {
 }
 
 function getContinuationDisplayTitle(row = {}) {
-  const rawTitle = String(row.title || row.customer_name || '').trim()
-  const compactTitle = rawTitle.replace(/[\s／/]+/g, '')
-  if (compactTitle === '上線教育訓練') return '上線'
-  if (rawTitle) return rawTitle
+  const genericTitles = new Set([
+    '',
+    '-',
+    '待辦事項/一般記事',
+    '待辦事項',
+    '一般記事',
+    '服務行程',
+    '行事曆',
+    '連續行程'
+  ])
+
+  const candidates = [row.title, row.customer_name, getFirstTwoLines(row.description || '')]
+  for (const candidate of candidates) {
+    const rawTitle = String(candidate || '').trim()
+    const compactTitle = rawTitle.replace(/[\s／/]+/g, '')
+    if (compactTitle === '上線教育訓練') return '上線'
+    if (rawTitle && !genericTitles.has(rawTitle)) return rawTitle
+  }
+
   return getContinuationDisplayLabel(row) || getScheduleDisplayType(row) || '連續行程'
 }
 
