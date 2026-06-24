@@ -18962,49 +18962,34 @@ button.login-birthday-card:focus-visible {
 }
 /* V002-1P-268 END - calendar card wrap sticky continuation factory fix */
 
-/* V002-1P-269 START - line notify preview copy clear selection */
-.line-preview-copy-row {
-  cursor: copy !important;
+/* V002-1P-270 START - line notify dropdown clear single copy */
+.line-select-dropdown-tools {
+  display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 10px !important;
-  border-radius: 14px !important;
-  padding: 6px 8px !important;
-  transition: background-color .15s ease, box-shadow .15s ease !important;
+  width: 100% !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #dbe6ff !important;
+  background: #f8fbff !important;
+  box-sizing: border-box !important;
 }
 
-.line-preview-copy-row:hover {
-  background: #f4f7ff !important;
-  box-shadow: inset 0 0 0 1px #dbe6ff !important;
-}
-
-.line-preview-copy-row > div {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-}
-
-.line-preview-copy-row h4 {
-  margin: 0 !important;
-}
-
-.line-preview-copy-hint {
-  display: block !important;
-  color: #5170ff !important;
-  font-size: 12px !important;
+.line-select-dropdown-tools span {
+  color: #667085 !important;
+  font-size: 13px !important;
   font-weight: 800 !important;
-  line-height: 1.25 !important;
 }
 
-.line-select-actions {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  flex-wrap: wrap !important;
-  gap: 8px !important;
+.line-clear-selection-btn {
+  flex: 0 0 auto !important;
+  min-height: 36px !important;
+  padding: 8px 14px !important;
+  font-weight: 900 !important;
 }
 
-.line-select-dropdown.is-none-selected summary span {
+.line-select-dropdown.is-none-selected summary span,
+.line-select-dropdown.is-none-selected .line-select-dropdown-tools span {
   color: #dc2626 !important;
   font-weight: 900 !important;
 }
@@ -19017,23 +19002,97 @@ button.login-birthday-card:focus-visible {
   flex: 0 0 auto !important;
 }
 
+.line-preview-single-copy-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.line-preview-title-row {
+  align-items: center !important;
+}
+
+.line-preview-item-card {
+  border: 1px solid #dbe6ff !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  padding: 12px !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06) !important;
+}
+
+.line-preview-item-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+.line-preview-item-head > div {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+}
+
+.line-preview-item-head strong {
+  color: #021A54 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.line-preview-item-head small {
+  color: #667085 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  word-break: break-word !important;
+}
+
+.line-preview-copy-single-btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  min-height: 36px !important;
+  padding: 8px 12px !important;
+  font-weight: 900 !important;
+}
+
+.line-preview-item-card pre {
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: #f8fbff !important;
+  color: #1f2937 !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.65 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
 @media (max-width: 768px) {
-  .line-select-head {
+  .line-select-dropdown-tools {
     align-items: stretch !important;
+    flex-direction: column !important;
   }
 
-  .line-select-actions {
-    justify-content: stretch !important;
+  .line-clear-selection-btn {
     width: 100% !important;
   }
 
-  .line-select-actions .secondary-btn {
-    flex: 1 1 140px !important;
+  .line-preview-item-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
   }
 
-  .line-preview-copy-row {
-    align-items: flex-start !important;
+  .line-preview-copy-single-btn {
+    width: 100% !important;
   }
 }
-/* V002-1P-269 END - line notify preview copy clear selection */
+/* V002-1P-270 END - line notify dropdown clear single copy */
 
