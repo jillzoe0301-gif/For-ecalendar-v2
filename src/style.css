@@ -12118,8 +12118,8 @@ body {
 
 .sidebar .brand-subtitle {
   margin: 10px 0 0 !important;
-  color: #475569 !important;
-  font-size: 15.5px !important;
+  color: #4A4466 !important;
+  font-size: 13px !important;
   line-height: 1.35 !important;
   font-weight: 850 !important;
   letter-spacing: .04em;
@@ -16923,7 +16923,7 @@ button.login-birthday-card:focus-visible {
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: #4E71FF !important;
+  color: #703B3B !important;
   font-size: 15.5px !important;
   line-height: 1.38 !important;
   font-weight: 950 !important;
@@ -16939,7 +16939,7 @@ button.login-birthday-card:focus-visible {
 .week-schedule-card .week-card-extra,
 .meeting-room-card .meeting-room-room-line,
 .meeting-room-card strong.meeting-room-room-line {
-  color: #4E71FF !important;
+  color: #703B3B !important;
   background: transparent !important;
   border-radius: 0 !important;
   padding: 0 !important;
@@ -16949,7 +16949,7 @@ button.login-birthday-card:focus-visible {
 .schedule-card .schedule-card-type-line,
 .schedule-title-stack .schedule-card-type-line,
 .reminder-tags span {
-  color: #4E71FF !important;
+  color: #703B3B !important;
   background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -17188,15 +17188,15 @@ button.login-birthday-card:focus-visible {
   max-width: 100% !important;
   min-width: 0 !important;
   height: auto !important;
-  min-height: 24px !important;
+  min-height: 21px !important;
   margin: 0 !important;
-  padding: 2px 9px !important;
+  padding: 1px 7px !important;
   border: 0 !important;
   border-radius: 999px !important;
   background: var(--day-accent, #4E71FF) !important;
   box-shadow: none !important;
-  color: #0f172a !important;
-  font-size: 17px !important;
+  color: #703B3B !important;
+  font-size: 14px !important;
   font-weight: 950 !important;
   line-height: 1.25 !important;
   white-space: normal !important;
@@ -17221,7 +17221,7 @@ button.login-birthday-card:focus-visible {
   border-radius: 0 !important;
   background: transparent !important;
   color: #111827 !important;
-  font-size: 17px !important;
+  font-size: 14px !important;
   font-weight: 950 !important;
   line-height: 1.35 !important;
   white-space: normal !important;
@@ -17247,7 +17247,7 @@ button.login-birthday-card:focus-visible {
   border-radius: 0 !important;
   background: transparent !important;
   color: #475569 !important;
-  font-size: 15.5px !important;
+  font-size: 13px !important;
   font-weight: 900 !important;
   line-height: 1.35 !important;
   white-space: nowrap !important;
@@ -17385,11 +17385,11 @@ button.login-birthday-card:focus-visible {
 
   .continuation-day-mark .continuation-day-type-line,
   .continuation-day-mark strong {
-    font-size: 17.5px !important;
+    font-size: 14.5px !important;
   }
 
   .continuation-day-mark .continuation-day-time {
-    font-size: 16px !important;
+    font-size: 13.5px !important;
   }
 }
 
@@ -17435,15 +17435,15 @@ button.login-birthday-card:focus-visible {
 
   .continuation-day-mark .continuation-day-type-line {
     max-width: 100% !important;
-    font-size: 17px !important;
+    font-size: 14.5px !important;
   }
 
   .continuation-day-mark strong {
-    font-size: 17px !important;
+    font-size: 14.5px !important;
   }
 
   .continuation-day-mark .continuation-day-time {
-    font-size: 15.5px !important;
+    font-size: 13.5px !important;
   }
 }
 
@@ -17556,7 +17556,7 @@ button.login-birthday-card:focus-visible {
 .service-reminder-time,
 .continuation-day-time {
   display: block !important;
-  color: #333D6D !important;
+  color: #4A4466 !important;
   font-weight: 950 !important;
   line-height: 1.38 !important;
   margin: 0 0 3px !important;
@@ -17567,17 +17567,17 @@ button.login-birthday-card:focus-visible {
   color: #B7B7B7 !important;
 }
 
-/* 返台日前三天：顯示返台提醒，文字加大且白色。 */
+/* 返台日前三天那一天：顯示返台提醒；背景改淡色，標籤文字加大且白色。 */
 .return-reminder-day-mark.is-return-reminder {
-  background: var(--day-accent, #67C090) !important;
-  border-color: var(--day-accent, #67C090) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #67C090) 72%, #ffffff) !important;
+  background: color-mix(in srgb, var(--day-accent, #67C090) 18%, #ffffff 82%) !important;
+  border-color: color-mix(in srgb, var(--day-accent, #67C090) 38%, #ffffff 62%) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--day-accent, #67C090) 22%, #ffffff 78%) !important;
 }
 
 .return-reminder-day-mark.is-return-reminder > span {
-  background: color-mix(in srgb, var(--day-accent, #67C090) 82%, #000000) !important;
+  background: color-mix(in srgb, var(--day-accent, #67C090) 68%, #ffffff 32%) !important;
   color: #ffffff !important;
-  font-size: 14.5px !important;
+  font-size: 15px !important;
   font-weight: 950 !important;
   min-height: 24px !important;
 }
@@ -17585,7 +17585,7 @@ button.login-birthday-card:focus-visible {
 .return-reminder-day-mark.is-return-reminder > strong,
 .return-reminder-day-mark.is-return-reminder strong em,
 .return-reminder-day-mark.is-return-reminder strong small {
-  color: #ffffff !important;
+  color: #334155 !important;
 }
 
 /* 返台日當天：顯示返台確認，顏色淡兩階。 */
@@ -17610,19 +17610,19 @@ button.login-birthday-card:focus-visible {
 
 /* 重要事項的連續行程字體縮小，避免再次撐高或跑版。 */
 .continuation-day-mark.is-important-continuation .continuation-day-type-line {
-  font-size: 14.5px !important;
+  font-size: 12.5px !important;
   line-height: 1.25 !important;
-  min-height: 22px !important;
-  padding: 2px 8px !important;
+  min-height: 20px !important;
+  padding: 1px 6px !important;
 }
 
 .continuation-day-mark.is-important-continuation strong {
-  font-size: 14.5px !important;
+  font-size: 12.5px !important;
   line-height: 1.32 !important;
 }
 
 .continuation-day-mark.is-important-continuation .continuation-day-time {
-  font-size: 13.5px !important;
+  font-size: 12px !important;
   line-height: 1.32 !important;
 }
 
@@ -17649,17 +17649,117 @@ button.login-birthday-card:focus-visible {
   }
 
   .return-reminder-day-mark.is-return-reminder > span {
-    font-size: 14px !important;
+    font-size: 14.5px !important;
   }
 
   .continuation-day-mark.is-important-continuation .continuation-day-type-line,
   .continuation-day-mark.is-important-continuation strong {
-    font-size: 14px !important;
+    font-size: 12.5px !important;
   }
 
   .continuation-day-mark.is-important-continuation .continuation-day-time {
-    font-size: 13px !important;
+    font-size: 12px !important;
   }
 }
 /* FOR-e V002-1P-257 END - calendar full height horizontal scroll time return reminder */
+
+/* FOR-e V002-1P-258 START - return reminder exact day and card color tuning */
+/* 卡片時間與項目色：統一最後保護，避免舊區塊回蓋。 */
+.week-card-time:not(.factory-station-time),
+.field-week-card-time,
+.meeting-room-time,
+.service-reminder-time,
+.continuation-day-time {
+  color: #4A4466 !important;
+}
+
+.week-card-type-line,
+.service-reminder-card-type,
+.schedule-card-type-line,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.week-card-extra.todo-note-item-chip,
+.extra-schedule-chip.todo-note-item-chip,
+.schedule-card .extra-schedule-chip.todo-note-item-chip,
+.week-schedule-card .week-card-extra.todo-note-item-chip {
+  color: #703B3B !important;
+}
+
+/* 連續行程整體再縮小；重要事項再小一階。 */
+.continuation-day-mark .continuation-day-type-line,
+.week-day-cell .continuation-day-mark .continuation-day-type-line,
+.field-week-day-cell .continuation-day-mark .continuation-day-type-line,
+.month-day-cell .continuation-day-mark .continuation-day-type-line,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-type-line {
+  color: #703B3B !important;
+  font-size: 14px !important;
+  min-height: 21px !important;
+  padding: 1px 7px !important;
+}
+
+.continuation-day-mark strong,
+.week-day-cell .continuation-day-mark strong,
+.field-week-day-cell .continuation-day-mark strong,
+.month-day-cell .continuation-day-mark strong,
+.meeting-week-day-cell .continuation-day-mark strong {
+  font-size: 14px !important;
+}
+
+.continuation-day-mark .continuation-day-time,
+.week-day-cell .continuation-day-mark .continuation-day-time,
+.field-week-day-cell .continuation-day-mark .continuation-day-time,
+.month-day-cell .continuation-day-mark .continuation-day-time,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-time {
+  font-size: 13px !important;
+}
+
+.continuation-day-mark.is-important-continuation .continuation-day-type-line,
+.continuation-day-mark.is-important-continuation strong {
+  font-size: 12.5px !important;
+}
+
+.continuation-day-mark.is-important-continuation .continuation-day-time {
+  font-size: 12px !important;
+}
+
+/* 連續請假、連續返鄉提示比一般連續行程大一點。 */
+.leave-return-day-mark,
+.field-leave-return-prompt {
+  min-height: 32px !important;
+  padding: 5px 9px !important;
+  gap: 8px !important;
+}
+
+.leave-return-day-mark span,
+.field-leave-return-prompt span {
+  min-width: 25px !important;
+  width: auto !important;
+  height: 25px !important;
+  padding: 0 8px !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+
+.leave-return-day-mark strong,
+.field-leave-return-prompt strong {
+  font-size: 16px !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 768px) {
+  .continuation-day-mark .continuation-day-type-line,
+  .continuation-day-mark strong {
+    font-size: 14px !important;
+  }
+
+  .continuation-day-mark .continuation-day-time {
+    font-size: 13px !important;
+  }
+
+  .leave-return-day-mark strong,
+  .field-leave-return-prompt strong {
+    font-size: 16px !important;
+  }
+}
+/* FOR-e V002-1P-258 END - return reminder exact day and card color tuning */
 

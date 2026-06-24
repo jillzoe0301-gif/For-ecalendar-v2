@@ -12997,12 +12997,12 @@ function getReturnTaiwanReminderStatusForDate(row = {}, dateKey = '') {
   if (!dateKey) return ''
 
   if (returnDate) {
-    const reminderStart = typeof getDateKeyOffset === 'function'
-      ? (getDateKeyOffset(returnDate, -3) || returnDate)
-      : returnDate
+    const reminderDate = typeof getDateKeyOffset === 'function'
+      ? getDateKeyOffset(returnDate, -3)
+      : ''
 
     if (dateKey === returnDate) return 'confirm'
-    if (dateKey >= reminderStart && dateKey < returnDate) return 'reminder'
+    if (reminderDate && dateKey === reminderDate) return 'reminder'
     return ''
   }
 
