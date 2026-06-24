@@ -16892,6 +16892,7 @@ button.login-birthday-card:focus-visible {
 /* FOR-e V002-1P-243 END - stacked type/title and reminder prompt layout */
 
 /* FOR-e V002-1P-251 START - clean calendar chips and continuous layout */
+/* FOR-e V002-1P-256 UPDATE - continuous and field day auto wrapping */
 /*
   整理 V002-1P-245～250 後段重複 CSS：
   1) 一般行程、會議室、待辦 / 一般記事的類型與項目文字不再顯示橢圓底。
@@ -16983,21 +16984,21 @@ button.login-birthday-card:focus-visible {
   line-height: 1.45 !important;
 }
 
-/* 外務日：橫向顯示，與標題同排；名字旁的外字維持黑色。 */
+/* 外務日：橫向顯示並可自動換行；名字旁的外字維持黑色。 */
 .field-day-reminder-prompt,
 .week-day-cell .field-day-reminder-prompt,
 .field-week-day-cell .field-day-reminder-prompt,
 .month-day-cell .field-day-reminder-prompt {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
   justify-content: flex-start !important;
-  gap: 7px !important;
+  gap: 6px 7px !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .field-day-reminder-badge,
@@ -17034,11 +17035,11 @@ button.login-birthday-card:focus-visible {
   align-items: center !important;
   min-width: 0 !important;
   max-width: 100% !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
   font-size: 15.5px !important;
   line-height: 1.25 !important;
   font-weight: 950 !important;
@@ -17121,7 +17122,7 @@ button.login-birthday-card:focus-visible {
   border-color: #B7B7B7 !important;
 }
 
-/* 連續行程：只讓「項目」有橢圓背景；標題與時間純文字同排。 */
+/* 連續行程：只讓「項目」有橢圓背景；標題與時間同排，空間不足時自動換行。 */
 .continuation-day-mark,
 .week-day-cell .continuation-day-mark,
 .field-week-day-cell .continuation-day-mark,
@@ -17157,8 +17158,8 @@ button.login-birthday-card:focus-visible {
   align-items: center !important;
   justify-content: flex-start !important;
   flex: 1 1 auto !important;
-  flex-wrap: nowrap !important;
-  gap: 5px !important;
+  flex-wrap: wrap !important;
+  gap: 4px 5px !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
@@ -17184,7 +17185,7 @@ button.login-birthday-card:focus-visible {
   justify-content: center !important;
   flex: 0 0 auto !important;
   width: fit-content !important;
-  max-width: 48% !important;
+  max-width: 100% !important;
   min-width: 0 !important;
   height: auto !important;
   min-height: 24px !important;
@@ -17198,11 +17199,11 @@ button.login-birthday-card:focus-visible {
   font-size: 17px !important;
   font-weight: 950 !important;
   line-height: 1.25 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .continuation-day-mark strong,
@@ -17223,11 +17224,11 @@ button.login-birthday-card:focus-visible {
   font-size: 17px !important;
   font-weight: 950 !important;
   line-height: 1.35 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .continuation-day-mark .continuation-day-time,
@@ -17433,7 +17434,7 @@ button.login-birthday-card:focus-visible {
   }
 
   .continuation-day-mark .continuation-day-type-line {
-    max-width: 46% !important;
+    max-width: 100% !important;
     font-size: 17px !important;
   }
 
@@ -17501,5 +17502,6 @@ button.login-birthday-card:focus-visible {
     font-size: 17px !important;
   }
 }
+/* FOR-e V002-1P-256 UPDATE END - continuous and field day auto wrapping */
 /* FOR-e V002-1P-251 END - clean calendar chips and continuous layout */
 
