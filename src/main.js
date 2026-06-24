@@ -17642,7 +17642,7 @@ function fieldPurposeChecksHtml(selectedItems = [], inputName = 'field_purpose')
         return `
           <label class="inline-check field-purpose-check ${isOther ? 'field-purpose-check-other' : ''}">
             <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(normalizedItem) ? 'checked' : ''}>
-            <span>${escapeHtml(item)}</span>
+            <span class="field-purpose-label-text">${escapeHtml(item)}</span>
             ${isOther ? `
               <span class="field-purpose-other-row ${otherSelected ? '' : 'hidden'}" data-field-purpose-other-row>
                 <input type="text" name="${inputName}_other" value="${escapeHtml(otherText)}" placeholder="請輸入其他目的" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
@@ -19176,7 +19176,7 @@ function openFieldScheduleModal(defaults = {}) {
           ${fieldPurposeChecksHtml([], 'field_purpose')}
         </div>
 
-        <div class="field-special-box field-special-compact-box">
+        <div class="span-2 field-special-box field-special-compact-box">
           <div class="field-title">特殊提醒</div>
           <div class="inline-check-list field-special-compact-list">${fieldSpecialReminderChecksHtml()}</div>
         </div>
