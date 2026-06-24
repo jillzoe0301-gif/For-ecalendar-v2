@@ -18833,3 +18833,99 @@ button.login-birthday-card:focus-visible {
   font-weight: 800;
 }
 /* FOR-e V002-1P-275 END - incident next record mode */
+
+/* FOR-e V002-1P-277 START - incident follow type left inline only */
+/* 只限制「下一次追蹤類型」兩個選項，不改異況彈窗或表單外層版面。 */
+.incident-next-mode-box,
+.incident-next-mode-box-compact {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.incident-next-mode-box .field-title,
+.incident-next-mode-box-compact .field-title {
+  text-align: left !important;
+  margin-bottom: 8px !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice-grid,
+.incident-next-mode-box-compact .incident-next-mode-choice-grid {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-template-columns: none !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice,
+.incident-next-mode-box-compact .incident-next-mode-choice {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 128px !important;
+  max-width: none !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 8px 14px !important;
+  box-sizing: border-box !important;
+  grid-template-columns: none !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice input[type='radio'],
+.incident-next-mode-box .incident-next-mode-choice input[type='checkbox'],
+.incident-next-mode-box-compact .incident-next-mode-choice input[type='radio'],
+.incident-next-mode-box-compact .incident-next-mode-choice input[type='checkbox'] {
+  flex: 0 0 auto !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice span,
+.incident-next-mode-box-compact .incident-next-mode-choice span {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0 !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice strong,
+.incident-next-mode-box-compact .incident-next-mode-choice strong {
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+}
+
+.incident-next-mode-box .incident-next-mode-choice small,
+.incident-next-mode-box-compact .incident-next-mode-choice small {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .incident-next-mode-box .incident-next-mode-choice-grid,
+  .incident-next-mode-box-compact .incident-next-mode-choice-grid {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .incident-next-mode-box .incident-next-mode-choice,
+  .incident-next-mode-box-compact .incident-next-mode-choice {
+    min-width: 108px !important;
+    padding: 8px 10px !important;
+  }
+}
+/* FOR-e V002-1P-277 END - incident follow type left inline only */
