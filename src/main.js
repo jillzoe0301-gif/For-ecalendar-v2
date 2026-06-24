@@ -16861,13 +16861,13 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
         ${shouldShowCreatorName(row) ? `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>` : ''}
         <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
-        <div class="span-2"><span>標題 / 辦理內容</span><strong>${escapeHtml(row.title)}</strong></div>
+        <div class="span-2"><span>標題 / 辦理內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.title)}</strong></div>
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
         ${showAddressDetail ? `<div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>` : ''}
-        <div class="span-2"><span>內容</span><strong>${escapeHtml(row.description || '-')}</strong></div>
-        <div class="span-2"><span>備註 / 提醒 / 證件</span><strong>${escapeHtml(row.sub_type_note || '-')}</strong></div>
-        ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong>${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
+        <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.description || '-')}</strong></div>
+        <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
+        ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
       </div>
 
