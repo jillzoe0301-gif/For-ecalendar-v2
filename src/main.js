@@ -20157,7 +20157,7 @@ function openScheduleModal(defaults = {}) {
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="needServiceRecordCheck">
-              <span>需要服務紀錄單</span>
+              <span>需繳交</span>
             </label>
             <label class="service-check">
               <input name="service_record_submitted_check" type="checkbox" id="serviceRecordSubmittedCheck">
@@ -20862,9 +20862,9 @@ function administrativeStaffCheckboxesHtml(selectedStaffIds = [], inputName = 's
   const allRows = [...extraRows, ...rows]
   if (!allRows.length) return '<div class="field-hint">尚未設定行政人員</div>'
   return allRows.map(staff => `
-    <label class="inline-check service-admin-check-option">
+    <label class="inline-check service-admin-check-option" title="${escapeHtml([staff.name, staff.department_name, staff.position || staff.position_name || staff.role].filter(Boolean).join('｜'))}">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</span>
+      <span>${escapeHtml(staff.name || '-')}</span>
     </label>
   `).join('')
 }
@@ -21641,7 +21641,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             <div class="field-title">服務紀錄單</div>
             <label class="service-check">
               <input name="need_service_record" type="checkbox" id="editNeedServiceRecordCheck" ${row.need_service_record ? 'checked' : ''}>
-              <span>需要服務紀錄單</span>
+              <span>需繳交</span>
             </label>
             <label class="service-check">
               <input name="service_record_submitted_check" type="checkbox" id="editServiceRecordSubmittedCheck" ${isScheduleServiceRecordSubmitted(row) ? 'checked' : ''}>

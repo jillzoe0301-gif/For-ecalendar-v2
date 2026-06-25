@@ -19419,3 +19419,280 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-288 END - responsive staff checks admin multi date fields */
+
+/* FOR-e V002-1P-289 START - mobile tablet checkbox admin dropdown date layout */
+/* 服務紀錄單勾選項目：新增 / 修改都固定為同一排、靠左、橫向。 */
+.service-record-box {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px 14px !important;
+  text-align: left !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.service-record-box .field-title {
+  flex: 0 0 100% !important;
+  width: 100% !important;
+  margin: 0 0 2px !important;
+  text-align: left !important;
+}
+
+.service-record-box .service-check,
+#scheduleForm .service-record-box .service-check,
+#editScheduleForm .service-record-box .service-check {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 6px 10px !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+}
+
+.service-record-box .service-check input[type="checkbox"] {
+  flex: 0 0 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.service-record-box .service-check span {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  line-height: 1.35 !important;
+}
+
+/* 通知行政：用下拉式滑動清單呈現，只顯示姓名，勾選框與姓名同排。 */
+.service-admin-notify-field,
+.edit-service-admin-notify-field {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.service-admin-check-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  align-items: start !important;
+  justify-items: stretch !important;
+  gap: 4px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: 132px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 8px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+}
+
+.service-admin-check-list .service-admin-check-option {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 7px 8px !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.service-admin-check-list .service-admin-check-option input[type="checkbox"] {
+  flex: 0 0 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.service-admin-check-list .service-admin-check-option span {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: block !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: keep-all !important;
+  line-height: 1.35 !important;
+}
+
+/* 選擇人員：手機 / 平板勾選框與人名同排，避免直排。 */
+@media (max-width: 1366px) {
+  #scheduleAssigneeBlock .checkbox-list,
+  #editAssigneeBlock .checkbox-list,
+  .department-assignee-list,
+  .checkbox-list {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-content: stretch !important;
+    justify-items: stretch !important;
+    text-align: left !important;
+  }
+
+  #scheduleAssigneeBlock .check-row,
+  #editAssigneeBlock .check-row,
+  .department-assignee-row,
+  .checkbox-list .check-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    box-sizing: border-box !important;
+  }
+
+  #scheduleAssigneeBlock .check-row input[type="checkbox"],
+  #editAssigneeBlock .check-row input[type="checkbox"],
+  .department-assignee-row input[type="checkbox"],
+  .checkbox-list .check-row input[type="checkbox"] {
+    flex: 0 0 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+  }
+
+  #scheduleAssigneeBlock .check-row span,
+  #editAssigneeBlock .check-row span,
+  .department-assignee-row span,
+  .checkbox-list .check-row span {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: block !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 平板日期與週期：限制欄位在區塊內，不再溢出，日期文字上下置中。 */
+  .modal-panel,
+  .modal-panel form,
+  .modal-panel .form-grid,
+  .modal-panel .block-group,
+  .modal-panel .inner-grid,
+  .modal-panel label,
+  .schedule-date-cycle-group,
+  .schedule-date-cycle-group .inner-grid,
+  #meetingRoomForm .schedule-mode-box,
+  #meetingRoomEditForm .schedule-mode-box,
+  #meetingRoomForm .inner-grid,
+  #meetingRoomEditForm .inner-grid {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .schedule-date-cycle-group,
+  #meetingRoomForm .schedule-mode-box,
+  #meetingRoomEditForm .schedule-mode-box {
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .schedule-date-cycle-group .inner-grid,
+  #meetingRoomForm .schedule-mode-box .inner-grid,
+  #meetingRoomEditForm .schedule-mode-box .inner-grid {
+    width: 100% !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .schedule-date-cycle-group .inner-grid > label,
+  #meetingRoomForm .schedule-mode-box .inner-grid > label,
+  #meetingRoomEditForm .schedule-mode-box .inner-grid > label,
+  #endDateBlock,
+  #editEndDateBlock {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .schedule-date-cycle-group input[type="date"],
+  #scheduleForm input[type="date"],
+  #editScheduleForm input[type="date"],
+  #meetingRoomForm input[type="date"],
+  #meetingRoomEditForm input[type="date"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    line-height: 48px !important;
+    padding: 0 12px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .schedule-date-cycle-group input[type="date"]::-webkit-date-and-time-value,
+  #scheduleForm input[type="date"]::-webkit-date-and-time-value,
+  #editScheduleForm input[type="date"]::-webkit-date-and-time-value,
+  #meetingRoomForm input[type="date"]::-webkit-date-and-time-value,
+  #meetingRoomEditForm input[type="date"]::-webkit-date-and-time-value,
+  .schedule-date-cycle-group input[type="date"]::-webkit-datetime-edit,
+  #scheduleForm input[type="date"]::-webkit-datetime-edit,
+  #editScheduleForm input[type="date"]::-webkit-datetime-edit,
+  #meetingRoomForm input[type="date"]::-webkit-datetime-edit,
+  #meetingRoomEditForm input[type="date"]::-webkit-datetime-edit,
+  .schedule-date-cycle-group input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  #scheduleForm input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  #editScheduleForm input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  #meetingRoomForm input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  #meetingRoomEditForm input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    min-height: 48px !important;
+    height: 48px !important;
+    line-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .schedule-date-cycle-group .inner-grid,
+  #meetingRoomForm .schedule-mode-box .inner-grid,
+  #meetingRoomEditForm .schedule-mode-box .inner-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1P-289 END - mobile tablet checkbox admin dropdown date layout */
+
