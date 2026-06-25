@@ -25365,3 +25365,219 @@ function renderServiceRecordDepartmentStatusV2(records) {
   window.setTimeout(runAllEnhancements, 1000)
 })()
 // FOR-E V002-1P-280 END: follow type assigned filter meeting gray fix
+
+// FOR-E v002-1p-280-2 START: precise follow type assigned filter
+(() => {
+  const VERSION_FLAG = '__FOR_E_V002_1P_280_2_PRECISE__'
+  if (window[VERSION_FLAG]) return
+  window[VERSION_FLAG] = true
+
+  const normalizeText = (value) => String(value || '').replace(/\s+/g, ' ').trim()
+  const textOf = (element) => normalizeText(element?.innerText || element?.textContent || '')
+  const uniqueElements = (items) => Array.from(new Set(items.filter(Boolean)))
+
+  const isVisible = (element) => {
+    if (!element || !(element instanceof Element)) return false
+    const style = window.getComputedStyle(element)
+    return style.display !== 'none' && style.visibility !== 'hidden' && element.offsetParent !== null
+  }
+
+  function findFollowTypeBlocks() {
+    const titleCandidates = Array.from(document.querySelectorAll('label, legend, h1, h2, h3, h4, div, span, p, strong'))
+      .filter((element) => {
+        const text = textOf(element)
+        return text === '下一次追蹤類型' || text.startsWith('下一次追蹤類型')
+      })
+
+    const blocks = []
+    titleCandidates.forEach((title) => {
+      let panel = title.parentElement
+      for (let i = 0; i < 8 && panel; i += 1, panel = panel.parentElement) {
+        const panelText = textOf(panel)
+        const radioCount = panel.querySelectorAll('input[type="radio"]').length
+        if (panelText.includes('追蹤') && panelText.includes('單純紀錄') && radioCount >= 2) {
+          blocks.push(panel)
+          break
+        }
+      }
+    })
+
+    if (blocks.length) return uniqueElements(blocks)
+
+    return Array.from(document.querySelectorAll('section, fieldset, .form-section, .form-card, .modal-body, .modal-content, div'))
+      .filter((element) => {
+        const text = textOf(element)
+        return text.includes('下一次追蹤類型') && text.includes('追蹤') && text.includes('單純紀錄') && element.querySelectorAll('input[type="radio"]').length >= 2
+      })
+      .slice(0, 8)
+  }
+
+  function optionElementForRadio(input, panel) {
+    let option = input.closest('label')
+    if (option && option !== panel && panel.contains(option)) return option
+
+    option = input.parentElement
+    for (let i = 0; i < 5 && option && option !== panel; i += 1) {
+      const optionText = textOf(option)
+      if (optionText.includes('單純紀錄') || optionText.includes('追蹤')) return option
+      option = option.parentElement
+    }
+    return input.parentElement
+  }
+
+  function enhanceFollowTypeLayout() {
+    const panels = findFollowTypeBlocks()
+    panels.forEach((panel) => {
+      if (!isVisible(panel)) return
+      const radios = Array.from(panel.querySelectorAll('input[type="radio"]'))
+        .filter((input) => {
+          const optionText = textOf(optionElementForRadio(input, panel))
+          return optionText.includes('追蹤') || optionText.includes('單純紀錄')
+        })
+        .slice(0, 2)
+
+      if (radios.length < 2) return
+
+      const options = uniqueElements(radios.map((input) => optionElementForRadio(input, panel)))
+      if (options.length < 2) return
+
+      panel.classList.add('for-e-follow-type-inline-panel')
+
+      let row = panel.querySelector(':scope > .for-e-follow-type-options-row')
+      if (!row) {
+        row = document.createElement('div')
+        row.className = 'for-e-follow-type-options-row'
+        options[0].parentElement.insertBefore(row, options[0])
+      }
+
+      options.forEach((option) => {
+        option.classList.add('for-e-follow-type-option')
+        const input = option.querySelector('input[type="radio"]')
+        if (input) input.classList.add('for-e-follow-type-input')
+        if (option.parentElement !== row) row.appendChild(option)
+      })
+    })
+  }
+
+  function findAssignedPageTitle() {
+    return Array.from(document.querySelectorAll('h1, h2, h3, h4, .page-title, .section-title, div, span'))
+      .find((element) => textOf(element).includes('我指派的事項追蹤'))
+  }
+
+  function findAssignedRoot() {
+    const title = findAssignedPageTitle()
+    if (!title) return null
+    let root = title.closest('main, section, .page, .panel, .content, .view, .card') || title.parentElement
+    for (let i = 0; i < 5 && root?.parentElement; i += 1) {
+      const text = textOf(root)
+      if (text.includes('我指派的事項追蹤') && text.length > 80) return root
+      root = root.parentElement
+    }
+    return title.closest('main') || title.parentElement
+  }
+
+  function isProbablyScheduleCard(element) {
+    if (!element || element.id === 'for-e-assigned-completed-filter-bar') return false
+    if (element.closest('#for-e-assigned-completed-filter-bar')) return false
+    const text = textOf(element)
+    if (text.length < 10) return false
+    if (text.includes('完成狀態') || text.includes('隱藏已完成') || text.includes('只看已完成') || text.includes('顯示全部')) return false
+    const className = String(element.className || '')
+    const classLooksLikeCard = /(card|item|row|task|schedule|list|record|assignment)/i.test(className)
+    const textLooksLikeCard = /(已完成|未完成|已結束|查看|取消|指派|執行者|建立者|時間|日期)/.test(text)
+    return classLooksLikeCard && textLooksLikeCard
+  }
+
+  function findAssignedCards(root) {
+    if (!root) return []
+    const selectors = [
+      '.schedule-card', '.task-card', '.item-card', '.assignment-card', '.record-card', '.list-card', '.card',
+      '[class*="card"]', '[class*="item"]', '[class*="task"]', '[class*="schedule"]', '[class*="record"]'
+    ]
+    return uniqueElements(selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector))))
+      .filter(isProbablyScheduleCard)
+  }
+
+  function isCompletedCard(card) {
+    const text = textOf(card)
+    if (text.includes('未完成')) return false
+    return text.includes('已完成') || text.includes('已結束') || text.includes('完成時間')
+  }
+
+  function applyAssignedCompletedFilter() {
+    const root = findAssignedRoot()
+    const select = document.getElementById('for-e-assigned-completed-filter-select')
+    if (!root || !select) return
+
+    const mode = select.value || 'hide-completed'
+    findAssignedCards(root).forEach((card) => {
+      const completed = isCompletedCard(card)
+      const shouldHide = (mode === 'hide-completed' && completed) || (mode === 'only-completed' && !completed)
+      card.classList.toggle('for-e-completed-filter-hidden', shouldHide)
+    })
+  }
+
+  function installAssignedCompletedFilter() {
+    const title = findAssignedPageTitle()
+    const root = findAssignedRoot()
+    if (!title || !root) return
+    if (document.getElementById('for-e-assigned-completed-filter-bar')) {
+      applyAssignedCompletedFilter()
+      return
+    }
+
+    const bar = document.createElement('div')
+    bar.id = 'for-e-assigned-completed-filter-bar'
+    bar.className = 'for-e-assigned-completed-filter-bar'
+    bar.innerHTML = `
+      <label class="for-e-assigned-completed-filter-label" for="for-e-assigned-completed-filter-select">完成狀態</label>
+      <select id="for-e-assigned-completed-filter-select" class="for-e-assigned-completed-filter-select">
+        <option value="hide-completed" selected>隱藏已完成</option>
+        <option value="only-completed">只看已完成</option>
+        <option value="all">顯示全部</option>
+      </select>
+    `
+
+    const titleRow = title.closest('.toolbar, .page-header, .section-header, .card-header, .header') || title.parentElement
+    if (titleRow) {
+      titleRow.classList.add('for-e-assigned-filter-host')
+      titleRow.appendChild(bar)
+    } else {
+      root.insertBefore(bar, root.firstChild)
+    }
+
+    bar.querySelector('select')?.addEventListener('change', applyAssignedCompletedFilter)
+    applyAssignedCompletedFilter()
+  }
+
+  function runForE280Enhancements() {
+    enhanceFollowTypeLayout()
+    installAssignedCompletedFilter()
+    applyAssignedCompletedFilter()
+  }
+
+  let scheduled = false
+  function scheduleRun() {
+    if (scheduled) return
+    scheduled = true
+    window.requestAnimationFrame(() => {
+      scheduled = false
+      runForE280Enhancements()
+    })
+  }
+
+  document.addEventListener('change', (event) => {
+    if (event.target?.id === 'for-e-assigned-completed-filter-select') applyAssignedCompletedFilter()
+  })
+
+  document.addEventListener('DOMContentLoaded', scheduleRun)
+  window.addEventListener('hashchange', () => setTimeout(scheduleRun, 80))
+  window.addEventListener('popstate', () => setTimeout(scheduleRun, 80))
+  setInterval(scheduleRun, 1200)
+
+  const observer = new MutationObserver(scheduleRun)
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+
+  scheduleRun()
+})()
+// FOR-E v002-1p-280-2 END: precise follow type assigned filter

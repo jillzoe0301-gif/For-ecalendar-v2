@@ -19239,3 +19239,105 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-E V002-1P-280 END: follow type assigned filter meeting gray fix */
+
+/* FOR-E v002-1p-280-2 START: precise follow type assigned filter */
+.for-e-follow-type-inline-panel .for-e-follow-type-options-row {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 520px !important;
+  margin: 8px 0 0 !important;
+}
+
+.for-e-follow-type-inline-panel .for-e-follow-type-option {
+  flex: 0 1 240px !important;
+  min-width: 190px !important;
+  max-width: 240px !important;
+  min-height: 48px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+  padding: 10px 14px !important;
+  text-align: left !important;
+  white-space: normal !important;
+}
+
+.for-e-follow-type-inline-panel .for-e-follow-type-input,
+.for-e-follow-type-inline-panel .for-e-follow-type-option input[type='radio'] {
+  flex: 0 0 auto !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.for-e-follow-type-inline-panel .for-e-follow-type-option * {
+  text-align: left !important;
+}
+
+.for-e-assigned-filter-host {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+.for-e-assigned-completed-filter-bar {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+.for-e-assigned-completed-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  white-space: nowrap !important;
+}
+
+.for-e-assigned-completed-filter-select {
+  min-width: 132px !important;
+  max-width: 180px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+}
+
+.for-e-completed-filter-hidden {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .for-e-follow-type-inline-panel .for-e-follow-type-options-row {
+    max-width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .for-e-follow-type-inline-panel .for-e-follow-type-option {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 10px 10px !important;
+  }
+
+  .for-e-assigned-completed-filter-bar {
+    margin-left: 0 !important;
+  }
+}
+/* FOR-E v002-1p-280-2 END: precise follow type assigned filter */
