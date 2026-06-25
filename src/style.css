@@ -19134,3 +19134,56 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-283 END - direct follow type assigned filter and meeting occurrence fix */
 
+
+/* FOR-e V002-1P-285 START - service reminder admin multi extra and single meeting past gray */
+.service-admin-notify-field,
+.edit-service-admin-notify-field {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+}
+
+#extraScheduleBlock .service-extra-check-list,
+#editExtraScheduleBlock .service-extra-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+#extraScheduleBlock .service-extra-check-list .inline-check,
+#editExtraScheduleBlock .service-extra-check-list .inline-check {
+  width: auto !important;
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+#extraScheduleBlock .service-extra-check-list input[type="checkbox"],
+#editExtraScheduleBlock .service-extra-check-list input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 8px 0 0 !important;
+}
+
+#editExtraScheduleBlock {
+  position: static !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 10px !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+}
+
+#editExtraScheduleBlock.hidden {
+  display: none !important;
+}
+/* FOR-e V002-1P-285 END - service reminder admin multi extra and single meeting past gray */

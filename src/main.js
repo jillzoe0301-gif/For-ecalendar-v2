@@ -1355,6 +1355,7 @@ function isMeetingFixedSchedule(row = {}) {
 function shouldGrayScheduleOnDate(row = {}, dateKey = '') {
   const targetDate = getDateStringFromAnyValue(dateKey || row?.__occurrence_date || row?.__render_date || row?.start_date)
   if (isScheduleCompletedOnDate(row, targetDate)) return true
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   if (isMeetingFixedSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   return false
 }
@@ -17824,6 +17825,25 @@ function checkedOptionsHtml(items, selectedItems, inputName) {
     </label>
   `).join('')
 }
+
+function getMultiSelectedFormValues(form, name) {
+  if (!form || !name) return []
+  const values = typeof form.getAll === 'function'
+    ? form.getAll(name)
+    : Array.from(form.querySelectorAll(`[name="${name}"]`))
+        .filter(control => !['checkbox', 'radio'].includes(control.type) || control.checked)
+        .map(control => control.value)
+  return uniqueOptionList(values.map(value => String(value || '').trim()).filter(Boolean))
+}
+
+function getServiceExtraSubTypesFromForm(form, name = 'sub_type') {
+  return getMultiSelectedFormValues(form, name)
+    .filter(value => !isBlankOptionValue(value))
+}
+
+function getServiceExtraSubTypeTextFromForm(form, name = 'sub_type') {
+  return getServiceExtraSubTypesFromForm(form, name).join('、')
+}
 /* FOR-e V002-1H-8-1 END - edit form category sync */
 
 
@@ -17884,8 +17904,10 @@ function resetCompactHiddenValues(form) {
   const hasExtra = form.querySelector('select[name="has_extra_schedule"]')
   if (hasExtra) hasExtra.value = '否'
 
-  const subType = form.querySelector('select[name="sub_type"]')
-  if (subType) subType.value = ''
+  form.querySelectorAll('[name="sub_type"]').forEach(control => {
+    if (control.type === 'checkbox' || control.type === 'radio') control.checked = false
+    else control.value = ''
+  })
 
   const subTypeNote = form.querySelector('input[name="sub_type_note"]')
   if (subTypeNote) subTypeNote.value = ''
@@ -19950,6 +19972,8 @@ function openScheduleModal(defaults = {}) {
     <label class="inline-check"><input type="checkbox" name="document_items" value="${item}">${item}</label>
   `).join('')
 
+  const serviceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes(), [], 'sub_type')
+
   const deliveryDocumentChecks = getManagedDeliveryDocumentItems().map(item => `
     <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
   `).join('')
@@ -20074,7 +20098,7 @@ function openScheduleModal(defaults = {}) {
             </select>
           </label>
 
-          <label class="service-admin-notify-field compact-hide-for-reminder">
+          <label class="service-admin-notify-field">
             通知行政
             <select name="service_admin_staff_id">
               ${serviceAdminOptions}
@@ -20090,12 +20114,10 @@ function openScheduleModal(defaults = {}) {
               </select>
             </label>
             <div id="extraScheduleBlock" class="hidden">
-              <label>
-                附加行程
-                <select name="sub_type">
-                  ${serviceTypeOptionsHtml(true)}
-                </select>
-              </label>
+              <div class="service-extra-multi-field">
+                <div class="field-title">附加行程（可複選）</div>
+                <div class="inline-check-list service-extra-check-list">${serviceExtraChecks}</div>
+              </div>
               <label>
                 附加行程備註
                 <input name="sub_type_note" placeholder="附加行程補充說明">
@@ -21447,7 +21469,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
   const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
   const serviceReminderOptions = serviceReminderOptionsHtml(editIsReminderType ? normalizedEditServiceType : '--')
-  const subTypeOptions = optionHtml(getManagedServiceScheduleTypes(), row.sub_type || '', true)
+  const editServiceExtraItems = splitMultiValue(row.sub_type || '')
+  const editServiceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes(), editServiceExtraItems, 'sub_type')
   const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
   const managedTodoItemsForEdit = getManagedTodoItems()
   const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
@@ -21534,7 +21557,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             </select>
           </label>
 
-          <label class="edit-service-admin-notify-field compact-hide-for-reminder">
+          <label class="edit-service-admin-notify-field">
             通知行政
             <select name="edit_service_admin_staff_id">
               ${editServiceAdminOptions}
@@ -21550,12 +21573,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
               </select>
             </label>
             <div id="editExtraScheduleBlock" class="${row.sub_type ? '' : 'hidden'}">
-              <label>
-                附加行程
-                <select name="sub_type">
-                  ${subTypeOptions}
-                </select>
-              </label>
+              <div class="service-extra-multi-field">
+                <div class="field-title">附加行程（可複選）</div>
+                <div class="inline-check-list service-extra-check-list">${editServiceExtraChecks}</div>
+              </div>
             </div>
           </div>
 
@@ -22038,7 +22059,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   if (category === '服務行程') {
     editScheduleType = getServiceScheduleTypeFromForm(form)
-    editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null
+    editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null) : null
     payloadCustomerName = editScheduleType === '電表提醒'
       ? (String(form.get('meter_place') || '').trim() || null)
       : (form.get('customer_name') || form.get('title') || null)
@@ -22388,7 +22409,7 @@ async function saveSchedule(event, modal) {
 
   if (category === '服務行程') {
     scheduleType = getServiceScheduleTypeFromForm(form)
-    subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (form.get('sub_type') || null) : null)
+    subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null) : null)
     customerName = scheduleType === '電表提醒'
       ? (String(form.get('meter_place') || '').trim() || null)
       : (rawCustomerNameInput || rawTitleInput || null)
