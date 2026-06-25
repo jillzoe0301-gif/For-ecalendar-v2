@@ -19994,7 +19994,7 @@ function openScheduleModal(defaults = {}) {
   const leaveOptions = getManagedLeaveMeetingTypes().map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const supervisorOptions = supervisorSelectOptionsHtml()
-  const serviceAdminOptions = administrativeStaffOptionsHtml()
+  const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
@@ -20128,12 +20128,10 @@ function openScheduleModal(defaults = {}) {
             </select>
           </label>
 
-          <label class="service-admin-notify-field">
-            通知行政
-            <select name="service_admin_staff_id">
-              ${serviceAdminOptions}
-            </select>
-          </label>
+          <div class="service-admin-notify-field">
+            <div class="field-title">通知行政（可複選）</div>
+            <div class="inline-check-list service-admin-check-list">${serviceAdminChecks}</div>
+          </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
             <label>
@@ -20855,6 +20853,35 @@ function administrativeStaffOptionsHtml(selectedStaffId = '') {
   `).join('')
 }
 
+
+function administrativeStaffCheckboxesHtml(selectedStaffIds = [], inputName = 'service_admin_staff_ids') {
+  const selected = new Set((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  const rows = getAdministrativeStaffRows()
+  const existingIds = new Set(rows.map(staff => staff.staff_id))
+  const extraRows = staffList.filter(staff => selected.has(staff.staff_id) && !existingIds.has(staff.staff_id))
+  const allRows = [...extraRows, ...rows]
+  if (!allRows.length) return '<div class="field-hint">尚未設定行政人員</div>'
+  return allRows.map(staff => `
+    <label class="inline-check service-admin-check-option">
+      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</span>
+    </label>
+  `).join('')
+}
+
+function getStaffIdsByDisplayNames(value = '') {
+  const names = splitMultiValue(value).map(item => String(item || '').split('｜')[0].trim()).filter(Boolean)
+  return uniqueOptionList(names.map(name => getStaffIdByDisplayName(name)).filter(Boolean))
+}
+
+function getStaffNamesByIds(staffIds = []) {
+  return uniqueOptionList((staffIds || []).map(staffId => getStaffNameById(staffId)).filter(Boolean))
+}
+
+function getSelectedStaffIdsFromForm(form, fieldName = '') {
+  return uniqueOptionList((form?.getAll?.(fieldName) || []).map(value => String(value || '').trim()).filter(Boolean))
+}
+
 function getStaffNameById(staffId = '') {
   const staff = staffList.find(item => item.staff_id === staffId)
   return staff ? staff.name : ''
@@ -20875,11 +20902,13 @@ function cleanServiceAdminNotifyNote(noteText = '') {
     .join('｜')
 }
 
-function appendServiceAdminNotifyNote(parts = [], adminName = '') {
+function appendServiceAdminNotifyNote(parts = [], adminNames = '') {
   const cleaned = (parts || [])
     .map(item => cleanServiceAdminNotifyNote(item))
     .filter(Boolean)
-  if (adminName) cleaned.push(`通知行政：${adminName}`)
+  const names = Array.isArray(adminNames) ? adminNames : splitMultiValue(adminNames)
+  const joined = uniqueOptionList(names.map(name => String(name || '').trim()).filter(Boolean)).join('、')
+  if (joined) cleaned.push(`通知行政：${joined}`)
   return cleaned
 }
 
@@ -21525,8 +21554,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const isMaintenance = isVehicleMaintenanceSchedule(row)
   const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
   const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
-  const editServiceAdminStaffId = row.category === '服務行程' ? getStaffIdByDisplayName(getNoteValue(row, '通知行政')) : ''
-  const editServiceAdminOptions = administrativeStaffOptionsHtml(editServiceAdminStaffId)
+  const editServiceAdminStaffIds = row.category === '服務行程' ? getStaffIdsByDisplayNames(getNoteValue(row, '通知行政')) : []
+  const editServiceAdminChecks = administrativeStaffCheckboxesHtml(editServiceAdminStaffIds, 'edit_service_admin_staff_ids')
   const isMaintenanceActiveIds = getActiveAssigneeIds(row)
   const maintenanceCarValue = row.car_no || row.customer_name || row.sub_type || '不使用'
   const maintenanceCarOptions = optionHtml(getManagedListOption('carOptions', carOptions), maintenanceCarValue)
@@ -21587,12 +21616,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             </select>
           </label>
 
-          <label class="edit-service-admin-notify-field">
-            通知行政
-            <select name="edit_service_admin_staff_id">
-              ${editServiceAdminOptions}
-            </select>
-          </label>
+          <div class="edit-service-admin-notify-field">
+            <div class="field-title">通知行政（可複選）</div>
+            <div class="inline-check-list service-admin-check-list">${editServiceAdminChecks}</div>
+          </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
             <label>
@@ -22052,8 +22079,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editScope = getScheduleEditScopeValue(form, originalRow)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
   const editNotifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
-  const editServiceAdminStaffId = category === '服務行程' ? String(form.get('edit_service_admin_staff_id') || '') : ''
-  const editServiceAdminName = editServiceAdminStaffId ? getStaffNameById(editServiceAdminStaffId) : ''
+  const editServiceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'edit_service_admin_staff_ids') : []
+  const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
   const editExecutorIds = category === '行政事務提醒'
     ? [currentProfile?.staff_id].filter(Boolean)
     : (category === '公務車保養'
@@ -22106,7 +22133,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       buildRepeatNote(form),
       isCompactSpecialScheduleType(editScheduleType) ? '' : cleanedNote,
       ...extraNotes
-    ].filter(Boolean), editServiceAdminName), editNotifySupervisorName).join('｜') || null
+    ].filter(Boolean), editServiceAdminNames), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '公務車保養') {
@@ -22233,15 +22260,17 @@ async function saveEditedSchedule(event, modal, originalRow) {
     await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)
     await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)
 
-    if (editServiceAdminStaffId) {
+    if (editServiceAdminStaffIds.length) {
       try {
-        await maybeCreateServiceAdministrativeTodo(
-          { ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId },
-          editScheduleType || '服務行程通知',
-          payloadDescription || payloadTitle || '',
-          editServiceAdminStaffId,
-          { startDate: payloadStartDate || editedSchedulePayload.start_date || originalRow.start_date }
-        )
+        for (const editServiceAdminStaffId of editServiceAdminStaffIds) {
+          await maybeCreateServiceAdministrativeTodo(
+            { ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId },
+            editScheduleType || '服務行程通知',
+            payloadDescription || payloadTitle || '',
+            editServiceAdminStaffId,
+            { startDate: payloadStartDate || editedSchedulePayload.start_date || originalRow.start_date }
+          )
+        }
       } catch (serviceAdminError) {
         console.error(serviceAdminError)
         alert('行程已修改，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))
@@ -22343,8 +22372,8 @@ async function saveSchedule(event, modal) {
   let subType = ''
   let subTypeNoteParts = [buildRepeatNote(form)]
   const notifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('notify_supervisor_staff')
-  const serviceAdminStaffId = category === '服務行程' ? String(form.get('service_admin_staff_id') || '') : ''
-  const serviceAdminName = serviceAdminStaffId ? getStaffNameById(serviceAdminStaffId) : ''
+  const serviceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'service_admin_staff_ids') : []
+  const serviceAdminNames = getStaffNamesByIds(serviceAdminStaffIds)
   if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
   let locationName = null
@@ -22448,7 +22477,7 @@ async function saveSchedule(event, modal) {
     carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
-    if (serviceAdminName) subTypeNoteParts.push(`通知行政：${serviceAdminName}`)
+    if (serviceAdminNames.length) subTypeNoteParts.push(`通知行政：${serviceAdminNames.join('、')}`)
     if (!isCompactSpecialScheduleType(scheduleType)) {
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
       if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
@@ -22521,15 +22550,17 @@ async function saveSchedule(event, modal) {
   }
 
 
-  if (category === '服務行程' && serviceAdminStaffId) {
+  if (category === '服務行程' && serviceAdminStaffIds.length) {
     try {
-      await maybeCreateServiceAdministrativeTodo(
-        { ...schedulePayload, schedule_id: schedule.schedule_id },
-        scheduleType || '服務行程通知',
-        form.get('description') || schedulePayload.title || '',
-        serviceAdminStaffId,
-        { startDate: schedulePayload.start_date }
-      )
+      for (const serviceAdminStaffId of serviceAdminStaffIds) {
+        await maybeCreateServiceAdministrativeTodo(
+          { ...schedulePayload, schedule_id: schedule.schedule_id },
+          scheduleType || '服務行程通知',
+          form.get('description') || schedulePayload.title || '',
+          serviceAdminStaffId,
+          { startDate: schedulePayload.start_date }
+        )
+      }
     } catch (serviceAdminError) {
       console.error(serviceAdminError)
       alert('服務行程已建立，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))

@@ -19225,3 +19225,197 @@ button.login-birthday-card:focus-visible {
   color: #021A54 !important;
 }
 /* FOR-e V002-1P-287 END - meeting overdue gray and company activity continuation */
+
+/* FOR-e V002-1P-288 START - responsive staff checks admin multi date fields */
+.service-admin-notify-field,
+.edit-service-admin-notify-field {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.service-admin-notify-field .field-title,
+.edit-service-admin-notify-field .field-title {
+  margin-bottom: 6px !important;
+  font-weight: 800 !important;
+  color: #17233d !important;
+}
+
+.service-admin-check-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-height: 112px !important;
+  overflow-y: auto !important;
+  padding: 8px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+}
+
+.service-admin-check-list .service-admin-check-option {
+  flex: 1 1 180px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 7px 10px !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+.service-admin-check-list .service-admin-check-option input[type="checkbox"] {
+  flex: 0 0 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.service-admin-check-list .service-admin-check-option span {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 1180px) {
+  .modal-panel,
+  .modal-panel form,
+  .modal-panel .form-grid,
+  .modal-panel .inner-grid,
+  .modal-panel .block-group,
+  .modal-panel label {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-panel input,
+  .modal-panel select,
+  .modal-panel textarea {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .schedule-date-cycle-group,
+  .schedule-date-cycle-group .inner-grid,
+  .schedule-date-cycle-group label,
+  #endDateBlock,
+  #editEndDateBlock {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .schedule-date-cycle-group input[type="date"],
+  #scheduleForm input[type="date"],
+  #editScheduleForm input[type="date"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    line-height: 48px !important;
+    padding: 0 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .schedule-date-cycle-group input[type="date"]::-webkit-datetime-edit,
+  #scheduleForm input[type="date"]::-webkit-datetime-edit,
+  #editScheduleForm input[type="date"]::-webkit-datetime-edit {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 48px !important;
+    line-height: 48px !important;
+    padding: 0 !important;
+  }
+
+  .schedule-date-cycle-group input[type="date"]::-webkit-date-and-time-value,
+  #scheduleForm input[type="date"]::-webkit-date-and-time-value,
+  #editScheduleForm input[type="date"]::-webkit-date-and-time-value {
+    text-align: center !important;
+    min-height: 48px !important;
+    line-height: 48px !important;
+  }
+
+  .checkbox-list,
+  .inline-check-list,
+  .department-assignee-list,
+  .service-admin-check-list {
+    justify-content: flex-start !important;
+    justify-items: start !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .checkbox-list .check-row,
+  .inline-check-list .inline-check,
+  .department-assignee-row,
+  .service-admin-check-list .service-admin-check-option {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  .checkbox-list .check-row input[type="checkbox"],
+  .inline-check-list .inline-check input[type="checkbox"],
+  .department-assignee-row input[type="checkbox"],
+  .service-admin-check-list .service-admin-check-option input[type="checkbox"] {
+    flex: 0 0 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+  }
+
+  .checkbox-list .check-row span,
+  .inline-check-list .inline-check span,
+  .department-assignee-row span,
+  .service-admin-check-list .service-admin-check-option span {
+    min-width: 0 !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .service-admin-check-list {
+    max-height: 144px !important;
+  }
+
+  .service-admin-check-list .service-admin-check-option {
+    flex: 1 1 100% !important;
+  }
+}
+/* FOR-e V002-1P-288 END - responsive staff checks admin multi date fields */
