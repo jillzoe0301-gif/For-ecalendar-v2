@@ -24747,3 +24747,262 @@ function renderServiceRecordDepartmentStatusV2(records) {
   window.setInterval(applyPatch, 1800)
 })()
 
+/* === FOR-e V002-1P-279 assigned filter meeting gray safe START === */
+(() => {
+  const PATCH_KEY = '__FOR_E_V002_1P_279_ASSIGNED_FILTER_MEETING_GRAY_SAFE__'
+  if (window[PATCH_KEY]) return
+  window[PATCH_KEY] = true
+
+  const FILTER_ID = 'for-e-assigned-track-completed-filter-279'
+  const FILTER_WRAP_ID = 'for-e-assigned-track-filterbar-279'
+  const STORAGE_KEY = 'forEAssignedTrackCompletedFilter279'
+
+  const normalizeText = (value) => String(value || '').replace(/\s+/g, ' ').trim()
+  const rawText = (el) => String(el?.textContent || '')
+  const textOf = (el) => normalizeText(el?.textContent || '')
+  const isVisible = (el) => {
+    if (!el || !el.isConnected) return false
+    const style = window.getComputedStyle(el)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+    const rect = el.getBoundingClientRect()
+    return rect.width > 0 && rect.height > 0
+  }
+
+  function currentDateKey() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  function findPageHeading(keyword) {
+    return Array.from(document.querySelectorAll('h1, h2, h3, .page-title, .section-title, [class*="title"]'))
+      .find((el) => isVisible(el) && textOf(el).includes(keyword)) || null
+  }
+
+  function isAssignedTrackPage() {
+    return !!findPageHeading('我指派的事項追蹤')
+  }
+
+  function findAssignedTrackRoot() {
+    const heading = findPageHeading('我指派的事項追蹤')
+    if (!heading) return null
+    return heading.closest('main, .main, .content, .page, .panel, .card, section') || document.querySelector('main') || document.body
+  }
+
+  function installAssignedTrackFilter() {
+    const heading = findPageHeading('我指派的事項追蹤')
+    if (!heading) return
+
+    // 清掉舊版曾經插在標題下方、會撐大版面的完成狀態篩選。
+    Array.from(document.querySelectorAll('#for-e-assigned-completed-filter, .for-e-completed-filter-block, .for-e-assigned-completed-filter-block, #for-e-assigned-completed-filter-bar'))
+      .forEach((el) => el.remove())
+
+    let bar = document.getElementById(FILTER_WRAP_ID)
+    if (!bar) {
+      bar = document.createElement('div')
+      bar.id = FILTER_WRAP_ID
+      bar.className = 'for-e-assigned-track-filterbar-279'
+      bar.innerHTML = `
+        <label class="for-e-assigned-track-filter-label-279" for="${FILTER_ID}">完成狀態</label>
+        <select id="${FILTER_ID}" class="for-e-assigned-track-filter-select-279" aria-label="我指派的事項完成狀態篩選">
+          <option value="hide">隱藏已完成</option>
+          <option value="done">只看已完成</option>
+          <option value="all">顯示全部</option>
+        </select>
+      `
+
+      const header = heading.closest('.page-header, .section-header, .card-header, .panel-header, .toolbar, [class*="header"]') || heading.parentElement
+      if (header) {
+        header.classList.add('for-e-assigned-track-header-host-279')
+        header.appendChild(bar)
+      } else {
+        heading.insertAdjacentElement('afterend', bar)
+      }
+    }
+
+    const select = document.getElementById(FILTER_ID)
+    if (!select) return
+    select.value = localStorage.getItem(STORAGE_KEY) || 'hide'
+    if (!select.dataset.forEBound279) {
+      select.dataset.forEBound279 = '1'
+      select.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEY, select.value)
+        applyAssignedTrackFilter()
+      })
+    }
+
+    applyAssignedTrackFilter()
+  }
+
+  function isCompletedText(text) {
+    const t = normalizeText(text)
+    if (/未完成|尚未完成|未處理|未結束/.test(t)) return false
+    return /已完成|完成|已結束|已處理|結案|完成日期/.test(t)
+  }
+
+  function candidateAssignedTrackCards(root) {
+    if (!root) return []
+    const selectors = [
+      '.task-card', '.todo-card', '.schedule-card', '.tracking-card', '.record-card', '.list-card', '.item-card', '.card',
+      '[class*="card"]', '[class*="item"]', '[class*="record"]', 'tbody tr'
+    ].join(',')
+    return Array.from(root.querySelectorAll(selectors))
+      .filter((el) => isVisible(el))
+      .filter((el) => !el.closest(`#${FILTER_WRAP_ID}`))
+      .filter((el) => !el.querySelector?.('h1, h2, h3'))
+      .filter((el) => {
+        const t = textOf(el)
+        if (!t || t.length < 6 || t.length > 1200) return false
+        if (t.includes('我指派的事項追蹤') && t.length < 120) return false
+        return /查看|修改|取消|已完成|未完成|指派|執行者|追蹤|待辦|事項|行程/.test(t)
+      })
+  }
+
+  function applyAssignedTrackFilter() {
+    if (!isAssignedTrackPage()) return
+    const mode = document.getElementById(FILTER_ID)?.value || localStorage.getItem(STORAGE_KEY) || 'hide'
+    const root = findAssignedTrackRoot()
+    candidateAssignedTrackCards(root).forEach((el) => {
+      const completed = isCompletedText(rawText(el))
+      const hide = (mode === 'hide' && completed) || (mode === 'done' && !completed)
+      el.classList.toggle('for-e-assigned-track-filter-hidden-279', hide)
+      if (hide) el.setAttribute('data-for-e-assigned-track-filter-hidden', '1')
+      else el.removeAttribute('data-for-e-assigned-track-filter-hidden')
+    })
+  }
+
+  function parseDateKey(text) {
+    const raw = String(text || '')
+    const now = new Date()
+    let m = raw.match(/(20\d{2})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/)
+    if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
+    m = raw.match(/(^|[^\d])(\d{1,2})[\/\-.](\d{1,2})(?!\d)/)
+    if (m) return `${now.getFullYear()}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
+    return ''
+  }
+
+  function getHeaderDateForCell(cell) {
+    if (!cell || typeof cell.cellIndex !== 'number') return ''
+    const table = cell.closest('table')
+    if (!table) return ''
+    const index = cell.cellIndex
+    const rows = Array.from(table.querySelectorAll('thead tr, tr')).slice(0, 6)
+    for (const row of rows) {
+      const header = row.children?.[index]
+      const key = parseDateKey(header?.textContent || '')
+      if (key) return key
+    }
+    return ''
+  }
+
+  function getCardDateKey(card) {
+    const dataNode = card.closest('[data-date], [data-day], [data-date-key], [data-render-date], [data-cell-date]')
+    const dataValue = dataNode?.dataset?.date || dataNode?.dataset?.day || dataNode?.dataset?.dateKey || dataNode?.dataset?.renderDate || dataNode?.dataset?.cellDate
+    let key = parseDateKey(dataValue || '')
+    if (key) return key
+
+    const cell = card.closest('td, th, .calendar-cell, .week-cell, .day-cell, [class*="cell"], [class*="day"]')
+    key = getHeaderDateForCell(cell)
+    if (key) return key
+
+    key = parseDateKey(cell?.textContent || '')
+    if (key) return key
+
+    key = parseDateKey(card.getAttribute('aria-label') || card.getAttribute('title') || '')
+    if (key) return key
+    return ''
+  }
+
+  function toMinutes(hour, minute, period) {
+    let h = Number(hour)
+    const min = Number(minute)
+    const p = String(period || '')
+    if (/下午|晚上|PM/i.test(p) && h < 12) h += 12
+    if (/上午|早上|AM/i.test(p) && h === 12) h = 0
+    return h * 60 + min
+  }
+
+  function parseEndMinutes(text) {
+    const raw = String(text || '').replace(/：/g, ':')
+    let m = raw.match(/(上午|下午|晚上|早上|AM|PM)?\s*(\d{1,2}):(\d{2})\s*(?:-|~|～|至|到)\s*(上午|下午|晚上|早上|AM|PM)?\s*(\d{1,2}):(\d{2})/i)
+    if (m) {
+      const sp = m[1] || ''
+      const ep = m[4] || sp
+      const start = toMinutes(m[2], m[3], sp)
+      let end = toMinutes(m[5], m[6], ep)
+      if (!m[4] && end < start && /下午|晚上|PM/i.test(sp)) end += 12 * 60
+      return end
+    }
+    m = raw.match(/(\d{1,2}):(\d{2})\s*(?:-|~|～|至|到)\s*(\d{1,2}):(\d{2})/)
+    if (m) return Number(m[3]) * 60 + Number(m[4])
+    return null
+  }
+
+  function currentMinutes() {
+    const d = new Date()
+    return d.getHours() * 60 + d.getMinutes()
+  }
+
+  function isMeetingOverviewCard(card) {
+    const text = textOf(card)
+    const cls = String(card.className || '')
+    if (/大會議室|小會議室|會議室|會議室預約|週會|會議/.test(text)) return true
+    if (/meeting|room/i.test(cls)) return true
+    return false
+  }
+
+  function isCalendarLikeCard(card) {
+    const text = textOf(card)
+    if (!text || text.length < 3 || text.length > 500) return false
+    if (card.closest('nav, aside, .sidebar, .menu')) return false
+    if (/匯出CSV|重新整理|新增行程|行程搜尋/.test(text) && text.length < 120) return false
+    return true
+  }
+
+  function markPastMeetingCards() {
+    const today = currentDateKey()
+    const cards = Array.from(document.querySelectorAll('.week-card, .schedule-card, .calendar-card, .meeting-room-card, [class*="schedule-card"], [class*="calendar-card"], [class*="week-card"]'))
+      .filter(isVisible)
+      .filter(isCalendarLikeCard)
+      .filter(isMeetingOverviewCard)
+
+    cards.forEach((card) => {
+      const dateKey = getCardDateKey(card)
+      const end = parseEndMinutes(rawText(card))
+      let past = false
+      if (dateKey) {
+        const cmp = String(dateKey).localeCompare(today)
+        if (cmp < 0) past = true
+        else if (cmp === 0 && end !== null && end <= currentMinutes()) past = true
+      }
+      card.classList.toggle('for-e-meeting-past-gray-279', past)
+      if (past) card.setAttribute('data-for-e-meeting-past-gray', '1')
+      else card.removeAttribute('data-for-e-meeting-past-gray')
+    })
+  }
+
+  let scheduled = false
+  function refresh279() {
+    if (scheduled) return
+    scheduled = true
+    window.requestAnimationFrame(() => {
+      scheduled = false
+      try { installAssignedTrackFilter() } catch (error) { console.warn('[V002-1P-279] assigned filter failed', error) }
+      try { markPastMeetingCards() } catch (error) { console.warn('[V002-1P-279] meeting gray failed', error) }
+    })
+  }
+
+  document.addEventListener('change', (event) => {
+    if (event.target?.id === FILTER_ID) applyAssignedTrackFilter()
+    refresh279()
+  }, true)
+  document.addEventListener('click', () => setTimeout(refresh279, 80), true)
+  window.addEventListener('resize', refresh279)
+  window.addEventListener('load', refresh279)
+  document.addEventListener('DOMContentLoaded', refresh279)
+
+  const observer = new MutationObserver(refresh279)
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'data-date', 'data-day', 'data-date-key'] })
+  setInterval(refresh279, 5000)
+  refresh279()
+})()
+/* === FOR-e V002-1P-279 assigned filter meeting gray safe END === */

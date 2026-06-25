@@ -19015,3 +19015,87 @@ button.login-birthday-card:focus-visible {
 }
 /* end V002-1P-278 follow type left inline overview meetingroom gray */
 
+/* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS START === */
+/* 我指派的事項追蹤：小型篩選列，不佔用標題下方大版面 */
+.for-e-assigned-track-header-host-279 {
+  position: relative !important;
+}
+
+.for-e-assigned-track-filterbar-279 {
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.for-e-assigned-track-filter-label-279 {
+  color: #64748b !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+.for-e-assigned-track-filter-select-279 {
+  width: auto !important;
+  min-width: 132px !important;
+  height: 36px !important;
+  border-radius: 12px !important;
+  padding: 0 34px 0 12px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  background-color: #fff !important;
+}
+
+.for-e-assigned-track-filter-hidden-279 {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .for-e-assigned-track-filterbar-279 {
+    margin-left: 0 !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+}
+
+/* 行程總覽：每週重複會議 / 會議室時間已過反灰，僅畫面顯示，不寫入待辦或追蹤 */
+.for-e-meeting-past-gray-279 {
+  background: #f1f3f5 !important;
+  border-color: #d6d9df !important;
+  color: #8a8f9a !important;
+  opacity: 0.58 !important;
+  filter: grayscale(0.75) !important;
+  box-shadow: none !important;
+}
+
+.for-e-meeting-past-gray-279 * {
+  color: #8a8f9a !important;
+  border-color: #d6d9df !important;
+  box-shadow: none !important;
+}
+
+.for-e-meeting-past-gray-279::after {
+  content: "已結束";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 44px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #8a8f9a;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+/* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS END === */
