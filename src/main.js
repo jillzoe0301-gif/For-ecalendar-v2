@@ -1357,6 +1357,7 @@ function shouldGrayScheduleOnDate(row = {}, dateKey = '') {
   if (isScheduleCompletedOnDate(row, targetDate)) return true
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   if (isMeetingFixedSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
+  if (typeof isPublicLeaveMeetingActivitySchedule === 'function' && isPublicLeaveMeetingActivitySchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   return false
 }
 
@@ -13866,7 +13867,10 @@ function getContinuationDayMarkClass(row = {}) {
     row.sub_type_note
   ].filter(Boolean).join('｜')
 
-  return /重要事項|重要事項!|重要/.test(text) ? ' is-important-continuation' : ''
+  const classes = []
+  if (/重要事項|重要事項!|重要/.test(text)) classes.push('is-important-continuation')
+  if (/公司活動/.test(text)) classes.push('company-activity-continuation')
+  return classes.length ? ` ${classes.join(' ')}` : ''
 }
 
 function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview') {
