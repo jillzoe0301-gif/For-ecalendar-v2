@@ -537,6 +537,10 @@ let searchFilters = {
   endDate: ''
 }
 
+let assignedTrackingFilters = {
+  completedStatus: '隱藏已完成'
+}
+
 let auditLogs = []
 let auditLoading = false
 let auditError = ''
@@ -3332,6 +3336,14 @@ function renderApp() {
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
+      renderApp()
+    })
+  }
+
+  const assignedTrackingCompletedFilter = document.querySelector('#assignedTrackingCompletedFilter')
+  if (assignedTrackingCompletedFilter) {
+    assignedTrackingCompletedFilter.addEventListener('change', event => {
+      assignedTrackingFilters.completedStatus = event.target.value || '隱藏已完成'
       renderApp()
     })
   }
@@ -6294,8 +6306,10 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
   try {
     const form = new FormData(event.target)
     const room = form.get('room')
-    const startDate = form.get('start_date') || todayString()
-    const endDate = getScheduleModeEndDate(form)
+    const editScope = getScheduleEditScopeValue(form, originalRow)
+    const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || form.get('start_date') || originalRow.start_date)
+    const startDate = editScope === 'single' ? occurrenceDate : (form.get('start_date') || todayString())
+    const endDate = editScope === 'single' ? occurrenceDate : getScheduleModeEndDate(form)
     const reserverStaffId = form.get('reserver_staff_id') || currentProfile.staff_id
     const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || {
       staff_id: currentProfile.staff_id,
@@ -6313,8 +6327,6 @@ async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
       .filter(Boolean)
     const startTime = getMeetingTimeValue(form, 'start')
     const endTime = getMeetingTimeValue(form, 'end')
-    const editScope = getScheduleEditScopeValue(form, originalRow)
-    const occurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || startDate)
 
     if (getMeetingTimeMinutes(endTime) <= getMeetingTimeMinutes(startTime)) {
       alert('結束時間必須晚於開始時間。')
@@ -7398,11 +7410,17 @@ function openIncidentNextTrackingModal(scheduleId) {
 
 
 
-        <div class="span-2 incident-next-mode-box">
+        <div class="span-2 incident-next-mode-box incident-next-follow-type-box">
           <div class="field-title">下一次追蹤類型</div>
-          <div class="inline-radio-group incident-next-mode-options">
-            <label><input type="radio" name="incident_next_mode" value="tracking" checked> 追蹤</label>
-            <label><input type="radio" name="incident_next_mode" value="record"> 單純紀錄（不顯示在待辦）</label>
+          <div class="incident-next-mode-choice-grid">
+            <label class="incident-next-mode-choice">
+              <input type="radio" name="incident_next_mode" value="tracking" checked>
+              <span>追蹤</span>
+            </label>
+            <label class="incident-next-mode-choice">
+              <input type="radio" name="incident_next_mode" value="record">
+              <span>單純紀錄</span>
+            </label>
           </div>
           <p class="field-hint">選「單純紀錄」時，只寫入異況紀錄，不建立個人待辦 / 追蹤行程。</p>
         </div>
@@ -12818,6 +12836,32 @@ function getAssignedTrackingRows() {
     })
 }
 
+function getAssignedTrackingCompletedFilterValue() {
+  const value = assignedTrackingFilters?.completedStatus || '隱藏已完成'
+  return ['隱藏已完成', '只看已完成', '顯示全部'].includes(value) ? value : '隱藏已完成'
+}
+
+function filterAssignedTrackingRowsByCompletedStatus(rows = []) {
+  const filterValue = getAssignedTrackingCompletedFilterValue()
+  if (filterValue === '顯示全部') return rows
+  if (filterValue === '只看已完成') return rows.filter(row => row.status === '已完成')
+  return rows.filter(row => row.status !== '已完成')
+}
+
+function assignedTrackingCompletedFilterHtml() {
+  const selected = getAssignedTrackingCompletedFilterValue()
+  return `
+    <label class="assigned-tracking-filter-control">
+      <span>完成狀態</span>
+      <select id="assignedTrackingCompletedFilter">
+        <option value="隱藏已完成" ${selected === '隱藏已完成' ? 'selected' : ''}>隱藏已完成</option>
+        <option value="只看已完成" ${selected === '只看已完成' ? 'selected' : ''}>只看已完成</option>
+        <option value="顯示全部" ${selected === '顯示全部' ? 'selected' : ''}>顯示全部</option>
+      </select>
+    </label>
+  `
+}
+
 function getAssignedTrackingAssignees(row) {
   const myStaffId = currentProfile?.staff_id
   return (row.schedule_assignees || [])
@@ -12828,10 +12872,11 @@ function getAssignedTrackingAssignees(row) {
 }
 
 function renderAssignedTrackingPage() {
-  const rows = getAssignedTrackingRows()
-  const activeRows = rows.filter(row => row.status !== '已完成' && row.status !== '取消')
-  const completedRows = rows.filter(row => row.status === '已完成')
-  const overdueRows = rows.filter(row => isOverdueSchedule(row))
+  const allRows = getAssignedTrackingRows()
+  const rows = filterAssignedTrackingRowsByCompletedStatus(allRows)
+  const activeRows = allRows.filter(row => row.status !== '已完成' && row.status !== '取消')
+  const completedRows = allRows.filter(row => row.status === '已完成')
+  const overdueRows = allRows.filter(row => isOverdueSchedule(row))
 
   return `
     <div class="page-toolbar">
@@ -12840,6 +12885,7 @@ function renderAssignedTrackingPage() {
         <p class="muted">只追蹤我建立，並指派給他人的任務。</p>
       </div>
       <div class="toolbar-actions assigned-tracking-toolbar-actions">
+        ${assignedTrackingCompletedFilterHtml()}
         ${canCreateServiceSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增行程</button>' : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
@@ -12849,7 +12895,7 @@ function renderAssignedTrackingPage() {
 
     <div class="summary-grid assigned-tracking-summary">
       <div class="summary-card">
-        <strong>${rows.length}</strong>
+        <strong>${allRows.length}</strong>
         <span>我指派的事項</span>
       </div>
       <div class="summary-card">
@@ -12872,7 +12918,7 @@ function renderAssignedTrackingPage() {
 
 function renderAssignedTrackingList(rows) {
   if (!rows.length) {
-    return `<div class="empty-state">目前沒有由我建立並指派給他人的事項。</div>`
+    return `<div class="empty-state">目前沒有符合條件的指派追蹤事項。</div>`
   }
 
   return `
@@ -13018,7 +13064,7 @@ function normalizeRowsForPersonalScheduleDisplay(rows = [], baseDate = todayStri
 }
 
 function getScheduleOccurrenceDateAttr(row = {}) {
-  const occurrenceDate = row.__occurrenceDate || ''
+  const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || ''
   return occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
 }
 
@@ -15377,8 +15423,9 @@ function renderWeekScheduleCard(row) {
   const isFactoryStation = isFactoryStationSchedule(row)
   const weekOccurrenceDate = row.__occurrence_date || row.__render_date || row.start_date
   const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, weekOccurrenceDate)) ? 'is-completed' : ''
+  const occurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
   return `
-    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
       ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
@@ -24747,216 +24794,5 @@ function renderServiceRecordDepartmentStatusV2(records) {
   window.setInterval(applyPatch, 1800)
 })()
 
-// FOR-E V002-1P-282 START: direct render follow type and assigned filter
-(() => {
-  const VERSION = 'V002-1P-282'
-  if (window.__FOR_E_V002_1P_282_DIRECT_PATCH__) return
-  window.__FOR_E_V002_1P_282_DIRECT_PATCH__ = true
 
-  const textOf = (el) => String(el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim()
-  const uniqueElements = (items) => Array.from(new Set(items.filter(Boolean)))
-  const isVisibleElement = (el) => {
-    if (!el || !(el instanceof Element)) return false
-    const rect = el.getBoundingClientRect()
-    const style = window.getComputedStyle(el)
-    return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
-  }
-
-  const commonAncestor = (elements) => {
-    const nodes = elements.filter(Boolean)
-    if (!nodes.length) return null
-    let ancestor = nodes[0]
-    while (ancestor && !nodes.every((node) => ancestor.contains(node))) ancestor = ancestor.parentElement
-    return ancestor
-  }
-
-  const optionTextForRadio = (radio) => {
-    const label = radio.closest('label')
-    if (label) return textOf(label)
-    return textOf(radio.parentElement)
-  }
-
-  const ensureRadioLabel = (radio, labelText) => {
-    let label = radio.closest('label')
-    if (!label) {
-      label = document.createElement('label')
-      radio.parentNode?.insertBefore(label, radio)
-      label.appendChild(radio)
-    }
-    label.classList.add('for-e-follow-type-option-282')
-    radio.classList.add('for-e-follow-type-radio-282')
-
-    // Keep the real radio input, normalize visible label text so the two choices are clear and equal.
-    const radioNode = radio
-    Array.from(label.childNodes).forEach((node) => {
-      if (node !== radioNode) node.remove()
-    })
-    if (!label.contains(radioNode)) label.prepend(radioNode)
-    const text = document.createElement('span')
-    text.className = 'for-e-follow-type-text-282'
-    text.textContent = labelText
-    label.appendChild(text)
-    return label
-  }
-
-  const findFollowTypeGroup = () => {
-    const modals = Array.from(document.querySelectorAll('[role="dialog"], .modal, .dialog, .modal-content, .popup, .drawer, form, section, article, .card, .panel, div'))
-      .filter(isVisibleElement)
-      .filter((el) => {
-        const tx = textOf(el)
-        if (!/下一次追蹤類型|下次追蹤類型|追蹤類型|單純紀錄/.test(tx)) return false
-        const radios = el.querySelectorAll('input[type="radio"]')
-        return radios.length >= 2 && Array.from(radios).some((radio) => /單純紀錄/.test(optionTextForRadio(radio))) && Array.from(radios).some((radio) => /追蹤/.test(optionTextForRadio(radio)))
-      })
-      .sort((a, b) => textOf(a).length - textOf(b).length)
-
-    for (const modal of modals) {
-      const radios = Array.from(modal.querySelectorAll('input[type="radio"]'))
-      const followRadio = radios.find((radio) => /追蹤/.test(optionTextForRadio(radio)) && !/單純紀錄/.test(optionTextForRadio(radio)))
-      const recordRadio = radios.find((radio) => /單純紀錄/.test(optionTextForRadio(radio)))
-      if (followRadio && recordRadio) return { modal, followRadio, recordRadio }
-    }
-    return null
-  }
-
-  const fixFollowTypeLayout = () => {
-    const group = findFollowTypeGroup()
-    if (!group) return
-    const { modal, followRadio, recordRadio } = group
-    const followLabel = ensureRadioLabel(followRadio, '追蹤')
-    const recordLabel = ensureRadioLabel(recordRadio, '單純紀錄')
-
-    let field = commonAncestor([followLabel, recordLabel])
-    while (field?.parentElement && field !== modal) {
-      const tx = textOf(field)
-      if (/下一次追蹤類型|下次追蹤類型|追蹤類型/.test(tx)) break
-      field = field.parentElement
-    }
-    if (!field || field === document.body) field = commonAncestor([followLabel, recordLabel]) || modal
-    field.classList.add('for-e-follow-type-field-282')
-
-    let row = field.querySelector(':scope > .for-e-follow-type-row-282')
-    if (!row) {
-      row = document.createElement('div')
-      row.className = 'for-e-follow-type-row-282'
-      const titleLike = Array.from(field.children).find((child) => /下一次追蹤類型|下次追蹤類型|追蹤類型/.test(textOf(child)) && !child.contains(followRadio) && !child.contains(recordRadio))
-      if (titleLike?.nextSibling) field.insertBefore(row, titleLike.nextSibling)
-      else field.insertBefore(row, field.firstChild)
-    }
-    row.appendChild(followLabel)
-    row.appendChild(recordLabel)
-  }
-
-  const assignedRoot = () => {
-    const heading = Array.from(document.querySelectorAll('h1,h2,h3,h4,.page-title,.section-title,.card-title,strong,b,div,span'))
-      .filter(isVisibleElement)
-      .find((el) => textOf(el).includes('我指派的事項追蹤'))
-    if (!heading) return null
-    let root = heading
-    while (root.parentElement && root.parentElement !== document.body) {
-      const tx = textOf(root.parentElement)
-      if (tx.includes('我指派的事項追蹤') && (tx.includes('查看') || tx.includes('未完成') || tx.includes('已完成') || tx.length > 120)) {
-        root = root.parentElement
-      } else {
-        break
-      }
-      if (textOf(root).length > 8000) break
-    }
-    return root
-  }
-
-  const isCompletedText = (tx) => /已完成|已結束/.test(tx) && !/未完成/.test(tx)
-
-  const assignedCards = (root) => {
-    if (!root) return []
-    const statusNodes = Array.from(root.querySelectorAll('*'))
-      .filter(isVisibleElement)
-      .filter((el) => {
-        const tx = textOf(el)
-        return /已完成|已結束|未完成|查看|取消/.test(tx) && !/完成狀態|隱藏已完成|只看已完成|顯示全部/.test(tx)
-      })
-    const cards = statusNodes.map((node) => node.closest('.schedule-card,.task-card,.item-card,.list-card,.field-result-card,.card,li,tr,[class*="card"],[class*="item"]') || node.parentElement)
-      .filter((el) => el && root.contains(el) && el !== root)
-      .filter((el) => !el.closest('#for-e-assigned-completed-filter-bar-282'))
-      .filter((el) => {
-        const tx = textOf(el)
-        if (!tx || tx.length < 8) return false
-        if (tx.includes('我指派的事項追蹤') || tx.includes('完成狀態')) return false
-        return /已完成|已結束|未完成|查看/.test(tx)
-      })
-    return uniqueElements(cards)
-  }
-
-  const applyAssignedCompletedFilter = () => {
-    const root = assignedRoot()
-    const select = document.getElementById('for-e-assigned-completed-filter-select-282')
-    if (!root || !select) return
-    const mode = select.value || localStorage.getItem('for-e-assigned-completed-filter-282') || 'hide-completed'
-    assignedCards(root).forEach((card) => {
-      const completed = isCompletedText(textOf(card))
-      let hide = false
-      if (mode === 'hide-completed') hide = completed
-      if (mode === 'only-completed') hide = !completed
-      card.toggleAttribute('data-for-e-assigned-hidden-282', hide)
-      card.style.display = hide ? 'none' : ''
-    })
-  }
-
-  const installAssignedFilter = () => {
-    const root = assignedRoot()
-    if (!root) return
-    if (document.getElementById('for-e-assigned-completed-filter-bar-282')) {
-      applyAssignedCompletedFilter()
-      return
-    }
-    const heading = Array.from(root.querySelectorAll('h1,h2,h3,h4,.page-title,.section-title,strong,b,div,span'))
-      .find((el) => textOf(el).includes('我指派的事項追蹤'))
-    if (!heading) return
-
-    const bar = document.createElement('div')
-    bar.id = 'for-e-assigned-completed-filter-bar-282'
-    bar.className = 'for-e-assigned-completed-filter-bar-282'
-    bar.innerHTML = `
-      <label class="for-e-assigned-completed-filter-label-282" for="for-e-assigned-completed-filter-select-282">完成狀態</label>
-      <select id="for-e-assigned-completed-filter-select-282" class="for-e-assigned-completed-filter-select-282">
-        <option value="hide-completed">隱藏已完成</option>
-        <option value="only-completed">只看已完成</option>
-        <option value="all">顯示全部</option>
-      </select>
-    `
-    const select = bar.querySelector('select')
-    select.value = localStorage.getItem('for-e-assigned-completed-filter-282') || 'hide-completed'
-    select.addEventListener('change', () => {
-      localStorage.setItem('for-e-assigned-completed-filter-282', select.value)
-      applyAssignedCompletedFilter()
-    })
-
-    const host = heading.parentElement || heading
-    host.classList.add('for-e-assigned-filter-host-282')
-    host.appendChild(bar)
-    applyAssignedCompletedFilter()
-  }
-
-  const applyForE282 = () => {
-    try { fixFollowTypeLayout() } catch (error) { console.warn('[V002-1P-282] follow type layout failed', error) }
-    try { installAssignedFilter() } catch (error) { console.warn('[V002-1P-282] assigned filter failed', error) }
-  }
-
-  let timer = null
-  const scheduleApply = () => {
-    clearTimeout(timer)
-    timer = setTimeout(applyForE282, 120)
-  }
-
-  document.addEventListener('change', (event) => {
-    if (event.target?.id === 'for-e-assigned-completed-filter-select-282') applyAssignedCompletedFilter()
-  }, true)
-  document.addEventListener('click', scheduleApply, true)
-  document.addEventListener('input', scheduleApply, true)
-  window.addEventListener('load', applyForE282)
-  document.addEventListener('DOMContentLoaded', applyForE282)
-  new MutationObserver(scheduleApply).observe(document.documentElement, { childList: true, subtree: true })
-  setInterval(applyForE282, 1500)
-  applyForE282()
-})()
-// FOR-E V002-1P-282 END: direct render follow type and assigned filter
+/* FOR-e V002-1P-283｜direct source update: incident follow type, assigned tracking filter, meeting room occurrence date fix */
