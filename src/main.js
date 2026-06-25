@@ -5676,7 +5676,7 @@ function getScheduleTypeTitleParts(row = {}) {
       type: typeof getServiceReminderDisplayType === 'function'
         ? getServiceReminderDisplayType(row, row.__occurrence_date || row.__render_date || '')
         : (getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)),
-      title: getServiceReminderDisplayLines(row)[0] || title
+      title: getServiceReminderDisplayLines(row, row.__occurrence_date || row.__render_date || '')[0] || title
     }
   }
   return {
@@ -9446,6 +9446,7 @@ function getScheduleColorDefinitions() {
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
     { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
     { key: '轉出追蹤', label: '提醒事項｜轉出追蹤', defaultColor: '#FF8080' },
+    { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#FF8080' },
     { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
     { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF8080' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
@@ -9483,6 +9484,7 @@ function getScheduleColorSettings() {
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
       '轉出追蹤': '#FF8080',
+      '轉出提醒': '#FF8080',
       '住變資訊提供': '#FF8080',
       '驗證提醒': '#FF8080',
       '返台提醒': '#67C090',
@@ -15322,7 +15324,7 @@ function getSchedulesForStaffDate(staffId, dateKey) {
 }
 
 
-function getServiceReminderDisplayLines(row = {}) {
+function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row)
   const title = String(row.title || row.customer_name || type || '提醒事項').trim()
   if (type === '返台提醒') {
@@ -15362,8 +15364,10 @@ function getServiceReminderDisplayLines(row = {}) {
   }
   if (type === '轉出追蹤') {
     const info = parseTransferReminderInfo(row)
+    const status = getTransferReminderStatusForDate(row, occurrenceDate)
     return [
       title,
+      status === 'due-reminder' ? '轉出到期前10天提醒' : '',
       info.endDate ? `聘僱終止日：${info.endDate}` : '',
       info.dueDate ? `轉出到期日：${info.dueDate}` : ''
     ].filter(Boolean)
@@ -15386,13 +15390,17 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
     const info = parseVerifyReminderInfo(row)
     if (occurrenceDate && info.leaveDate && occurrenceDate === info.leaveDate) return '離境通知'
   }
+  if (type === '轉出追蹤') {
+    const transferStatus = getTransferReminderStatusForDate(row, occurrenceDate)
+    if (transferStatus === 'due-reminder') return '轉出提醒'
+  }
   return type
 }
 
 function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const occurrenceDateValue = occurrenceDate || row.__occurrence_date || row.__render_date || ''
   const type = getServiceReminderDisplayType(row, occurrenceDateValue)
-  const lines = getServiceReminderDisplayLines(row)
+  const lines = getServiceReminderDisplayLines(row, occurrenceDateValue)
   const isFactoryStation = isFactoryStationSchedule(row) || type === '駐廠'
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
@@ -17703,6 +17711,23 @@ function parseTransferReminderInfo(row = {}) {
   }
 }
 
+function getTransferDueReminderDate(row = {}, leadDays = 10) {
+  const dueDate = parseTransferReminderInfo(row).dueDate
+  if (!dueDate) return ''
+  const days = Math.abs(Number(leadDays) || 10)
+  return getDateKeyOffset(dueDate, -days) || ''
+}
+
+function getTransferReminderStatusForDate(row = {}, dateKey = '') {
+  if (!dateKey) return ''
+  const info = parseTransferReminderInfo(row)
+  const reminderDate = getTransferDueReminderDate(row, 10)
+  if (reminderDate && dateKey === reminderDate) return 'due-reminder'
+  if (info.dueDate && dateKey === info.dueDate) return 'due-date'
+  if (row.start_date && dateKey === row.start_date) return 'tracking-start'
+  return ''
+}
+
 function parseHousingReminderInfo(row = {}) {
   const rawTime = getReminderNoteValue(row, ['搬遷時間', '搬家時間'])
   const timeParts = parseCompactTimeParts(rawTime)
@@ -17773,7 +17798,8 @@ function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
   }
   if (type === '轉出追蹤') {
     const info = parseTransferReminderInfo(row)
-    const dates = [row.start_date, info.dueDate].filter(Boolean)
+    const reminderDate = getTransferDueReminderDate(row, 10)
+    const dates = [row.start_date, reminderDate, info.dueDate].filter(Boolean)
     return dates.includes(dateKey)
   }
   if (type === '住變資訊提供') {
