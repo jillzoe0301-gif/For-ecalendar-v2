@@ -19015,185 +19015,97 @@ button.login-birthday-card:focus-visible {
 }
 /* end V002-1P-278 follow type left inline overview meetingroom gray */
 
-/* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS START === */
-/* 我指派的事項追蹤：小型篩選列，不佔用標題下方大版面 */
-.for-e-assigned-track-header-host-279 {
-  position: relative !important;
-}
-
-.for-e-assigned-track-filterbar-279 {
-  box-sizing: border-box !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
-  margin-left: auto !important;
-  width: auto !important;
-  max-width: 100% !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-}
-
-.for-e-assigned-track-filter-label-279 {
-  color: #64748b !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  white-space: nowrap !important;
-}
-
-.for-e-assigned-track-filter-select-279 {
-  width: auto !important;
-  min-width: 132px !important;
-  height: 36px !important;
-  border-radius: 12px !important;
-  padding: 0 34px 0 12px !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  background-color: #fff !important;
-}
-
-.for-e-assigned-track-filter-hidden-279 {
-  display: none !important;
-}
-
-@media (max-width: 720px) {
-  .for-e-assigned-track-filterbar-279 {
-    margin-left: 0 !important;
-    justify-content: flex-start !important;
-    width: 100% !important;
-    margin-top: 8px !important;
-  }
-}
-
-/* 行程總覽：每週重複會議 / 會議室時間已過反灰，僅畫面顯示，不寫入待辦或追蹤 */
-.for-e-meeting-past-gray-279 {
-  background: #f1f3f5 !important;
-  border-color: #d6d9df !important;
-  color: #8a8f9a !important;
-  opacity: 0.58 !important;
-  filter: grayscale(0.75) !important;
-  box-shadow: none !important;
-}
-
-.for-e-meeting-past-gray-279 * {
-  color: #8a8f9a !important;
-  border-color: #d6d9df !important;
-  box-shadow: none !important;
-}
-
-.for-e-meeting-past-gray-279::after {
-  content: "已結束";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-width: 44px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  color: #8a8f9a;
-  font-size: 12px;
-  font-weight: 700;
-  margin-top: 6px;
-}
-/* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS END === */
-
-/* FOR-E V002-1P-281 START: precise follow type assigned filter */
-.for-e-follow-type-field-281 {
+/* FOR-E V002-1P-282 START: direct render follow type and assigned filter */
+.for-e-follow-type-field-282 {
   display: block !important;
   width: 100% !important;
-  max-width: 100% !important;
 }
-
-.for-e-follow-type-row-281 {
+.for-e-follow-type-row-282 {
   display: flex !important;
+  flex-direction: row !important;
   align-items: stretch !important;
   justify-content: flex-start !important;
   gap: 12px !important;
   width: 100% !important;
-  max-width: 560px !important;
-  margin-top: 8px !important;
-  flex-wrap: nowrap !important;
+  max-width: 520px !important;
+  margin: 8px 0 0 0 !important;
 }
-
-.for-e-follow-type-option-281 {
-  flex: 0 1 240px !important;
-  min-width: 190px !important;
-  max-width: 260px !important;
-  min-height: 46px !important;
-  display: flex !important;
+.for-e-follow-type-option-282 {
+  flex: 0 1 220px !important;
+  min-width: 180px !important;
+  max-width: 240px !important;
+  height: 48px !important;
+  display: inline-flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 8px !important;
-  text-align: left !important;
+  gap: 10px !important;
   padding: 10px 14px !important;
+  border: 1px solid #d6e0f2 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #17233d !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-align: left !important;
   box-sizing: border-box !important;
+  white-space: nowrap !important;
 }
-
-.for-e-follow-type-option-281 .for-e-follow-type-radio-281,
-.for-e-follow-type-option-281 input[type="radio"] {
+.for-e-follow-type-option-282 input[type="radio"],
+.for-e-follow-type-radio-282 {
   width: 18px !important;
   height: 18px !important;
   min-width: 18px !important;
   margin: 0 !important;
-  flex: 0 0 18px !important;
+  flex: 0 0 auto !important;
 }
-
-.for-e-follow-type-option-281 * {
-  text-align: left !important;
+.for-e-follow-type-text-282 {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  font-size: 15px !important;
 }
-
-.for-e-assigned-filter-host-281 {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  flex-wrap: wrap !important;
+.for-e-assigned-filter-host-282 {
+  position: relative !important;
 }
-
-.for-e-assigned-completed-filter-bar-281 {
+.for-e-assigned-completed-filter-bar-282 {
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: flex-start !important;
   gap: 8px !important;
-  width: auto !important;
-  margin-left: auto !important;
+  margin: 8px 0 10px 0 !important;
   padding: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
 }
-
-.for-e-assigned-completed-filter-label-281 {
+.for-e-assigned-completed-filter-label-282 {
   font-size: 13px !important;
   font-weight: 700 !important;
-  color: #334155 !important;
-  white-space: nowrap !important;
+  color: #5f6f89 !important;
+  margin: 0 !important;
 }
-
-.for-e-assigned-completed-filter-select-281 {
-  width: auto !important;
-  min-width: 132px !important;
-  height: 34px !important;
-  padding: 4px 28px 4px 10px !important;
-  border: 1px solid #cbd5e1 !important;
-  border-radius: 10px !important;
+.for-e-assigned-completed-filter-select-282 {
+  height: 36px !important;
+  min-width: 128px !important;
+  border: 1px solid #d6e0f2 !important;
+  border-radius: 12px !important;
   background: #fff !important;
+  color: #17233d !important;
   font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 0 12px !important;
 }
-
+[data-for-e-assigned-hidden-282] {
+  display: none !important;
+}
 @media (max-width: 640px) {
-  .for-e-follow-type-row-281 {
-    flex-wrap: wrap !important;
+  .for-e-follow-type-row-282 {
     gap: 8px !important;
+    max-width: 100% !important;
   }
-  .for-e-follow-type-option-281 {
-    flex: 1 1 calc(50% - 4px) !important;
-    min-width: 136px !important;
-  }
-  .for-e-assigned-completed-filter-bar-281 {
-    margin-left: 0 !important;
-    width: 100% !important;
+  .for-e-follow-type-option-282 {
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
+    padding: 9px 10px !important;
   }
 }
-/* FOR-E V002-1P-281 END: precise follow type assigned filter */
+/* FOR-E V002-1P-282 END: direct render follow type and assigned filter */

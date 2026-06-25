@@ -24747,467 +24747,216 @@ function renderServiceRecordDepartmentStatusV2(records) {
   window.setInterval(applyPatch, 1800)
 })()
 
-/* === FOR-e V002-1P-279 assigned filter meeting gray safe START === */
+// FOR-E V002-1P-282 START: direct render follow type and assigned filter
 (() => {
-  const PATCH_KEY = '__FOR_E_V002_1P_279_ASSIGNED_FILTER_MEETING_GRAY_SAFE__'
-  if (window[PATCH_KEY]) return
-  window[PATCH_KEY] = true
+  const VERSION = 'V002-1P-282'
+  if (window.__FOR_E_V002_1P_282_DIRECT_PATCH__) return
+  window.__FOR_E_V002_1P_282_DIRECT_PATCH__ = true
 
-  const FILTER_ID = 'for-e-assigned-track-completed-filter-279'
-  const FILTER_WRAP_ID = 'for-e-assigned-track-filterbar-279'
-  const STORAGE_KEY = 'forEAssignedTrackCompletedFilter279'
-
-  const normalizeText = (value) => String(value || '').replace(/\s+/g, ' ').trim()
-  const rawText = (el) => String(el?.textContent || '')
-  const textOf = (el) => normalizeText(el?.textContent || '')
-  const isVisible = (el) => {
-    if (!el || !el.isConnected) return false
-    const style = window.getComputedStyle(el)
-    if (style.display === 'none' || style.visibility === 'hidden') return false
+  const textOf = (el) => String(el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim()
+  const uniqueElements = (items) => Array.from(new Set(items.filter(Boolean)))
+  const isVisibleElement = (el) => {
+    if (!el || !(el instanceof Element)) return false
     const rect = el.getBoundingClientRect()
-    return rect.width > 0 && rect.height > 0
-  }
-
-  function currentDateKey() {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
-  function findPageHeading(keyword) {
-    return Array.from(document.querySelectorAll('h1, h2, h3, .page-title, .section-title, [class*="title"]'))
-      .find((el) => isVisible(el) && textOf(el).includes(keyword)) || null
-  }
-
-  function isAssignedTrackPage() {
-    return !!findPageHeading('我指派的事項追蹤')
-  }
-
-  function findAssignedTrackRoot() {
-    const heading = findPageHeading('我指派的事項追蹤')
-    if (!heading) return null
-    return heading.closest('main, .main, .content, .page, .panel, .card, section') || document.querySelector('main') || document.body
-  }
-
-  function installAssignedTrackFilter() {
-    const heading = findPageHeading('我指派的事項追蹤')
-    if (!heading) return
-
-    // 清掉舊版曾經插在標題下方、會撐大版面的完成狀態篩選。
-    Array.from(document.querySelectorAll('#for-e-assigned-completed-filter, .for-e-completed-filter-block, .for-e-assigned-completed-filter-block, #for-e-assigned-completed-filter-bar'))
-      .forEach((el) => el.remove())
-
-    let bar = document.getElementById(FILTER_WRAP_ID)
-    if (!bar) {
-      bar = document.createElement('div')
-      bar.id = FILTER_WRAP_ID
-      bar.className = 'for-e-assigned-track-filterbar-279'
-      bar.innerHTML = `
-        <label class="for-e-assigned-track-filter-label-279" for="${FILTER_ID}">完成狀態</label>
-        <select id="${FILTER_ID}" class="for-e-assigned-track-filter-select-279" aria-label="我指派的事項完成狀態篩選">
-          <option value="hide">隱藏已完成</option>
-          <option value="done">只看已完成</option>
-          <option value="all">顯示全部</option>
-        </select>
-      `
-
-      const header = heading.closest('.page-header, .section-header, .card-header, .panel-header, .toolbar, [class*="header"]') || heading.parentElement
-      if (header) {
-        header.classList.add('for-e-assigned-track-header-host-279')
-        header.appendChild(bar)
-      } else {
-        heading.insertAdjacentElement('afterend', bar)
-      }
-    }
-
-    const select = document.getElementById(FILTER_ID)
-    if (!select) return
-    select.value = localStorage.getItem(STORAGE_KEY) || 'hide'
-    if (!select.dataset.forEBound279) {
-      select.dataset.forEBound279 = '1'
-      select.addEventListener('change', () => {
-        localStorage.setItem(STORAGE_KEY, select.value)
-        applyAssignedTrackFilter()
-      })
-    }
-
-    applyAssignedTrackFilter()
-  }
-
-  function isCompletedText(text) {
-    const t = normalizeText(text)
-    if (/未完成|尚未完成|未處理|未結束/.test(t)) return false
-    return /已完成|完成|已結束|已處理|結案|完成日期/.test(t)
-  }
-
-  function candidateAssignedTrackCards(root) {
-    if (!root) return []
-    const selectors = [
-      '.task-card', '.todo-card', '.schedule-card', '.tracking-card', '.record-card', '.list-card', '.item-card', '.card',
-      '[class*="card"]', '[class*="item"]', '[class*="record"]', 'tbody tr'
-    ].join(',')
-    return Array.from(root.querySelectorAll(selectors))
-      .filter((el) => isVisible(el))
-      .filter((el) => !el.closest(`#${FILTER_WRAP_ID}`))
-      .filter((el) => !el.querySelector?.('h1, h2, h3'))
-      .filter((el) => {
-        const t = textOf(el)
-        if (!t || t.length < 6 || t.length > 1200) return false
-        if (t.includes('我指派的事項追蹤') && t.length < 120) return false
-        return /查看|修改|取消|已完成|未完成|指派|執行者|追蹤|待辦|事項|行程/.test(t)
-      })
-  }
-
-  function applyAssignedTrackFilter() {
-    if (!isAssignedTrackPage()) return
-    const mode = document.getElementById(FILTER_ID)?.value || localStorage.getItem(STORAGE_KEY) || 'hide'
-    const root = findAssignedTrackRoot()
-    candidateAssignedTrackCards(root).forEach((el) => {
-      const completed = isCompletedText(rawText(el))
-      const hide = (mode === 'hide' && completed) || (mode === 'done' && !completed)
-      el.classList.toggle('for-e-assigned-track-filter-hidden-279', hide)
-      if (hide) el.setAttribute('data-for-e-assigned-track-filter-hidden', '1')
-      else el.removeAttribute('data-for-e-assigned-track-filter-hidden')
-    })
-  }
-
-  function parseDateKey(text) {
-    const raw = String(text || '')
-    const now = new Date()
-    let m = raw.match(/(20\d{2})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/)
-    if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
-    m = raw.match(/(^|[^\d])(\d{1,2})[\/\-.](\d{1,2})(?!\d)/)
-    if (m) return `${now.getFullYear()}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
-    return ''
-  }
-
-  function getHeaderDateForCell(cell) {
-    if (!cell || typeof cell.cellIndex !== 'number') return ''
-    const table = cell.closest('table')
-    if (!table) return ''
-    const index = cell.cellIndex
-    const rows = Array.from(table.querySelectorAll('thead tr, tr')).slice(0, 6)
-    for (const row of rows) {
-      const header = row.children?.[index]
-      const key = parseDateKey(header?.textContent || '')
-      if (key) return key
-    }
-    return ''
-  }
-
-  function getCardDateKey(card) {
-    const dataNode = card.closest('[data-date], [data-day], [data-date-key], [data-render-date], [data-cell-date]')
-    const dataValue = dataNode?.dataset?.date || dataNode?.dataset?.day || dataNode?.dataset?.dateKey || dataNode?.dataset?.renderDate || dataNode?.dataset?.cellDate
-    let key = parseDateKey(dataValue || '')
-    if (key) return key
-
-    const cell = card.closest('td, th, .calendar-cell, .week-cell, .day-cell, [class*="cell"], [class*="day"]')
-    key = getHeaderDateForCell(cell)
-    if (key) return key
-
-    key = parseDateKey(cell?.textContent || '')
-    if (key) return key
-
-    key = parseDateKey(card.getAttribute('aria-label') || card.getAttribute('title') || '')
-    if (key) return key
-    return ''
-  }
-
-  function toMinutes(hour, minute, period) {
-    let h = Number(hour)
-    const min = Number(minute)
-    const p = String(period || '')
-    if (/下午|晚上|PM/i.test(p) && h < 12) h += 12
-    if (/上午|早上|AM/i.test(p) && h === 12) h = 0
-    return h * 60 + min
-  }
-
-  function parseEndMinutes(text) {
-    const raw = String(text || '').replace(/：/g, ':')
-    let m = raw.match(/(上午|下午|晚上|早上|AM|PM)?\s*(\d{1,2}):(\d{2})\s*(?:-|~|～|至|到)\s*(上午|下午|晚上|早上|AM|PM)?\s*(\d{1,2}):(\d{2})/i)
-    if (m) {
-      const sp = m[1] || ''
-      const ep = m[4] || sp
-      const start = toMinutes(m[2], m[3], sp)
-      let end = toMinutes(m[5], m[6], ep)
-      if (!m[4] && end < start && /下午|晚上|PM/i.test(sp)) end += 12 * 60
-      return end
-    }
-    m = raw.match(/(\d{1,2}):(\d{2})\s*(?:-|~|～|至|到)\s*(\d{1,2}):(\d{2})/)
-    if (m) return Number(m[3]) * 60 + Number(m[4])
-    return null
-  }
-
-  function currentMinutes() {
-    const d = new Date()
-    return d.getHours() * 60 + d.getMinutes()
-  }
-
-  function isMeetingOverviewCard(card) {
-    const text = textOf(card)
-    const cls = String(card.className || '')
-    if (/大會議室|小會議室|會議室|會議室預約|週會|會議/.test(text)) return true
-    if (/meeting|room/i.test(cls)) return true
-    return false
-  }
-
-  function isCalendarLikeCard(card) {
-    const text = textOf(card)
-    if (!text || text.length < 3 || text.length > 500) return false
-    if (card.closest('nav, aside, .sidebar, .menu')) return false
-    if (/匯出CSV|重新整理|新增行程|行程搜尋/.test(text) && text.length < 120) return false
-    return true
-  }
-
-  function markPastMeetingCards() {
-    const today = currentDateKey()
-    const cards = Array.from(document.querySelectorAll('.week-card, .schedule-card, .calendar-card, .meeting-room-card, [class*="schedule-card"], [class*="calendar-card"], [class*="week-card"]'))
-      .filter(isVisible)
-      .filter(isCalendarLikeCard)
-      .filter(isMeetingOverviewCard)
-
-    cards.forEach((card) => {
-      const dateKey = getCardDateKey(card)
-      const end = parseEndMinutes(rawText(card))
-      let past = false
-      if (dateKey) {
-        const cmp = String(dateKey).localeCompare(today)
-        if (cmp < 0) past = true
-        else if (cmp === 0 && end !== null && end <= currentMinutes()) past = true
-      }
-      card.classList.toggle('for-e-meeting-past-gray-279', past)
-      if (past) card.setAttribute('data-for-e-meeting-past-gray', '1')
-      else card.removeAttribute('data-for-e-meeting-past-gray')
-    })
-  }
-
-  let scheduled = false
-  function refresh279() {
-    if (scheduled) return
-    scheduled = true
-    window.requestAnimationFrame(() => {
-      scheduled = false
-      try { installAssignedTrackFilter() } catch (error) { console.warn('[V002-1P-279] assigned filter failed', error) }
-      try { markPastMeetingCards() } catch (error) { console.warn('[V002-1P-279] meeting gray failed', error) }
-    })
-  }
-
-  document.addEventListener('change', (event) => {
-    if (event.target?.id === FILTER_ID) applyAssignedTrackFilter()
-    refresh279()
-  }, true)
-  document.addEventListener('click', () => setTimeout(refresh279, 80), true)
-  window.addEventListener('resize', refresh279)
-  window.addEventListener('load', refresh279)
-  document.addEventListener('DOMContentLoaded', refresh279)
-
-  const observer = new MutationObserver(refresh279)
-  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'data-date', 'data-day', 'data-date-key'] })
-  setInterval(refresh279, 5000)
-  refresh279()
-})()
-/* === FOR-e V002-1P-279 assigned filter meeting gray safe END === */
-
-// FOR-E V002-1P-281 START: precise follow type assigned filter
-(() => {
-  const VERSION = 'V002-1P-281'
-  if (window.__FOR_E_V002_1P_281__) return
-  window.__FOR_E_V002_1P_281__ = true
-
-  const textOf = (node) => String(node?.innerText || node?.textContent || '').replace(/\s+/g, ' ').trim()
-  const isVisible = (node) => {
-    if (!node || !(node instanceof Element)) return false
-    const rect = node.getBoundingClientRect()
-    const style = window.getComputedStyle(node)
+    const style = window.getComputedStyle(el)
     return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
   }
-  const uniqueElements = (items) => [...new Set(items.filter(Boolean))]
 
-  let scheduled = false
-  const scheduleRefresh = () => {
-    if (scheduled) return
-    scheduled = true
-    window.requestAnimationFrame(() => {
-      scheduled = false
-      enhanceIncidentFollowTypeOptions()
-      ensureAssignedCompletedFilter()
-      applyAssignedCompletedFilter()
-    })
+  const commonAncestor = (elements) => {
+    const nodes = elements.filter(Boolean)
+    if (!nodes.length) return null
+    let ancestor = nodes[0]
+    while (ancestor && !nodes.every((node) => ancestor.contains(node))) ancestor = ancestor.parentElement
+    return ancestor
   }
 
   const optionTextForRadio = (radio) => {
     const label = radio.closest('label')
     if (label) return textOf(label)
-    const parent = radio.parentElement
-    return textOf(parent)
+    return textOf(radio.parentElement)
   }
 
-  const optionNodeForRadio = (radio) => {
-    const label = radio.closest('label')
-    if (label && /追蹤|單純紀錄/.test(textOf(label))) return label
-    let node = radio.parentElement
-    for (let i = 0; node && i < 5; i += 1, node = node.parentElement) {
-      const tx = textOf(node)
-      if (/追蹤|單純紀錄/.test(tx) && !/下一次追蹤類型|下次追蹤類型/.test(tx)) return node
+  const ensureRadioLabel = (radio, labelText) => {
+    let label = radio.closest('label')
+    if (!label) {
+      label = document.createElement('label')
+      radio.parentNode?.insertBefore(label, radio)
+      label.appendChild(radio)
     }
-    return radio.parentElement || radio
+    label.classList.add('for-e-follow-type-option-282')
+    radio.classList.add('for-e-follow-type-radio-282')
+
+    // Keep the real radio input, normalize visible label text so the two choices are clear and equal.
+    const radioNode = radio
+    Array.from(label.childNodes).forEach((node) => {
+      if (node !== radioNode) node.remove()
+    })
+    if (!label.contains(radioNode)) label.prepend(radioNode)
+    const text = document.createElement('span')
+    text.className = 'for-e-follow-type-text-282'
+    text.textContent = labelText
+    label.appendChild(text)
+    return label
   }
 
-  const followTypePanelForRadio = (radio) => {
-    let node = radio.parentElement
-    for (let i = 0; node && i < 9; i += 1, node = node.parentElement) {
-      const tx = textOf(node)
-      const radioCount = node.querySelectorAll?.('input[type="radio"]').length || 0
-      if (/下一次追蹤類型|下次追蹤類型/.test(tx) && /單純紀錄/.test(tx) && /追蹤/.test(tx) && radioCount >= 2) return node
+  const findFollowTypeGroup = () => {
+    const modals = Array.from(document.querySelectorAll('[role="dialog"], .modal, .dialog, .modal-content, .popup, .drawer, form, section, article, .card, .panel, div'))
+      .filter(isVisibleElement)
+      .filter((el) => {
+        const tx = textOf(el)
+        if (!/下一次追蹤類型|下次追蹤類型|追蹤類型|單純紀錄/.test(tx)) return false
+        const radios = el.querySelectorAll('input[type="radio"]')
+        return radios.length >= 2 && Array.from(radios).some((radio) => /單純紀錄/.test(optionTextForRadio(radio))) && Array.from(radios).some((radio) => /追蹤/.test(optionTextForRadio(radio)))
+      })
+      .sort((a, b) => textOf(a).length - textOf(b).length)
+
+    for (const modal of modals) {
+      const radios = Array.from(modal.querySelectorAll('input[type="radio"]'))
+      const followRadio = radios.find((radio) => /追蹤/.test(optionTextForRadio(radio)) && !/單純紀錄/.test(optionTextForRadio(radio)))
+      const recordRadio = radios.find((radio) => /單純紀錄/.test(optionTextForRadio(radio)))
+      if (followRadio && recordRadio) return { modal, followRadio, recordRadio }
     }
     return null
   }
 
-  function enhanceIncidentFollowTypeOptions() {
-    const radios = [...document.querySelectorAll('input[type="radio"]')]
-      .filter((radio) => isVisible(radio))
-      .filter((radio) => /追蹤|單純紀錄/.test(optionTextForRadio(radio)))
+  const fixFollowTypeLayout = () => {
+    const group = findFollowTypeGroup()
+    if (!group) return
+    const { modal, followRadio, recordRadio } = group
+    const followLabel = ensureRadioLabel(followRadio, '追蹤')
+    const recordLabel = ensureRadioLabel(recordRadio, '單純紀錄')
 
-    const panels = uniqueElements(radios.map(followTypePanelForRadio))
+    let field = commonAncestor([followLabel, recordLabel])
+    while (field?.parentElement && field !== modal) {
+      const tx = textOf(field)
+      if (/下一次追蹤類型|下次追蹤類型|追蹤類型/.test(tx)) break
+      field = field.parentElement
+    }
+    if (!field || field === document.body) field = commonAncestor([followLabel, recordLabel]) || modal
+    field.classList.add('for-e-follow-type-field-282')
 
-    panels.forEach((panel) => {
-      if (!panel || panel.dataset.forEFollowType281 === '1') return
-
-      const panelText = textOf(panel)
-      if (!/下一次追蹤類型|下次追蹤類型/.test(panelText) || !/單純紀錄/.test(panelText)) return
-
-      const panelRadios = [...panel.querySelectorAll('input[type="radio"]')]
-        .filter((radio) => /追蹤|單純紀錄/.test(optionTextForRadio(radio)))
-      const optionNodes = uniqueElements(panelRadios.map(optionNodeForRadio)).slice(0, 2)
-      if (optionNodes.length < 2) return
-
-      panel.dataset.forEFollowType281 = '1'
-      panel.classList.add('for-e-follow-type-field-281')
-
-      const row = document.createElement('div')
-      row.className = 'for-e-follow-type-row-281'
-
-      const firstOption = optionNodes[0]
-      firstOption.parentNode.insertBefore(row, firstOption)
-
-      optionNodes.forEach((option) => {
-        option.classList.add('for-e-follow-type-option-281')
-        const input = option.querySelector('input[type="radio"]')
-        if (input) input.classList.add('for-e-follow-type-radio-281')
-        row.appendChild(option)
-      })
-    })
+    let row = field.querySelector(':scope > .for-e-follow-type-row-282')
+    if (!row) {
+      row = document.createElement('div')
+      row.className = 'for-e-follow-type-row-282'
+      const titleLike = Array.from(field.children).find((child) => /下一次追蹤類型|下次追蹤類型|追蹤類型/.test(textOf(child)) && !child.contains(followRadio) && !child.contains(recordRadio))
+      if (titleLike?.nextSibling) field.insertBefore(row, titleLike.nextSibling)
+      else field.insertBefore(row, field.firstChild)
+    }
+    row.appendChild(followLabel)
+    row.appendChild(recordLabel)
   }
 
-  const findAssignedHeading = () => {
-    const candidates = [...document.querySelectorAll('h1,h2,h3,h4,.page-title,.section-title,.card-title,.panel-title,main *')]
-      .filter(isVisible)
-      .filter((el) => textOf(el).includes('我指派的事項追蹤'))
-    return candidates.sort((a, b) => textOf(a).length - textOf(b).length)[0] || null
-  }
-
-  const findAssignedPageRoot = () => {
-    const heading = findAssignedHeading()
+  const assignedRoot = () => {
+    const heading = Array.from(document.querySelectorAll('h1,h2,h3,h4,.page-title,.section-title,.card-title,strong,b,div,span'))
+      .filter(isVisibleElement)
+      .find((el) => textOf(el).includes('我指派的事項追蹤'))
     if (!heading) return null
-    let root = heading.closest('main, section, article, .content, .page, .panel, .card')
-    if (!root) {
-      root = heading.parentElement
-      for (let i = 0; root && i < 3; i += 1) {
-        if (textOf(root).length > 80) break
+    let root = heading
+    while (root.parentElement && root.parentElement !== document.body) {
+      const tx = textOf(root.parentElement)
+      if (tx.includes('我指派的事項追蹤') && (tx.includes('查看') || tx.includes('未完成') || tx.includes('已完成') || tx.length > 120)) {
         root = root.parentElement
+      } else {
+        break
       }
+      if (textOf(root).length > 8000) break
     }
-    return root || document.body
-  }
-
-  const assignedCardLike = (el) => {
-    if (!el || !(el instanceof Element)) return false
-    if (el.closest('#for-e-assigned-completed-filter-bar')) return false
-    if (!isVisible(el)) return false
-    const tx = textOf(el)
-    if (tx.length < 8 || tx.length > 1600) return false
-    if (/我指派的事項追蹤|完成狀態|隱藏已完成|只看已完成|顯示全部/.test(tx)) return false
-    return /已完成|未完成|已結束|查看|執行者|指派|待辦事項|一般記事|行程|任務/.test(tx)
-  }
-
-  const getAssignedCards = (root) => {
-    if (!root) return []
-    const selector = [
-      '.task-card', '.schedule-card', '.todo-card', '.item-card', '.field-result-card', '.record-card',
-      '.list-card', '.tracking-card', '.for-e-card', '[class*="card"]', '[class*="item"]', 'li'
-    ].join(',')
-    let cards = [...root.querySelectorAll(selector)].filter(assignedCardLike)
-
-    // 保留較外層的卡片，避免同一張卡內多個子節點一起被隱藏。
-    cards = cards.filter((card) => !cards.some((other) => other !== card && other.contains(card) && textOf(other).length <= textOf(card).length + 220))
-
-    // 如果卡片 class 抓不到，退回從狀態標籤往上找卡片。
-    if (!cards.length) {
-      const statusNodes = [...root.querySelectorAll('*')]
-        .filter(isVisible)
-        .filter((el) => /已完成|未完成|已結束/.test(textOf(el)))
-      cards = uniqueElements(statusNodes.map((node) => node.closest('.card,.task-card,.schedule-card,.item-card,li,div'))).filter(assignedCardLike)
-    }
-    return cards
+    return root
   }
 
   const isCompletedText = (tx) => /已完成|已結束/.test(tx) && !/未完成/.test(tx)
 
-  function applyAssignedCompletedFilter() {
-    const select = document.getElementById('for-e-assigned-completed-filter-select-281')
-    const root = findAssignedPageRoot()
-    if (!select || !root) return
-    const mode = select.value || 'hide'
-    const cards = getAssignedCards(root)
-    cards.forEach((card) => {
+  const assignedCards = (root) => {
+    if (!root) return []
+    const statusNodes = Array.from(root.querySelectorAll('*'))
+      .filter(isVisibleElement)
+      .filter((el) => {
+        const tx = textOf(el)
+        return /已完成|已結束|未完成|查看|取消/.test(tx) && !/完成狀態|隱藏已完成|只看已完成|顯示全部/.test(tx)
+      })
+    const cards = statusNodes.map((node) => node.closest('.schedule-card,.task-card,.item-card,.list-card,.field-result-card,.card,li,tr,[class*="card"],[class*="item"]') || node.parentElement)
+      .filter((el) => el && root.contains(el) && el !== root)
+      .filter((el) => !el.closest('#for-e-assigned-completed-filter-bar-282'))
+      .filter((el) => {
+        const tx = textOf(el)
+        if (!tx || tx.length < 8) return false
+        if (tx.includes('我指派的事項追蹤') || tx.includes('完成狀態')) return false
+        return /已完成|已結束|未完成|查看/.test(tx)
+      })
+    return uniqueElements(cards)
+  }
+
+  const applyAssignedCompletedFilter = () => {
+    const root = assignedRoot()
+    const select = document.getElementById('for-e-assigned-completed-filter-select-282')
+    if (!root || !select) return
+    const mode = select.value || localStorage.getItem('for-e-assigned-completed-filter-282') || 'hide-completed'
+    assignedCards(root).forEach((card) => {
       const completed = isCompletedText(textOf(card))
-      let show = true
-      if (mode === 'hide') show = !completed
-      if (mode === 'only') show = completed
-      if (mode === 'all') show = true
-      card.hidden = !show
-      card.style.display = show ? '' : 'none'
+      let hide = false
+      if (mode === 'hide-completed') hide = completed
+      if (mode === 'only-completed') hide = !completed
+      card.toggleAttribute('data-for-e-assigned-hidden-282', hide)
+      card.style.display = hide ? 'none' : ''
     })
   }
 
-  function ensureAssignedCompletedFilter() {
-    const heading = findAssignedHeading()
+  const installAssignedFilter = () => {
+    const root = assignedRoot()
+    if (!root) return
+    if (document.getElementById('for-e-assigned-completed-filter-bar-282')) {
+      applyAssignedCompletedFilter()
+      return
+    }
+    const heading = Array.from(root.querySelectorAll('h1,h2,h3,h4,.page-title,.section-title,strong,b,div,span'))
+      .find((el) => textOf(el).includes('我指派的事項追蹤'))
     if (!heading) return
 
-    let host = heading.closest('.page-header,.section-header,.toolbar,.card-header,.panel-header') || heading.parentElement
-    if (!host) return
+    const bar = document.createElement('div')
+    bar.id = 'for-e-assigned-completed-filter-bar-282'
+    bar.className = 'for-e-assigned-completed-filter-bar-282'
+    bar.innerHTML = `
+      <label class="for-e-assigned-completed-filter-label-282" for="for-e-assigned-completed-filter-select-282">完成狀態</label>
+      <select id="for-e-assigned-completed-filter-select-282" class="for-e-assigned-completed-filter-select-282">
+        <option value="hide-completed">隱藏已完成</option>
+        <option value="only-completed">只看已完成</option>
+        <option value="all">顯示全部</option>
+      </select>
+    `
+    const select = bar.querySelector('select')
+    select.value = localStorage.getItem('for-e-assigned-completed-filter-282') || 'hide-completed'
+    select.addEventListener('change', () => {
+      localStorage.setItem('for-e-assigned-completed-filter-282', select.value)
+      applyAssignedCompletedFilter()
+    })
 
-    host.classList.add('for-e-assigned-filter-host-281')
-    let bar = document.getElementById('for-e-assigned-completed-filter-bar')
-    if (!bar) {
-      bar = document.createElement('div')
-      bar.id = 'for-e-assigned-completed-filter-bar'
-      bar.className = 'for-e-assigned-completed-filter-bar-281'
-      bar.innerHTML = `
-        <label class="for-e-assigned-completed-filter-label-281" for="for-e-assigned-completed-filter-select-281">完成狀態</label>
-        <select id="for-e-assigned-completed-filter-select-281" class="for-e-assigned-completed-filter-select-281">
-          <option value="hide">隱藏已完成</option>
-          <option value="only">只看已完成</option>
-          <option value="all">顯示全部</option>
-        </select>
-      `
-      host.appendChild(bar)
-    } else if (!host.contains(bar)) {
-      host.appendChild(bar)
-    }
+    const host = heading.parentElement || heading
+    host.classList.add('for-e-assigned-filter-host-282')
+    host.appendChild(bar)
+    applyAssignedCompletedFilter()
+  }
+
+  const applyForE282 = () => {
+    try { fixFollowTypeLayout() } catch (error) { console.warn('[V002-1P-282] follow type layout failed', error) }
+    try { installAssignedFilter() } catch (error) { console.warn('[V002-1P-282] assigned filter failed', error) }
+  }
+
+  let timer = null
+  const scheduleApply = () => {
+    clearTimeout(timer)
+    timer = setTimeout(applyForE282, 120)
   }
 
   document.addEventListener('change', (event) => {
-    if (event.target?.id === 'for-e-assigned-completed-filter-select-281') applyAssignedCompletedFilter()
+    if (event.target?.id === 'for-e-assigned-completed-filter-select-282') applyAssignedCompletedFilter()
   }, true)
-
-  document.addEventListener('click', () => window.setTimeout(scheduleRefresh, 80), true)
-
-  const observer = new MutationObserver(scheduleRefresh)
-  observer.observe(document.body, { childList: true, subtree: true })
-
-  scheduleRefresh()
-  window.setTimeout(scheduleRefresh, 300)
-  window.setTimeout(scheduleRefresh, 900)
-  window.setTimeout(scheduleRefresh, 1600)
+  document.addEventListener('click', scheduleApply, true)
+  document.addEventListener('input', scheduleApply, true)
+  window.addEventListener('load', applyForE282)
+  document.addEventListener('DOMContentLoaded', applyForE282)
+  new MutationObserver(scheduleApply).observe(document.documentElement, { childList: true, subtree: true })
+  setInterval(applyForE282, 1500)
+  applyForE282()
 })()
-// FOR-E V002-1P-281 END: precise follow type assigned filter
+// FOR-E V002-1P-282 END: direct render follow type and assigned filter
