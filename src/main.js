@@ -4141,7 +4141,7 @@ function renderApp() {
       event.stopPropagation()
       const scheduleId = btn.dataset.deleteFieldDayReminder
       if (!scheduleId) return
-      openCancelModal(scheduleId)
+      openCancelModal(scheduleId, btn.dataset.occurrenceDate || btn.dataset.fieldDate || '')
     })
   })
 
@@ -13530,7 +13530,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
               ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
 
               ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-              ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+              ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
             </div>
           `
         }).join('')}
@@ -13588,7 +13588,7 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                     ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
 
                     ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-                    ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -13652,7 +13652,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                     ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
 
                     ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-                    ${dayRows.length ? dayRows.map(renderWeekScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+                    ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -13772,13 +13772,13 @@ function filterDailyCardsForDate(rows = [], dateKey = '') {
     if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return true
     return row.start_date === dateKey
-  }).map(row => {
-    if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-      return { ...row, __occurrence_date: dateKey }
-    }
-    return row
-  })
+  }).map(row => ({
+    ...row,
+    __occurrence_date: dateKey,
+    __render_date: dateKey
+  }))
 }
+
 
 function getContinuationRowsForDate(rows = [], dateKey = '') {
   return rows.filter(row => isContinuousDateSchedule(row) && row.start_date < dateKey && row.end_date >= dateKey)
@@ -15388,16 +15388,17 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   return type
 }
 
-function renderServiceReminderScheduleCard(row = {}) {
-  const occurrenceDate = row.__occurrence_date || row.__render_date || ''
-  const type = getServiceReminderDisplayType(row, occurrenceDate)
+function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
+  const occurrenceDateValue = occurrenceDate || row.__occurrence_date || row.__render_date || ''
+  const type = getServiceReminderDisplayType(row, occurrenceDateValue)
   const lines = getServiceReminderDisplayLines(row)
   const isFactoryStation = isFactoryStationSchedule(row) || type === '駐廠'
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
+  const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
         ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -15406,7 +15407,7 @@ function renderServiceReminderScheduleCard(row = {}) {
   }
 
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
@@ -15415,25 +15416,31 @@ function renderServiceReminderScheduleCard(row = {}) {
   `
 }
 
-function renderWeekScheduleCard(row) {
+
+function renderWeekScheduleCard(row, occurrenceDate = '') {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
-  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return renderServiceReminderScheduleCard(row)
-  const contentPreview = getFirstTwoLines(row.description)
-  const extra = getDisplaySubTypeExtra(row)
-  const isFactoryStation = isFactoryStationSchedule(row)
-  const weekOccurrenceDate = row.__occurrence_date || row.__render_date || row.start_date
-  const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, weekOccurrenceDate)) ? 'is-completed' : ''
+  const weekOccurrenceDate = occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date
+  const rowForOccurrence = weekOccurrenceDate
+    ? { ...row, __occurrence_date: weekOccurrenceDate, __render_date: weekOccurrenceDate }
+    : row
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(rowForOccurrence)) return renderServiceReminderScheduleCard(rowForOccurrence, weekOccurrenceDate)
+  const contentPreview = getFirstTwoLines(rowForOccurrence.description)
+  const extra = getDisplaySubTypeExtra(rowForOccurrence)
+  const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
+  const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(rowForOccurrence, weekOccurrenceDate)) ? 'is-completed' : ''
+  const staticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
   const occurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
   return `
-    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
-      ${isFactoryStation ? renderFactoryStationTime(row, 'week-card-time factory-station-time') : renderCardTime(row, 'week-card-time')}
-      ${isFactoryStation ? renderScheduleTypeTitleInline(row, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(row, 'week-card-type-line')}
+    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${staticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${occurrenceAttr}>
+      ${isFactoryStation ? renderFactoryStationTime(rowForOccurrence, 'week-card-time factory-station-time') : renderCardTime(rowForOccurrence, 'week-card-time')}
+      ${isFactoryStation ? renderScheduleTypeTitleInline(rowForOccurrence, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(rowForOccurrence, 'week-card-type-line')}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      ${shouldShowCreatorName(row) ? `<span class="week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
-      ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</span>` : ''}
+      ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
+      ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
     </button>
   `
 }
+
 
 
 function renderScheduleOverview() {
@@ -17371,7 +17378,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   if (cancelBtn) {
     cancelBtn.addEventListener('click', async () => {
       modal.remove()
-      openCancelModal(scheduleId)
+      openCancelModal(scheduleId, occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
     })
   }
 }
@@ -22561,9 +22568,10 @@ async function completeSchedule(scheduleId) {
   renderApp()
 }
 
-function openCancelModal(scheduleId) {
+function openCancelModal(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
+  const cancelOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -22578,6 +22586,8 @@ function openCancelModal(scheduleId) {
         <strong>防呆提醒</strong>
         <p>系統目前會以「取消行程」方式保留紀錄，不會直接硬刪資料。若取消主異況，會一併取消延伸追蹤行程與行政待辦。</p>
       </div>
+
+      ${isScheduleSeriesLike(row) ? `<div class="notice">目前選取日期：${escapeHtml(cancelOccurrenceDate)}</div>` : ''}
 
       <div class="radio-list">
         <label class="radio-row">
@@ -22657,14 +22667,101 @@ function openCancelModal(scheduleId) {
 
     const finalReason = `${scope}｜${reason}`
     modal.remove()
-    await cancelSchedule(scheduleId, finalReason)
+    await cancelSchedule(scheduleId, finalReason, { scope, occurrenceDate: cancelOccurrenceDate })
   })
 
   refreshDeleteAllBlock()
 }
 
-async function cancelSchedule(scheduleId, reason) {
+function getCancelScopeFromText(scopeText = '') {
+  const text = String(scopeText || '').trim()
+  if (text.includes('刪除全部')) return 'all'
+  if (text.includes('刪除之後')) return 'following'
+  return 'single'
+}
+
+async function copyScheduleAssigneesToNewSchedule(sourceRow = {}, newScheduleId = '') {
+  if (!sourceRow?.schedule_id || !newScheduleId) return { error: null }
+  const ids = getActiveAssigneeIds(sourceRow)
+  if (!ids.length) return { error: null }
+
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(sourceRow)) {
+    const reserverStaffId = getMeetingReserverStaffId(sourceRow)
+    const reserverStaff = staffList.find(staff => staff.staff_id === reserverStaffId) || staffList.find(staff => staff.staff_id === sourceRow.creator_staff_id) || {}
+    return syncMeetingAssigneesSafely(newScheduleId, ids, reserverStaff, { replaceExisting: true })
+  }
+
+  return syncScheduleAssigneesSafely(newScheduleId, ids, { replaceExisting: true })
+}
+
+async function cancelScopedScheduleOccurrence(row = {}, reason = '', options = {}) {
+  const scope = getCancelScopeFromText(options.scope || reason)
+  if (!row?.schedule_id || !isScheduleSeriesLike(row) || scope === 'all') return { handled: false }
+
+  const occurrenceDate = normalizeOccurrenceDateForSchedule(row, options.occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
+  const occurrenceDates = getScheduleOccurrenceDates(row)
+  if (!occurrenceDate || !occurrenceDates.includes(occurrenceDate)) return { handled: false }
+
+  const beforeDates = occurrenceDates.filter(dateKey => dateKey < occurrenceDate)
+  const afterDates = occurrenceDates.filter(dateKey => dateKey > occurrenceDate)
+
+  if (scope === 'single' && !beforeDates.length && !afterDates.length) return { handled: false }
+  if (scope === 'following' && !beforeDates.length) return { handled: false }
+
+  if (beforeDates.length) {
+    const { error } = await updateSchedulePayload(row.schedule_id, {
+      start_date: row.start_date,
+      end_date: beforeDates[beforeDates.length - 1],
+      sub_type_note: row.sub_type_note || null
+    })
+    if (error) return { handled: true, error }
+  } else if (scope === 'single' && afterDates.length) {
+    const { error } = await updateSchedulePayload(row.schedule_id, {
+      start_date: afterDates[0],
+      end_date: row.end_date || afterDates[afterDates.length - 1],
+      sub_type_note: row.sub_type_note || null
+    })
+    if (error) return { handled: true, error }
+  }
+
+  if (scope === 'single' && beforeDates.length && afterDates.length) {
+    const { schedule: afterSchedule, error: afterError } = await insertSchedulePayload(buildScheduleInsertPayload(row, {
+      start_date: afterDates[0],
+      end_date: row.end_date || afterDates[afterDates.length - 1],
+      status: row.status || '未完成',
+      sub_type_note: row.sub_type_note || null
+    }))
+    if (afterError) return { handled: true, error: afterError }
+    const { error: assigneeError } = await copyScheduleAssigneesToNewSchedule(row, afterSchedule?.schedule_id || '')
+    if (assigneeError) return { handled: true, error: assigneeError }
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '取消',
+    source_type: 'schedule',
+    source_id: row.schedule_id,
+    note: `V002-1P-284 scoped cancel｜範圍：${scope}｜日期：${occurrenceDate}｜${reason}`
+  })
+
+  return { handled: true }
+}
+
+async function cancelSchedule(scheduleId, reason, options = {}) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
+  const scopedCancel = await cancelScopedScheduleOccurrence(row, reason, options)
+  if (scopedCancel.handled) {
+    if (scopedCancel.error) {
+      alert('取消行程失敗：' + scopedCancel.error.message)
+    } else {
+      alert('已取消選取日期，其他週期行程不受影響。')
+    }
+    await refreshData()
+    renderApp()
+    return
+  }
   const cascadeTargets = [
     ...getIncidentCascadeCancelTargets(row),
     ...getReturnTaiwanCascadeCancelTargets(row)
