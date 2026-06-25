@@ -19099,3 +19099,143 @@ button.login-birthday-card:focus-visible {
   margin-top: 6px;
 }
 /* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS END === */
+
+/* FOR-E V002-1P-280 START: follow type assigned filter meeting gray fix */
+.for-e-assigned-completed-filter {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+.for-e-assigned-completed-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #333D6D !important;
+  margin: 0 !important;
+}
+
+.for-e-assigned-completed-filter-select {
+  min-width: 132px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+  border: 1px solid #d8deec !important;
+  background: #fff !important;
+  color: #333D6D !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 4px 28px 4px 10px !important;
+}
+
+.for-e-completed-filter-hidden {
+  display: none !important;
+}
+
+.for-e-follow-type-field {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: left !important;
+}
+
+.for-e-follow-type-options {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 6px 0 0 0 !important;
+  padding: 0 !important;
+  grid-template-columns: none !important;
+}
+
+.for-e-follow-type-option {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  flex: 0 0 168px !important;
+  width: 168px !important;
+  min-width: 168px !important;
+  max-width: 168px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border: 1px solid #d8deec !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #333D6D !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+.for-e-follow-type-option input,
+.for-e-follow-type-input {
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  margin: 0 !important;
+}
+
+.for-e-follow-type-text {
+  display: inline-block !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #333D6D !important;
+}
+
+.for-e-meeting-past-auto-gray,
+.week-card.for-e-meeting-past-auto-gray,
+.calendar-card.for-e-meeting-past-auto-gray,
+.schedule-card.for-e-meeting-past-auto-gray,
+.event-card.for-e-meeting-past-auto-gray,
+.meeting-card.for-e-meeting-past-auto-gray,
+.room-card.for-e-meeting-past-auto-gray,
+[data-for-e-meeting-past-auto-gray="1"] {
+  background: #f1f2f4 !important;
+  border-color: #d7d9de !important;
+  color: #8a8f99 !important;
+  opacity: 0.68 !important;
+  filter: grayscale(0.35) !important;
+}
+
+.for-e-meeting-past-auto-gray *,
+[data-for-e-meeting-past-auto-gray="1"] * {
+  color: #8a8f99 !important;
+}
+
+@media (max-width: 640px) {
+  .for-e-assigned-completed-filter {
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-content: flex-start !important;
+  }
+
+  .for-e-follow-type-options {
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .for-e-follow-type-option {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 8px 10px !important;
+  }
+}
+/* FOR-E V002-1P-280 END: follow type assigned filter meeting gray fix */
