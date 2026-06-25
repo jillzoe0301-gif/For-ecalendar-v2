@@ -19100,244 +19100,100 @@ button.login-birthday-card:focus-visible {
 }
 /* === FOR-e V002-1P-279 assigned filter meeting gray safe CSS END === */
 
-/* FOR-E V002-1P-280 START: follow type assigned filter meeting gray fix */
-.for-e-assigned-completed-filter {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 8px !important;
-  margin-left: auto !important;
-  width: auto !important;
-  max-width: 100% !important;
-  flex: 0 0 auto !important;
-  white-space: nowrap !important;
-}
-
-.for-e-assigned-completed-filter-label {
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  color: #333D6D !important;
-  margin: 0 !important;
-}
-
-.for-e-assigned-completed-filter-select {
-  min-width: 132px !important;
-  height: 34px !important;
-  border-radius: 10px !important;
-  border: 1px solid #d8deec !important;
-  background: #fff !important;
-  color: #333D6D !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  padding: 4px 28px 4px 10px !important;
-}
-
-.for-e-completed-filter-hidden {
-  display: none !important;
-}
-
-.for-e-follow-type-field {
+/* FOR-E V002-1P-281 START: precise follow type assigned filter */
+.for-e-follow-type-field-281 {
   display: block !important;
   width: 100% !important;
   max-width: 100% !important;
-  text-align: left !important;
 }
 
-.for-e-follow-type-options {
+.for-e-follow-type-row-281 {
   display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
+  align-items: stretch !important;
   justify-content: flex-start !important;
   gap: 12px !important;
-  width: auto !important;
-  max-width: 100% !important;
-  margin: 6px 0 0 0 !important;
-  padding: 0 !important;
-  grid-template-columns: none !important;
+  width: 100% !important;
+  max-width: 560px !important;
+  margin-top: 8px !important;
+  flex-wrap: nowrap !important;
 }
 
-.for-e-follow-type-option {
-  display: inline-flex !important;
+.for-e-follow-type-option-281 {
+  flex: 0 1 240px !important;
+  min-width: 190px !important;
+  max-width: 260px !important;
+  min-height: 46px !important;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
   justify-content: flex-start !important;
   gap: 8px !important;
-  flex: 0 0 168px !important;
-  width: 168px !important;
-  min-width: 168px !important;
-  max-width: 168px !important;
-  height: 40px !important;
-  min-height: 40px !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 8px 12px !important;
-  border: 1px solid #d8deec !important;
-  border-radius: 12px !important;
-  background: #fff !important;
-  color: #333D6D !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  line-height: 1.2 !important;
-  white-space: nowrap !important;
-}
-
-.for-e-follow-type-option input,
-.for-e-follow-type-input {
-  flex: 0 0 auto !important;
-  width: 16px !important;
-  height: 16px !important;
-  min-width: 16px !important;
-  min-height: 16px !important;
-  margin: 0 !important;
-}
-
-.for-e-follow-type-text {
-  display: inline-block !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  line-height: 1.2 !important;
-  color: #333D6D !important;
-}
-
-.for-e-meeting-past-auto-gray,
-.week-card.for-e-meeting-past-auto-gray,
-.calendar-card.for-e-meeting-past-auto-gray,
-.schedule-card.for-e-meeting-past-auto-gray,
-.event-card.for-e-meeting-past-auto-gray,
-.meeting-card.for-e-meeting-past-auto-gray,
-.room-card.for-e-meeting-past-auto-gray,
-[data-for-e-meeting-past-auto-gray="1"] {
-  background: #f1f2f4 !important;
-  border-color: #d7d9de !important;
-  color: #8a8f99 !important;
-  opacity: 0.68 !important;
-  filter: grayscale(0.35) !important;
-}
-
-.for-e-meeting-past-auto-gray *,
-[data-for-e-meeting-past-auto-gray="1"] * {
-  color: #8a8f99 !important;
-}
-
-@media (max-width: 640px) {
-  .for-e-assigned-completed-filter {
-    width: 100% !important;
-    margin-left: 0 !important;
-    justify-content: flex-start !important;
-  }
-
-  .for-e-follow-type-options {
-    gap: 8px !important;
-    width: 100% !important;
-  }
-
-  .for-e-follow-type-option {
-    flex: 1 1 0 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    padding: 8px 10px !important;
-  }
-}
-/* FOR-E V002-1P-280 END: follow type assigned filter meeting gray fix */
-
-/* FOR-E v002-1p-280-2 START: precise follow type assigned filter */
-.for-e-follow-type-inline-panel .for-e-follow-type-options-row {
-  display: flex !important;
-  flex-direction: row !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-  gap: 12px !important;
-  width: 100% !important;
-  max-width: 520px !important;
-  margin: 8px 0 0 !important;
-}
-
-.for-e-follow-type-inline-panel .for-e-follow-type-option {
-  flex: 0 1 240px !important;
-  min-width: 190px !important;
-  max-width: 240px !important;
-  min-height: 48px !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 10px !important;
-  box-sizing: border-box !important;
-  padding: 10px 14px !important;
   text-align: left !important;
-  white-space: normal !important;
+  padding: 10px 14px !important;
+  box-sizing: border-box !important;
 }
 
-.for-e-follow-type-inline-panel .for-e-follow-type-input,
-.for-e-follow-type-inline-panel .for-e-follow-type-option input[type='radio'] {
-  flex: 0 0 auto !important;
+.for-e-follow-type-option-281 .for-e-follow-type-radio-281,
+.for-e-follow-type-option-281 input[type="radio"] {
   width: 18px !important;
   height: 18px !important;
+  min-width: 18px !important;
   margin: 0 !important;
+  flex: 0 0 18px !important;
 }
 
-.for-e-follow-type-inline-panel .for-e-follow-type-option * {
+.for-e-follow-type-option-281 * {
   text-align: left !important;
 }
 
-.for-e-assigned-filter-host {
+.for-e-assigned-filter-host-281 {
   display: flex !important;
   align-items: center !important;
-  justify-content: space-between !important;
   gap: 12px !important;
   flex-wrap: wrap !important;
 }
 
-.for-e-assigned-completed-filter-bar {
+.for-e-assigned-completed-filter-bar-281 {
   display: inline-flex !important;
   align-items: center !important;
-  justify-content: flex-start !important;
   gap: 8px !important;
+  width: auto !important;
   margin-left: auto !important;
   padding: 0 !important;
-  width: auto !important;
-  max-width: 100% !important;
+  background: transparent !important;
+  border: 0 !important;
 }
 
-.for-e-assigned-completed-filter-label {
+.for-e-assigned-completed-filter-label-281 {
   font-size: 13px !important;
   font-weight: 700 !important;
   color: #334155 !important;
   white-space: nowrap !important;
 }
 
-.for-e-assigned-completed-filter-select {
+.for-e-assigned-completed-filter-select-281 {
+  width: auto !important;
   min-width: 132px !important;
-  max-width: 180px !important;
   height: 34px !important;
-  border-radius: 10px !important;
+  padding: 4px 28px 4px 10px !important;
   border: 1px solid #cbd5e1 !important;
+  border-radius: 10px !important;
   background: #fff !important;
-  color: #0f172a !important;
   font-size: 13px !important;
-  font-weight: 700 !important;
-  padding: 4px 10px !important;
-}
-
-.for-e-completed-filter-hidden {
-  display: none !important;
 }
 
 @media (max-width: 640px) {
-  .for-e-follow-type-inline-panel .for-e-follow-type-options-row {
-    max-width: 100% !important;
+  .for-e-follow-type-row-281 {
+    flex-wrap: wrap !important;
     gap: 8px !important;
   }
-
-  .for-e-follow-type-inline-panel .for-e-follow-type-option {
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    padding: 10px 10px !important;
+  .for-e-follow-type-option-281 {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 136px !important;
   }
-
-  .for-e-assigned-completed-filter-bar {
+  .for-e-assigned-completed-filter-bar-281 {
     margin-left: 0 !important;
+    width: 100% !important;
   }
 }
-/* FOR-E v002-1p-280-2 END: precise follow type assigned filter */
+/* FOR-E V002-1P-281 END: precise follow type assigned filter */
