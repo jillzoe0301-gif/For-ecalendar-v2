@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-296'
-const SYSTEM_VERSION_NOTE = 'LINE 通知搜尋位置、版本提示與公告 ICON 更換'
+const SYSTEM_VERSION = 'V002-1P-297'
+const SYSTEM_VERSION_NOTE = '個人顏色設定、提醒天數設定、LINE 日期搜尋與住變資訊提醒調整'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -277,6 +277,11 @@ const carOptions = [
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const administrativeTaskTypeOptions = ['補件', '送件異常', '逃跑通知', '離境驗證', '轉出', '其他']
+const notificationTypeOptions = ['今日行程', '任務逾期', '待確認 / 待通知', '尚未到期的待辦或行程', '外務行程', '今日外務', '今日會議室', '逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供', '全部通知']
+const companyActivityTypeOptions = ['公司活動', '尾牙', '聚餐', '教育訓練', '其他']
+const departmentActivityTypeOptions = ['部門活動', '部門會議', '部門教育訓練', '部門聚餐', '其他']
+const serviceRecordStatusOptions = ['未繳交', '已繳交', '超過14天未繳交']
+const housingInfoReminderOptions = ['住變資訊提供']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
 const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
 const incidentTypeOptions = ['逃跑', '轉出', '車禍', '醫療異況', '雇主反映', '工人反映', '宿舍異況', '文件異常', '其他']
@@ -622,6 +627,7 @@ let lineNotifyState = {
   selectedIds: [],
   targetKeyword: '',
   keyword: '',
+  dateMode: 'single',
   startDate: '',
   endDate: ''
 }
@@ -734,7 +740,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options', 'global_announcement']
+const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement']
 
 function readLocalJsonSetting(key) {
   try {
@@ -794,11 +800,9 @@ async function loadAppSettings() {
     normalizeSettingValue(row.setting_value)
   ]))
 
-  const localColors = readLocalJsonSetting(scheduleColorStorageKey)
-  if (!appSettings.schedule_colors && Object.keys(localColors).length) {
-    appSettings.schedule_colors = localColors
-    saveAppSetting('schedule_colors', localColors)
-  }
+  // 顏色設定自 V002-1P-297 起改為登入者個人設定，不再寫入全系統共用值。
+  const localColors = readLocalJsonSetting(getPersonalScheduleColorStorageKey())
+  if (Object.keys(localColors).length) appSettings.schedule_colors = localColors
 
   const localFieldStaff = readLocalJsonSetting(fieldStaffSettingsStorageKey)
   if (!appSettings.field_staff_settings && Object.keys(localFieldStaff).length) {
@@ -3841,6 +3845,12 @@ function renderApp() {
         serviceDocumentOptions: parseOptionLines(form.get('serviceDocumentOptions')),
         deliveryDocumentItems: parseOptionLines(form.get('deliveryDocumentItems')),
         administrativeTaskTypeOptions: parseOptionLines(form.get('administrativeTaskTypeOptions')),
+        notificationTypeOptions: parseOptionLines(form.get('notificationTypeOptions')),
+        companyActivityTypeOptions: parseOptionLines(form.get('companyActivityTypeOptions')),
+        departmentActivityTypeOptions: parseOptionLines(form.get('departmentActivityTypeOptions')),
+        serviceRecordStatusOptions: parseOptionLines(form.get('serviceRecordStatusOptions')),
+        housingInfoReminderOptions: parseOptionLines(form.get('housingInfoReminderOptions')),
+        reminderDaySettings: parseReminderDaySettingsForm(form),
         carOptions: parseOptionLines(form.get('carOptions')),
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
         fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
@@ -3848,6 +3858,11 @@ function renderApp() {
         incidentUrgencyOptions: parseOptionLines(form.get('incidentUrgencyOptions')),
         meetingRoomOptions: parseOptionLines(form.get('meetingRoomOptions')),
         fieldLocationOptions: parseLocationLines(form.get('fieldLocationOptions'))
+      }
+
+      if ((nextOptions.reminderDaySettings || []).some(item => Number(item.days) < 0)) {
+        alert('提醒天數不可小於 0')
+        return
       }
 
       await saveManagedOptions(nextOptions)
@@ -9135,6 +9150,95 @@ function parseOptionLines(value) {
     .filter(Boolean))]
 }
 
+const defaultReminderDaySettings = [
+  { key: 'returnReminder', enabled: true, name: '返台提醒', timingLabel: '返台前', days: 3, displayType: '返台提醒', includeLine: true },
+  { key: 'returnConfirm', enabled: true, name: '返台確認', timingLabel: '返台前 / 當天', days: 0, displayType: '返台確認', includeLine: true },
+  { key: 'transferDueBefore', enabled: true, name: '轉出到期前提醒', timingLabel: '轉出到期前', days: 10, displayType: '轉出到期前提醒', includeLine: true },
+  { key: 'transferLastDay', enabled: true, name: '轉出到期最後一天', timingLabel: '到期當天', days: 0, displayType: '轉出到期最後一天', includeLine: true },
+  { key: 'runawayDay1', enabled: true, name: '逃跑第一天通知', timingLabel: '逃跑第', days: 1, displayType: '逃跑第一天通知', includeLine: true },
+  { key: 'runawayDay2', enabled: true, name: '逃跑第二天通知', timingLabel: '逃跑第', days: 2, displayType: '逃跑第二天通知', includeLine: true },
+  { key: 'runawayDay3', enabled: true, name: '逃跑第三天通知', timingLabel: '逃跑第', days: 3, displayType: '逃跑第三天通知', includeLine: true },
+  { key: 'housingInfoAfterMove', enabled: true, name: '住變資訊提供', timingLabel: '搬遷日後', days: 6, displayType: '住變資訊提供', includeLine: true },
+  { key: 'serviceRecordUnsubmitted', enabled: true, name: '服務紀錄單未繳交提醒', timingLabel: '行程後', days: 0, displayType: '紀錄單未繳交', includeLine: false },
+  { key: 'serviceRecordOver14Days', enabled: true, name: '超過 14 天未繳交提醒', timingLabel: '行程後', days: 14, displayType: '超過14天未繳交', includeLine: false },
+  { key: 'administrativeReminder', enabled: true, name: '行政事務提醒', timingLabel: '指定日前', days: 0, displayType: '行政事務提醒', includeLine: false }
+]
+
+function getReminderDaySettings() {
+  const configured = Array.isArray(getManagedOptions().reminderDaySettings) ? getManagedOptions().reminderDaySettings : []
+  const configuredMap = Object.fromEntries(configured.map(item => [item.key, item]))
+  return defaultReminderDaySettings.map(defaultItem => ({
+    ...defaultItem,
+    ...(configuredMap[defaultItem.key] || {}),
+    enabled: configuredMap[defaultItem.key]?.enabled !== false,
+    days: Math.max(0, Number(configuredMap[defaultItem.key]?.days ?? defaultItem.days) || 0),
+    includeLine: configuredMap[defaultItem.key]?.includeLine !== false && defaultItem.includeLine !== false
+  }))
+}
+
+function getReminderSetting(key = '') {
+  return getReminderDaySettings().find(item => item.key === key) || defaultReminderDaySettings.find(item => item.key === key) || null
+}
+
+function isReminderSettingEnabled(key = '') {
+  return getReminderSetting(key)?.enabled !== false
+}
+
+function getReminderSettingDays(key = '', fallback = 0) {
+  const setting = getReminderSetting(key)
+  const days = Number(setting?.days ?? fallback)
+  return Math.max(0, Number.isFinite(days) ? days : Number(fallback) || 0)
+}
+
+function parseReminderDaySettingsForm(form) {
+  return defaultReminderDaySettings.map(defaultItem => {
+    const key = defaultItem.key
+    const rawDays = Number(form.get(`reminder_days_${key}`) ?? defaultItem.days)
+    return {
+      key,
+      enabled: form.get(`reminder_enabled_${key}`) === 'on',
+      name: String(form.get(`reminder_name_${key}`) || defaultItem.name).trim() || defaultItem.name,
+      timingLabel: defaultItem.timingLabel,
+      days: Number.isFinite(rawDays) ? rawDays : defaultItem.days,
+      displayType: String(form.get(`reminder_display_${key}`) || defaultItem.displayType).trim() || defaultItem.displayType,
+      includeLine: form.get(`reminder_line_${key}`) === 'on'
+    }
+  })
+}
+
+function renderReminderDaySettingsEditor(canEdit = false) {
+  const rows = getReminderDaySettings()
+  return `
+    <section class="option-group-card reminder-setting-card">
+      <div class="option-group-head">
+        <h4>提醒天數設定</h4>
+        <p>管理所有幾天前 / 幾天後提醒；預設值維持現行規則，提醒天數不可小於 0。</p>
+      </div>
+      <div class="reminder-setting-table">
+        <div class="reminder-setting-header">
+          <span>啟用</span>
+          <span>提醒名稱</span>
+          <span>計算基準</span>
+          <span>天數</span>
+          <span>顯示樣式 / 類型</span>
+          <span>LINE</span>
+        </div>
+        ${rows.map(item => `
+          <div class="reminder-setting-row">
+            <label class="reminder-setting-check"><input type="checkbox" name="reminder_enabled_${escapeHtml(item.key)}" ${item.enabled !== false ? 'checked' : ''} ${canEdit ? '' : 'disabled'}><span>啟用</span></label>
+            <input name="reminder_name_${escapeHtml(item.key)}" value="${escapeHtml(item.name)}" ${canEdit ? '' : 'readonly'}>
+            <span class="reminder-setting-base">${escapeHtml(item.timingLabel)}</span>
+            <input type="number" min="0" step="1" name="reminder_days_${escapeHtml(item.key)}" value="${escapeHtml(item.days)}" ${canEdit ? '' : 'readonly'}>
+            <input name="reminder_display_${escapeHtml(item.key)}" value="${escapeHtml(item.displayType)}" ${canEdit ? '' : 'readonly'}>
+            <label class="reminder-setting-check"><input type="checkbox" name="reminder_line_${escapeHtml(item.key)}" ${item.includeLine !== false ? 'checked' : ''} ${canEdit ? '' : 'disabled'}><span>納入</span></label>
+          </div>
+        `).join('')}
+      </div>
+      <p class="field-hint">住變資訊提供預設為搬遷日後 6 天提醒；若沒有搬遷日或日期格式錯誤，不會產生提醒。</p>
+    </section>
+  `
+}
+
 function parseLocationLines(value) {
   return String(value || '')
     .split(/\n+/)
@@ -9508,6 +9612,11 @@ function renderOptionsPage() {
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
           ${optionTextarea('通知行政辦理項目', 'administrativeTaskTypeOptions', optionLinesValue('administrativeTaskTypeOptions', administrativeTaskTypeOptions), '異況與外務通知行政時使用，每行一個', '例如：補件')}
+          ${optionTextarea('通知類型', 'notificationTypeOptions', optionLinesValue('notificationTypeOptions', notificationTypeOptions), 'LINE 通知與提醒類型管理，每行一個', '例如：住變資訊提供')}
+          ${optionTextarea('公司活動類型', 'companyActivityTypeOptions', optionLinesValue('companyActivityTypeOptions', companyActivityTypeOptions), '公司活動下拉與顏色對應項目，每行一個', '例如：尾牙')}
+          ${optionTextarea('部門活動類型', 'departmentActivityTypeOptions', optionLinesValue('departmentActivityTypeOptions', departmentActivityTypeOptions), '部門活動下拉與顏色對應項目，每行一個', '例如：部門會議')}
+          ${optionTextarea('服務紀錄單狀態選項', 'serviceRecordStatusOptions', optionLinesValue('serviceRecordStatusOptions', serviceRecordStatusOptions), '服務紀錄單顯示狀態，每行一個；歷史資料使用過的值建議改為停用註記，不直接刪除', '例如：未繳交')}
+          ${optionTextarea('住變資訊提供', 'housingInfoReminderOptions', optionLinesValue('housingInfoReminderOptions', housingInfoReminderOptions), '住變資訊提供提醒相關選項，每行一個', '例如：住變資訊提供')}
           ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
         </div>
       </section>
@@ -9527,8 +9636,10 @@ function renderOptionsPage() {
         </div>
       </section>
 
+      ${renderReminderDaySettingsEditor(canEdit)}
+
       <div class="option-form-actions">
-        <div class="option-action-tip">修改完直接按「儲存變更」即可生效。</div>
+        <div class="option-action-tip">修改完直接按「儲存變更」即可生效；歷史資料已使用的選項若需移除，建議改名為「停用-原名稱」。</div>
         <button type="submit" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存變更</button>
       </div>
     </form>
@@ -9553,12 +9664,15 @@ function getScheduleColorDefinitions() {
   return [
     { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
     { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#C7C8CC' },
-    { key: '待辦事項', label: '待辦事項/一般記事', defaultColor: '#F7DD7D' },
+    { key: '一般記事', label: '一般記事', defaultColor: '#F5E6A6' },
+    { key: '待辦事項', label: '待辦事項', defaultColor: '#F7DD7D' },
     { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
     { key: '活動', label: '活動', defaultColor: '#FF937E' },
+    { key: '公司活動', label: '公司活動', defaultColor: '#FFB3A7' },
+    { key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
     { key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
     { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
@@ -9569,13 +9683,20 @@ function getScheduleColorDefinitions() {
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
     { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
-    { key: '轉出追蹤', label: '提醒事項｜轉出最後一天', defaultColor: '#C70039' },
+    { key: '逃跑第一天通知', label: '提醒事項｜逃跑第一天通知', defaultColor: '#FF8080' },
+    { key: '逃跑第二天通知', label: '提醒事項｜逃跑第二天通知', defaultColor: '#FF9A9A' },
+    { key: '逃跑第三天通知', label: '提醒事項｜逃跑第三天通知', defaultColor: '#FFB2B2' },
+    { key: '轉出追蹤', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
     { key: '轉出到期前提醒', label: '提醒事項｜轉出到期前提醒', defaultColor: '#F7D6DF' },
+    { key: '轉出到期最後一天', label: '提醒事項｜轉出到期最後一天', defaultColor: '#C70039' },
     { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
     { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
     { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF8080' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
+    { key: '返台確認', label: '提醒事項｜返台確認', defaultColor: '#4FB477' },
     { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
+    { key: '服務紀錄單未繳交提醒', label: '服務紀錄單｜未繳交提醒', defaultColor: '#EF4444' },
+    { key: '超過14天未繳交提醒', label: '服務紀錄單｜超過 14 天未繳交', defaultColor: '#B91C1C' },
     { key: 'TalkTalk', label: '請假 / 會議 / 活動 / 外訓｜TalkTalk', defaultColor: '#5E7AC4' },
     { key: '產文件', label: '待辦項目｜產文件', defaultColor: '#F7DD7D' },
     { key: '用印申請', label: '待辦項目｜用印申請', defaultColor: '#F7DD7D' },
@@ -9587,20 +9708,30 @@ function getScheduleColorDefinitions() {
     { key: '外務日提示文字色', label: '外務日提示文字色', defaultColor: '#9A3412' }
   ]
 }
-
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1P-156'
+const scheduleColorPaletteVersion = 'V002-1P-297'
+
+function getPersonalScheduleColorStorageKey() {
+  const ownerKey = getPersonalSettingOwnerKey()
+  return ownerKey ? `${scheduleColorStorageKey}:${ownerKey}` : scheduleColorStorageKey
+}
+
+function getPersonalScheduleColorPaletteVersionKey() {
+  const ownerKey = getPersonalSettingOwnerKey()
+  return ownerKey ? `${scheduleColorPaletteVersionKey}:${ownerKey}` : scheduleColorPaletteVersionKey
+}
 
 function getScheduleColorSettings() {
   try {
-    const localSaved = readLocalJsonSetting(scheduleColorStorageKey)
-    const remoteSaved = hasSharedSetting('schedule_colors')
-      ? normalizeSettingValue(appSettings.schedule_colors)
-      : null
+    const personalKey = getPersonalScheduleColorStorageKey()
+    const personalPaletteKey = getPersonalScheduleColorPaletteVersionKey()
+    const personalSaved = readLocalJsonSetting(personalKey)
+    const legacyLocalSaved = readLocalJsonSetting(scheduleColorStorageKey)
+    const defaults = getDefaultScheduleColorMap()
+    const saved = Object.keys(personalSaved).length ? personalSaved : (Object.keys(legacyLocalSaved).length ? legacyLocalSaved : {})
 
-    const saved = remoteSaved || localSaved || {}
     delete saved['請假 / 會議 / 活動 / 外訓']
-    delete saved['一般記事']
+    if (!saved['一般記事']) saved['一般記事'] = '#F5E6A6'
     if (!saved['行政事務提醒'] || String(saved['行政事務提醒']).toUpperCase() === '#8CA9FF') saved['行政事務提醒'] = '#C5D89D'
     if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
@@ -9608,12 +9739,17 @@ function getScheduleColorSettings() {
 
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
+      '逃跑第一天通知': '#FF8080',
+      '逃跑第二天通知': '#FF9A9A',
+      '逃跑第三天通知': '#FFB2B2',
       '轉出追蹤': '#C70039',
       '轉出到期前提醒': '#F7D6DF',
+      '轉出到期最後一天': '#C70039',
       '轉出提醒': '#C70039',
       '住變資訊提供': '#FF8080',
       '驗證提醒': '#FF8080',
       '返台提醒': '#67C090',
+      '返台確認': '#4FB477',
       '電表提醒': '#BBD5DA'
     }
     const legacyServiceReminderColors = new Set(['#F4A261', '#9ED3DC', '#B8E0D2', '#F7DD7D'])
@@ -9621,22 +9757,23 @@ function getScheduleColorSettings() {
       const current = String(saved[key] || '').toUpperCase()
       if (!saved[key] || legacyServiceReminderColors.has(current)) saved[key] = color
     })
+    if (!saved['公司活動']) saved['公司活動'] = '#FFB3A7'
+    if (!saved['部門活動']) saved['部門活動'] = '#FFA8C5'
+    if (!saved['服務紀錄單未繳交提醒']) saved['服務紀錄單未繳交提醒'] = '#EF4444'
+    if (!saved['超過14天未繳交提醒']) saved['超過14天未繳交提醒'] = '#B91C1C'
     if (!saved['TalkTalk']) saved['TalkTalk'] = saved['會議'] || '#5E7AC4'
     if (!saved['產文件']) saved['產文件'] = saved['待辦事項'] || '#F7DD7D'
     if (!saved['用印申請']) saved['用印申請'] = saved['待辦事項'] || '#F7DD7D'
 
-    const defaults = getDefaultScheduleColorMap()
-    const currentPaletteVersion = localStorage.getItem(scheduleColorPaletteVersionKey)
+    const currentPaletteVersion = localStorage.getItem(personalPaletteKey)
 
     if (currentPaletteVersion !== scheduleColorPaletteVersion) {
       Object.entries(defaults).forEach(([key, color]) => {
-        saved[key] = color
+        if (!saved[key]) saved[key] = color
       })
 
-      localStorage.setItem(scheduleColorStorageKey, JSON.stringify(saved))
-      localStorage.setItem(scheduleColorPaletteVersionKey, scheduleColorPaletteVersion)
-
-      if (remoteSaved) saveAppSetting('schedule_colors', saved)
+      localStorage.setItem(personalKey, JSON.stringify(saved))
+      localStorage.setItem(personalPaletteKey, scheduleColorPaletteVersion)
     }
 
     return {
@@ -9648,7 +9785,6 @@ function getScheduleColorSettings() {
     return getDefaultScheduleColorMap()
   }
 }
-
 function getNamedColorSetting(key, fallback = '#ffffff') {
   const settings = getScheduleColorSettings()
   return normalizeManualColorCode(settings[key], fallback) || fallback
@@ -9671,15 +9807,17 @@ function getFieldDayPromptColorStyleAttr() {
 function saveScheduleColorSettings(value) {
   const nextSettings = normalizeSettingValue(value)
   appSettings.schedule_colors = nextSettings
-  localStorage.setItem(scheduleColorStorageKey, JSON.stringify(nextSettings))
-  return saveAppSetting('schedule_colors', nextSettings)
+  localStorage.setItem(getPersonalScheduleColorStorageKey(), JSON.stringify(nextSettings))
+  localStorage.setItem(getPersonalScheduleColorPaletteVersionKey(), scheduleColorPaletteVersion)
+  return Promise.resolve(nextSettings)
 }
 
 function resetScheduleColorSettings() {
   const defaults = getDefaultScheduleColorMap()
   appSettings.schedule_colors = defaults
-  localStorage.removeItem(scheduleColorStorageKey)
-  return saveAppSetting('schedule_colors', defaults)
+  localStorage.removeItem(getPersonalScheduleColorStorageKey())
+  localStorage.removeItem(getPersonalScheduleColorPaletteVersionKey())
+  return Promise.resolve(defaults)
 }
 
 function getScheduleColorKey(row) {
@@ -9694,7 +9832,8 @@ function getScheduleColorKey(row) {
     ? getServiceReminderTypeFromRow(row)
     : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
   if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return directReminderColorKey
-  if (['一般記事', '待辦事項'].includes(String(row?.category || '')) || ['一般記事', '待辦事項'].includes(String(row?.schedule_type || ''))) {
+  if (String(row?.category || '') === '一般記事' || String(row?.schedule_type || '') === '一般記事') return '一般記事'
+  if (String(row?.category || '') === '待辦事項' || String(row?.schedule_type || '') === '待辦事項') {
     const todoSubtype = String(row?.sub_type || '').trim()
     if (['產文件', '用印申請'].includes(todoSubtype)) return todoSubtype
     return '待辦事項'
@@ -9710,6 +9849,8 @@ function getScheduleColorKey(row) {
   const activityKeywords = ['活動']
 
   if (subtypeText.includes('返鄉')) return '返鄉'
+  if (subtypeText.includes('公司活動')) return '公司活動'
+  if (subtypeText.includes('部門活動')) return '部門活動'
 
   // 外訓資料常會在說明內出現「休息」等字，先判斷外訓，避免被誤歸類為休假。
   if (trainingKeywords.some(keyword => subtypeText.includes(keyword) || normalizedText.includes(keyword.replace(/\s+/g, '').replace(/[／/]/g, '')))) return '外訓'
@@ -9787,16 +9928,21 @@ function applyLineNotifyFormState(formElement) {
   const nextTarget = String(data.get('target') || lineNotifyState.target || '自己')
   const nextTargetKeyword = String(data.get('targetKeyword') || '').trim()
   const nextKeyword = String(data.get('keyword') || '').trim()
-  const nextStartDate = String(data.get('startDate') || '').trim()
-  const nextEndDate = String(data.get('endDate') || '').trim()
+  const nextDateMode = String(data.get('dateMode') || lineNotifyState.dateMode || 'single') === 'range' ? 'range' : 'single'
+  const nextSingleDate = String(data.get('singleDate') || '').trim()
+  const rawStartDate = String(data.get('startDate') || '').trim()
+  const rawEndDate = String(data.get('endDate') || '').trim()
+  const nextStartDate = nextDateMode === 'single' ? nextSingleDate : rawStartDate
+  const nextEndDate = nextDateMode === 'single' ? nextSingleDate : rawEndDate
 
-  if (nextStartDate && nextEndDate && nextStartDate > nextEndDate) {
+  if (nextDateMode === 'range' && nextStartDate && nextEndDate && nextStartDate > nextEndDate) {
     lineNotifyState = {
       ...lineNotifyState,
       type: nextType,
       target: nextTarget,
       targetKeyword: nextTargetKeyword,
       keyword: nextKeyword,
+      dateMode: nextDateMode,
       startDate: nextStartDate,
       endDate: nextEndDate,
       selectedIds: ['__none__']
@@ -9809,6 +9955,7 @@ function applyLineNotifyFormState(formElement) {
     nextTarget === lineNotifyState.target &&
     nextTargetKeyword === (lineNotifyState.targetKeyword || '') &&
     nextKeyword === (lineNotifyState.keyword || '') &&
+    nextDateMode === (lineNotifyState.dateMode || 'single') &&
     nextStartDate === (lineNotifyState.startDate || '') &&
     nextEndDate === (lineNotifyState.endDate || '')
 
@@ -9817,6 +9964,7 @@ function applyLineNotifyFormState(formElement) {
     target: nextTarget,
     targetKeyword: nextTargetKeyword,
     keyword: nextKeyword,
+    dateMode: nextDateMode,
     startDate: nextStartDate,
     endDate: nextEndDate,
     selectedIds: keepSelected ? (lineNotifyState.selectedIds || []) : []
@@ -9825,25 +9973,10 @@ function applyLineNotifyFormState(formElement) {
 }
 
 function getLineNotifyTypeOptions() {
-  const types = [
-    '今日行程',
-    '任務逾期',
-    '待確認 / 待通知',
-    '尚未到期的待辦或行程',
-    '外務行程',
-    '今日外務',
-    '今日會議室',
-    '逃跑通知',
-    '返台提醒',
-    '返台確認',
-    '轉出到期前提醒',
-    '轉出到期最後一天',
-    '全部通知'
-  ]
+  const types = getManagedListOption('notificationTypeOptions', notificationTypeOptions)
   const currentType = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
   return types.map(type => `<option value="${escapeHtml(type)}" ${currentType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
 }
-
 function normalizeLineSearchText(value = '') {
   return String(value || '').toLowerCase().replace(/\s+/g, '').trim()
 }
@@ -10007,6 +10140,7 @@ function getLineNotifyDateFilterRange() {
 }
 
 function isLineNotifyDateRangeInvalid() {
+  if ((lineNotifyState.dateMode || 'single') !== 'range') return false
   const { start, end } = getLineNotifyDateFilterRange()
   return Boolean(start && end && start > end)
 }
@@ -10075,17 +10209,25 @@ function getSpecialReminderLineRows(rows = [], type = '') {
     if ((type === '轉出到期前提醒' || type === '轉出到期最後一天') && reminderType === '轉出追蹤') {
       const info = parseTransferReminderInfo(row)
       const reminderDate = getTransferDueReminderDate(row, 10)
-      const date = type === '轉出到期前提醒' ? reminderDate : info.dueDate
+      const date = type === '轉出到期前提醒' ? reminderDate : (isReminderSettingEnabled('transferLastDay') ? info.dueDate : '')
       const suffix = type === '轉出到期前提醒' ? 'transfer-due-10' : 'transfer-last-day'
       if (date && (!hasDateFilter || dateKeys.includes(date))) result.push(cloneLineNotifyRow(row, date, suffix))
     }
 
     if ((type === '返台提醒' || type === '返台確認') && isReturnTaiwanReminderSchedule(row)) {
       const returnDate = getReturnTaiwanReminderDate(row)
-      const reminderDate = returnDate ? getDateKeyOffset(returnDate, -3) : row.start_date
-      const date = type === '返台確認' ? returnDate : reminderDate
+      const reminderDate = returnDate ? getDateKeyOffset(returnDate, -getReminderSettingDays('returnReminder', 3)) : row.start_date
+      const confirmDate = returnDate ? getDateKeyOffset(returnDate, -getReminderSettingDays('returnConfirm', 0)) : row.start_date
+      const date = type === '返台確認'
+        ? (isReminderSettingEnabled('returnConfirm') ? confirmDate : '')
+        : (isReminderSettingEnabled('returnReminder') ? reminderDate : '')
       const suffix = type === '返台確認' ? 'return-confirm' : 'return-reminder'
       if (date && (!hasDateFilter || dateKeys.includes(date))) result.push(cloneLineNotifyRow(row, date, suffix))
+    }
+
+    if (type === '住變資訊提供' && reminderType === '住變資訊提供' && isReminderSettingEnabled('housingInfoAfterMove')) {
+      const reminderDate = getHousingInfoReminderDate(row)
+      if (reminderDate && (!hasDateFilter || dateKeys.includes(reminderDate))) result.push(cloneLineNotifyRow(row, reminderDate, 'housing-info'))
     }
   })
 
@@ -10155,7 +10297,7 @@ function getLineNotifyRows() {
       .filter(row => isMeetingRoomSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .map(row => cloneLineNotifyRow(row, today, 'meeting-today'))
-  } else if (['逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天'].includes(type)) {
+  } else if (['逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供'].includes(type)) {
     rows = getSpecialReminderLineRows(baseRows, type)
   } else if (type === '全部通知') {
     rows = expandRowsByLineDateFilter(baseRows.filter(row => row.status !== '取消'))
@@ -10175,6 +10317,7 @@ function getLineNotifyContentText(row = {}) {
   if (lineType === '轉出到期最後一天') return '最後一天提醒'
   if (lineType === '返台確認') return '返台前確認資料'
   if (lineType === '返台提醒') return '返台提醒'
+  if (reminderType === '住變資訊提供' || lineType === '住變資訊提供') return '請提供租約及照片'
 
   const rawContent = String(row.description || row.content || row.memo || row.sub_type_note || '').trim()
   if (!rawContent) return ''
@@ -10243,6 +10386,7 @@ function getLineNotifyLabel(row = {}) {
   if (type === '逃跑通知') return '【逃跑通知】'
   if (type === '返台提醒' || type === '返台確認') return '【返台提醒】'
   if (type === '轉出到期前提醒' || type === '轉出到期最後一天') return '【轉出提醒】'
+  if (type === '住變資訊提供') return '【住變資訊提供】'
   return '【行程通知】'
 }
 
@@ -10260,6 +10404,21 @@ function formatLineScheduleItem(row, index) {
   const addressText = getLineNotifyAddress(row)
   const typeText = getScheduleDisplayType(row)
   const isField = isFieldScheduleRow(row)
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+
+  if (reminderType === '住變資訊提供' || lineNotifyState.type === '住變資訊提供') {
+    const info = parseHousingReminderInfo(row)
+    const reminderDate = getLineNotifyRowDate(row) || getHousingInfoReminderDate(row)
+    const parts = [
+      `${number}【住變資訊提供】`,
+      lineNotifyPart('對象', getHousingReminderCaseName(row)),
+      lineNotifyPart('內容', '請提供租約及照片'),
+      lineNotifyPart('搬遷日', info.moveDate),
+      lineNotifyPart('提醒日', reminderDate),
+      addressText ? lineNotifyPart('地址', addressText) : ''
+    ].filter(Boolean)
+    return parts.join('\n')
+  }
 
   const parts = [
     `${number}${getLineNotifyLabel(row)}`,
@@ -10523,14 +10682,29 @@ function renderLineNotificationPage() {
       </label>
 
       <label>
-        起始日期
-        <input type="date" name="startDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.startDate || '')}">
+        日期搜尋
+        <select name="dateMode" data-line-auto-filter>
+          <option value="single" ${(lineNotifyState.dateMode || 'single') === 'single' ? 'selected' : ''}>單日搜尋</option>
+          <option value="range" ${(lineNotifyState.dateMode || 'single') === 'range' ? 'selected' : ''}>區間搜尋</option>
+        </select>
       </label>
 
-      <label>
-        結束日期
-        <input type="date" name="endDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.endDate || '')}">
-      </label>
+      ${(lineNotifyState.dateMode || 'single') === 'range' ? `
+        <label>
+          起始日期
+          <input type="date" name="startDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.startDate || '')}">
+        </label>
+
+        <label>
+          結束日期
+          <input type="date" name="endDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.endDate || '')}">
+        </label>
+      ` : `
+        <label>
+          指定日期
+          <input type="date" name="singleDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.startDate || '')}">
+        </label>
+      `}
 
       <button type="submit" class="primary-btn">套用篩選</button>
     </form>
@@ -10560,14 +10734,14 @@ function renderLineNotificationPage() {
 
 
 function renderColorSettingsPage() {
-  const canEdit = canManageColorSettings()
+  const canEdit = Boolean(currentProfile)
   const settings = getScheduleColorSettings()
 
   return `
     <div class="page-toolbar">
       <div>
         <h3>顏色設定</h3>
-        <p class="muted">行程卡片背景維持白色，顏色用外框標示。設定會優先同步到 Supabase 共用設定。</p>
+        <p class="muted">行程卡片背景維持白色，顏色用外框標示。顏色設定為個人化，只會影響目前登入者自己的畫面。</p>
       </div>
       <div class="toolbar-actions">
         <button type="submit" form="colorSettingsForm" class="primary-btn" ${canEdit ? '' : 'disabled'}>儲存顏色</button>
@@ -10576,9 +10750,8 @@ function renderColorSettingsPage() {
       </div>
     </div>
 
-    ${!canEdit ? '<div class="notice">目前只有管理員、主管、行政可以調整顏色。</div>' : ''}
-    ${renderAppSettingSyncNotice()}
-    <div class="notice">目前設定的是卡片外框色，會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
+    ${!canEdit ? '<div class="notice">請先登入後再調整自己的顏色設定。</div>' : ''}
+    <div class="notice">目前設定的是個人畫面顏色，不會同步覆蓋其他使用者；會套用在個人行程表、行程總覽、外務行程與會議室預約。</div>
 
     <form id="colorSettingsForm" class="color-settings-grid color-settings-grid-clean">
       <div class="color-settings-header">
@@ -13845,12 +14018,17 @@ function getReturnTaiwanReminderStatusForDate(row = {}, dateKey = '') {
   if (!dateKey) return ''
 
   if (returnDate) {
+    const reminderDays = getReminderSettingDays('returnReminder', 3)
     const reminderDate = typeof getDateKeyOffset === 'function'
-      ? getDateKeyOffset(returnDate, -3)
+      ? getDateKeyOffset(returnDate, -reminderDays)
       : ''
 
-    if (dateKey === returnDate) return 'confirm'
-    if (reminderDate && dateKey === reminderDate) return 'reminder'
+    const confirmDays = getReminderSettingDays('returnConfirm', 0)
+    const confirmDate = typeof getDateKeyOffset === 'function'
+      ? getDateKeyOffset(returnDate, -confirmDays)
+      : returnDate
+    if (isReminderSettingEnabled('returnConfirm') && confirmDate && dateKey === confirmDate) return 'confirm'
+    if (isReminderSettingEnabled('returnReminder') && reminderDate && dateKey === reminderDate) return 'reminder'
     return ''
   }
 
@@ -15820,14 +15998,11 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
     ].filter(Boolean)
   }
   if (type === '住變資訊提供') {
-    const info = parseHousingReminderInfo(row)
-    const content = getFirstTwoLines(row.description || '')
+    const caseName = getHousingReminderCaseName(row)
     return [
-      title,
-      content ? `內容：${content.replaceAll('\n', ' / ')}` : '',
-      info.moveDate ? `搬遷日期：${info.moveDate}` : '',
-      info.time && info.time !== '不指定' ? `搬遷時間：${info.time}` : '',
-      info.address ? `地址：${info.address}` : ''
+      '住變資訊提供',
+      caseName,
+      '請提供租約及照片'
     ].filter(Boolean)
   }
   if (type === '電表提醒') {
@@ -18222,8 +18397,8 @@ function parseTransferReminderInfo(row = {}) {
 
 function getTransferDueReminderDate(row = {}, leadDays = 10) {
   const dueDate = parseTransferReminderInfo(row).dueDate
-  if (!dueDate) return ''
-  const days = Math.abs(Number(leadDays) || 10)
+  if (!dueDate || !isReminderSettingEnabled('transferDueBefore')) return ''
+  const days = getReminderSettingDays('transferDueBefore', Math.abs(Number(leadDays) || 10))
   return getDateKeyOffset(dueDate, -days) || ''
 }
 
@@ -18232,7 +18407,7 @@ function getTransferReminderStatusForDate(row = {}, dateKey = '') {
   const info = parseTransferReminderInfo(row)
   const reminderDate = getTransferDueReminderDate(row, 10)
   if (reminderDate && dateKey === reminderDate) return 'due-reminder'
-  if (info.dueDate && dateKey === info.dueDate) return 'due-date'
+  if (isReminderSettingEnabled('transferLastDay') && info.dueDate && dateKey === info.dueDate) return 'due-date'
   if (row.start_date && dateKey === row.start_date) return 'tracking-start'
   return ''
 }
@@ -18275,13 +18450,31 @@ function parseHousingReminderInfo(row = {}) {
   const rawTime = getReminderNoteValue(row, ['搬遷時間', '搬家時間'])
   const timeParts = parseCompactTimeParts(rawTime)
   return {
-    moveDate: getReminderNoteValue(row, ['搬遷日期', '搬家日期', '搬遷日']) || row.start_date || '',
+    moveDate: getReminderNoteValue(row, ['搬遷日期', '搬家日期', '搬遷日']) || '',
     address: getReminderNoteValue(row, ['地址', '搬遷地址', '搬家地址', '住變地址']),
     time: rawTime,
     timeType: timeParts.timeType,
     hour: timeParts.hour,
     minute: timeParts.minute
   }
+}
+
+function isStrictDateKey(value = '') {
+  const text = String(value || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const date = getDateFromKey(text)
+  return Boolean(date && toDateKey(date) === text)
+}
+
+function getHousingInfoReminderDate(row = {}) {
+  if (!isReminderSettingEnabled('housingInfoAfterMove')) return ''
+  const moveDate = parseHousingReminderInfo(row).moveDate
+  if (!isStrictDateKey(moveDate)) return ''
+  return getDateKeyOffset(moveDate, getReminderSettingDays('housingInfoAfterMove', 6)) || ''
+}
+
+function getHousingReminderCaseName(row = {}) {
+  return getServiceReminderCaseName(row, '住變資訊提供') || String(row.customer_name || row.title || '').trim()
 }
 
 function parseVerifyReminderInfo(row = {}) {
@@ -18317,14 +18510,14 @@ function getServiceReminderDueDateForTimeCheck(row = {}) {
     const info = parseVerifyReminderInfo(row)
     return info.leaveDate || info.verifyDate || row.end_date || row.start_date || ''
   }
-  if (type === '住變資訊提供') return parseHousingReminderInfo(row).moveDate || row.end_date || row.start_date || ''
+  if (type === '住變資訊提供') return getHousingInfoReminderDate(row) || row.end_date || row.start_date || ''
   if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.end_date || row.start_date || ''
   return row.end_date || row.start_date || ''
 }
 
 function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
   if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.start_date || ''
-  if (type === '住變資訊提供') return parseHousingReminderInfo(row).moveDate || row.start_date || ''
+  if (type === '住變資訊提供') return getHousingInfoReminderDate(row) || row.start_date || ''
   if (type === '轉出追蹤') return parseTransferReminderInfo(row).dueDate || row.start_date || ''
   if (type === '逃跑通知') return parseRunawayReminderInfo(row).day1 || row.start_date || ''
   if (type === '驗證提醒') return parseVerifyReminderInfo(row).verifyDate || row.start_date || ''
@@ -18342,12 +18535,12 @@ function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
   if (type === '轉出追蹤') {
     const info = parseTransferReminderInfo(row)
     const reminderDate = getTransferDueReminderDate(row, 10)
-    const dates = [row.start_date, reminderDate, info.dueDate].filter(Boolean)
+    const dates = [row.start_date, reminderDate, isReminderSettingEnabled('transferLastDay') ? info.dueDate : ''].filter(Boolean)
     return dates.includes(dateKey)
   }
   if (type === '住變資訊提供') {
-    const moveDate = parseHousingReminderInfo(row).moveDate
-    return (moveDate || row.start_date) === dateKey
+    const reminderDate = getHousingInfoReminderDate(row)
+    return Boolean(reminderDate && reminderDate === dateKey)
   }
   if (type === '驗證提醒') {
     const info = parseVerifyReminderInfo(row)
@@ -21016,6 +21209,7 @@ function openScheduleModal(defaults = {}) {
 
     const commonTitleField = form.querySelector('.common-title-field')
     if (commonTitleField) commonTitleField.classList.toggle('hidden', category === '服務行程' || category === '公務車保養')
+    form.querySelector('.schedule-template-row')?.classList.toggle('hidden', category === '行政事務提醒')
 
     applyCreateCompactSpecialFields()
   }
