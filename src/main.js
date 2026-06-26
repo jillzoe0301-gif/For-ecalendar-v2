@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3t'
-const SYSTEM_VERSION_NOTE = '側邊欄 LOGO 靠左放大與會議室預約顏色對調修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3u'
+const SYSTEM_VERSION_NOTE = '左上角 LOGO 置中放大與會議室名稱顏色修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6698,8 +6698,8 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
         ${renderCardTime(row, 'meeting-room-time')}
         <span class="for-e-card-type-chip">${escapeHtml(getScheduleDisplayType(row) || '會議')}</span>
       </div>
-      <strong class="for-e-card-title meeting-room-room-line meeting-room-name">${escapeHtml(roomName)}</strong>
-      <span class="meeting-room-preview meeting-title">${escapeHtml(titleText)}</span>
+      <strong class="meeting-room-room-line meeting-room-name">${escapeHtml(roomName)}</strong>
+      <span class="for-e-card-title meeting-room-preview meeting-title">${escapeHtml(titleText)}</span>
       <span class="meeting-room-meta for-e-card-secondary-text">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>

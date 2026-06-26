@@ -24358,3 +24358,128 @@ body:has(.modal-backdrop) .calendar-filter-bar {
 }
 /* FOR-e V002-1H-stable-1-3t END - sidebar logo alignment and meeting room color swap */
 
+
+
+/* FOR-e V002-1H-stable-1-3u START - sidebar logo center enlarge and meeting room color fix */
+/* 左上角品牌區：維持置中，LOGO 放大但保留比例，不影響選單點擊 */
+.sidebar .brand {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 16px 14px 20px !important;
+  margin-bottom: 14px !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+
+.sidebar .brand-logo-wrap {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.sidebar .brand-logo-wrap .brand-logo-img,
+.sidebar .brand-logo-img {
+  display: block !important;
+  width: 210px !important;
+  max-width: 88% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  margin: 0 auto !important;
+  flex: 0 0 auto !important;
+  transform: none !important;
+}
+
+.sidebar .brand-subtitle {
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+  margin: 9px auto 0 !important;
+  color: #4A4466 !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 850 !important;
+  letter-spacing: .04em !important;
+}
+
+/* 會議室預約卡片：會議名稱維持藍色，會議室名稱強制套用 #8B7E74。 */
+.meeting-room-card .meeting-title,
+.meeting-room-card span.meeting-title,
+.meeting-room-card .meeting-room-preview.meeting-title,
+.meeting-room-card .for-e-card-title.meeting-title,
+.meeting-room-card[style] .meeting-title,
+.meeting-room-card[style] span.meeting-title,
+.meeting-room-card[style] .meeting-room-preview.meeting-title,
+.meeting-room-card[style] .for-e-card-title.meeting-title {
+  color: #2F6BFF !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+}
+
+.meeting-room-card .meeting-room-name,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.meeting-room-card strong.meeting-room-name,
+.meeting-room-card .for-e-card-title.meeting-room-room-line,
+.meeting-room-card .for-e-card-title.meeting-room-name,
+.meeting-room-card[style] .meeting-room-name,
+.meeting-room-card[style] .meeting-room-room-line,
+.meeting-room-card[style] strong.meeting-room-room-line,
+.meeting-room-card[style] strong.meeting-room-name,
+.meeting-room-card[style] .for-e-card-title.meeting-room-room-line,
+.meeting-room-card[style] .for-e-card-title.meeting-room-name {
+  color: #8B7E74 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.meeting-room-card.is-completed .meeting-title,
+.meeting-room-card.is-ended .meeting-title,
+.meeting-room-card.ended-case .meeting-title,
+.meeting-room-card.is-completed .meeting-room-name,
+.meeting-room-card.is-ended .meeting-room-name,
+.meeting-room-card.ended-case .meeting-room-name,
+.meeting-room-card.is-completed .meeting-room-room-line,
+.meeting-room-card.is-ended .meeting-room-room-line,
+.meeting-room-card.ended-case .meeting-room-room-line {
+  color: #5f6673 !important;
+}
+
+@media (max-width: 768px) {
+  .sidebar .brand-logo-wrap .brand-logo-img,
+  .sidebar .brand-logo-img {
+    width: 196px !important;
+    max-width: 88% !important;
+  }
+
+  .sidebar .brand-subtitle {
+    font-size: 14px !important;
+  }
+
+  .meeting-room-card .meeting-title,
+  .meeting-room-card span.meeting-title,
+  .meeting-room-card .meeting-room-preview.meeting-title,
+  .meeting-room-card .for-e-card-title.meeting-title,
+  .meeting-room-card .meeting-room-name,
+  .meeting-room-card .meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-name {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3u END - sidebar logo center enlarge and meeting room color fix */
