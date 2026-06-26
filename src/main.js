@@ -13502,8 +13502,9 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
       .map(item => String(item || '').trim())
       .filter(Boolean)
     const uniqueSummary = [...new Set(summaryParts)]
+    const caseSummary = uniqueSummary.join(' / ') || info.title || row.customer_name || row.title || '返台前確認資料'
     const details = isConfirm
-      ? [uniqueSummary.join(' / ')]
+      ? []
       : [
           info.date ? `返台日：${info.date}` : '',
           info.flight ? `班機：${info.flight}` : ''
@@ -13513,7 +13514,7 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
       <button type="button" class="return-reminder-day-mark ${statusClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
         <span>${label}</span>
         <strong>
-          <em>${escapeHtml(isConfirm ? '返台確認（今天返台）' : (info.title || label))}</em>
+          <em>${escapeHtml(isConfirm ? caseSummary : (info.title || label))}</em>
           ${details.map(item => `<small>${escapeHtml(item)}</small>`).join('')}
         </strong>
       </button>
@@ -15464,8 +15465,8 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   if (type === '轉出追蹤') {
     const transferStatus = getTransferReminderStatusForDate(row, occurrenceDate)
     if (transferStatus === 'due-reminder') return '轉出到期前提醒'
-    if (transferStatus === 'due-date') return '轉出提醒'
-    return '轉出最後一天'
+    if (transferStatus === 'due-date') return '轉出到期最後一天'
+    return '轉出提醒'
   }
   return type
 }
@@ -15479,7 +15480,7 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const transferStatus = originalReminderType === '轉出追蹤' ? getTransferReminderStatusForDate(row, occurrenceDateValue) : ''
   const transferClass = transferStatus ? `is-transfer-${transferStatus}` : ''
   const transferBadge = transferStatus === 'due-date'
-    ? '<span class="transfer-last-day-badge" aria-label="最後一天提醒">! 最後一天</span>'
+    ? '<span class="transfer-last-day-badge" aria-label="轉出到期最後一天">!</span>'
     : ''
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
@@ -20962,6 +20963,7 @@ function serviceAdminDropdownHtml(selectedStaffIds = [], inputName = 'service_ad
         <span data-service-admin-dropdown-summary>${escapeHtml(summary)}</span>
       </summary>
       <div class="service-admin-dropdown-panel service-admin-check-list">
+        <input type="search" class="service-admin-search-input" placeholder="搜尋行政姓名" autocomplete="off" data-service-admin-search>
         ${administrativeStaffCheckboxesHtml(selected, inputName)}
       </div>
     </details>
@@ -20984,6 +20986,16 @@ if (!window.__FOR_E_SERVICE_ADMIN_DROPDOWN_BOUND__) {
     const input = event.target?.closest?.('.service-admin-dropdown input[type="checkbox"]')
     if (!input) return
     refreshServiceAdminDropdownSummary(input.closest('.service-admin-dropdown'))
+  })
+  document.addEventListener('input', event => {
+    const searchInput = event.target?.closest?.('.service-admin-dropdown [data-service-admin-search]')
+    if (!searchInput) return
+    const dropdown = searchInput.closest('.service-admin-dropdown')
+    const keyword = String(searchInput.value || '').trim().toLowerCase()
+    dropdown?.querySelectorAll?.('.service-admin-check-option')?.forEach(option => {
+      const text = String(option.textContent || '').trim().toLowerCase()
+      option.hidden = Boolean(keyword && !text.includes(keyword))
+    })
   })
 }
 
@@ -25093,3 +25105,49 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 
 /* FOR-e V002-1P-283｜direct source update: incident follow type, assigned tracking filter, meeting room occurrence date fix */
+
+/* FOR-e V002-1P-292 START - drag scroll calendar areas */
+if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__) {
+  window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__ = true
+  const dragSelector = '.week-overview-scroll, .field-week-scroll, .meeting-week-scroll, .personal-month-calendar, .calendar-scroll, .schedule-calendar-scroll'
+  const interactiveSelector = 'button, a, input, select, textarea, summary, label, details, [role="button"], .week-schedule-card, .schedule-card, .field-week-schedule-card, .meeting-room-card, .continuation-day-mark, .return-reminder-day-mark, .administrative-reminder-day-mark, .service-reminder-week-card'
+  let active = null
+
+  document.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return
+    const scroller = event.target?.closest?.(dragSelector)
+    if (!scroller) return
+    if (event.target?.closest?.(interactiveSelector)) return
+    if (scroller.scrollWidth <= scroller.clientWidth) return
+    active = {
+      scroller,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: scroller.scrollLeft,
+      moved: false
+    }
+    scroller.classList.add('is-drag-scroll-ready')
+  }, { passive: true })
+
+  document.addEventListener('pointermove', event => {
+    if (!active || active.pointerId !== event.pointerId) return
+    const dx = event.clientX - active.startX
+    const dy = event.clientY - active.startY
+    if (!active.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+    active.moved = true
+    active.scroller.classList.add('is-drag-scrolling')
+    active.scroller.scrollLeft = active.startLeft - dx
+    event.preventDefault()
+  }, { passive: false })
+
+  const stopDragScroll = event => {
+    if (!active || (event.pointerId && active.pointerId !== event.pointerId)) return
+    active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+    active = null
+  }
+  document.addEventListener('pointerup', stopDragScroll, { passive: true })
+  document.addEventListener('pointercancel', stopDragScroll, { passive: true })
+}
+/* FOR-e V002-1P-292 END - drag scroll calendar areas */
+
