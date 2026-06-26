@@ -22498,3 +22498,205 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3d END - Android single finger pan, pinch zoom, mobile non-sticky staff column */
+
+/* FOR-e V002-1H-stable-1-3e START - calendar cell auto width height by card content */
+/* 行事曆外層：內容變寬時保留橫向滑動，內容變高時交給頁面上下滑動。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll,
+.personal-month-calendar,
+.field-personal-month-calendar,
+.calendar-scroll,
+.schedule-calendar-scroll,
+.month-sliding-scroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+/* 表格不要再固定塞滿畫面；欄寬依最小可讀寬度與卡片內容撐開。 */
+.week-overview-table,
+.field-week-table,
+.meeting-week-table {
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: separate !important;
+}
+
+.week-overview-table tr,
+.field-week-table tr,
+.meeting-week-table tr,
+.calendar-row,
+.personal-month-calendar-grid {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  align-items: stretch !important;
+}
+
+.week-overview-table th:not(.staff-col),
+.week-overview-table td.week-day-cell,
+.field-week-table th:not(.field-staff-col):not(.field-staff-name-cell),
+.field-week-table td.field-week-day-cell,
+.meeting-week-table th:not(.meeting-room-col):not(.meeting-room-name-cell),
+.meeting-week-table td.meeting-week-day-cell,
+.month-day-cell,
+.calendar-day-cell,
+.calendar-column {
+  min-width: 220px !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 128px !important;
+  max-height: none !important;
+  vertical-align: top !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+
+.week-overview-table.is-personal-month th:not(.staff-col),
+.week-overview-table.is-personal-month td.week-day-cell,
+.week-overview-table.is-overview-month th:not(.staff-col),
+.week-overview-table.is-overview-month td.week-day-cell,
+.field-week-table.is-field-month td.field-week-day-cell,
+.meeting-week-table.is-meeting-month td.meeting-week-day-cell,
+.personal-month-calendar .month-day-cell,
+.field-personal-month-calendar .month-day-cell {
+  min-width: 215px !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 136px !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 卡片依文字可讀寬度撐開，但設上限避免一筆長文字把整張表格撐太誇張。 */
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card,
+.continuation-day-mark,
+.return-reminder-day-mark,
+.administrative-reminder-day-mark,
+.field-day-reminder-prompt,
+.birthday-card,
+.field-birthday-card,
+.schedule-card,
+.calendar-card,
+.schedule-item {
+  width: auto !important;
+  min-width: 184px !important;
+  max-width: 285px !important;
+  height: auto !important;
+  min-height: fit-content !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+}
+
+.week-day-cell .week-schedule-card,
+.field-week-day-cell .field-week-schedule-card,
+.meeting-week-day-cell .meeting-room-card,
+.month-day-cell .week-schedule-card,
+.month-day-cell .field-week-schedule-card,
+.month-day-cell .continuation-day-mark,
+.week-day-cell .continuation-day-mark,
+.field-week-day-cell .continuation-day-mark,
+.meeting-week-day-cell .continuation-day-mark {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* 文字可正常換行，但不要變成一個字一行。 */
+.for-e-card-title,
+.schedule-card-title,
+.schedule-title,
+.week-schedule-card strong,
+.field-week-schedule-card strong,
+.meeting-room-card strong,
+.continuation-day-mark strong,
+.week-card-preview,
+.field-week-card-preview,
+.meeting-room-preview,
+.meeting-room-meta,
+.week-card-extra,
+.schedule-card-content,
+.schedule-card-category,
+.schedule-card-type-text,
+.schedule-card-subtype,
+.for-e-card-type-chip,
+.continuation-day-type-line {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.35 !important;
+  max-height: none !important;
+}
+
+/* 標題最多兩行，避免單張卡片過長；只限制標題，不裁切整張卡片。 */
+.for-e-card-title,
+.week-schedule-card .for-e-card-title,
+.field-week-schedule-card .for-e-card-title,
+.meeting-room-card .for-e-card-title,
+.continuation-day-mark .for-e-card-title,
+.continuation-day-mark .continuation-card-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 內容摘要與補充資訊可撐開卡片，不裁切。 */
+.week-card-preview,
+.field-week-card-preview,
+.meeting-room-preview,
+.meeting-room-meta,
+.week-card-extra,
+.administrative-conversation-reminder-text {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 768px) {
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell,
+  .field-week-table th:not(.field-staff-col):not(.field-staff-name-cell),
+  .field-week-table td.field-week-day-cell,
+  .meeting-week-table th:not(.meeting-room-col):not(.meeting-room-name-cell),
+  .meeting-week-table td.meeting-week-day-cell,
+  .month-day-cell,
+  .calendar-day-cell,
+  .calendar-column {
+    min-width: 210px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card,
+  .continuation-day-mark,
+  .return-reminder-day-mark,
+  .administrative-reminder-day-mark,
+  .field-day-reminder-prompt,
+  .schedule-card,
+  .calendar-card,
+  .schedule-item {
+    min-width: 182px !important;
+    max-width: 270px !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3e END - calendar cell auto width height by card content */

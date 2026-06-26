@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3c'
-const SYSTEM_VERSION_NOTE = '行政事務卡片文字、已結束灰階、行事曆欄寬與行程類別字體修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3e'
+const SYSTEM_VERSION_NOTE = '行事曆格子寬高依卡片內容自動撐開修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
