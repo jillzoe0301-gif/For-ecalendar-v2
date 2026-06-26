@@ -1459,7 +1459,7 @@ const rolePermissionMatrix = {
   '翻譯': {
     label: '翻譯',
     manageAllSchedules: false,
-    createServiceSchedule: false,
+    createServiceSchedule: true,
     createPersonalSchedule: true,
     createFieldSchedule: false,
     createMeetingRoom: false,
@@ -1695,10 +1695,16 @@ function getRolePermissionNotice() {
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
+function isTranslatorRole() {
+  return getRoleName() === '翻譯'
+}
+
 function canModifySchedule(row) {
   if (!currentProfile || !row) return false
   if (canManageAllSchedules()) return true
-  return row.creator_staff_id === currentProfile.staff_id
+  if (row.creator_staff_id === currentProfile.staff_id) return true
+  if (isTranslatorRole() && isAssignedToMe(row)) return true
+  return false
 }
 
 function canCompleteSchedule(row) {
@@ -26698,17 +26704,18 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 /* FOR-e V002-1P-283｜direct source update: incident follow type, assigned tracking filter, meeting room occurrence date fix */
 
-/* FOR-e V002-1P-293 START - safe drag scroll calendar areas */
-if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
-  window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__ = true
-  const dragSelector = '.week-overview-scroll, .field-week-scroll, .meeting-week-scroll, .personal-month-calendar, .calendar-scroll, .schedule-calendar-scroll'
+/* FOR-e V002-1H-stable-1-3d START - Android native pan and zoom safe calendar scroll */
+if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__) {
+  window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__ = true
+  const dragSelector = '.week-overview-scroll, .field-week-scroll, .meeting-week-scroll, .personal-month-calendar, .calendar-scroll, .schedule-calendar-scroll, .month-sliding-scroll'
   const hardInteractiveSelector = 'a, input, select, textarea, summary, label, details, .icon-btn, .primary-btn, .secondary-btn, .danger-btn, .filter-btn, .field-result-btn, [data-no-drag-scroll]'
+  const threshold = 7
   let active = null
   let suppressUntil = 0
   let suppressScroller = null
-  const threshold = 7
+  const activeTouchPointers = new Set()
 
-  const isHardInteractiveTarget = (target) => {
+  const isHardInteractiveTarget = target => {
     if (!target?.closest) return false
     const hard = target.closest(hardInteractiveSelector)
     if (!hard) return false
@@ -26716,18 +26723,36 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
     return !draggableCard
   }
 
+  const suppressNextClick = scroller => {
+    if (!scroller) return
+    suppressUntil = Date.now() + 380
+    suppressScroller = scroller
+  }
+
   document.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'touch') {
+      activeTouchPointers.add(event.pointerId)
+      if (activeTouchPointers.size > 1 || event.isPrimary === false) {
+        if (active?.scroller) active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+        active = null
+        return
+      }
+    }
+
     if (event.button !== undefined && event.button !== 0) return
     const scroller = event.target?.closest?.(dragSelector)
     if (!scroller) return
     if (isHardInteractiveTarget(event.target)) return
     if (scroller.scrollWidth <= scroller.clientWidth) return
+
     active = {
       scroller,
       pointerId: event.pointerId,
+      pointerType: event.pointerType || 'mouse',
       startX: event.clientX,
       startY: event.clientY,
       startLeft: scroller.scrollLeft,
+      mode: '',
       moved: false
     }
     scroller.classList.add('is-drag-scroll-ready')
@@ -26735,34 +26760,57 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
 
   document.addEventListener('pointermove', event => {
     if (!active || active.pointerId !== event.pointerId) return
-    const dx = event.clientX - active.startX
-    const dy = event.clientY - active.startY
-    const absX = Math.abs(dx)
-    const absY = Math.abs(dy)
-    if (!active.moved && Math.hypot(dx, dy) < threshold) return
-    if (!active.moved && absY > absX + 4) {
+    if (active.pointerType === 'touch' && activeTouchPointers.size > 1) {
       active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
       active = null
       return
     }
-    if (!active.moved && absX < threshold) return
-    active.moved = true
-    active.scroller.classList.add('is-drag-scrolling')
+
+    const dx = event.clientX - active.startX
+    const dy = event.clientY - active.startY
+    const absX = Math.abs(dx)
+    const absY = Math.abs(dy)
+    const isHorizontalSwipe = absX > absY && absX > threshold
+    const isVerticalSwipe = absY > absX && absY > threshold
+
+    if (!active.mode && !isHorizontalSwipe && !isVerticalSwipe) return
+
+    if (!active.mode && isVerticalSwipe) {
+      active.mode = 'vertical'
+      active.moved = true
+      suppressNextClick(active.scroller)
+      active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+      return
+    }
+
+    if (!active.mode && isHorizontalSwipe) {
+      active.mode = 'horizontal'
+      active.moved = true
+      active.scroller.classList.add('is-drag-scrolling')
+      suppressNextClick(active.scroller)
+    }
+
+    if (active.mode !== 'horizontal') return
+
+    if (active.pointerType === 'touch') {
+      // Android / iOS touch uses native overflow scrolling so vertical pan and pinch zoom remain available.
+      suppressNextClick(active.scroller)
+      return
+    }
+
     active.scroller.scrollLeft = active.startLeft - dx
     event.preventDefault()
   }, { passive: false })
 
   const stopDragScroll = event => {
+    if (event.pointerType === 'touch') activeTouchPointers.delete(event.pointerId)
     if (!active || (event.pointerId && active.pointerId !== event.pointerId)) return
-    if (active.moved) {
-      suppressUntil = Date.now() + 350
-      suppressScroller = active.scroller
-    }
+    if (active.moved) suppressNextClick(active.scroller)
     active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
     active = null
   }
 
-  const suppressClickAfterDrag = event => {
+  const suppressClickAfterPan = event => {
     if (!suppressScroller || Date.now() > suppressUntil) return
     if (!event.target?.closest?.(dragSelector)) return
     event.preventDefault()
@@ -26772,8 +26820,8 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
 
   document.addEventListener('pointerup', stopDragScroll, { passive: true })
   document.addEventListener('pointercancel', stopDragScroll, { passive: true })
-  document.addEventListener('click', suppressClickAfterDrag, true)
-  document.addEventListener('dblclick', suppressClickAfterDrag, true)
+  document.addEventListener('click', suppressClickAfterPan, true)
+  document.addEventListener('dblclick', suppressClickAfterPan, true)
 }
-/* FOR-e V002-1P-293 END - safe drag scroll calendar areas */
+/* FOR-e V002-1H-stable-1-3d END - Android native pan and zoom safe calendar scroll */
 

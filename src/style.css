@@ -22401,3 +22401,100 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
 .month-sliding-scroll.is-drag-scrolling {
   touch-action: pan-x pan-y !important;
 }
+
+/* FOR-e V002-1H-stable-1-3d START - Android single finger pan, pinch zoom, mobile non-sticky staff column */
+html,
+body,
+#app,
+.app-shell,
+.main-content,
+.page-content,
+.calendar-page,
+.personal-schedule-page,
+.schedule-overview-page,
+.field-schedule-page,
+.meeting-room-page {
+  touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll,
+.personal-month-calendar,
+.calendar-scroll,
+.schedule-calendar-scroll,
+.month-sliding-scroll,
+.week-overview-section,
+.field-week-section,
+.meeting-week-section {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-x pan-y pinch-zoom !important;
+  overscroll-behavior-x: contain !important;
+  overscroll-behavior-y: auto !important;
+  scroll-behavior: auto !important;
+}
+
+.week-overview-scroll.is-drag-scroll-ready,
+.field-week-scroll.is-drag-scroll-ready,
+.meeting-week-scroll.is-drag-scroll-ready,
+.personal-month-calendar.is-drag-scroll-ready,
+.calendar-scroll.is-drag-scroll-ready,
+.schedule-calendar-scroll.is-drag-scroll-ready,
+.month-sliding-scroll.is-drag-scroll-ready,
+.week-overview-scroll.is-drag-scrolling,
+.field-week-scroll.is-drag-scrolling,
+.meeting-week-scroll.is-drag-scrolling,
+.personal-month-calendar.is-drag-scrolling,
+.calendar-scroll.is-drag-scrolling,
+.schedule-calendar-scroll.is-drag-scrolling,
+.month-sliding-scroll.is-drag-scrolling {
+  touch-action: pan-x pan-y pinch-zoom !important;
+  cursor: grab !important;
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .personal-month-calendar,
+  .calendar-scroll,
+  .schedule-calendar-scroll,
+  .month-sliding-scroll {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-staff-name-cell,
+  .meeting-week-table .meeting-room-col,
+  .meeting-week-table .meeting-room-name-cell,
+  .meeting-room-name-cell,
+  .calendar-staff-column,
+  .calendar-person-column,
+  .schedule-staff-header {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    border-collapse: separate !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3d END - Android single finger pan, pinch zoom, mobile non-sticky staff column */
