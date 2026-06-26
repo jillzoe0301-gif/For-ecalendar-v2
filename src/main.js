@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-297'
-const SYSTEM_VERSION_NOTE = '個人顏色設定、提醒天數設定、LINE 日期搜尋與住變資訊提醒調整'
+const SYSTEM_VERSION = 'V002-1P-298'
+const SYSTEM_VERSION_NOTE = '行政事務公告權限調整：行政可新增與查看自己公告紀錄'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -94,6 +94,7 @@ const pages = [
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
   { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
+  { key: 'administrativeAnnouncement', label: '行政事務公告', mobileLabel: '公告', roles: ['管理員', '行政 / 海外'], mobile: true },
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
@@ -115,6 +116,7 @@ const pageIconMap = {
   serviceRecord: '📝',
   recordSubmit: '📤',
   line: '💬',
+  administrativeAnnouncement: '📣',
   color: '🎨',
   options: '⚙️',
   audit: '🧾',
@@ -136,6 +138,7 @@ const pageImageIconMap = {
   serviceRecord: '/icons/nav/hand-heart.png',
   recordSubmit: '/icons/nav/hand-leaf.png',
   line: '/icons/nav/line.png',
+  administrativeAnnouncement: '/icons/nav/note.png',
   color: '/icons/nav/palette.png',
   options: '/icons/nav/settings.png',
   audit: '/icons/nav/note.png',
@@ -209,6 +212,320 @@ function bindGlobalAnnouncementEditor() {
     renderApp()
   })
 }
+
+/* FOR-e V002-1P-298 START - administrative announcement permission */
+const administrativeAnnouncementStorageKey = 'for-e-administrative-announcements'
+
+function isAdministrativeAnnouncementAdmin() {
+  return getRoleName() === '管理員'
+}
+
+function isAdministrativeAnnouncementStaff() {
+  const role = String(getRoleName() || '').trim()
+  return role === '行政 / 海外' || role === '行政' || role.includes('行政')
+}
+
+function canViewAdministrativeAnnouncements() {
+  return isAdministrativeAnnouncementAdmin() || isAdministrativeAnnouncementStaff()
+}
+
+function canCreateAdministrativeAnnouncement() {
+  return canViewAdministrativeAnnouncements()
+}
+
+function getAdministrativeAnnouncementOwnerId() {
+  return String(currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.id || currentProfile?.email || currentProfile?.name || '').trim()
+}
+
+function normalizeAdministrativeAnnouncementRecord(record = {}) {
+  const createdAt = record.createdAt || record.created_at || new Date().toISOString()
+  const creatorId = String(record.creatorId || record.creator_id || '').trim()
+  return {
+    id: String(record.id || `admin-ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    date: getDateStringFromAnyValue(record.date || record.announcement_date || '') || '',
+    content: String(record.content || record.announcement_content || '').trim(),
+    creatorId,
+    creatorName: String(record.creatorName || record.creator_name || '').trim(),
+    creatorRole: String(record.creatorRole || record.creator_role || '').trim(),
+    createdAt,
+    updatedBy: String(record.updatedBy || record.updated_by || '').trim(),
+    updatedByName: String(record.updatedByName || record.updated_by_name || '').trim(),
+    updatedAt: record.updatedAt || record.updated_at || '',
+    enabled: record.enabled !== false,
+    visible: record.visible !== false
+  }
+}
+
+function normalizeAdministrativeAnnouncements(value = {}) {
+  const source = Array.isArray(value) ? value : (Array.isArray(value.records) ? value.records : [])
+  return {
+    records: source
+      .map(normalizeAdministrativeAnnouncementRecord)
+      .filter(item => item.date && item.content)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  }
+}
+
+function getAdministrativeAnnouncementsSetting() {
+  const remote = hasSharedSetting('administrative_announcements')
+    ? normalizeAdministrativeAnnouncements(appSettings.administrative_announcements)
+    : null
+  if (remote) return remote
+  return normalizeAdministrativeAnnouncements(readLocalJsonSetting(administrativeAnnouncementStorageKey))
+}
+
+function saveAdministrativeAnnouncementsSetting(nextValue) {
+  const normalized = normalizeAdministrativeAnnouncements(nextValue)
+  appSettings.administrative_announcements = normalized
+  try { localStorage.setItem(administrativeAnnouncementStorageKey, JSON.stringify(normalized)) } catch (error) {}
+  return saveAppSetting('administrative_announcements', normalized)
+}
+
+function getAdministrativeAnnouncementRows() {
+  const rows = getAdministrativeAnnouncementsSetting().records || []
+  if (isAdministrativeAnnouncementAdmin()) return rows
+  const ownerId = getAdministrativeAnnouncementOwnerId()
+  return rows.filter(row => {
+    const own = ownerId && String(row.creatorId || '') === ownerId
+    const activeVisible = row.enabled !== false && row.visible !== false
+    return own || activeVisible
+  })
+}
+
+function isOwnAdministrativeAnnouncement(record = {}) {
+  const ownerId = getAdministrativeAnnouncementOwnerId()
+  return Boolean(ownerId && String(record.creatorId || '') === ownerId)
+}
+
+function canEditAdministrativeAnnouncement(record = {}) {
+  if (isAdministrativeAnnouncementAdmin()) return true
+  if (!isAdministrativeAnnouncementStaff()) return false
+  if (!isOwnAdministrativeAnnouncement(record)) return false
+  return String(record.creatorRole || '') !== '管理員'
+}
+
+function canToggleAdministrativeAnnouncement(record = {}) {
+  return isAdministrativeAnnouncementAdmin()
+}
+
+function canDeleteAdministrativeAnnouncement(record = {}) {
+  return isAdministrativeAnnouncementAdmin()
+}
+
+function getAdministrativeAnnouncementStatusLabel(record = {}) {
+  if (record.enabled === false) return '停用'
+  if (record.visible === false) return '隱藏'
+  return '啟用顯示'
+}
+
+function getAdministrativeAnnouncementInputValue(form, name) {
+  return String(form.get(name) || '').trim()
+}
+
+async function createAdministrativeAnnouncement(formElement) {
+  if (!canCreateAdministrativeAnnouncement()) return denyPermission('你的角色沒有新增行政事務公告權限。')
+  const form = new FormData(formElement)
+  const date = getAdministrativeAnnouncementInputValue(form, 'announcementDate')
+  const content = getAdministrativeAnnouncementInputValue(form, 'announcementContent')
+
+  if (!date) return alert('日期必填')
+  if (!content) return alert('公告內容必填')
+
+  const now = new Date().toISOString()
+  const creatorId = getAdministrativeAnnouncementOwnerId()
+  const record = {
+    id: (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `admin-ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    date,
+    content,
+    creatorId,
+    creatorName: currentProfile?.name || currentProfile?.email || '',
+    creatorRole: getRoleName(),
+    createdAt: now,
+    updatedBy: creatorId,
+    updatedByName: currentProfile?.name || currentProfile?.email || '',
+    updatedAt: now,
+    enabled: true,
+    visible: true
+  }
+
+  const current = getAdministrativeAnnouncementsSetting()
+  await saveAdministrativeAnnouncementsSetting({ records: [record, ...(current.records || [])] })
+  alert('行政事務公告已新增。')
+  renderApp()
+}
+
+async function editAdministrativeAnnouncement(recordId) {
+  const current = getAdministrativeAnnouncementsSetting()
+  const records = current.records || []
+  const target = records.find(row => row.id === recordId)
+  if (!target) return alert('找不到此行政事務公告。')
+  if (!canEditAdministrativeAnnouncement(target)) return denyPermission('你沒有修改此行政事務公告的權限。')
+
+  const nextDate = window.prompt('請輸入公告日期', target.date || todayString())
+  if (nextDate === null) return
+  const cleanDate = getDateStringFromAnyValue(nextDate) || String(nextDate || '').trim()
+  if (!cleanDate) return alert('日期必填')
+
+  const nextContent = window.prompt('請輸入公告內容', target.content || '')
+  if (nextContent === null) return
+  const cleanContent = String(nextContent || '').trim()
+  if (!cleanContent) return alert('公告內容必填')
+
+  const ownerId = getAdministrativeAnnouncementOwnerId()
+  const now = new Date().toISOString()
+  const nextRecords = records.map(row => row.id === recordId
+    ? {
+        ...row,
+        date: cleanDate,
+        content: cleanContent,
+        updatedBy: ownerId,
+        updatedByName: currentProfile?.name || currentProfile?.email || '',
+        updatedAt: now
+      }
+    : row
+  )
+
+  await saveAdministrativeAnnouncementsSetting({ records: nextRecords })
+  alert('行政事務公告已更新。')
+  renderApp()
+}
+
+async function toggleAdministrativeAnnouncement(recordId, fieldName) {
+  const current = getAdministrativeAnnouncementsSetting()
+  const records = current.records || []
+  const target = records.find(row => row.id === recordId)
+  if (!target) return alert('找不到此行政事務公告。')
+  if (!canToggleAdministrativeAnnouncement(target)) return denyPermission('只有管理員可以停用或調整顯示狀態。')
+
+  const ownerId = getAdministrativeAnnouncementOwnerId()
+  const now = new Date().toISOString()
+  const key = fieldName === 'visible' ? 'visible' : 'enabled'
+  const nextRecords = records.map(row => row.id === recordId
+    ? {
+        ...row,
+        [key]: row[key] === false,
+        updatedBy: ownerId,
+        updatedByName: currentProfile?.name || currentProfile?.email || '',
+        updatedAt: now
+      }
+    : row
+  )
+
+  await saveAdministrativeAnnouncementsSetting({ records: nextRecords })
+  renderApp()
+}
+
+async function deleteAdministrativeAnnouncement(recordId) {
+  const current = getAdministrativeAnnouncementsSetting()
+  const records = current.records || []
+  const target = records.find(row => row.id === recordId)
+  if (!target) return alert('找不到此行政事務公告。')
+  if (!canDeleteAdministrativeAnnouncement(target)) return denyPermission('只有管理員可以刪除行政事務公告。')
+  if (!confirm('確定要刪除此行政事務公告嗎？')) return
+
+  await saveAdministrativeAnnouncementsSetting({ records: records.filter(row => row.id !== recordId) })
+  renderApp()
+}
+
+function renderAdministrativeAnnouncementPage() {
+  if (!canViewAdministrativeAnnouncements()) {
+    return `<div class="empty-state">你的角色沒有查看行政事務公告權限。</div>`
+  }
+
+  const rows = getAdministrativeAnnouncementRows()
+  const activeRows = rows.filter(row => row.enabled !== false && row.visible !== false)
+  const isAdmin = isAdministrativeAnnouncementAdmin()
+  const canCreate = canCreateAdministrativeAnnouncement()
+
+  return `
+    <div class="page-toolbar">
+      <div>
+        <h3>行政事務公告</h3>
+        <p class="muted">管理員可管理全部行政事務公告；行政人員可新增、查看，並可修改自己新增的公告。</p>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+      </div>
+    </div>
+
+    ${renderAppSettingSyncNotice()}
+
+    <section class="administrative-announcement-active-panel">
+      <div class="section-title-row">
+        <h4>目前顯示的行政事務公告</h4>
+        <span>${activeRows.length} 則</span>
+      </div>
+      ${activeRows.length ? activeRows.map(row => `
+        <article class="administrative-announcement-active-card">
+          <strong>${escapeHtml(row.date)}：${escapeHtml(row.content)}</strong>
+          <span>建立者：${escapeHtml(row.creatorName || '-')}｜${escapeHtml(row.creatorRole || '-')}</span>
+        </article>
+      `).join('') : '<div class="empty-state">目前沒有啟用中的行政事務公告。</div>'}
+    </section>
+
+    ${canCreate ? `
+      <form id="administrativeAnnouncementForm" class="administrative-announcement-form">
+        <label>
+          日期 <span class="required-mark">*</span>
+          <input type="date" name="announcementDate" required>
+        </label>
+        <label class="span-2">
+          公告內容 <span class="required-mark">*</span>
+          <textarea name="announcementContent" rows="3" placeholder="請輸入行政事務公告內容" required></textarea>
+        </label>
+        <button type="submit" class="primary-btn">新增行政事務公告</button>
+      </form>
+    ` : ''}
+
+    <section class="administrative-announcement-history-panel">
+      <div class="section-title-row">
+        <h4>${isAdmin ? '全部公告紀錄' : '公告紀錄'}</h4>
+        <span>${rows.length} 筆</span>
+      </div>
+      ${rows.length ? `
+        <div class="administrative-announcement-table-wrap">
+          <table class="data-table administrative-announcement-table">
+            <thead>
+              <tr>
+                <th>日期：公告內容</th>
+                <th>建立者</th>
+                <th>建立者角色</th>
+                <th>建立時間</th>
+                <th>最後修改者</th>
+                <th>最後修改時間</th>
+                <th>狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr class="${row.enabled === false || row.visible === false ? 'is-disabled-row' : ''}">
+                  <td><strong>${escapeHtml(row.date)}：${escapeHtml(row.content)}</strong></td>
+                  <td>${escapeHtml(row.creatorName || '-')}</td>
+                  <td>${escapeHtml(row.creatorRole || '-')}</td>
+                  <td>${escapeHtml(formatDateTime(row.createdAt))}</td>
+                  <td>${escapeHtml(row.updatedByName || '-')}</td>
+                  <td>${escapeHtml(row.updatedAt ? formatDateTime(row.updatedAt) : '-')}</td>
+                  <td>${escapeHtml(getAdministrativeAnnouncementStatusLabel(row))}</td>
+                  <td>
+                    <div class="table-action-group">
+                      ${canEditAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-edit-admin-announcement="${escapeHtml(row.id)}">修改</button>` : ''}
+                      ${canToggleAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-toggle-admin-announcement="${escapeHtml(row.id)}" data-toggle-field="enabled">${row.enabled === false ? '啟用' : '停用'}</button>` : ''}
+                      ${canToggleAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-toggle-admin-announcement="${escapeHtml(row.id)}" data-toggle-field="visible">${row.visible === false ? '顯示' : '隱藏'}</button>` : ''}
+                      ${canDeleteAdministrativeAnnouncement(row) ? `<button type="button" class="small-danger-btn" data-delete-admin-announcement="${escapeHtml(row.id)}">刪除</button>` : ''}
+                      ${!canEditAdministrativeAnnouncement(row) && !canToggleAdministrativeAnnouncement(row) && !canDeleteAdministrativeAnnouncement(row) ? '<span class="muted">僅查看</span>' : ''}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state">目前沒有行政事務公告紀錄。</div>'}
+    </section>
+  `
+}
+/* FOR-e V002-1P-298 END - administrative announcement permission */
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
@@ -740,7 +1057,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement']
+const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements']
 
 function readLocalJsonSetting(key) {
   try {
@@ -3823,6 +4140,32 @@ function renderApp() {
     })
   }
 
+
+  const administrativeAnnouncementForm = document.querySelector('#administrativeAnnouncementForm')
+  if (administrativeAnnouncementForm) {
+    administrativeAnnouncementForm.addEventListener('submit', async event => {
+      event.preventDefault()
+      await createAdministrativeAnnouncement(event.target)
+    })
+  }
+
+  document.querySelectorAll('[data-edit-admin-announcement]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await editAdministrativeAnnouncement(btn.dataset.editAdminAnnouncement || '')
+    })
+  })
+
+  document.querySelectorAll('[data-toggle-admin-announcement]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await toggleAdministrativeAnnouncement(btn.dataset.toggleAdminAnnouncement || '', btn.dataset.toggleField || 'enabled')
+    })
+  })
+
+  document.querySelectorAll('[data-delete-admin-announcement]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await deleteAdministrativeAnnouncement(btn.dataset.deleteAdminAnnouncement || '')
+    })
+  })
 
   const optionManagementForm = document.querySelector('#optionManagementForm')
   if (optionManagementForm) {
@@ -13441,6 +13784,7 @@ function renderPageContent() {
   if (currentPage === 'recordSubmit') return renderRecordSubmit()
   if (currentPage === 'audit') return renderAuditPage()
   if (currentPage === 'line') return renderLineNotificationPage()
+  if (currentPage === 'administrativeAnnouncement') return renderAdministrativeAnnouncementPage()
   if (currentPage === 'color') return renderColorSettingsPage()
   if (currentPage === 'options') return renderOptionsPage()
   if (currentPage === 'users') return renderUsersPage()
