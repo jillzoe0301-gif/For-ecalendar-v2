@@ -74,7 +74,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-251'
+const SYSTEM_VERSION = 'V002-1P-294'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -167,22 +167,27 @@ function getGlobalAnnouncementText() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
+  const versionText = SYSTEM_VERSION || 'V002-1P-294'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
+        <span class="for-e-version-icon" aria-hidden="true">ℹ</span>
         <span class="for-e-version-label">版本提示</span>
-        <strong>V002-1H-7 測試版</strong>
-        <span>提醒樣式預覽</span>
+        <strong>${escapeHtml(versionText)}</strong>
+        <span>版本與公告顯示修正</span>
       </div>
-      <div class="for-e-announcement-line">
+      <div class="for-e-announcement-line ${canEditAnnouncement ? 'is-admin' : 'is-view-only'}">
         <div class="for-e-announcement-content">
-          <span class="for-e-announcement-lock" aria-hidden="true">🔒</span>
+          <span class="for-e-announcement-icon" aria-hidden="true">📣</span>
           <strong>公告：</strong>
           <span id="globalAnnouncementText">${escapeHtml(announcementText)}</span>
+          ${canEditAnnouncement ? '' : '<span class="for-e-announcement-lock" aria-hidden="true">🔒</span>'}
         </div>
-        <button type="button" class="secondary-btn for-e-announcement-edit-btn" id="globalAnnouncementEditBtn" ${canEditAnnouncement ? '' : 'disabled'}>
-          ${canEditAnnouncement ? '管理員編輯' : '僅管理員可編輯'}
-        </button>
+        ${canEditAnnouncement ? `
+          <button type="button" class="secondary-btn for-e-announcement-edit-btn" id="globalAnnouncementEditBtn">
+            管理員編輯
+          </button>
+        ` : ''}
       </div>
     </section>
   `
