@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3v'
-const SYSTEM_VERSION_NOTE = '左上角 LOGO 置中放大與會議室名稱顏色修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3x'
+const SYSTEM_VERSION_NOTE = '第一欄姓名與會議室名稱主動分行顯示修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6685,14 +6685,23 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
 }
 
 
-function renderMeetingRoomNameLines(roomName = '', className = 'meeting-room-name-lines') {
-  const text = String(roomName || '').trim() || '會議室'
-  const safeClassName = String(className || 'meeting-room-name-lines').replace(/[^A-Za-z0-9_\-\s]/g, '').trim() || 'meeting-room-name-lines'
-  const match = text.match(/^(.+?)(\d+)$/u)
-  if (match && match[1] && match[2]) {
-    return `<strong class="${safeClassName}"><span class="meeting-room-name-main">${escapeHtml(match[1].trim())}</span><span class="meeting-room-name-number">${escapeHtml(match[2])}</span></strong>`
+function splitMeetingRoomNameParts(roomName = '') {
+  const text = String(roomName || '').replace(/\s+/g, '').trim() || '會議室'
+  const match = text.match(/^(.+?)[\s\-_／/]*([0-9０-９]+)$/u)
+  if (!match || !match[1] || !match[2]) {
+    return { main: text, number: '' }
   }
-  return `<strong class="${safeClassName}"><span class="meeting-room-name-main">${escapeHtml(text)}</span></strong>`
+  return {
+    main: match[1].trim(),
+    number: match[2].trim()
+  }
+}
+
+function renderMeetingRoomNameLines(roomName = '', className = 'meeting-room-name-lines') {
+  const parts = splitMeetingRoomNameParts(roomName)
+  const safeClassName = String(className || 'meeting-room-name-lines').replace(/[^A-Za-z0-9_\-\s]/g, '').trim() || 'meeting-room-name-lines'
+  const numberHtml = parts.number ? `<span class="meeting-room-name-number">${escapeHtml(parts.number)}</span>` : ''
+  return `<strong class="${safeClassName} meeting-room-name-locked" aria-label="${escapeHtml([parts.main, parts.number].filter(Boolean).join(' '))}"><span class="meeting-room-name-main">${escapeHtml(parts.main)}</span>${numberHtml}</strong>`
 }
 
 function renderMeetingRoomCard(row, occurrenceDate = '') {

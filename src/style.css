@@ -25139,3 +25139,254 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3w END - mobile staff name room name split tablet landscape filter spacing */
+
+
+/* FOR-e V002-1H-stable-1-3x START - first column readable names and locked room split */
+:root {
+  --for-e-first-column-name-font-size: 17px;
+  --for-e-first-column-name-line-height: 1.22;
+  --for-e-first-column-width: 112px;
+  --for-e-first-column-min-width: 104px;
+  --for-e-first-column-max-width: 124px;
+}
+
+/* 第一欄：保留最小可讀寬度，但不能窄到壓縮姓名、外務標籤或會議室名稱。 */
+.week-overview-table .staff-col,
+.week-overview-table .staff-name-cell,
+.field-week-table .field-staff-col,
+.field-week-table .field-staff-name-cell,
+.meeting-week-table .meeting-room-col,
+.meeting-week-table .meeting-room-name-cell,
+.meeting-room-table .meeting-room-col,
+.meeting-room-first-column {
+  width: var(--for-e-first-column-width) !important;
+  min-width: var(--for-e-first-column-min-width) !important;
+  max-width: var(--for-e-first-column-max-width) !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.week-overview-table .staff-name-cell,
+.field-week-table .field-staff-name-cell,
+.meeting-week-table .meeting-room-name-cell {
+  text-align: center !important;
+  vertical-align: middle !important;
+  background: #ffffff !important;
+}
+
+/* 人員姓名：可放大、可讀、不得被裁切、不得一字一行。 */
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.field-week-table .field-staff-name-cell .calendar-staff-name-title,
+.week-overview-table .staff-name-cell strong.calendar-staff-name-title,
+.field-week-table .field-staff-name-cell strong.calendar-staff-name-title {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  line-break: strict !important;
+  text-align: center !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-text,
+.field-week-table .field-staff-name-cell .calendar-staff-name-text,
+.week-overview-table .staff-name-cell strong.calendar-staff-name-title .calendar-staff-name-text,
+.field-week-table .field-staff-name-cell strong.calendar-staff-name-title .calendar-staff-name-text {
+  display: block !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  font-size: var(--for-e-first-column-name-font-size) !important;
+  line-height: var(--for-e-first-column-name-line-height) !important;
+  font-weight: 950 !important;
+  color: #1f2937 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  line-break: strict !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+.field-week-table .field-staff-name-cell > span:not(.calendar-staff-name-title),
+.week-overview-table .staff-name-cell .calendar-staff-department,
+.field-week-table .field-staff-name-cell .calendar-staff-department {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 12.5px !important;
+  line-height: 1.25 !important;
+  font-weight: 650 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  color: #64748b !important;
+}
+
+/* 外務「外」標籤：固定寬高，不可被 flex / 欄寬壓縮。 */
+.field-worker-badge,
+.staff-role-badge,
+.outwork-badge,
+.field-badge,
+.staff-badges .field-worker-badge,
+.calendar-staff-name-title .field-worker-badge,
+.week-overview-table .staff-name-cell .field-worker-badge,
+.field-week-table .field-staff-name-cell .field-worker-badge,
+.week-overview-table .staff-name-cell span.field-worker-badge,
+.field-week-table .field-staff-name-cell span.field-worker-badge {
+  flex: 0 0 28px !important;
+  flex-shrink: 0 !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  line-height: 1 !important;
+  font-size: 16px !important;
+  font-weight: 950 !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  overflow: hidden !important;
+}
+
+/* 會議室第一欄：一律使用程式拆出的兩行，不再依欄寬自然切成 7/16、3/00。 */
+.meeting-week-table .meeting-room-name-cell,
+.meeting-week-table .meeting-room-col,
+.meeting-room-name-cell,
+.meeting-room-first-column {
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+}
+
+.meeting-week-table .meeting-room-name-cell-label,
+.meeting-week-table .meeting-room-name-cell-label.meeting-room-name-locked,
+.meeting-room-name-locked {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  font-size: var(--for-e-first-column-name-font-size) !important;
+  line-height: var(--for-e-first-column-name-line-height) !important;
+  font-weight: 950 !important;
+}
+
+.meeting-room-name-main,
+.meeting-room-name-number,
+.meeting-week-table .meeting-room-name-cell-label .meeting-room-name-main,
+.meeting-week-table .meeting-room-name-cell-label .meeting-room-name-number,
+.meeting-room-name-locked .meeting-room-name-main,
+.meeting-room-name-locked .meeting-room-name-number {
+  display: block !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  line-break: strict !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  font-size: var(--for-e-first-column-name-font-size) !important;
+  line-height: var(--for-e-first-column-name-line-height) !important;
+  font-weight: 950 !important;
+}
+
+/* 會議室卡片中的會議室名稱也沿用主動拆行，避免被卡片寬度自然斷成錯誤數字。 */
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.meeting-room-card[style] .meeting-room-room-line,
+.meeting-room-card[style] strong.meeting-room-room-line {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 1px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  color: #8B7E74 !important;
+}
+
+.meeting-room-card .meeting-room-room-line .meeting-room-name-main,
+.meeting-room-card .meeting-room-room-line .meeting-room-name-number {
+  width: auto !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+  font-weight: 800 !important;
+  text-align: left !important;
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  :root {
+    --for-e-first-column-name-font-size: 18px;
+    --for-e-first-column-width: 116px;
+    --for-e-first-column-min-width: 108px;
+    --for-e-first-column-max-width: 128px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --for-e-first-column-name-font-size: 18px;
+    --for-e-first-column-width: 108px;
+    --for-e-first-column-min-width: 104px;
+    --for-e-first-column-max-width: 116px;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .meeting-week-table .meeting-room-col,
+  .meeting-week-table .meeting-room-name-cell {
+    width: var(--for-e-first-column-width) !important;
+    min-width: var(--for-e-first-column-min-width) !important;
+    max-width: var(--for-e-first-column-max-width) !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3x END - first column readable names and locked room split */
