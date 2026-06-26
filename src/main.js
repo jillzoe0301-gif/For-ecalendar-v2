@@ -13869,7 +13869,9 @@ function getContinuationDayMarkClass(row = {}) {
 
   const classes = []
   if (/重要事項|重要事項!|重要/.test(text)) classes.push('is-important-continuation')
-  if (/公司活動/.test(text)) classes.push('company-activity-continuation')
+  if (/公司活動|部門活動/.test(text) && isContinuousDateSchedule(row)) classes.push('activity-continuation-card')
+  if (/公司活動/.test(text) && isContinuousDateSchedule(row)) classes.push('company-activity-continuation')
+  if (/部門活動/.test(text) && isContinuousDateSchedule(row)) classes.push('department-activity-continuation')
   return classes.length ? ` ${classes.join(' ')}` : ''
 }
 
@@ -20130,7 +20132,7 @@ function openScheduleModal(defaults = {}) {
 
           <div class="service-admin-notify-field">
             <div class="field-title">通知行政（可複選）</div>
-            <div class="inline-check-list service-admin-check-list">${serviceAdminChecks}</div>
+            ${serviceAdminDropdownHtml([], 'service_admin_staff_ids')}
           </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
@@ -20862,11 +20864,53 @@ function administrativeStaffCheckboxesHtml(selectedStaffIds = [], inputName = 's
   const allRows = [...extraRows, ...rows]
   if (!allRows.length) return '<div class="field-hint">尚未設定行政人員</div>'
   return allRows.map(staff => `
-    <label class="inline-check service-admin-check-option" title="${escapeHtml([staff.name, staff.department_name, staff.position || staff.position_name || staff.role].filter(Boolean).join('｜'))}">
+    <label class="inline-check service-admin-check-option">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
       <span>${escapeHtml(staff.name || '-')}</span>
     </label>
   `).join('')
+}
+
+function getServiceAdminDropdownSummaryByIds(selectedStaffIds = []) {
+  const names = getStaffNamesByIds(selectedStaffIds)
+  if (!names.length) return '請選擇通知行政'
+  if (names.length <= 2) return names.join('、')
+  return `已選擇 ${names.length} 位行政`
+}
+
+function serviceAdminDropdownHtml(selectedStaffIds = [], inputName = 'service_admin_staff_ids') {
+  const selected = uniqueOptionList((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  const summary = getServiceAdminDropdownSummaryByIds(selected)
+  const isEmpty = selected.length ? '' : ' is-empty'
+  return `
+    <details class="service-admin-dropdown${isEmpty}" data-service-admin-dropdown>
+      <summary>
+        <span data-service-admin-dropdown-summary>${escapeHtml(summary)}</span>
+      </summary>
+      <div class="service-admin-dropdown-panel service-admin-check-list">
+        ${administrativeStaffCheckboxesHtml(selected, inputName)}
+      </div>
+    </details>
+  `
+}
+
+function refreshServiceAdminDropdownSummary(dropdown) {
+  if (!dropdown) return
+  const checkedIds = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(input => String(input.value || '').trim())
+    .filter(Boolean)
+  const summaryEl = dropdown.querySelector('[data-service-admin-dropdown-summary]')
+  if (summaryEl) summaryEl.textContent = getServiceAdminDropdownSummaryByIds(checkedIds)
+  dropdown.classList.toggle('is-empty', checkedIds.length === 0)
+}
+
+if (!window.__FOR_E_SERVICE_ADMIN_DROPDOWN_BOUND__) {
+  window.__FOR_E_SERVICE_ADMIN_DROPDOWN_BOUND__ = true
+  document.addEventListener('change', event => {
+    const input = event.target?.closest?.('.service-admin-dropdown input[type="checkbox"]')
+    if (!input) return
+    refreshServiceAdminDropdownSummary(input.closest('.service-admin-dropdown'))
+  })
 }
 
 function getStaffIdsByDisplayNames(value = '') {
@@ -21618,7 +21662,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
           <div class="edit-service-admin-notify-field">
             <div class="field-title">通知行政（可複選）</div>
-            <div class="inline-check-list service-admin-check-list">${editServiceAdminChecks}</div>
+            ${serviceAdminDropdownHtml(editServiceAdminStaffIds, 'service_admin_staff_ids')}
           </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
