@@ -22700,3 +22700,92 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3e END - calendar cell auto width height by card content */
+
+
+/* FOR-e V002-1H-stable-1-3f START - translator scheduling, factory continuation and mobile zoom */
+@media (max-width: 1024px), (pointer: coarse) {
+  html,
+  body,
+  #app,
+  .app-shell,
+  .main-content,
+  .page-content,
+  .calendar-page,
+  .personal-schedule-page,
+  .schedule-overview-page,
+  .field-schedule-page,
+  .meeting-room-page {
+    overflow: auto !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .personal-month-calendar,
+  .calendar-scroll-container,
+  .overview-calendar-scroll,
+  .calendar-grid-scroll,
+  .field-calendar-scroll,
+  .meeting-calendar-scroll {
+    overflow: auto !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: auto !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    max-height: none !important;
+  }
+
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table,
+  .personal-month-calendar table,
+  .calendar-grid,
+  .calendar-table {
+    transform-origin: top left !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .staff-name-cell,
+  .field-staff-name-cell,
+  .meeting-room-name-cell,
+  .week-overview-table .staff-name-cell,
+  .field-week-table .field-staff-name-cell,
+  .meeting-week-table .meeting-room-name-cell,
+  .week-overview-table th:first-child,
+  .week-overview-table td:first-child,
+  .field-week-table th:first-child,
+  .field-week-table td:first-child,
+  .meeting-week-table th:first-child,
+  .meeting-week-table td:first-child {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    z-index: auto !important;
+  }
+}
+
+/* 駐廠連續行程：標題列固定為「駐廠｜標題」，不拆開、不重複、不直排。 */
+.continuation-day-mark.factory-station-continuation .for-e-card-title,
+.continuation-day-mark.factory-station-continuation .continuation-card-title,
+.week-schedule-card.factory-station-week-card .for-e-card-title,
+.service-reminder-week-card.factory-station-week-card .for-e-card-title {
+  display: block !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 行事曆縮放與滑動保護：不得使用 touch-action none 鎖死瀏覽器原生縮放。 */
+.week-overview-scroll *,
+.field-week-scroll *,
+.meeting-week-scroll *,
+.personal-month-calendar *,
+.calendar-scroll-container * {
+  touch-action: inherit;
+}
+/* FOR-e V002-1H-stable-1-3f END - translator scheduling, factory continuation and mobile zoom */

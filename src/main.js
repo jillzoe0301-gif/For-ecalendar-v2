@@ -1560,7 +1560,8 @@ function canCreateIncidentSchedule() {
 }
 
 function canAssignAllStaff() {
-  return hasRolePermission('assignAllStaff')
+  // V002-1H-stable-1-3f：翻譯可排程給其他人，但不取得管理員 / 後台權限。
+  return hasRolePermission('assignAllStaff') || isTranslatorRole()
 }
 
 function canManageUsers() {
@@ -2224,7 +2225,28 @@ function getContinuationDisplayLabel(row = {}) {
   ]) || '連續行程'
 }
 
+function getFactoryStationContinuationTitle(row = {}) {
+  const typeLabel = '駐廠'
+  const candidates = [
+    row.title,
+    row.customer_name,
+    row.location_name,
+    getFirstTwoLines(row.description || '')
+  ]
+  let title = ''
+  for (const candidate of candidates) {
+    const value = sanitizeRepeatedTypeTitle(typeLabel, String(candidate || '').trim())
+    if (value && value !== '-' && value !== typeLabel) {
+      title = value
+      break
+    }
+  }
+  return title ? `${typeLabel}｜${title}` : typeLabel
+}
+
 function getContinuationDisplayTitle(row = {}) {
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return getFactoryStationContinuationTitle(row)
+
   const genericTitles = new Set([
     '',
     '-',
@@ -6486,6 +6508,9 @@ function sanitizeRepeatedTypeTitle(type = '', title = '') {
 
 function getScheduleTypeTitleParts(row = {}) {
   const baseTitle = String(row.title || row.customer_name || '').trim() || '-'
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) {
+    return { type: '駐廠', title: getFactoryStationContinuationTitle(row) }
+  }
   if (isVehicleMaintenanceSchedule(row)) return { type: '公務車保養', title: sanitizeRepeatedTypeTitle('公務車保養', baseTitle) }
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
     const reminderItem = String(row.sub_type || getNoteValue(row, '提醒項目') || '--').trim() || '--'
@@ -24327,7 +24352,7 @@ async function saveSchedule(event, modal) {
     action_type: '新增',
     source_type: 'schedule',
     source_id: schedule.schedule_id,
-    note: 'V002-1E-4 新增行程'
+    note: `V002-1H-stable-1-3f 新增行程｜建立者：${currentProfile.name || currentProfile.email || '-'}｜指派人員：${selectedStaff.map(staff => staff.name).filter(Boolean).join('、') || '-'}`
   })
 
   modal.remove()
