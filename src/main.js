@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-300'
-const SYSTEM_VERSION_NOTE = '行政公告顯示編輯、公告紀錄權限版面、逃跑第三天與行政提醒文字修正'
+const SYSTEM_VERSION = 'V002-1P-301'
+const SYSTEM_VERSION_NOTE = '行政公告右側編輯與逃跑第三天通知內容修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -250,8 +250,8 @@ function getGlobalAnnouncementDate() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-300'
-  const versionNote = SYSTEM_VERSION_NOTE || '行政公告顯示編輯、公告紀錄權限版面、逃跑第三天與行政提醒文字修正'
+  const versionText = SYSTEM_VERSION || 'V002-1P-301'
+  const versionNote = SYSTEM_VERSION_NOTE || '行政公告右側編輯與逃跑第三天通知內容修正'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
@@ -447,26 +447,21 @@ function getAdministrativeAnnouncementRows({ activeOnly = false } = {}) {
   })
 }
 
-function getAdministrativeAnnouncementInputValue(form, name) {
-  return String(form.get(name) || '').trim()
-}
-
-async function createAdministrativeAnnouncement(formElement) {
+async function saveAdministrativeAnnouncementEntry(date = '', content = '') {
   if (!canCreateAdministrativeAnnouncement()) return denyPermission('你的角色沒有新增行政公告權限。')
-  const form = new FormData(formElement)
-  const date = getAdministrativeAnnouncementInputValue(form, 'announcementDate')
-  const content = getAdministrativeAnnouncementInputValue(form, 'announcementContent')
+  const cleanDate = String(date || '').trim()
+  const cleanContent = getAnnouncementText(content)
 
-  if (!date) return alert('請選擇公告日期')
-  if (!content) return alert('請輸入公告內容')
+  if (!cleanDate) return alert('請選擇公告日期')
+  if (!cleanContent) return alert('請輸入公告內容')
 
   const now = new Date().toISOString()
   const creatorId = getAdministrativeAnnouncementOwnerId()
   const record = {
     id: (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `admin-ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     type: '行政事務公告',
-    date,
-    content,
+    date: cleanDate,
+    content: cleanContent,
     creatorId,
     creatorName: getCurrentAnnouncementCreatorName(),
     creatorRole: getRoleName(),
@@ -485,6 +480,29 @@ async function createAdministrativeAnnouncement(formElement) {
   renderApp()
 }
 
+async function openAdministrativeAnnouncementEditor() {
+  if (!canCreateAdministrativeAnnouncement()) return denyPermission('你的角色沒有新增行政公告權限。')
+  const latest = getAdministrativeAnnouncementFrontRows()[0] || null
+  const currentDate = latest?.date || todayString()
+  const nextDate = window.prompt('請輸入行政公告日期（YYYY-MM-DD）', currentDate)
+  if (nextDate === null) return
+  const cleanDate = String(nextDate || '').trim()
+  if (!cleanDate) return alert('請選擇公告日期')
+
+  const currentContent = latest ? getAnnouncementText(latest) : ''
+  const nextContent = window.prompt('請輸入行政公告內容', currentContent)
+  if (nextContent === null) return
+  const cleanContent = getAnnouncementText(nextContent)
+  if (!cleanContent) return alert('請輸入公告內容')
+
+  await saveAdministrativeAnnouncementEntry(cleanDate, cleanContent)
+}
+
+async function createAdministrativeAnnouncement(formElement) {
+  const form = new FormData(formElement)
+  await saveAdministrativeAnnouncementEntry(form.get('announcementDate'), form.get('announcementContent'))
+}
+
 function getAdministrativeAnnouncementFrontRows() {
   return getAdministrativeAnnouncementRows({ activeOnly: true })
 }
@@ -494,10 +512,10 @@ function renderAdministrativeAnnouncementFrontPanel() {
   const rows = getAdministrativeAnnouncementFrontRows()
   const latest = rows[0] || null
   const latestText = latest ? `${latest.date}｜${getAnnouncementText(latest)}` : ''
-  const canCreate = canCreateAdministrativeAnnouncement()
+  const canEdit = canCreateAdministrativeAnnouncement()
 
   return `
-    <div class="for-e-announcement-line for-e-admin-announcement-line ${canCreate ? 'is-admin' : 'is-view-only'}">
+    <div class="for-e-announcement-line for-e-admin-announcement-line ${canEdit ? 'is-admin' : 'is-view-only'}">
       <div class="for-e-announcement-content">
         <img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="行政公告">
         <strong>行政公告：</strong>
@@ -505,20 +523,12 @@ function renderAdministrativeAnnouncementFrontPanel() {
           ? `<span id="administrativeAnnouncementText">${escapeHtml(latestText)}</span>`
           : '<span id="administrativeAnnouncementText" class="for-e-announcement-empty">目前沒有行政公告</span>'}
       </div>
+      ${canEdit ? `
+        <button type="button" class="secondary-btn for-e-announcement-edit-btn" id="administrativeAnnouncementEditBtn">
+          管理員編輯
+        </button>
+      ` : ''}
     </div>
-    ${canCreate ? `
-      <form id="administrativeAnnouncementForm" class="for-e-admin-announcement-form for-e-announcement-edit-form">
-        <label>
-          公告日期
-          <input type="date" name="announcementDate" value="${escapeHtml(latest?.date || todayString())}" required>
-        </label>
-        <label class="admin-announcement-content-field">
-          公告內容
-          <input type="text" name="announcementContent" value="${escapeHtml(latest ? getAnnouncementText(latest) : '')}" placeholder="請行政同仁留意本週送件期限" required>
-        </label>
-        <button type="submit" class="secondary-btn for-e-announcement-edit-btn">新增公告 / 更新公告</button>
-      </form>
-    ` : ''}
   `
 }
 
@@ -702,7 +712,7 @@ function renderAdministrativeAnnouncementPage() {
     </section>
   `
 }
-/* FOR-e V002-1P-300 END - administrative announcement display records permissions runaway third day */
+/* FOR-e V002-1P-301 END - administrative announcement inline edit and runaway third day content */
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
@@ -4318,11 +4328,11 @@ function renderApp() {
   }
 
 
-  const administrativeAnnouncementForm = document.querySelector('#administrativeAnnouncementForm')
-  if (administrativeAnnouncementForm) {
-    administrativeAnnouncementForm.addEventListener('submit', async event => {
+  const administrativeAnnouncementEditBtn = document.querySelector('#administrativeAnnouncementEditBtn')
+  if (administrativeAnnouncementEditBtn) {
+    administrativeAnnouncementEditBtn.addEventListener('click', async event => {
       event.preventDefault()
-      await createAdministrativeAnnouncement(event.target)
+      await openAdministrativeAnnouncementEditor()
     })
   }
 
@@ -10926,7 +10936,12 @@ function getLineNotifyLabel(row = {}) {
   const type = lineNotifyState.type || ''
   if (type === '外務行程') return '【外務行程通知】'
   if (type === '尚未到期的待辦或行程') return '【尚未到期提醒】'
-  if (type === '逃跑通知') return '【逃跑通知】'
+  if (type === '逃跑通知') {
+    const displayType = typeof getRunawayReminderDisplayType === 'function'
+      ? getRunawayReminderDisplayType(row, getLineNotifyRowDate(row))
+      : '逃跑通知'
+    return `【${displayType || '逃跑通知'}】`
+  }
   if (type === '返台提醒' || type === '返台確認') return '【返台提醒】'
   if (type === '轉出到期前提醒' || type === '轉出到期最後一天') return '【轉出提醒】'
   if (type === '住變資訊提供') return '【住變資訊提供】'
@@ -10948,6 +10963,18 @@ function formatLineScheduleItem(row, index) {
   const typeText = getScheduleDisplayType(row)
   const isField = isFieldScheduleRow(row)
   const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+
+  if (reminderType === '逃跑通知' || lineNotifyState.type === '逃跑通知') {
+    const displayType = getRunawayReminderDisplayType(row, dateText)
+    const runawayStatus = getRunawayReminderStatusForDate(row, dateText)
+    const parts = [
+      `${number}【${displayType || '逃跑通知'}】`,
+      lineNotifyPart('對象', getServiceReminderCaseName(row, '逃跑通知') || getLineNotifySubject(row)),
+      lineNotifyPart('內容', '請發逃跑訊息'),
+      runawayStatus === 'day3' ? lineNotifyPart('提醒', administrativeConversationScreenshotReminderText) : ''
+    ].filter(Boolean)
+    return parts.join('\n')
+  }
 
   if (reminderType === '住變資訊提供' || lineNotifyState.type === '住變資訊提供') {
     const info = parseHousingReminderInfo(row)
@@ -16585,9 +16612,11 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
   }
   if (type === '逃跑通知') {
     const caseName = getServiceReminderCaseName(row, type)
+    const runawayStatus = getRunawayReminderStatusForDate(row, occurrenceDate)
     return [
       caseName || title,
-      '請發逃跑訊息'
+      '請發逃跑訊息',
+      runawayStatus === 'day3' ? administrativeConversationScreenshotReminderText : ''
     ].filter(Boolean)
   }
   return [title]
@@ -16637,7 +16666,10 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
       ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
-      ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
+      ${lines.slice(1).map(line => {
+        const isAdministrativeReminderText = String(line || '').trim() === administrativeConversationScreenshotReminderText
+        return `<span class="week-card-preview${isAdministrativeReminderText ? ' administrative-conversation-reminder-text' : ''}">${escapeHtml(line)}</span>`
+      }).join('')}
     </button>
   `
 }

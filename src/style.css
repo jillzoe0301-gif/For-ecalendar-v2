@@ -21258,7 +21258,7 @@ button.login-birthday-card:focus-visible {
 }
 /* FOR-e V002-1P-299 END - administrative announcement front display and records */
 
-/* FOR-e V002-1P-300 START - administrative announcement display, records alignment and reminder text */
+/* FOR-e V002-1P-301 START - administrative announcement inline edit and runaway third day content */
 .for-e-admin-announcement-line {
   width: 100% !important;
   min-height: 44px !important;
@@ -21409,4 +21409,54 @@ button.login-birthday-card:focus-visible {
     flex: 1 1 100% !important;
   }
 }
-/* FOR-e V002-1P-300 END - administrative announcement display, records alignment and reminder text */
+
+/* V002-1P-301：行政公告不常駐顯示輸入表單，只保留右側編輯按鈕 */
+.for-e-admin-announcement-line {
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+
+.for-e-admin-announcement-line .for-e-announcement-edit-btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+.for-e-admin-announcement-form.for-e-announcement-edit-form {
+  display: none !important;
+}
+
+.service-reminder-week-card.is-runaway-day3 .service-reminder-card-type {
+  background: #c62828 !important;
+  border-color: #c62828 !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+}
+
+.service-reminder-week-card .administrative-conversation-reminder-text,
+.service-reminder-week-card.is-runaway-day3 .administrative-conversation-reminder-text {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 3px !important;
+  padding: 5px 8px !important;
+  border-radius: 10px !important;
+  background: #fff1b8 !important;
+  border: 1px solid #f59e0b !important;
+  color: #9a3412 !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 768px) {
+  .for-e-admin-announcement-line {
+    align-items: flex-start !important;
+  }
+
+  .for-e-admin-announcement-line .for-e-announcement-edit-btn {
+    width: auto !important;
+  }
+}
+
+/* FOR-e V002-1P-301 END - administrative announcement inline edit and runaway third day content */
