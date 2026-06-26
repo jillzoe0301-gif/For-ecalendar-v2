@@ -23065,3 +23065,262 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3h END - Android vertical pan safe guard */
+
+
+/* FOR-e V002-1H-stable-1-3i START - mobile tablet sticky first column and month auto sizing */
+/*
+  目的：
+  1. 手機 / 平板的行程總覽、外務行程、會議室第一欄固定在左側。
+  2. 第一欄縮到最小可讀寬度，姓名橫向顯示，不直排、不裁切。
+  3. 整月行事曆格子依卡片寬高自動撐開。
+  4. 保留安卓單指上下 / 左右滑動與雙指縮放。
+*/
+@media (max-width: 1024px), (pointer: coarse) {
+  .week-overview-scroll,
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .meeting-room-scroll,
+  .calendar-scroll,
+  .schedule-calendar-scroll,
+  .month-sliding-scroll,
+  .week-overview-section,
+  .field-week-section,
+  .meeting-week-section {
+    overflow: auto !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    overscroll-behavior-x: contain !important;
+    overscroll-behavior-y: auto !important;
+    max-height: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .week-overview-table,
+  .field-week-table,
+  .meeting-week-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .week-overview-table th:first-child,
+  .week-overview-table td:first-child,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-week-table th:first-child,
+  .field-week-table td:first-child,
+  .meeting-week-table .meeting-room-col,
+  .meeting-week-table .meeting-room-name-cell,
+  .meeting-week-table th:first-child,
+  .meeting-week-table td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    right: auto !important;
+    top: auto !important;
+    z-index: 28 !important;
+    width: max-content !important;
+    min-width: 58px !important;
+    max-width: 92px !important;
+    background: #ffffff !important;
+    border-right: 1px solid #d9e2ef !important;
+    box-shadow: 4px 0 10px rgba(15, 23, 42, 0.06) !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    overflow: visible !important;
+    text-align: center !important;
+    vertical-align: top !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    box-sizing: border-box !important;
+  }
+
+  .week-overview-table thead .staff-col,
+  .week-overview-table thead th:first-child,
+  .field-week-table thead .field-staff-col,
+  .field-week-table thead th:first-child,
+  .meeting-week-table thead .meeting-room-col,
+  .meeting-week-table thead th:first-child {
+    z-index: 32 !important;
+    background: #f8fbff !important;
+  }
+
+  .week-overview-table .staff-name-cell strong,
+  .week-overview-table .staff-name-cell span,
+  .field-week-table .field-staff-name-cell strong,
+  .field-week-table .field-staff-name-cell span,
+  .meeting-week-table .meeting-room-name-cell strong,
+  .meeting-week-table .meeting-room-name-cell span,
+  .week-overview-table .staff-col *,
+  .field-week-table .field-staff-col *,
+  .meeting-week-table .meeting-room-col * {
+    display: block !important;
+    max-width: 86px !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    line-height: 1.35 !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-department,
+  .field-week-table .field-staff-name-cell .calendar-staff-department,
+  .week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+  .field-week-table .field-staff-name-cell > span:not(.calendar-staff-name-title),
+  .meeting-week-table .meeting-room-name-cell span {
+    font-size: 11px !important;
+    color: #64748b !important;
+  }
+
+  .week-overview-table th:not(.staff-col):not(:first-child),
+  .week-overview-table td.week-day-cell,
+  .field-week-table th:not(.field-staff-col):not(.field-staff-name-cell):not(:first-child),
+  .field-week-table td.field-week-day-cell,
+  .meeting-week-table th:not(.meeting-room-col):not(.meeting-room-name-cell):not(:first-child),
+  .meeting-week-table td.meeting-week-day-cell {
+    min-width: 205px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 128px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    vertical-align: top !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* 整月行事曆：依卡片文字可讀寬度與內容高度撐開，不裁切、不重疊。 */
+.week-overview-table.is-overview-month,
+.week-overview-table.is-personal-month,
+.field-week-table.is-field-month,
+.meeting-week-table.is-meeting-month,
+.personal-month-calendar-grid,
+.field-personal-month-calendar .personal-month-calendar-grid,
+.month-calendar-grid,
+.calendar-grid {
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+  align-items: stretch !important;
+}
+
+.week-overview-table.is-overview-month tr,
+.week-overview-table.is-personal-month tr,
+.field-week-table.is-field-month tr,
+.meeting-week-table.is-meeting-month tr,
+.calendar-row {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  align-items: stretch !important;
+}
+
+.week-overview-table.is-overview-month td.week-day-cell,
+.week-overview-table.is-personal-month td.week-day-cell,
+.field-week-table.is-field-month td.field-week-day-cell,
+.meeting-week-table.is-meeting-month td.meeting-week-day-cell,
+.month-day-cell,
+.calendar-day-cell,
+.calendar-column {
+  min-width: 205px !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 132px !important;
+  max-height: none !important;
+  overflow: visible !important;
+  vertical-align: top !important;
+  align-items: stretch !important;
+  box-sizing: border-box !important;
+}
+
+.week-overview-table.is-overview-month .week-schedule-card,
+.week-overview-table.is-personal-month .week-schedule-card,
+.field-week-table.is-field-month .field-week-schedule-card,
+.meeting-week-table.is-meeting-month .meeting-room-card,
+.month-day-cell .week-schedule-card,
+.month-day-cell .field-week-schedule-card,
+.month-day-cell .meeting-room-card,
+.month-day-cell .continuation-day-mark {
+  width: auto !important;
+  min-width: 176px !important;
+  max-width: 280px !important;
+  height: auto !important;
+  min-height: fit-content !important;
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  box-sizing: border-box !important;
+}
+
+.week-overview-table.is-overview-month .for-e-card-title,
+.week-overview-table.is-personal-month .for-e-card-title,
+.field-week-table.is-field-month .for-e-card-title,
+.meeting-week-table.is-meeting-month .for-e-card-title,
+.month-day-cell .for-e-card-title {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.week-overview-table.is-overview-month .week-card-preview,
+.week-overview-table.is-personal-month .week-card-preview,
+.field-week-table.is-field-month .field-week-card-preview,
+.meeting-week-table.is-meeting-month .meeting-room-preview,
+.month-day-cell .week-card-preview,
+.month-day-cell .field-week-card-preview,
+.month-day-cell .meeting-room-preview {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  max-height: none !important;
+}
+
+@media (max-width: 768px) {
+  .week-overview-table th:not(.staff-col):not(:first-child),
+  .week-overview-table td.week-day-cell,
+  .field-week-table th:not(.field-staff-col):not(.field-staff-name-cell):not(:first-child),
+  .field-week-table td.field-week-day-cell,
+  .meeting-week-table th:not(.meeting-room-col):not(.meeting-room-name-cell):not(:first-child),
+  .meeting-week-table td.meeting-week-day-cell,
+  .month-day-cell,
+  .calendar-day-cell,
+  .calendar-column {
+    min-width: 200px !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .week-overview-table th:first-child,
+  .week-overview-table td:first-child,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-week-table th:first-child,
+  .field-week-table td:first-child,
+  .meeting-week-table .meeting-room-col,
+  .meeting-week-table .meeting-room-name-cell,
+  .meeting-week-table th:first-child,
+  .meeting-week-table td:first-child {
+    min-width: 54px !important;
+    max-width: 86px !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3i END - mobile tablet sticky first column and month auto sizing */
