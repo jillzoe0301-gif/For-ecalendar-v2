@@ -21690,205 +21690,183 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
 }
 /* FOR-e V002-1H-stable-1-2 END - verify reminder FF9A86 palette and dedupe display support */
 
-/* FOR-e V002-1H-stable-1-3 START - unified outline calendar cards and continuous compact display */
-.schedule-card,
+/* FOR-e V002-1H-stable-1-3a START - unified outline card horizontal layout */
 .week-schedule-card,
 .field-week-schedule-card,
 .meeting-room-card,
 .continuation-day-mark,
-.service-reminder-week-card,
-.line-select-row.unified-outline-card {
+.week-day-cell .continuation-day-mark,
+.field-week-day-cell .continuation-day-mark,
+.month-day-cell .continuation-day-mark,
+.meeting-week-day-cell .continuation-day-mark {
+  display: block !important;
+  width: calc(100% - 8px) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 4px auto !important;
+  padding: 9px 11px !important;
   border-radius: 16px !important;
+  background: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.week-schedule-card[style],
+.field-week-schedule-card[style],
+.meeting-room-card[style] {
   border-width: 2px !important;
   border-style: solid !important;
-  border-color: var(--schedule-accent, #dbe3f0) !important;
-  background: #ffffff !important;
-  box-sizing: border-box !important;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
-  text-align: left !important;
-  white-space: normal !important;
+  border-color: var(--schedule-accent, #dbe2f0) !important;
+  border-left-width: 4px !important;
 }
 
-.week-schedule-card,
-.field-week-schedule-card,
-.meeting-room-card,
 .continuation-day-mark,
-.service-reminder-week-card {
-  display: grid !important;
-  gap: 6px !important;
-  align-content: start !important;
-  justify-items: stretch !important;
-  padding: 9px 10px !important;
-  margin: 0 0 7px 0 !important;
-  width: 100% !important;
+.week-day-cell .continuation-day-mark,
+.field-week-day-cell .continuation-day-mark,
+.month-day-cell .continuation-day-mark,
+.meeting-week-day-cell .continuation-day-mark {
+  border: 2px solid color-mix(in srgb, var(--day-accent, #dbe2f0) 55%, #ffffff 45%) !important;
+  border-left: 4px solid var(--day-accent, #dbe2f0) !important;
+  background: color-mix(in srgb, var(--day-accent, #dbe2f0) 6%, #ffffff 94%) !important;
 }
 
-.calendar-card-first-line {
+.for-e-card-head-row,
+.continuation-card-head-row {
   display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 6px !important;
-  flex-wrap: wrap !important;
-  min-width: 0 !important;
+  gap: 6px 8px !important;
   width: 100% !important;
-  margin: 0 !important;
-  line-height: 1.35 !important;
-  text-align: left !important;
+  min-width: 0 !important;
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
 }
 
-.calendar-card-time-text,
+.for-e-card-head-row > *,
+.continuation-card-head-row > * {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.for-e-card-type-chip,
+.week-schedule-card .for-e-card-type-chip,
+.field-week-schedule-card .for-e-card-type-chip,
+.meeting-room-card .for-e-card-type-chip,
+.continuation-day-mark .for-e-card-type-chip,
+.continuation-day-mark .continuation-day-type-line {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 24px !important;
+  padding: 3px 10px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 18%, #ffffff 82%) !important;
+  border: 1px solid color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 34%, #ffffff 66%) !important;
+  color: #7c4a2b !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.for-e-card-title,
+.week-schedule-card .for-e-card-title,
+.field-week-schedule-card .for-e-card-title,
+.meeting-room-card .for-e-card-title,
+.continuation-day-mark .for-e-card-title,
+.continuation-day-mark .continuation-card-title {
+  display: block !important;
+  margin: 0 !important;
+  color: #1f2937 !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
 .week-card-time,
 .field-week-card-time,
 .meeting-room-time,
+.service-reminder-time,
 .continuation-day-time,
-.line-select-time {
+.factory-station-time {
   display: inline-flex !important;
   align-items: center !important;
-  flex: 0 0 auto !important;
   margin: 0 !important;
-  color: #475569 !important;
+  color: #334155 !important;
   font-size: 13px !important;
-  font-weight: 850 !important;
+  font-weight: 700 !important;
   line-height: 1.35 !important;
-  white-space: normal !important;
-}
-
-.calendar-card-type-chip,
-.week-card-type-line,
-.field-week-card-type-line,
-.service-reminder-card-type,
-.schedule-card-type-line,
-.continuation-day-type-line,
-.meeting-room-type-line,
-.meeting-room-room-line,
-.line-select-type,
-.extra-schedule-chip,
-.week-card-extra,
-.reminder-tags span {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  min-height: auto !important;
-  border-radius: 999px !important;
-  padding: 3px 8px !important;
-  border: 1px solid color-mix(in srgb, var(--schedule-accent, #5170ff) 58%, #ffffff) !important;
-  background: color-mix(in srgb, var(--schedule-accent, #5170ff) 15%, #ffffff) !important;
-  color: color-mix(in srgb, var(--schedule-accent, #5170ff) 72%, #0f172a) !important;
-  font-size: 13.5px !important;
-  font-weight: 950 !important;
-  line-height: 1.35 !important;
-  text-align: left !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-
-.calendar-card-title,
-.week-card-title,
-.field-week-card-title,
-.meeting-room-title,
-.service-reminder-title,
-.continuation-day-title,
-.schedule-card-title-text,
-.line-select-title,
-.week-schedule-card > strong,
-.field-week-schedule-card > strong,
-.meeting-room-card > strong,
-.continuation-day-mark > strong {
-  display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  color: #111827 !important;
-  font-size: 15px !important;
-  font-weight: 950 !important;
-  line-height: 1.45 !important;
-  text-align: left !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
+  white-space: nowrap !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
 }
 
 .week-card-preview,
 .field-week-card-preview,
-.meeting-room-meta,
 .meeting-room-preview,
-.schedule-content-preview,
-.schedule-meta,
-.line-select-row small {
-  text-align: left !important;
-  color: #64748b !important;
+.meeting-room-meta,
+.week-card-extra,
+.field-special-badges,
+.field-result-badge,
+.administrative-conversation-reminder-text {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #475569 !important;
   font-size: 13px !important;
-  font-weight: 750 !important;
   line-height: 1.45 !important;
+  text-align: left !important;
   white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
   word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
 }
 
-.continuation-day-mark.continuous-compact-card {
-  padding: 9px 10px !important;
-  cursor: pointer !important;
+.week-card-extra,
+.field-special-badges,
+.field-result-badge {
+  margin-top: 6px !important;
 }
 
-.continuation-day-mark.continuous-compact-card .week-card-preview,
-.continuation-day-mark.continuous-compact-card .field-week-card-preview,
-.continuation-day-mark.continuous-compact-card .meeting-room-meta,
-.continuation-day-mark.continuous-compact-card .meeting-room-preview,
-.continuation-day-mark.continuous-compact-card .week-card-extra {
-  display: none !important;
-}
-
-.continuation-day-inline-title {
-  display: grid !important;
-  gap: 5px !important;
-  width: 100% !important;
-}
-
-.schedule-title-stack .calendar-card-first-line {
-  margin-bottom: 5px !important;
-}
-
-.line-select-row.unified-outline-card {
-  grid-template-columns: 1.05em minmax(0, 1fr) !important;
-  align-items: start !important;
-  gap: 9px !important;
-  padding: 10px !important;
-  border-color: var(--schedule-accent, #e2e8f0) !important;
-}
-
-.line-select-content {
-  display: grid !important;
-  gap: 4px !important;
-  min-width: 0 !important;
-  width: 100% !important;
-}
-
-.line-select-row.unified-outline-card input[type="checkbox"] {
-  margin-top: 5px !important;
-}
-
-.line-select-row.unified-outline-card:has(input:checked) {
-  background: color-mix(in srgb, var(--schedule-accent, #5170ff) 9%, #ffffff) !important;
-  border-color: var(--schedule-accent, #5170ff) !important;
-}
-
-/* 統一舊版 inline 樣式，避免連續行程第二天以上混回舊版扁平文字 */
+.continuation-day-mark .continuation-day-inline-title,
 .calendar-card-inline-title,
 .factory-station-inline-title {
-  display: grid !important;
-  gap: 5px !important;
+  display: block !important;
   width: 100% !important;
-  align-items: start !important;
-  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.continuation-day-mark strong,
+.continuation-day-mark span,
+.week-schedule-card strong,
+.week-schedule-card span,
+.field-week-schedule-card strong,
+.field-week-schedule-card span,
+.meeting-room-card strong,
+.meeting-room-card span {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
 }
 
 @media (max-width: 768px) {
@@ -21896,47 +21874,28 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
   .field-week-schedule-card,
   .meeting-room-card,
   .continuation-day-mark,
-  .service-reminder-week-card {
-    border-radius: 15px !important;
-    padding: 9px !important;
-    gap: 6px !important;
+  .week-day-cell .continuation-day-mark,
+  .field-week-day-cell .continuation-day-mark,
+  .month-day-cell .continuation-day-mark,
+  .meeting-week-day-cell .continuation-day-mark {
+    padding: 8px 10px !important;
+    border-radius: 14px !important;
   }
 
-  .calendar-card-time-text,
-  .week-card-time,
-  .field-week-card-time,
-  .meeting-room-time,
-  .continuation-day-time,
-  .line-select-time {
-    font-size: 13px !important;
+  .for-e-card-title,
+  .week-schedule-card .for-e-card-title,
+  .field-week-schedule-card .for-e-card-title,
+  .meeting-room-card .for-e-card-title,
+  .continuation-day-mark .for-e-card-title {
+    font-size: 14px !important;
   }
 
-  .calendar-card-type-chip,
-  .week-card-type-line,
-  .field-week-card-type-line,
-  .service-reminder-card-type,
-  .schedule-card-type-line,
-  .continuation-day-type-line,
-  .meeting-room-type-line,
-  .meeting-room-room-line,
-  .line-select-type,
-  .extra-schedule-chip,
-  .week-card-extra,
-  .reminder-tags span {
-    font-size: 13px !important;
-    padding: 3px 7px !important;
-  }
-
-  .calendar-card-title,
-  .week-card-title,
-  .field-week-card-title,
-  .meeting-room-title,
-  .service-reminder-title,
-  .continuation-day-title,
-  .schedule-card-title-text,
-  .line-select-title {
-    font-size: 14.5px !important;
-    line-height: 1.45 !important;
+  .for-e-card-type-chip,
+  .week-schedule-card .for-e-card-type-chip,
+  .field-week-schedule-card .for-e-card-type-chip,
+  .meeting-room-card .for-e-card-type-chip,
+  .continuation-day-mark .for-e-card-type-chip {
+    font-size: 12.5px !important;
   }
 }
-/* FOR-e V002-1H-stable-1-3 END - unified outline calendar cards and continuous compact display */
+/* FOR-e V002-1H-stable-1-3a END - unified outline card horizontal layout */
