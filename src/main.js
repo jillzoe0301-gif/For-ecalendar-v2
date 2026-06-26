@@ -120,7 +120,7 @@ const pageIconMap = {
 }
 
 const pageImageIconMap = {
-  personalSchedule: '/icons/nav/calendar-check.png',
+  personalSchedule: '/icons/nav/personal-schedule-bell-red.png',
   personalTodo: '/icons/nav/checklist.png',
   assignedTracking: '/icons/nav/assigned-document.png',
   scheduleOverview: '/icons/nav/grid.png',
@@ -146,6 +146,60 @@ function renderPageIcon(key) {
     return `<img class="nav-icon-img" src="${imagePath}" alt="">`
   }
   return pageIconMap[key] || '•'
+}
+
+
+function renderTopbarTitleIcon() {
+  if (currentPage !== 'personalSchedule') return ''
+  return `<span class="topbar-title-icon" aria-hidden="true">${renderPageIcon('personalSchedule')}</span>`
+}
+
+const globalAnnouncementStorageKey = 'for-e-global-announcement'
+
+function getGlobalAnnouncementText() {
+  const remote = typeof appSettings === 'object' && appSettings ? appSettings.global_announcement : ''
+  const local = (() => {
+    try { return localStorage.getItem(globalAnnouncementStorageKey) || '' } catch (error) { return '' }
+  })()
+  return String(remote || local || '本週請留意返台與轉出案件').trim()
+}
+
+function renderVersionAnnouncementBanner() {
+  const announcementText = getGlobalAnnouncementText()
+  const canEditAnnouncement = getRoleName() === '管理員'
+  return `
+    <section class="for-e-version-announcement-panel">
+      <div class="for-e-version-line">
+        <span class="for-e-version-label">版本提示</span>
+        <strong>V002-1H-7 測試版</strong>
+        <span>提醒樣式預覽</span>
+      </div>
+      <div class="for-e-announcement-line">
+        <div class="for-e-announcement-content">
+          <span class="for-e-announcement-lock" aria-hidden="true">🔒</span>
+          <strong>公告：</strong>
+          <span id="globalAnnouncementText">${escapeHtml(announcementText)}</span>
+        </div>
+        <button type="button" class="secondary-btn for-e-announcement-edit-btn" id="globalAnnouncementEditBtn" ${canEditAnnouncement ? '' : 'disabled'}>
+          ${canEditAnnouncement ? '管理員編輯' : '僅管理員可編輯'}
+        </button>
+      </div>
+    </section>
+  `
+}
+
+function bindGlobalAnnouncementEditor() {
+  const btn = document.querySelector('#globalAnnouncementEditBtn')
+  if (!btn || getRoleName() !== '管理員') return
+  btn.addEventListener('click', async () => {
+    const current = getGlobalAnnouncementText()
+    const next = window.prompt('請輸入公告內容', current)
+    if (next === null) return
+    const clean = String(next || '').trim()
+    try { localStorage.setItem(globalAnnouncementStorageKey, clean) } catch (error) {}
+    await saveAppSetting('global_announcement', clean)
+    renderApp()
+  })
 }
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
@@ -667,7 +721,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options']
+const sharedSettingKeys = ['schedule_colors', 'field_staff_settings', 'managed_options', 'global_announcement']
 
 function readLocalJsonSetting(key) {
   try {
@@ -3257,7 +3311,7 @@ function renderApp() {
 
         <header class="topbar">
           <div>
-            <h2>${getPageTitle()}</h2>
+            <h2 class="topbar-title">${renderTopbarTitleIcon()}<span>${getPageTitle()}</span></h2>
             <p>
               ${currentProfile.name || currentProfile.email}
               ｜${currentProfile.role}
@@ -3267,6 +3321,8 @@ function renderApp() {
           </div>
           <button class="logout-btn" id="logoutBtn">登出</button>
         </header>
+
+        ${renderVersionAnnouncementBanner()}
 
         <section class="content-card">
           ${renderPageContent()}
@@ -3294,6 +3350,7 @@ function renderApp() {
   })
 
   document.querySelector('#logoutBtn').addEventListener('click', logout)
+  bindGlobalAnnouncementEditor()
 
   injectExportCsvButton()
 
@@ -9446,8 +9503,9 @@ function getScheduleColorDefinitions() {
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
     { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
     { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
-    { key: '轉出追蹤', label: '提醒事項｜轉出追蹤', defaultColor: '#FF8080' },
-    { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#FF8080' },
+    { key: '轉出追蹤', label: '提醒事項｜轉出最後一天', defaultColor: '#C70039' },
+    { key: '轉出到期前提醒', label: '提醒事項｜轉出到期前提醒', defaultColor: '#F7D6DF' },
+    { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
     { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
     { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF8080' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
@@ -9484,8 +9542,9 @@ function getScheduleColorSettings() {
 
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
-      '轉出追蹤': '#FF8080',
-      '轉出提醒': '#FF8080',
+      '轉出追蹤': '#C70039',
+      '轉出到期前提醒': '#F7D6DF',
+      '轉出提醒': '#C70039',
       '住變資訊提供': '#FF8080',
       '驗證提醒': '#FF8080',
       '返台提醒': '#67C090',
@@ -13437,19 +13496,24 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
       ? getReturnTaiwanReminderStatusForDate(row, dateKey)
       : 'reminder'
     const isConfirm = status === 'confirm'
-    const label = isConfirm ? '返台確認' : '返台提醒'
+    const label = isConfirm ? '返台確認（今天返台）' : '返台提醒'
     const statusClass = isConfirm ? 'is-return-confirm' : 'is-return-reminder'
-    const details = [
-      info.date ? `返台日：${info.date}` : '',
-      isConfirm && info.time ? `返台時間：${info.time}` : '',
-      info.flight ? `班機：${info.flight}` : ''
-    ].filter(Boolean)
+    const summaryParts = [row.region, row.area, row.customer_name, row.title || info.title]
+      .map(item => String(item || '').trim())
+      .filter(Boolean)
+    const uniqueSummary = [...new Set(summaryParts)]
+    const details = isConfirm
+      ? [uniqueSummary.join(' / ')]
+      : [
+          info.date ? `返台日：${info.date}` : '',
+          info.flight ? `班機：${info.flight}` : ''
+        ].filter(Boolean)
 
     return `
       <button type="button" class="return-reminder-day-mark ${statusClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
         <span>${label}</span>
         <strong>
-          <em>${escapeHtml(info.title || label)}</em>
+          <em>${escapeHtml(isConfirm ? '返台確認（今天返台）' : (info.title || label))}</em>
           ${details.map(item => `<small>${escapeHtml(item)}</small>`).join('')}
         </strong>
       </button>
@@ -15374,6 +15438,7 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
     return [
       title,
       status === 'due-reminder' ? '轉出到期前10天提醒' : '',
+      status === 'due-date' ? '最後一天提醒' : '',
       info.endDate ? `聘僱終止日：${info.endDate}` : '',
       info.dueDate ? `轉出到期日：${info.dueDate}` : ''
     ].filter(Boolean)
@@ -15398,7 +15463,9 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   }
   if (type === '轉出追蹤') {
     const transferStatus = getTransferReminderStatusForDate(row, occurrenceDate)
-    if (transferStatus === 'due-reminder') return '轉出提醒'
+    if (transferStatus === 'due-reminder') return '轉出到期前提醒'
+    if (transferStatus === 'due-date') return '轉出提醒'
+    return '轉出最後一天'
   }
   return type
 }
@@ -15408,12 +15475,18 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const type = getServiceReminderDisplayType(row, occurrenceDateValue)
   const lines = getServiceReminderDisplayLines(row, occurrenceDateValue)
   const isFactoryStation = isFactoryStationSchedule(row) || type === '駐廠'
+  const originalReminderType = getServiceReminderTypeFromRow(row)
+  const transferStatus = originalReminderType === '轉出追蹤' ? getTransferReminderStatusForDate(row, occurrenceDateValue) : ''
+  const transferClass = transferStatus ? `is-transfer-${transferStatus}` : ''
+  const transferBadge = transferStatus === 'due-date'
+    ? '<span class="transfer-last-day-badge" aria-label="最後一天提醒">! 最後一天</span>'
+    : ''
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
         ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -15422,9 +15495,10 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   }
 
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
+      ${transferBadge}
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
     </button>

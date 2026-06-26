@@ -20034,3 +20034,205 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-290 END - activity continuation admin dropdown reminder field tablet layout */
+
+
+/* FOR-e V002-1P-291 START - reminder hierarchy announcement personal icon */
+.topbar-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.topbar-title-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 24px;
+}
+
+.topbar-title-icon .nav-icon-img {
+  width: 22px !important;
+  height: 22px !important;
+  object-fit: contain !important;
+  opacity: 1 !important;
+}
+
+.for-e-version-announcement-panel {
+  display: grid;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
+.for-e-version-line,
+.for-e-announcement-line {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #dbe6ff;
+  background: #f8fbff;
+  border-radius: 16px;
+  padding: 9px 12px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.for-e-version-line {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.for-e-version-label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #eaf1ff;
+  color: #3453b8;
+  font-weight: 950;
+}
+
+.for-e-announcement-content {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.for-e-announcement-lock {
+  opacity: 0.72;
+}
+
+.for-e-announcement-edit-btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 12px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+.for-e-announcement-edit-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+/* 返台確認：今天返台改為低醒目，不顯示日期。返台提醒維持較醒目的綠色高優先層級。 */
+.return-reminder-day-mark.is-return-confirm,
+.week-day-cell .return-reminder-day-mark.is-return-confirm,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm,
+.month-day-cell .return-reminder-day-mark.is-return-confirm,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm {
+  background: #f4fbf7 !important;
+  border-color: #cfe9dc !important;
+  box-shadow: inset 0 0 0 1px #e1f2e8 !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > span,
+.week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.month-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm > span {
+  background: #dcefe5 !important;
+  color: #2c6148 !important;
+  font-size: 12.5px !important;
+  font-weight: 950 !important;
+}
+
+.return-reminder-day-mark.is-return-confirm strong em,
+.return-reminder-day-mark.is-return-confirm strong small {
+  color: #334155 !important;
+}
+
+/* 轉出提醒層級：同一個 #C70039 色系，前10天最淡、一般中階、最後一天最醒目。 */
+.service-reminder-week-card.is-transfer-due-reminder {
+  --schedule-accent: #F3C9D4 !important;
+  background: #fff7f9 !important;
+  border-color: #f3c9d4 !important;
+  box-shadow: inset 4px 0 0 #f0a8ba !important;
+}
+
+.service-reminder-week-card.is-transfer-due-reminder .service-reminder-card-type {
+  background: #f7dce4 !important;
+  color: #8b0028 !important;
+}
+
+.service-reminder-week-card.is-transfer-tracking-start {
+  --schedule-accent: #E389A1 !important;
+  background: #fff1f5 !important;
+  border-color: #e389a1 !important;
+  box-shadow: inset 4px 0 0 #d94d72 !important;
+}
+
+.service-reminder-week-card.is-transfer-tracking-start .service-reminder-card-type {
+  background: #f0b4c4 !important;
+  color: #760022 !important;
+}
+
+.service-reminder-week-card.is-transfer-due-date {
+  --schedule-accent: #C70039 !important;
+  position: relative !important;
+  background: #fff0f4 !important;
+  border-color: #c70039 !important;
+  box-shadow: inset 5px 0 0 #c70039, 0 8px 18px rgba(199, 0, 57, 0.16) !important;
+}
+
+.service-reminder-week-card.is-transfer-due-date .service-reminder-card-type {
+  background: #c70039 !important;
+  color: #ffffff !important;
+}
+
+.transfer-last-day-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #c70039;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(199, 0, 57, 0.18);
+}
+
+.service-reminder-week-card.is-transfer-due-date strong,
+.service-reminder-week-card.is-transfer-due-date .week-card-preview {
+  padding-right: 58px;
+}
+
+@media (max-width: 768px) {
+  .for-e-version-announcement-panel {
+    margin: 0 0 12px;
+  }
+
+  .for-e-announcement-line {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .for-e-announcement-edit-btn {
+    align-self: flex-start;
+  }
+
+  .transfer-last-day-badge {
+    position: static;
+    width: fit-content;
+    margin: 2px 0 3px;
+  }
+
+  .service-reminder-week-card.is-transfer-due-date strong,
+  .service-reminder-week-card.is-transfer-due-date .week-card-preview {
+    padding-right: 0;
+  }
+}
+/* FOR-e V002-1P-291 END - reminder hierarchy announcement personal icon */
