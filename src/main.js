@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3i'
-const SYSTEM_VERSION_NOTE = '手機平板第一欄固定、欄寬最小化與月曆格子自動調整'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3j'
+const SYSTEM_VERSION_NOTE = '星期表頭固定、篩選重設、下拉層級與公務車保養欄位名稱修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -765,7 +765,7 @@ const scheduleContentTemplates = [
   { type: '宿舍', content: '宿舍地點：\n處理事項：\n處理結果：\n後續追蹤：' },
   { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' },
   { type: '求才拍照', content: '求才對象：\n拍照地點：\n處理內容：\n備註：' },
-  { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
+  { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知相關人員：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
 const administrativeReminderItems = ['--', '求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
@@ -4154,8 +4154,14 @@ function renderApp() {
   if (resetOverviewFilterBtn) {
     resetOverviewFilterBtn.addEventListener('click', () => {
       overviewFilters = normalizeOverviewFilters()
+      overviewWeekOffset = 0
       overviewDisplayMonth = getCurrentMonthValue()
+      overviewQuickGroups = normalizeOverviewQuickGroups({
+        ...overviewQuickGroups,
+        activeId: 'all'
+      })
       saveOverviewFiltersPreference()
+      saveOverviewQuickGroupsPreference()
       renderApp()
     })
   }
@@ -4257,6 +4263,9 @@ function renderApp() {
   if (resetFieldScheduleFilterBtn) {
     resetFieldScheduleFilterBtn.addEventListener('click', () => {
       fieldScheduleFilters = normalizeFieldScheduleFilters()
+      fieldWeekOffset = 0
+      fieldDisplayMonth = getCurrentMonthValue()
+      fieldCalendarViewMode = '週檢視'
       saveFieldScheduleFiltersPreference()
       renderApp()
     })
@@ -6213,7 +6222,7 @@ function renderFieldScheduleCalendar() {
         </label>
 
         <button type="submit" class="primary-btn">套用並記住</button>
-        <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
+        <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">重設</button>
       </div>
 
       <div class="overview-filter-summary compact-summary">
@@ -17066,7 +17075,7 @@ function renderScheduleOverview() {
         </label>
 
         <button type="submit" class="primary-btn overview-apply-btn">套用</button>
-        <button type="button" class="secondary-btn overview-reset-btn-small" id="resetOverviewFilterBtn">全部</button>
+        <button type="button" class="secondary-btn overview-reset-btn-small" id="resetOverviewFilterBtn">重設</button>
       </div>
 
       <div class="overview-filter-summary compact-summary">
@@ -21925,7 +21934,7 @@ function openScheduleModal(defaults = {}) {
           </label>
 
           <label>
-            通知車子保養者
+            通知相關人員
             <select name="maintenance_notify_staff">
               ${staffSelectOptionsHtml()}
             </select>
@@ -23544,7 +23553,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </label>
 
           <label>
-            通知車子保養者
+            通知相關人員
             <select name="maintenance_notify_staff">
               ${maintenanceNotifyOptions}
             </select>
@@ -23562,7 +23571,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             <textarea name="maintenance_note" rows="3">${escapeHtml(maintenanceNote)}</textarea>
           </label>
 
-          <p class="field-hint span-2">公務車保養只通知車子保養者及部門主管，不需要選擇執行者。</p>
+          <p class="field-hint span-2">公務車保養只通知相關人員及部門主管，不需要選擇執行者。</p>
         </div>
 
         <div class="span-2 form-section hidden" id="editTodoBlock">
@@ -23841,7 +23850,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category))
 
   if (!editExecutorIds.length) {
-    alert(category === '公務車保養' ? '請選擇通知車子保養者或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
+    alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
     return
   }
 
@@ -23906,7 +23915,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       `保養日期：${maintenanceStartDate}`,
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      `通知車子保養者：${maintenanceNotifyName || '-'}`,
+      `通知相關人員：${maintenanceNotifyName || '-'}`,
       `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ].join('\n')
@@ -23927,7 +23936,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
         return ''
       }, getAll: () => [] }),
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      maintenanceNotifyName ? `通知車子保養者：${maintenanceNotifyName}` : '',
+      maintenanceNotifyName ? `通知相關人員：${maintenanceNotifyName}` : '',
       maintenanceSupervisorName ? `通知主管：${maintenanceSupervisorName}` : '',
       maintenanceNote ? `保養備註：${maintenanceNote}` : ''
     ].filter(Boolean).join('｜') || null
@@ -24194,7 +24203,7 @@ async function saveSchedule(event, modal) {
       `保養日期：${maintenanceStartDate}`,
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      `通知車子保養者：${maintenanceNotifyName || '-'}`,
+      `通知相關人員：${maintenanceNotifyName || '-'}`,
       `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ]
@@ -24210,7 +24219,7 @@ async function saveSchedule(event, modal) {
       })
     ]
     subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
-    if (maintenanceNotifyName) subTypeNoteParts.push(`通知車子保養者：${maintenanceNotifyName}`)
+    if (maintenanceNotifyName) subTypeNoteParts.push(`通知相關人員：${maintenanceNotifyName}`)
     if (maintenanceSupervisorName) subTypeNoteParts.push(`通知主管：${maintenanceSupervisorName}`)
     if (maintenanceNote) subTypeNoteParts.push(`保養備註：${maintenanceNote}`)
 

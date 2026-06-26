@@ -23324,3 +23324,138 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3i END - mobile tablet sticky first column and month auto sizing */
+
+/* FOR-e V002-1H-stable-1-3j START - calendar sticky header filter reset dropdown layer maintenance label */
+/* 行事曆星期 / 日期表頭固定：上下滑動時保留表頭；左右滑動仍與欄位對齊。 */
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll,
+.personal-month-calendar {
+  position: relative !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+.week-overview-table,
+.field-week-table,
+.meeting-week-table,
+.personal-month-calendar table {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.week-overview-table thead th,
+.field-week-table thead th,
+.meeting-week-table thead th,
+.personal-month-calendar thead th,
+.month-calendar-grid .month-weekday,
+.calendar-week-header,
+.calendar-date-header,
+.calendar-grid-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 80 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(203, 213, 225, 0.95), 0 8px 16px rgba(15, 23, 42, 0.04) !important;
+}
+
+.week-overview-table thead th.staff-col,
+.field-week-table thead th.field-staff-col,
+.meeting-week-table thead th.meeting-room-col {
+  z-index: 95 !important;
+}
+
+.week-overview-table thead th.is-holiday,
+.field-week-table thead th.is-holiday,
+.meeting-week-table thead th.is-holiday {
+  background: #f0f7ff !important;
+}
+
+.meeting-week-table thead th {
+  background: #fbf8f1 !important;
+}
+
+.field-week-table thead th {
+  background: #fff8ed !important;
+}
+
+/* 篩選列與下拉選單永遠高於下方行事曆，避免個人當天 / 當週 / 當月時被表格遮住。 */
+#overviewFilterForm,
+#fieldScheduleFilterForm,
+.overview-filter-panel,
+.overview-filter-panel-compact,
+.field-filter-panel-compact,
+.schedule-filter-bar,
+.calendar-filter-bar {
+  position: relative !important;
+  z-index: 5000 !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row,
+#fieldScheduleFilterForm .overview-filter-compact-row,
+.overview-filter-compact-row,
+.field-filter-panel-compact .overview-filter-compact-row {
+  position: relative !important;
+  z-index: 5001 !important;
+  overflow: visible !important;
+}
+
+.compact-multi-select,
+.compact-filter-control,
+.overview-group-person-dropdown,
+.field-staff-dropdown,
+.meeting-dropdown-select,
+.line-target-dropdown {
+  position: relative !important;
+  z-index: 5002 !important;
+  overflow: visible !important;
+}
+
+.compact-multi-select[open],
+.overview-group-person-dropdown[open],
+.field-staff-dropdown[open],
+.meeting-dropdown-select[open],
+.line-target-dropdown[open] {
+  z-index: 9999 !important;
+}
+
+.compact-check-panel,
+.overview-group-person-dropdown-panel,
+.field-staff-dropdown-panel,
+.meeting-dropdown-panel,
+.line-target-dropdown-panel,
+.filter-select-menu,
+.multi-select-menu,
+.schedule-filter-dropdown,
+.calendar-filter-dropdown {
+  position: absolute !important;
+  z-index: 10000 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: min(320px, 62vh) !important;
+  background: #ffffff !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18) !important;
+}
+
+.week-overview-scroll,
+.field-week-scroll,
+.meeting-week-scroll,
+.personal-month-calendar,
+.month-calendar-grid,
+.week-overview-table,
+.field-week-table,
+.meeting-week-table {
+  z-index: 1 !important;
+}
+
+/* 篩選按鈕文字統一：此版本 HTML 已改為「重設」，這裡確保按鈕寬度足夠。 */
+#resetOverviewFilterBtn,
+#resetFieldScheduleFilterBtn {
+  min-width: 64px !important;
+  white-space: nowrap !important;
+}
+/* FOR-e V002-1H-stable-1-3j END - calendar sticky header filter reset dropdown layer maintenance label */
