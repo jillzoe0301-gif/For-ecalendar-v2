@@ -20703,3 +20703,62 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-294 END - latest version announcement display */
+
+
+/* FOR-e V002-1P-295 START - LINE notification search filters */
+.line-notify-panel-v295 {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(150px, .75fr) minmax(150px, .75fr) auto !important;
+  align-items: end !important;
+}
+
+.line-notify-panel-v295 label {
+  min-width: 0 !important;
+}
+
+.line-notify-panel-v295 input,
+.line-notify-panel-v295 select {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.line-filter-empty-text {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #dc2626 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+}
+
+.line-select-row small {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.line-preview-item-card pre,
+#lineMessageText {
+  tab-size: 2;
+}
+
+@media (max-width: 1320px) {
+  .line-notify-panel-v295 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .line-notify-panel-v295 .primary-btn {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .line-notify-panel-v295 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .line-notify-panel-v295 .primary-btn {
+    width: 100% !important;
+  }
+}
+/* FOR-e V002-1P-295 END - LINE notification search filters */

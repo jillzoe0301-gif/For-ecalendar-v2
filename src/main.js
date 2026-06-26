@@ -74,7 +74,7 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-294'
+const SYSTEM_VERSION = 'V002-1P-295'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -167,7 +167,7 @@ function getGlobalAnnouncementText() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-294'
+  const versionText = SYSTEM_VERSION || 'V002-1P-295'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
@@ -616,8 +616,13 @@ let auditFilters = {
 let lineNotifyState = {
   type: '今日行程',
   target: '自己',
-  selectedIds: []
+  selectedIds: [],
+  targetKeyword: '',
+  keyword: '',
+  startDate: '',
+  endDate: ''
 }
+let lineNotifyAutoFilterTimer = null
 
 let serviceRecords = []
 let serviceRecordsLoading = false
@@ -3896,19 +3901,21 @@ function renderApp() {
   if (lineNotifyForm) {
     lineNotifyForm.addEventListener('submit', event => {
       event.preventDefault()
-      const form = new FormData(event.target)
-      const rawType = form.get('type') || '今日行程'
-      const nextType = rawType === '全部禁行通知' ? '全部通知' : rawType
-      const nextTarget = form.get('target') || '自己'
-      const keepSelected = nextType === lineNotifyState.type && nextTarget === lineNotifyState.target
-      lineNotifyState = {
-        type: nextType,
-        target: nextTarget,
-        selectedIds: keepSelected ? (lineNotifyState.selectedIds || []) : []
-      }
-      renderApp()
+      if (applyLineNotifyFormState(event.target)) renderApp()
     })
   }
+
+  document.querySelectorAll('[data-line-auto-filter]').forEach(input => {
+    const eventName = input.matches('select,input[type="date"]') ? 'change' : 'input'
+    input.addEventListener(eventName, event => {
+      const form = event.target.closest('#lineNotifyForm')
+      if (!form) return
+      window.clearTimeout(lineNotifyAutoFilterTimer)
+      lineNotifyAutoFilterTimer = window.setTimeout(() => {
+        if (applyLineNotifyFormState(form)) renderApp()
+      }, eventName === 'input' ? 260 : 0)
+    })
+  })
 
   document.querySelectorAll('[data-line-select-row]').forEach(input => {
     input.addEventListener('change', () => {
@@ -3956,7 +3963,7 @@ function renderApp() {
       event.preventDefault()
       event.stopPropagation()
       const id = String(button.dataset.linePreviewCopySingle || '')
-      const row = getLineNotifyFinalRows(getLineNotifyRows()).find(item => String(item.schedule_id || '') === id)
+      const row = getLineNotifyFinalRows(getLineNotifyRows()).find(item => String(getLineNotifyRowId(item)) === id)
       await copyLineTextToClipboard(buildSingleLineNotifyMessage(row), '此筆 LINE 訊息已複製。')
     })
   })
@@ -9724,33 +9731,119 @@ function renderColorPreviewCard(item, color) {
   - 不改 SQL、不串 LINE Notify API
 */
 
+function applyLineNotifyFormState(formElement) {
+  const form = formElement instanceof HTMLFormElement ? formElement : document.querySelector('#lineNotifyForm')
+  if (!form) return false
+  const data = new FormData(form)
+  const rawType = data.get('type') || '今日行程'
+  const nextType = rawType === '全部禁行通知' ? '全部通知' : String(rawType || '今日行程')
+  const nextTarget = String(data.get('target') || lineNotifyState.target || '自己')
+  const nextTargetKeyword = String(data.get('targetKeyword') || '').trim()
+  const nextKeyword = String(data.get('keyword') || '').trim()
+  const nextStartDate = String(data.get('startDate') || '').trim()
+  const nextEndDate = String(data.get('endDate') || '').trim()
+
+  if (nextStartDate && nextEndDate && nextStartDate > nextEndDate) {
+    lineNotifyState = {
+      ...lineNotifyState,
+      type: nextType,
+      target: nextTarget,
+      targetKeyword: nextTargetKeyword,
+      keyword: nextKeyword,
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+      selectedIds: ['__none__']
+    }
+    return true
+  }
+
+  const keepSelected =
+    nextType === lineNotifyState.type &&
+    nextTarget === lineNotifyState.target &&
+    nextTargetKeyword === (lineNotifyState.targetKeyword || '') &&
+    nextKeyword === (lineNotifyState.keyword || '') &&
+    nextStartDate === (lineNotifyState.startDate || '') &&
+    nextEndDate === (lineNotifyState.endDate || '')
+
+  lineNotifyState = {
+    type: nextType,
+    target: nextTarget,
+    targetKeyword: nextTargetKeyword,
+    keyword: nextKeyword,
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+    selectedIds: keepSelected ? (lineNotifyState.selectedIds || []) : []
+  }
+  return true
+}
+
 function getLineNotifyTypeOptions() {
-  const types = ['今日行程', '任務逾期', '待確認 / 待通知', '今日外務', '今日會議室', '全部通知']
+  const types = [
+    '今日行程',
+    '任務逾期',
+    '待確認 / 待通知',
+    '尚未到期的待辦或行程',
+    '外務行程',
+    '今日外務',
+    '今日會議室',
+    '逃跑通知',
+    '返台提醒',
+    '返台確認',
+    '轉出到期前提醒',
+    '轉出到期最後一天',
+    '全部通知'
+  ]
   const currentType = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
   return types.map(type => `<option value="${escapeHtml(type)}" ${currentType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
 }
 
-function getLineNotifyTargetOptions() {
-  const options = [
-    { value: '自己', label: `自己｜${currentProfile?.name || currentProfile?.email || ''}` }
+function normalizeLineSearchText(value = '') {
+  return String(value || '').toLowerCase().replace(/\s+/g, '').trim()
+}
+
+function getLineNotifyTargetItems() {
+  const items = [
+    { value: '自己', label: `自己｜${currentProfile?.name || currentProfile?.email || ''}`, search: `自己 ${currentProfile?.name || ''} ${currentProfile?.email || ''}` }
   ]
 
   if (canLineNotifyAll()) {
-    options.push({ value: '全部', label: '全部人員' })
-
+    items.push({ value: '全部', label: '全部人員', search: '全部 全部人員' })
     staffList
       .filter(staff => staff.status !== '停用')
       .forEach(staff => {
-        options.push({
+        items.push({
           value: `staff:${staff.staff_id}`,
-          label: `${staff.name}｜${staff.department_name || ''}`
+          label: `${staff.name}｜${staff.department_name || ''}`,
+          search: `${staff.name || ''} ${staff.department_name || ''} ${staff.position || ''} ${staff.email || ''}`
         })
       })
   }
 
-  return options.map(item => `
-    <option value="${escapeHtml(item.value)}" ${lineNotifyState.target === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+  const keyword = normalizeLineSearchText(lineNotifyState.targetKeyword)
+  if (!keyword) return items
+
+  return items.filter(item => normalizeLineSearchText(`${item.label} ${item.search}`).includes(keyword))
+}
+
+function getLineNotifyTargetOptions() {
+  const items = getLineNotifyTargetItems()
+  const selectedValue = lineNotifyState.target || '自己'
+  const selectedExists = items.some(item => item.value === selectedValue)
+  const withSelected = selectedExists
+    ? items
+    : [...items, ...getLineNotifyAllTargetItems().filter(item => item.value === selectedValue)]
+
+  return withSelected.map(item => `
+    <option value="${escapeHtml(item.value)}" ${selectedValue === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>
   `).join('')
+}
+
+function getLineNotifyAllTargetItems() {
+  const originalKeyword = lineNotifyState.targetKeyword
+  lineNotifyState.targetKeyword = ''
+  const items = getLineNotifyTargetItems()
+  lineNotifyState.targetKeyword = originalKeyword
+  return items
 }
 
 function isLineNotifyTargetStaff(row, staffId) {
@@ -9774,7 +9867,7 @@ function getLineNotifyTargetText() {
   if (target.startsWith('staff:')) {
     const staffId = target.replace('staff:', '')
     const staff = staffList.find(item => item.staff_id === staffId) || (typeof allStaffList !== 'undefined' ? allStaffList.find(item => item.staff_id === staffId) : null)
-    return staff ? `${staff.name}｜${staff.department_name || ''}` : '指定人員'
+    return staff ? staff.name || '指定人員' : '指定人員'
   }
 
   return '自己'
@@ -9782,8 +9875,6 @@ function getLineNotifyTargetText() {
 
 function isLineNotifyExcludedSchedule(row = {}) {
   if (!row) return true
-  if (isPromptOnlySchedule(row)) return true
-  if (isLeaveOrReturnSchedule(row)) return true
 
   const category = String(row.category || '')
   const text = [row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
@@ -9813,59 +9904,186 @@ function getLineNotifyBaseRows() {
   return targetStaffId ? rows.filter(row => isLineNotifyTargetStaff(row, targetStaffId)) : rows.filter(isMine)
 }
 
+function getLineNotifyDateFilterRange() {
+  const start = String(lineNotifyState.startDate || '').trim()
+  const end = String(lineNotifyState.endDate || '').trim()
+  if (!start && !end) return { start: '', end: '' }
+  const rangeStart = start || end
+  const rangeEnd = end || start
+  return { start: rangeStart, end: rangeEnd }
+}
+
+function isLineNotifyDateRangeInvalid() {
+  const { start, end } = getLineNotifyDateFilterRange()
+  return Boolean(start && end && start > end)
+}
+
+function getLineNotifyFilterDateKeys(maxDays = 180) {
+  const { start, end } = getLineNotifyDateFilterRange()
+  if (!start && !end) return []
+  const keys = getDateKeysBetween(start, end)
+  return keys.slice(0, maxDays)
+}
+
+function cloneLineNotifyRow(row = {}, dateKey = '', suffix = '') {
+  const sourceId = String(row.schedule_id || row.id || `${row.start_date || ''}-${row.title || ''}`)
+  const occurrenceDate = String(dateKey || row.__line_notify_date || row.start_date || '').trim()
+  const idSuffix = [occurrenceDate, suffix].filter(Boolean).join('-')
+  return {
+    ...row,
+    __source_schedule_id: row.__source_schedule_id || row.schedule_id,
+    __line_notify_date: occurrenceDate,
+    __occurrence_date: occurrenceDate || row.__occurrence_date,
+    __line_notify_id: idSuffix ? `${sourceId}__line__${idSuffix}` : sourceId
+  }
+}
+
+function getLineNotifyRowId(row = {}) {
+  return String(row.__line_notify_id || row.schedule_id || row.id || '')
+}
+
+function getLineNotifyRowDate(row = {}) {
+  return String(row.__line_notify_date || row.__occurrence_date || row.__render_date || row.start_date || '').trim()
+}
+
+function expandRowsByLineDateFilter(rows = []) {
+  const dateKeys = getLineNotifyFilterDateKeys()
+  if (!dateKeys.length) return rows
+
+  const expanded = []
+  rows.forEach(row => {
+    dateKeys.forEach(dateKey => {
+      if (scheduleMatchesDateByMode(row, dateKey)) expanded.push(cloneLineNotifyRow(row, dateKey))
+    })
+  })
+  return expanded
+}
+
+function getSpecialReminderLineRows(rows = [], type = '') {
+  const dateKeys = getLineNotifyFilterDateKeys()
+  const hasDateFilter = dateKeys.length > 0
+  const result = []
+
+  rows.forEach(row => {
+    const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+
+    if (type === '逃跑通知' && reminderType === '逃跑通知') {
+      const info = parseRunawayReminderInfo(row)
+      const days = [
+        { date: info.day1 || row.start_date, suffix: 'day1' },
+        { date: info.day2, suffix: 'day2' },
+        { date: info.day3, suffix: 'day3' }
+      ].filter(item => item.date)
+      days.forEach(item => {
+        if (!hasDateFilter || dateKeys.includes(item.date)) result.push(cloneLineNotifyRow(row, item.date, item.suffix))
+      })
+    }
+
+    if ((type === '轉出到期前提醒' || type === '轉出到期最後一天') && reminderType === '轉出追蹤') {
+      const info = parseTransferReminderInfo(row)
+      const reminderDate = getTransferDueReminderDate(row, 10)
+      const date = type === '轉出到期前提醒' ? reminderDate : info.dueDate
+      const suffix = type === '轉出到期前提醒' ? 'transfer-due-10' : 'transfer-last-day'
+      if (date && (!hasDateFilter || dateKeys.includes(date))) result.push(cloneLineNotifyRow(row, date, suffix))
+    }
+
+    if ((type === '返台提醒' || type === '返台確認') && isReturnTaiwanReminderSchedule(row)) {
+      const returnDate = getReturnTaiwanReminderDate(row)
+      const reminderDate = returnDate ? getDateKeyOffset(returnDate, -3) : row.start_date
+      const date = type === '返台確認' ? returnDate : reminderDate
+      const suffix = type === '返台確認' ? 'return-confirm' : 'return-reminder'
+      if (date && (!hasDateFilter || dateKeys.includes(date))) result.push(cloneLineNotifyRow(row, date, suffix))
+    }
+  })
+
+  return result
+}
+
+function isLineNotifyUpcomingOpen(row = {}) {
+  if (!row || isDeletedSchedule(row) || isCancelledSchedule(row)) return false
+  if (isScheduleCompletedOnDate(row, getLineNotifyRowDate(row))) return false
+  if (String(getScheduleStatusLabel(row) || '').includes('完成')) return false
+  const dateText = getLineNotifyRowDate(row) || row.start_date || ''
+  if (!dateText) return false
+  return dateText >= todayString()
+}
+
+function applyLineNotifyKeywordFilter(rows = []) {
+  const keyword = normalizeLineSearchText(lineNotifyState.keyword)
+  if (!keyword) return rows
+  return rows.filter(row => normalizeLineSearchText(getLineNotifySearchText(row)).includes(keyword))
+}
+
+function applyLineNotifyDateFilter(rows = []) {
+  const { start, end } = getLineNotifyDateFilterRange()
+  if (!start && !end) return rows
+  return rows.filter(row => {
+    const dateText = getLineNotifyRowDate(row)
+    return dateText && dateText >= start && dateText <= end
+  })
+}
+
+function sortLineNotifyRows(rows = []) {
+  return [...rows].sort((a, b) => {
+    const dateCompare = String(getLineNotifyRowDate(a) || '').localeCompare(String(getLineNotifyRowDate(b) || ''))
+    if (dateCompare !== 0) return dateCompare
+    return String(formatTime(a) || '').localeCompare(String(formatTime(b) || ''))
+  })
+}
+
 function getLineNotifyRows() {
   const today = todayString()
-  const rows = uniqueScheduleRows(getLineNotifyBaseRows())
+  const baseRows = uniqueScheduleRows(getLineNotifyBaseRows())
   const type = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
+  let rows = []
 
   if (type === '今日行程') {
-    return rows
+    rows = baseRows
       .filter(row => scheduleMatchesDateByMode(row, today))
-      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
-  }
-
-  if (type === '任務逾期') {
-    return rows
-      .filter(row => isOverdueSchedule(row))
-      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
-  }
-
-  if (type === '待確認 / 待通知') {
-    return rows
+      .map(row => cloneLineNotifyRow(row, today, 'today'))
+  } else if (type === '任務逾期') {
+    rows = baseRows.filter(row => isOverdueSchedule(row))
+  } else if (type === '待確認 / 待通知') {
+    rows = baseRows
       .filter(row => isReminderSchedule(row))
       .filter(row => row.status !== '已完成')
-      .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
-  }
-
-  if (type === '今日外務') {
-    return rows
+  } else if (type === '尚未到期的待辦或行程') {
+    rows = expandRowsByLineDateFilter(baseRows)
+      .filter(isLineNotifyUpcomingOpen)
+  } else if (type === '外務行程') {
+    rows = expandRowsByLineDateFilter(baseRows.filter(row => isFieldScheduleRow(row)))
+  } else if (type === '今日外務') {
+    rows = baseRows
       .filter(row => isFieldScheduleRow(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
-      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
-  }
-
-  if (type === '今日會議室') {
-    return rows
+      .map(row => cloneLineNotifyRow(row, today, 'field-today'))
+  } else if (type === '今日會議室') {
+    rows = baseRows
       .filter(row => isMeetingRoomSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
-      .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+      .map(row => cloneLineNotifyRow(row, today, 'meeting-today'))
+  } else if (['逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天'].includes(type)) {
+    rows = getSpecialReminderLineRows(baseRows, type)
+  } else if (type === '全部通知') {
+    rows = expandRowsByLineDateFilter(baseRows.filter(row => row.status !== '取消'))
   }
 
-  if (type === '全部通知') {
-    return rows
-      .filter(row => row.status !== '取消')
-      .sort((a, b) => {
-        const dateCompare = String(a.start_date || '').localeCompare(String(b.start_date || ''))
-        if (dateCompare !== 0) return dateCompare
-        return String(formatTime(a)).localeCompare(String(formatTime(b)))
-      })
-  }
-
-  return []
+  rows = applyLineNotifyDateFilter(rows)
+  rows = applyLineNotifyKeywordFilter(rows)
+  return sortLineNotifyRows(rows)
 }
 
 function getLineNotifyContentText(row = {}) {
-  const rawContent = String(row.description || row.content || row.memo || '').trim()
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  const lineType = lineNotifyState.type || ''
+
+  if (reminderType === '逃跑通知' || lineType === '逃跑通知') return '請發逃跑訊息'
+  if (lineType === '轉出到期前提醒') return '轉出到期前10天提醒'
+  if (lineType === '轉出到期最後一天') return '最後一天提醒'
+  if (lineType === '返台確認') return '返台前確認資料'
+  if (lineType === '返台提醒') return '返台提醒'
+
+  const rawContent = String(row.description || row.content || row.memo || row.sub_type_note || '').trim()
   if (!rawContent) return ''
 
   return rawContent
@@ -9875,23 +10093,91 @@ function getLineNotifyContentText(row = {}) {
     .join('\n')
 }
 
+function getLineNotifyAddress(row = {}) {
+  const candidates = [
+    row.address,
+    typeof getReminderNoteValue === 'function' ? getReminderNoteValue(row, ['地址', '地點地址', '搬遷地址', '搬家地址', '住變地址']) : '',
+    typeof getLineNoteValue === 'function' ? getLineNoteValue(row, '地址') : ''
+  ]
+  return candidates.map(item => String(item || '').trim()).find(item => item && item !== 'null' && item !== 'undefined') || ''
+}
+
+function getLineNotifySubject(row = {}) {
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  if (reminderType) {
+    const caseName = getServiceReminderCaseName(row, reminderType)
+    if (caseName) return caseName
+  }
+  return [
+    row.customer_name,
+    row.worker_name,
+    row.workerName,
+    row.title,
+    row.location_name,
+    getScheduleCardTitleText(row)
+  ].map(item => String(item || '').trim()).find(Boolean) || '-'
+}
+
+function getLineNotifySearchText(row = {}) {
+  return [
+    row.title,
+    row.description,
+    row.content,
+    row.memo,
+    row.customer_name,
+    row.worker_name,
+    row.workerName,
+    row.region,
+    row.area,
+    row.address,
+    row.schedule_type,
+    row.sub_type,
+    row.sub_type_note,
+    row.category,
+    row.location_name,
+    getAssigneeNames(row),
+    getScheduleDisplayType(row),
+    getLineNotifySubject(row),
+    getLineNotifyContentText(row),
+    getLineNotifyAddress(row)
+  ].filter(Boolean).join('｜')
+}
+
+function getLineNotifyLabel(row = {}) {
+  const type = lineNotifyState.type || ''
+  if (type === '外務行程') return '【外務行程通知】'
+  if (type === '尚未到期的待辦或行程') return '【尚未到期提醒】'
+  if (type === '逃跑通知') return '【逃跑通知】'
+  if (type === '返台提醒' || type === '返台確認') return '【返台提醒】'
+  if (type === '轉出到期前提醒' || type === '轉出到期最後一天') return '【轉出提醒】'
+  return '【行程通知】'
+}
+
+function lineNotifyPart(label = '', value = '') {
+  const text = String(value || '').trim()
+  if (!text || text === 'null' || text === 'undefined') return ''
+  return `${label}：${text}`
+}
+
 function formatLineScheduleItem(row, index) {
   const number = Number.isFinite(Number(index)) ? `${Number(index) + 1}. ` : ''
-  const dateText = String(row.start_date || '-').trim()
+  const dateText = String(getLineNotifyRowDate(row) || row.start_date || '').trim()
   const timeText = String(formatTime(row) || '').trim()
-  const scheduleTimeText = [dateText, timeText].filter(Boolean).join(' ').trim()
   const contentText = getLineNotifyContentText(row)
-  const contentLine = contentText
-    ? `內容：${contentText.includes('\n') ? `\n${contentText}` : contentText}`
-    : ''
+  const addressText = getLineNotifyAddress(row)
+  const typeText = getScheduleDisplayType(row)
+  const isField = isFieldScheduleRow(row)
 
   const parts = [
-    `${number}${scheduleTimeText}`,
-    `${getScheduleDisplayType(row)}｜${row.title || '-'}`,
-    contentLine,
-    `執行者：${getAssigneeNames(row) || '-'}`,
-    row.location_name ? `地點：${row.location_name}` : '',
-    `狀態：${getScheduleStatusLabel(row)}`
+    `${number}${getLineNotifyLabel(row)}`,
+    lineNotifyPart('日期', dateText),
+    timeText ? lineNotifyPart('時間', timeText) : '',
+    isField ? lineNotifyPart('外務人員', getAssigneeNames(row)) : '',
+    isField ? lineNotifyPart('外務類型', row.sub_type || row.schedule_type || typeText) : lineNotifyPart('類型', typeText),
+    lineNotifyPart('對象', getLineNotifySubject(row)),
+    isField ? lineNotifyPart('地點', row.location_name) : '',
+    addressText ? lineNotifyPart('地址', addressText) : '',
+    contentText ? lineNotifyPart('內容', contentText.includes('\n') ? `\n${contentText}` : contentText) : ''
   ].filter(Boolean)
 
   return parts.join('\n')
@@ -9916,9 +10202,8 @@ function buildLineNotifyMessage(rows) {
   ].join('\n')
 }
 
-
 function getLineNotifySelectedIdSet(rows = getLineNotifyRows()) {
-  const availableIds = new Set(rows.map(row => row.schedule_id).filter(Boolean))
+  const availableIds = new Set(rows.map(row => getLineNotifyRowId(row)).filter(Boolean))
   return new Set((lineNotifyState.selectedIds || []).filter(id => availableIds.has(id)))
 }
 
@@ -9927,11 +10212,14 @@ function getLineNotifyFinalRows(rows = getLineNotifyRows()) {
   if (rawSelected.includes('__none__')) return []
   const selected = getLineNotifySelectedIdSet(rows)
   if (!selected.size) return rows
-  return rows.filter(row => selected.has(row.schedule_id))
+  return rows.filter(row => selected.has(getLineNotifyRowId(row)))
 }
 
 function renderLineNotifySchedulePicker(rows = []) {
-  if (!rows.length) return '<div class="empty-state">目前沒有可選擇的 LINE 通知行程。</div>'
+  const keyword = String(lineNotifyState.keyword || '').trim()
+  const hasDateFilter = Boolean(lineNotifyState.startDate || lineNotifyState.endDate)
+  const emptyText = keyword && !hasDateFilter ? '查無符合行程' : (hasDateFilter ? '查無符合條件的行程' : '目前沒有可選擇的 LINE 通知行程。')
+  if (!rows.length) return `<div class="empty-state">${emptyText}</div>`
 
   const selected = getLineNotifySelectedIdSet(rows)
   const rawSelectedIds = lineNotifyState.selectedIds || []
@@ -9962,13 +10250,14 @@ function renderLineNotifySchedulePicker(rows = []) {
         </div>
         <div class="line-select-list">
           ${rows.map(row => {
-            const checked = !noneSelected && (useAll || selected.has(row.schedule_id))
+            const rowId = getLineNotifyRowId(row)
+            const checked = !noneSelected && (useAll || selected.has(rowId))
             return `
               <label class="line-select-row">
-                <input type="checkbox" data-line-select-row value="${escapeHtml(row.schedule_id)}" ${checked ? 'checked' : ''}>
+                <input type="checkbox" data-line-select-row value="${escapeHtml(rowId)}" ${checked ? 'checked' : ''}>
                 <span>
                   <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
-                  <small>${escapeHtml(row.start_date || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
+                  <small>${escapeHtml(getLineNotifyRowDate(row) || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
                 </span>
               </label>
             `
@@ -9978,7 +10267,6 @@ function renderLineNotifySchedulePicker(rows = []) {
     </section>
   `
 }
-
 
 async function openLineAppOrShare(text = '') {
   const message = String(text || '').trim()
@@ -10018,12 +10306,11 @@ async function openLineAppOrShare(text = '') {
   }
 }
 
-
 function renderLineNotifySummary(rows) {
   const selectedRows = getLineNotifyFinalRows(rows)
   const overdueCount = selectedRows.filter(isOverdueSchedule).length
   const today = todayString()
-  const todayCount = selectedRows.filter(row => scheduleMatchesDateByMode(row, today)).length
+  const todayCount = selectedRows.filter(row => getLineNotifyRowDate(row) === today || scheduleMatchesDateByMode(row, today)).length
 
   return `
     <div class="summary-grid line-summary-grid">
@@ -10042,7 +10329,6 @@ function renderLineNotifySummary(rows) {
     </div>
   `
 }
-
 
 async function copyLineTextToClipboard(text = '', successMessage = 'LINE 訊息已複製。') {
   const value = String(text || '').trim()
@@ -10099,9 +10385,9 @@ function renderLineNotifyPreviewList(rows = [], totalCount = 0) {
           <div class="line-preview-item-head">
             <div>
               <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
-              <small>${escapeHtml(row.start_date || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
+              <small>${escapeHtml(getLineNotifyRowDate(row) || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
             </div>
-            <button type="button" class="secondary-btn line-preview-copy-single-btn" data-line-preview-copy-single="${escapeHtml(row.schedule_id || '')}">複製單筆</button>
+            <button type="button" class="secondary-btn line-preview-copy-single-btn" data-line-preview-copy-single="${escapeHtml(getLineNotifyRowId(row))}">複製單筆</button>
           </div>
           <pre>${escapeHtml(formatLineScheduleItem(row))}</pre>
         </article>
@@ -10114,6 +10400,8 @@ function renderLineNotificationPage() {
   const rows = getLineNotifyRows()
   const selectedRows = getLineNotifyFinalRows(rows)
   const message = buildLineNotifyMessage(selectedRows)
+  const targetMatches = getLineNotifyTargetItems()
+  const hasTargetKeyword = String(lineNotifyState.targetKeyword || '').trim()
 
   return `
     <div class="page-toolbar">
@@ -10130,20 +10418,42 @@ function renderLineNotificationPage() {
       目前是「手動產生訊息」版本：確認內容後可複製文字，或啟動 LINE 選擇通知對象；桌機會先複製文字再開 LINE，不再產生 QR Code。
     </div>
 
-    <form id="lineNotifyForm" class="line-notify-panel">
+    <form id="lineNotifyForm" class="line-notify-panel line-notify-panel-v295">
       <label>
         通知類型
-        <select name="type">${getLineNotifyTypeOptions()}</select>
+        <select name="type" data-line-auto-filter>${getLineNotifyTypeOptions()}</select>
+      </label>
+
+      <label>
+        搜尋通知對象
+        <input name="targetKeyword" data-line-auto-filter value="${escapeHtml(lineNotifyState.targetKeyword || '')}" placeholder="輸入姓名搜尋通知對象">
       </label>
 
       <label>
         通知對象
-        <select name="target">${getLineNotifyTargetOptions()}</select>
+        <select name="target" data-line-auto-filter>${getLineNotifyTargetOptions()}</select>
+        ${hasTargetKeyword && targetMatches.length <= 0 ? '<small class="line-filter-empty-text">查無符合通知對象</small>' : ''}
+      </label>
+
+      <label>
+        行程關鍵字
+        <input name="keyword" data-line-auto-filter value="${escapeHtml(lineNotifyState.keyword || '')}" placeholder="搜尋標題、內容、客戶、地址、地點...">
+      </label>
+
+      <label>
+        起始日期
+        <input type="date" name="startDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.startDate || '')}">
+      </label>
+
+      <label>
+        結束日期
+        <input type="date" name="endDate" data-line-auto-filter value="${escapeHtml(lineNotifyState.endDate || '')}">
       </label>
 
       <button type="submit" class="primary-btn">套用篩選</button>
     </form>
 
+    ${isLineNotifyDateRangeInvalid() ? '<div class="error-box">起始日期不可晚於結束日期</div>' : ''}
     ${renderLineNotifySchedulePicker(rows)}
     ${renderLineNotifySummary(rows)}
 
