@@ -23726,3 +23726,112 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   color: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #94a3b8)) 82%, #0f172a 18%) !important;
 }
 /* FOR-e V002-1H-stable-1-3m END - full administrative label and accent-matched pills */
+
+/* FOR-e V002-1H-stable-1-3n START - mobile fixed width, postpone, announcement colors, field dedupe and tag text depth */
+@media (max-width: 768px) {
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell,
+  .field-week-table th:not(.field-staff-col):not(.field-staff-name-cell),
+  .field-week-table td.field-week-day-cell,
+  .meeting-week-table th:not(.meeting-room-col):not(.meeting-room-name-cell),
+  .meeting-week-table td.meeting-week-day-cell,
+  .month-day-cell,
+  .calendar-day-cell,
+  .calendar-column {
+    width: 190px !important;
+    min-width: 190px !important;
+    max-width: 190px !important;
+    height: auto !important;
+    min-height: 120px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    vertical-align: top !important;
+  }
+
+  .week-overview-table tr,
+  .field-week-table tr,
+  .meeting-week-table tr,
+  .calendar-row,
+  .month-calendar-grid,
+  .calendar-grid {
+    height: auto !important;
+    align-items: stretch !important;
+  }
+
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card,
+  .continuation-day-mark,
+  .schedule-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+  }
+}
+
+.schedule-card.is-postponed,
+.week-schedule-card.is-postponed,
+.field-week-schedule-card.is-postponed,
+.meeting-room-card.is-postponed,
+.continuation-day-mark.is-postponed {
+  background: #e2e4e8 !important;
+  border-color: #bfc5d0 !important;
+  color: #5f6673 !important;
+  opacity: 0.9 !important;
+  filter: grayscale(0.32) !important;
+}
+
+.schedule-card.is-postponed .for-e-card-type-chip,
+.week-schedule-card.is-postponed .for-e-card-type-chip,
+.field-week-schedule-card.is-postponed .for-e-card-type-chip,
+.meeting-room-card.is-postponed .for-e-card-type-chip,
+.continuation-day-mark.is-postponed .for-e-card-type-chip {
+  background: #d1d5db !important;
+  border-color: #aab2bf !important;
+  color: #4b5563 !important;
+}
+
+.for-e-version-line,
+.for-e-version-line *,
+.for-e-version-label,
+.for-e-version-line strong,
+.for-e-version-line span:not(.for-e-version-icon-img):not(.for-e-version-label) {
+  color: #333D6D !important;
+}
+
+.for-e-announcement-line:not(.for-e-admin-announcement-line) .for-e-announcement-content strong,
+.for-e-announcement-line:not(.for-e-admin-announcement-line) #globalAnnouncementText {
+  color: #B8001F !important;
+}
+
+.for-e-admin-announcement-line .for-e-announcement-content strong,
+.for-e-admin-announcement-line #administrativeAnnouncementText,
+.for-e-admin-announcement-line .for-e-announcement-content span {
+  color: #3D45AA !important;
+}
+
+.for-e-card-type-chip,
+.week-schedule-card .for-e-card-type-chip,
+.field-week-schedule-card .for-e-card-type-chip,
+.meeting-room-card .for-e-card-type-chip,
+.continuation-day-mark .for-e-card-type-chip,
+.continuation-day-mark .continuation-day-type-line {
+  background: var(--schedule-tag-bg, color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 16%, #ffffff 84%)) !important;
+  border-color: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 64%, #ffffff 36%) !important;
+  color: var(--schedule-tag-text, color-mix(in srgb, var(--schedule-accent, var(--day-accent, #94a3b8)) 58%, #101827 42%)) !important;
+  font-weight: 850 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  max-width: 100% !important;
+}
+
+.todo-postpone-panel input[type="date"] {
+  width: 100% !important;
+}
+/* FOR-e V002-1H-stable-1-3n END - mobile fixed width, postpone, announcement colors, field dedupe and tag text depth */

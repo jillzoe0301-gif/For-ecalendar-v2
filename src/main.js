@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3m'
-const SYSTEM_VERSION_NOTE = '行政事務標籤完整文字與橢圓標籤同色系修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3n'
+const SYSTEM_VERSION_NOTE = '手機欄寬、待辦延期、公告色彩、外務明細與標籤文字色修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1962,6 +1962,7 @@ function shouldDisplayAutoCompleted(row) {
 }
 
 function getScheduleStatusLabel(row) {
+  if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return '延期處理'
   if (isAutoClosedLeaveMeetingActivity(row)) return '已結案'
   if (shouldDisplayAutoCompleted(row)) return '已完成'
   if (isNoCompletionControlSchedule(row)) return '行事曆顯示'
@@ -1970,6 +1971,7 @@ function getScheduleStatusLabel(row) {
 
 
 function isCompletedSchedule(row) {
+  if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return false
   const statusText = String(row?.status || '').trim()
   return Boolean(
     statusText === '已完成' ||
@@ -6280,7 +6282,7 @@ function getFieldDetailStatusOptionsHtml() {
 }
 
 function getFieldDetailRows() {
-  return schedules
+  return uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isFieldScheduleRow(row))
     .filter(row => !isFieldDayReminderSchedule(row))
@@ -6311,7 +6313,7 @@ function getFieldDetailRows() {
       }
 
       return true
-    })
+    }))
     .sort((a, b) => {
       if (String(a.start_date || '') !== String(b.start_date || '')) {
         return String(b.start_date || '').localeCompare(String(a.start_date || ''))
@@ -6414,6 +6416,8 @@ function renderFieldDetailList(rows) {
       ${rows.map(row => {
         const result = getFieldResultFromRow(row)
         const specialReminders = getFieldSpecialRemindersFromRow(row)
+        const fieldItemText = row.sub_type || row.schedule_type || '外務'
+        const fieldTitleText = sanitizeRepeatedTypeTitle(fieldItemText, row.title || '-')
         return `
           <div class="field-detail-row ${row.status === '已完成' ? 'is-completed' : ''} ${result ? 'has-result' : ''} ${getAlertItemClass(row)}">
             <div class="field-detail-date">
@@ -6422,7 +6426,7 @@ function renderFieldDetailList(rows) {
             </div>
 
             <div class="field-detail-main">
-              <div class="field-detail-title">${escapeHtml(row.sub_type || row.schedule_type || '外務')}｜${escapeHtml(row.title || '-')}</div>
+              <div class="field-detail-title">${escapeHtml(fieldItemText)}｜${escapeHtml(fieldTitleText || '-')}</div>
               <div class="field-detail-meta">
                 外務人員：${escapeHtml(getAssigneeNames(row))}
                 ｜指派者：${escapeHtml(row.creator_name || '-')}
@@ -6521,6 +6525,9 @@ function sanitizeRepeatedTypeTitle(type = '', title = '') {
 
 function getScheduleTypeTitleParts(row = {}) {
   const baseTitle = String(row.title || row.customer_name || '').trim() || '-'
+  if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) {
+    return { type: '延期處理', title: sanitizeRepeatedTypeTitle('延期處理', baseTitle) }
+  }
   if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) {
     return { type: '駐廠', title: getFactoryStationContinuationTitle(row) }
   }
@@ -10640,11 +10647,24 @@ function mixHexWithWhite(color = '#ffffff', whiteRatio = 0.86) {
   return `#${mix(r)}${mix(g)}${mix(b)}`
 }
 
+function darkenHexColor(color = '#334155', blackRatio = 0.42) {
+  const hex = String(color || '').trim().replace('#', '')
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return '#1f2937'
+  const ratio = Math.max(0, Math.min(1, Number(blackRatio)))
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  const mix = value => Math.round(value * (1 - ratio)).toString(16).padStart(2, '0')
+  return `#${mix(r)}${mix(g)}${mix(b)}`
+}
+
 function getScheduleColorInlineStyleByKey(colorKey = '', fallbackRow = null) {
   const key = String(colorKey || '').trim() || (fallbackRow ? getScheduleColorKey(fallbackRow) : '服務行程')
   const settings = getScheduleColorSettings()
   const accentColor = key === '會議室預約' ? '#DFD3C3' : (settings[key] || (fallbackRow ? getScheduleColor(fallbackRow) : '#ffffff'))
-  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
+  const tagBg = mixHexWithWhite(accentColor, 0.82)
+  const tagText = darkenHexColor(accentColor, 0.46)
+  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};--schedule-tag-bg:${tagBg};--schedule-tag-text:${tagText};`
 }
 
 function getScheduleColorInlineStyle(row) {
@@ -14961,7 +14981,7 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
         ].filter(Boolean)
 
     return `
-      <button type="button" class="return-reminder-day-mark ${statusClass}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+      <button type="button" class="return-reminder-day-mark ${statusClass}" style="--day-accent:${getScheduleColor(row)};--schedule-accent:${getScheduleColor(row)};--schedule-tag-bg:${mixHexWithWhite(getScheduleColor(row), 0.82)};--schedule-tag-text:${darkenHexColor(getScheduleColor(row), 0.46)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
         <span>${label}</span>
         <strong>
           <em>${escapeHtml(isConfirm ? caseSummary : (info.title || label))}</em>
@@ -16990,7 +17010,10 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     ? { ...row, __occurrence_date: weekOccurrenceDate, __render_date: weekOccurrenceDate }
     : row
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(rowForOccurrence)) return renderServiceReminderScheduleCard(rowForOccurrence, weekOccurrenceDate)
-  const contentPreview = getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
+  const postponedDate = typeof getTodoNotePostponedDate === 'function' ? getTodoNotePostponedDate(rowForOccurrence) : ''
+  const contentPreview = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(rowForOccurrence))
+    ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
+    : getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const parts = getScheduleTypeTitleParts(rowForOccurrence)
@@ -16998,9 +17021,10 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const safeTitle = escapeHtml(parts.title || rowForOccurrence.customer_name || '-')
   const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(rowForOccurrence, weekOccurrenceDate)) ? 'is-completed' : ''
   const staticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
+  const postponedClass = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(rowForOccurrence)) ? 'is-postponed' : ''
   const occurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
   return `
-    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${staticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${staticCompletedClass} ${postponedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${occurrenceAttr}>
       <div class="for-e-card-head-row">
         ${isFactoryStation ? renderFactoryStationTime(rowForOccurrence, 'week-card-time factory-station-time') : renderCardTime(rowForOccurrence, 'week-card-time')}
         <span class="for-e-card-type-chip">${safeType}</span>
@@ -17113,7 +17137,10 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
   return `
     <div class="schedule-list">
       ${displayRows.map(row => {
-        const contentPreview = getFirstTwoLines(row.description)
+        const postponedDate = typeof getTodoNotePostponedDate === 'function' ? getTodoNotePostponedDate(row) : ''
+        const contentPreview = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row))
+          ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
+          : getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
         const extra = getDisplaySubTypeExtra(row)
         const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || ''
@@ -17123,7 +17150,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const verifyClass = verifyDisplayType ? `is-verify-reminder ${getVerifyReminderCardClass(verifyDisplayType)}` : ''
         const cardStyle = verifyDisplayType ? getScheduleColorInlineStyleByKey(verifyDisplayType, row) : getScheduleColorInlineStyle(row)
         return `
-          <div class="schedule-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
+          <div class="schedule-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${(typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) ? 'is-postponed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
@@ -18710,6 +18737,7 @@ function renderScheduleItemLabel(extra = '') {
 function canManageTodoNoteStatus(row = {}) {
   if (!isTodoOrNoteSchedule(row)) return false
   if (row.status === '取消') return false
+  if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return false
   if (canManageAllSchedules()) return true
   return row.creator_staff_id === currentProfile?.staff_id || isAssignedToMe(row)
 }
@@ -18725,6 +18753,182 @@ function setTodoNoteResultNote(noteText = '', resultText = '') {
     .map(item => String(item || '').trim())
     .filter(Boolean)
     .join('｜') || null
+}
+
+function getTodoNotePostponedDate(row = {}) {
+  const noteText = String(row.sub_type_note || '')
+  const direct = getNoteValue(row, '已延期至') || getNoteValue(row, '延期日期')
+  if (direct) return getDateStringFromAnyValue(direct) || direct
+  const match = noteText.match(/延期(?:處理)?[:：]?[^｜]*?(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ''
+}
+
+function isPostponedOriginalSchedule(row = {}) {
+  const statusText = String(row?.status || '').trim()
+  const noteText = String(row?.sub_type_note || '')
+  return statusText === '延期處理' || noteText.includes('延期處理') || Boolean(getTodoNotePostponedDate(row))
+}
+
+function canPostponeTodoNoteSchedule(row = {}) {
+  if (!isTodoOrNoteSchedule(row)) return false
+  if (isPostponedOriginalSchedule(row)) return false
+  const statusText = String(row.status || '').trim()
+  if (['已完成', '完成', '取消', '已取消', '已刪除', '刪除'].includes(statusText)) return false
+  return canManageTodoNoteStatus(row)
+}
+
+function setTodoNotePostponeNote(noteText = '', originalDate = '', postponeDate = '', newScheduleId = '') {
+  const cleaned = removeNoteLabels(noteText, ['延期處理', '原日期', '已延期至', '延期後行程'])
+  return [
+    cleaned,
+    '延期處理',
+    originalDate ? `原日期：${originalDate}` : '',
+    postponeDate ? `已延期至：${postponeDate}` : '',
+    newScheduleId ? `延期後行程：${newScheduleId}` : ''
+  ].map(item => String(item || '').trim()).filter(Boolean).join('｜') || null
+}
+
+function setTodoNotePostponedCopyNote(noteText = '', sourceId = '', originalDate = '') {
+  const cleaned = removeNoteLabels(noteText, ['延期來源', '原日期', '延期處理', '已延期至', '延期後行程'])
+  return [
+    cleaned,
+    sourceId ? `延期來源：${sourceId}` : '',
+    originalDate ? `原日期：${originalDate}` : ''
+  ].map(item => String(item || '').trim()).filter(Boolean).join('｜') || null
+}
+
+async function postponeTodoNoteSchedule(scheduleId = '', postponeDate = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canPostponeTodoNoteSchedule(row)) return denyPermission('此事項目前不能延期。')
+
+  const targetDate = String(postponeDate || '').trim()
+  const originalDate = row.start_date || todayString()
+  if (!targetDate) return alert('請選擇延期日期')
+  if (targetDate === originalDate) return alert('延期日期不可與原日期相同')
+
+  const payload = {
+    creator_profile_id: currentProfile.profile_id,
+    creator_staff_id: currentProfile.staff_id,
+    creator_name: currentProfile.name || currentProfile.email,
+    department_id: row.department_id || currentProfile.department_id,
+    department_name: row.department_name || currentProfile.department_name,
+    category: row.category,
+    schedule_type: row.schedule_type || row.category,
+    sub_type: row.sub_type || null,
+    sub_type_note: setTodoNotePostponedCopyNote(row.sub_type_note, row.schedule_id, originalDate),
+    title: row.title || row.sub_type || row.category,
+    description: row.description || null,
+    start_date: targetDate,
+    end_date: targetDate,
+    time_type: row.time_type || '不指定',
+    start_time: row.start_time || null,
+    end_time: row.end_time || null,
+    customer_name: row.customer_name || null,
+    location_name: row.location_name || null,
+    address: row.address || null,
+    car_no: row.car_no || null,
+    status: '未完成',
+    need_service_record: false,
+    service_record_submitted: false,
+    service_record_submitted_date: null
+  }
+
+  const { data: newSchedule, error: insertError } = await supabase
+    .from('schedules')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (insertError) {
+    alert('延期失敗：' + insertError.message)
+    return
+  }
+
+  const assigneeResult = await syncScheduleAssigneesSafely(newSchedule.schedule_id, getActiveAssigneeIds(row), { replaceExisting: true })
+  if (assigneeResult?.error) {
+    console.warn('延期行程同步執行者失敗', assigneeResult.error)
+  }
+
+  const postponedNote = setTodoNotePostponeNote(row.sub_type_note, originalDate, targetDate, newSchedule.schedule_id)
+  let updatePayload = { status: '延期處理', sub_type_note: postponedNote }
+  let { error: updateError } = await supabase
+    .from('schedules')
+    .update(updatePayload)
+    .eq('schedule_id', scheduleId)
+
+  if (updateError) {
+    updatePayload = { sub_type_note: postponedNote }
+    const fallback = await supabase
+      .from('schedules')
+      .update(updatePayload)
+      .eq('schedule_id', scheduleId)
+    updateError = fallback.error
+  }
+
+  if (updateError) {
+    alert('延期紀錄更新失敗：' + updateError.message)
+    return
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '延期',
+    source_type: 'schedule',
+    source_id: scheduleId,
+    note: `待辦 / 一般記事延期｜原日期：${originalDate}｜延期日期：${targetDate}｜新行程：${newSchedule.schedule_id}`
+  })
+
+  await refreshData()
+  renderApp()
+}
+
+function openTodoNotePostponeModal(scheduleId = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canPostponeTodoNoteSchedule(row)) return denyPermission('此事項目前不能延期。')
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel todo-postpone-panel">
+      <div class="modal-header">
+        <h3>延期</h3>
+        <button class="icon-btn" id="closeTodoPostponeModalBtn" type="button">×</button>
+      </div>
+      <div class="detail-grid">
+        <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || row.category || '-')}</strong></div>
+        <div><span>原日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
+        <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
+      </div>
+      <form id="todoNotePostponeForm" class="form-grid">
+        <label class="span-2">
+          延期日期
+          <input type="date" name="postpone_date" required value="${escapeHtml(row.start_date || todayString())}">
+        </label>
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelTodoPostponeBtn">取消</button>
+          <button type="submit" class="primary-btn">儲存延期</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  const close = () => modal.remove()
+  modal.querySelector('#closeTodoPostponeModalBtn')?.addEventListener('click', close)
+  modal.querySelector('#cancelTodoPostponeBtn')?.addEventListener('click', close)
+  modal.querySelector('#todoNotePostponeForm')?.addEventListener('submit', async event => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const targetDate = String(form.get('postpone_date') || '').trim()
+    if (!targetDate) return alert('請選擇延期日期')
+    if (targetDate === String(row.start_date || '').trim()) return alert('延期日期不可與原日期相同')
+    await postponeTodoNoteSchedule(scheduleId, targetDate)
+    close()
+  })
 }
 
 async function updateTodoNoteStatus(scheduleId = '', status = '未完成', resultText = '') {
@@ -18890,6 +19094,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
+        ${isTodoOrNoteSchedule(row) && isPostponedOriginalSchedule(row) ? `<div class="span-2"><span>延期狀態</span><strong class="schedule-detail-text-preserve">延期處理${getTodoNotePostponedDate(row) ? '｜已延期至：' + escapeHtml(getTodoNotePostponedDate(row)) : ''}</strong></div>` : ''}
         <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
       </div>
 
@@ -18903,6 +19108,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
         ${canManageTodoNoteStatus(row) ? `<button type="button" class="primary-btn" id="detailTodoStatusBtn">修改狀態</button>` : ''}
+        ${canPostponeTodoNoteSchedule(row) ? `<button type="button" class="secondary-btn" id="detailTodoPostponeBtn">延期</button>` : ''}
         ${isIncidentSchedule(row) && row.status !== '取消' && canManageIncidentAction(row) ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
         ${!isTodoOrNoteSchedule(row) && canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
@@ -18942,6 +19148,14 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
     todoStatusBtn.addEventListener('click', () => {
       modal.remove()
       openTodoNoteStatusModal(scheduleId)
+    })
+  }
+
+  const todoPostponeBtn = document.querySelector('#detailTodoPostponeBtn')
+  if (todoPostponeBtn) {
+    todoPostponeBtn.addEventListener('click', () => {
+      modal.remove()
+      openTodoNotePostponeModal(scheduleId)
     })
   }
 
