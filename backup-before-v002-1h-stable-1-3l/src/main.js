@@ -2216,10 +2216,6 @@ function getContinuationDisplayLabel(row = {}) {
     ]) || '行事曆'
   }
 
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    return '行政事務'
-  }
-
   return getFirstMeaningfulContinuationValue(row, [
     row.sub_type,
     row.schedule_type,
@@ -6526,8 +6522,8 @@ function getScheduleTypeTitleParts(row = {}) {
   }
   if (isVehicleMaintenanceSchedule(row)) return { type: '公務車保養', title: sanitizeRepeatedTypeTitle('公務車保養', baseTitle) }
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    const typeLabel = '行政事務'
-    return { type: typeLabel, title: sanitizeRepeatedTypeTitle(typeLabel, baseTitle) }
+    const reminderItem = String(row.sub_type || getNoteValue(row, '提醒項目') || '--').trim() || '--'
+    return { type: reminderItem, title: sanitizeRepeatedTypeTitle(reminderItem, baseTitle) }
   }
   if (isMeetingRoomSchedule(row)) {
     const type = String(row.location_name || row.sub_type || '').trim() || '會議室'

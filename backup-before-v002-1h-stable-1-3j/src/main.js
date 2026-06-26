@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3k'
-const SYSTEM_VERSION_NOTE = 'Modal 層級、篩選列遮擋與代步車通知相關人員搜尋修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3i'
+const SYSTEM_VERSION_NOTE = '手機平板第一欄固定、欄寬最小化與月曆格子自動調整'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -765,7 +765,7 @@ const scheduleContentTemplates = [
   { type: '宿舍', content: '宿舍地點：\n處理事項：\n處理結果：\n後續追蹤：' },
   { type: '其他', content: '辦理內容：\n處理結果：\n後續追蹤：' },
   { type: '求才拍照', content: '求才對象：\n拍照地點：\n處理內容：\n備註：' },
-  { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知相關人員：\n備註：' }
+  { type: '公務車保養', content: '公務車：\n保養日期：\n歸還日期：\n保養期間代步車：\n通知車子保養者：\n備註：' }
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
 const administrativeReminderItems = ['--', '求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
@@ -2214,10 +2214,6 @@ function getContinuationDisplayLabel(row = {}) {
       getScheduleColorKey(row),
       getScheduleDisplayType(row)
     ]) || '行事曆'
-  }
-
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    return '行政事務'
   }
 
   return getFirstMeaningfulContinuationValue(row, [
@@ -4158,14 +4154,8 @@ function renderApp() {
   if (resetOverviewFilterBtn) {
     resetOverviewFilterBtn.addEventListener('click', () => {
       overviewFilters = normalizeOverviewFilters()
-      overviewWeekOffset = 0
       overviewDisplayMonth = getCurrentMonthValue()
-      overviewQuickGroups = normalizeOverviewQuickGroups({
-        ...overviewQuickGroups,
-        activeId: 'all'
-      })
       saveOverviewFiltersPreference()
-      saveOverviewQuickGroupsPreference()
       renderApp()
     })
   }
@@ -4267,9 +4257,6 @@ function renderApp() {
   if (resetFieldScheduleFilterBtn) {
     resetFieldScheduleFilterBtn.addEventListener('click', () => {
       fieldScheduleFilters = normalizeFieldScheduleFilters()
-      fieldWeekOffset = 0
-      fieldDisplayMonth = getCurrentMonthValue()
-      fieldCalendarViewMode = '週檢視'
       saveFieldScheduleFiltersPreference()
       renderApp()
     })
@@ -6226,7 +6213,7 @@ function renderFieldScheduleCalendar() {
         </label>
 
         <button type="submit" class="primary-btn">套用並記住</button>
-        <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">重設</button>
+        <button type="button" class="secondary-btn" id="resetFieldScheduleFilterBtn">全部</button>
       </div>
 
       <div class="overview-filter-summary compact-summary">
@@ -6526,8 +6513,8 @@ function getScheduleTypeTitleParts(row = {}) {
   }
   if (isVehicleMaintenanceSchedule(row)) return { type: '公務車保養', title: sanitizeRepeatedTypeTitle('公務車保養', baseTitle) }
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    const typeLabel = '行政事務'
-    return { type: typeLabel, title: sanitizeRepeatedTypeTitle(typeLabel, baseTitle) }
+    const reminderItem = String(row.sub_type || getNoteValue(row, '提醒項目') || '--').trim() || '--'
+    return { type: reminderItem, title: sanitizeRepeatedTypeTitle(reminderItem, baseTitle) }
   }
   if (isMeetingRoomSchedule(row)) {
     const type = String(row.location_name || row.sub_type || '').trim() || '會議室'
@@ -6613,13 +6600,10 @@ function getDepartmentSupervisorStaffIds(departmentId = '', departmentName = '')
 }
 
 function getVehicleMaintenanceNotifyStaffIds(form, fieldName = 'maintenance_notify_staff') {
-  const notifyStaffIds = (form?.getAll?.(fieldName) || [])
-    .flatMap(value => String(value || '').split(/[、,，]/))
-    .map(value => value.trim())
-    .filter(Boolean)
+  const notifyStaffId = String(form.get(fieldName) || '').trim()
   const supervisorStaffId = String(form.get('maintenance_notify_supervisor') || '').trim()
 
-  return [...new Set([...notifyStaffIds, supervisorStaffId].filter(Boolean))]
+  return [...new Set([notifyStaffId, supervisorStaffId].filter(Boolean))]
 }
 
 
@@ -17082,7 +17066,7 @@ function renderScheduleOverview() {
         </label>
 
         <button type="submit" class="primary-btn overview-apply-btn">套用</button>
-        <button type="button" class="secondary-btn overview-reset-btn-small" id="resetOverviewFilterBtn">重設</button>
+        <button type="button" class="secondary-btn overview-reset-btn-small" id="resetOverviewFilterBtn">全部</button>
       </div>
 
       <div class="overview-filter-summary compact-summary">
@@ -21940,10 +21924,12 @@ function openScheduleModal(defaults = {}) {
             <input name="maintenance_replacement_car" placeholder="請輸入代步車或留空">
           </label>
 
-          <div class="maintenance-notify-field">
-            <div class="field-title">通知相關人員</div>
-            ${maintenanceNotifyDropdownHtml([], 'maintenance_notify_staff')}
-          </div>
+          <label>
+            通知車子保養者
+            <select name="maintenance_notify_staff">
+              ${staffSelectOptionsHtml()}
+            </select>
+          </label>
 
 <label>
             通知主管
@@ -22352,17 +22338,9 @@ function getSelectedProxyName() {
 
 function getStaffNameFromSelect(name) {
   const select = document.querySelector(`select[name="${name}"]`)
-  if (select && select.value) {
-    const option = select.options[select.selectedIndex]
-    return option ? option.textContent : ''
-  }
-
-  const checkedInputs = Array.from(document.querySelectorAll(`input[name="${name}"][type="checkbox"]:checked`))
-  if (checkedInputs.length) {
-    return getStaffNamesByIds(checkedInputs.map(input => input.value)).join('、')
-  }
-
-  return ''
+  if (!select || !select.value) return ''
+  const option = select.options[select.selectedIndex]
+  return option ? option.textContent : ''
 }
 
 function buildRepeatNote(form) {
@@ -22615,64 +22593,8 @@ function serviceAdminDropdownHtml(selectedStaffIds = [], inputName = 'service_ad
   `
 }
 
-function getMaintenanceNotifyDropdownSummaryByIds(selectedStaffIds = []) {
-  const names = getStaffNamesByIds(selectedStaffIds)
-  if (!names.length) return '請選擇通知相關人員'
-  if (names.length <= 2) return names.join('、')
-  return `已選擇 ${names.length} 位人員`
-}
-
-function maintenanceNotifyStaffCheckboxesHtml(selectedStaffIds = [], inputName = 'maintenance_notify_staff') {
-  const selected = new Set((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
-  const rows = staffList
-    .filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') !== '停用')
-    .sort((a, b) => String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant') || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'))
-  const existingIds = new Set(rows.map(staff => staff.staff_id))
-  const extraRows = staffList.filter(staff => selected.has(staff.staff_id) && !existingIds.has(staff.staff_id))
-  const allRows = [...extraRows, ...rows]
-  if (!allRows.length) return '<div class="field-hint">目前沒有可通知人員</div>'
-  return allRows.map(staff => `
-    <label class="inline-check service-admin-check-option maintenance-notify-option">
-      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${escapeHtml(staff.name || '-')}<small>${escapeHtml(staff.department_name || '')}</small></span>
-    </label>
-  `).join('')
-}
-
-function maintenanceNotifyDropdownHtml(selectedStaffIds = [], inputName = 'maintenance_notify_staff') {
-  const selected = uniqueOptionList((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
-  const summary = getMaintenanceNotifyDropdownSummaryByIds(selected)
-  const isEmpty = selected.length ? '' : ' is-empty'
-  return `
-    <details class="service-admin-dropdown maintenance-notify-dropdown${isEmpty}" data-maintenance-notify-dropdown>
-      <summary>
-        <span data-maintenance-notify-summary>${escapeHtml(summary)}</span>
-      </summary>
-      <div class="service-admin-dropdown-panel service-admin-check-list maintenance-notify-panel">
-        <input type="search" class="service-admin-search-input" placeholder="請輸入姓名搜尋" autocomplete="off" data-service-admin-search>
-        ${maintenanceNotifyStaffCheckboxesHtml(selected, inputName)}
-        <small class="maintenance-notify-empty" data-maintenance-notify-empty hidden>查無符合人員</small>
-      </div>
-    </details>
-  `
-}
-
-function refreshMaintenanceNotifyDropdownSummary(dropdown) {
-  if (!dropdown) return
-  const checkedIds = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'))
-    .map(input => String(input.value || '').trim())
-    .filter(Boolean)
-  const summaryEl = dropdown.querySelector('[data-maintenance-notify-summary]')
-  if (summaryEl) summaryEl.textContent = getMaintenanceNotifyDropdownSummaryByIds(checkedIds)
-  dropdown.classList.toggle('is-empty', checkedIds.length === 0)
-}
-
 function refreshServiceAdminDropdownSummary(dropdown) {
   if (!dropdown) return
-  if (dropdown.classList.contains('maintenance-notify-dropdown')) {
-    refreshMaintenanceNotifyDropdownSummary(dropdown)
-    return
-  }
   const checkedIds = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'))
     .map(input => String(input.value || '').trim())
     .filter(Boolean)
@@ -22693,15 +22615,10 @@ if (!window.__FOR_E_SERVICE_ADMIN_DROPDOWN_BOUND__) {
     if (!searchInput) return
     const dropdown = searchInput.closest('.service-admin-dropdown')
     const keyword = String(searchInput.value || '').trim().toLowerCase()
-    let visibleCount = 0
     dropdown?.querySelectorAll?.('.service-admin-check-option')?.forEach(option => {
       const text = String(option.textContent || '').trim().toLowerCase()
-      const hidden = Boolean(keyword && !text.includes(keyword))
-      option.hidden = hidden
-      if (!hidden) visibleCount += 1
+      option.hidden = Boolean(keyword && !text.includes(keyword))
     })
-    const emptyEl = dropdown?.querySelector?.('[data-maintenance-notify-empty]')
-    if (emptyEl) emptyEl.hidden = visibleCount > 0
   })
 }
 
@@ -23398,9 +23315,9 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const maintenanceStartDate = row.start_date || todayString()
   const maintenanceReturnDate = row.end_date || maintenanceStartDate
   const maintenanceReplacementCar = getLineNoteValue(row, '保養期間代步車')
-  const maintenanceNotifyStaffIds = getStaffIdsByDisplayNames(getNoteValue(row, '通知相關人員'))
-  const maintenanceNotifySelectedIds = maintenanceNotifyStaffIds.length ? maintenanceNotifyStaffIds : (isMaintenanceActiveIds[0] ? [isMaintenanceActiveIds[0]] : [])
-  const maintenanceSupervisorStaffId = isMaintenanceActiveIds.find(id => !maintenanceNotifySelectedIds.includes(id)) || notifySupervisorStaffId || ''
+  const maintenanceNotifyStaffId = isMaintenanceActiveIds[0] || ''
+  const maintenanceSupervisorStaffId = isMaintenanceActiveIds[1] || notifySupervisorStaffId || ''
+  const maintenanceNotifyOptions = staffSelectOptionsHtmlSelected(maintenanceNotifyStaffId)
   const maintenanceSupervisorOptions = supervisorSelectOptionsHtmlSelected(maintenanceSupervisorStaffId)
   const maintenanceNote = getLineNoteValue(row, '備註') || getLineNoteValue(row, '保養備註')
   const editProxyStaffId = getProxyStaffIdFromRow(row)
@@ -23626,10 +23543,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             <input name="maintenance_replacement_car" value="${escapeHtml(maintenanceReplacementCar)}" placeholder="請輸入代步車或留空">
           </label>
 
-          <div class="maintenance-notify-field">
-            <div class="field-title">通知相關人員</div>
-            ${maintenanceNotifyDropdownHtml(maintenanceNotifySelectedIds, 'maintenance_notify_staff')}
-          </div>
+          <label>
+            通知車子保養者
+            <select name="maintenance_notify_staff">
+              ${maintenanceNotifyOptions}
+            </select>
+          </label>
 
           <label>
             通知主管
@@ -23643,7 +23562,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             <textarea name="maintenance_note" rows="3">${escapeHtml(maintenanceNote)}</textarea>
           </label>
 
-          <p class="field-hint span-2">公務車保養只通知相關人員及部門主管，不需要選擇執行者。</p>
+          <p class="field-hint span-2">公務車保養只通知車子保養者及部門主管，不需要選擇執行者。</p>
         </div>
 
         <div class="span-2 form-section hidden" id="editTodoBlock">
@@ -23922,7 +23841,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category))
 
   if (!editExecutorIds.length) {
-    alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
+    alert(category === '公務車保養' ? '請選擇通知車子保養者或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
     return
   }
 
@@ -23987,7 +23906,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
       `保養日期：${maintenanceStartDate}`,
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      `通知相關人員：${maintenanceNotifyName || '-'}`,
+      `通知車子保養者：${maintenanceNotifyName || '-'}`,
       `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ].join('\n')
@@ -24008,7 +23927,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
         return ''
       }, getAll: () => [] }),
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      maintenanceNotifyName ? `通知相關人員：${maintenanceNotifyName}` : '',
+      maintenanceNotifyName ? `通知車子保養者：${maintenanceNotifyName}` : '',
       maintenanceSupervisorName ? `通知主管：${maintenanceSupervisorName}` : '',
       maintenanceNote ? `保養備註：${maintenanceNote}` : ''
     ].filter(Boolean).join('｜') || null
@@ -24275,7 +24194,7 @@ async function saveSchedule(event, modal) {
       `保養日期：${maintenanceStartDate}`,
       `歸還日期：${maintenanceReturnDate}`,
       `保養期間代步車：${maintenanceReplacementCar || '-'}`,
-      `通知相關人員：${maintenanceNotifyName || '-'}`,
+      `通知車子保養者：${maintenanceNotifyName || '-'}`,
       `通知主管：${maintenanceSupervisorName || '-'}`,
       `備註：${maintenanceNote || '-'}`
     ]
@@ -24291,7 +24210,7 @@ async function saveSchedule(event, modal) {
       })
     ]
     subTypeNoteParts.push(`保養期間代步車：${maintenanceReplacementCar || '-'}`)
-    if (maintenanceNotifyName) subTypeNoteParts.push(`通知相關人員：${maintenanceNotifyName}`)
+    if (maintenanceNotifyName) subTypeNoteParts.push(`通知車子保養者：${maintenanceNotifyName}`)
     if (maintenanceSupervisorName) subTypeNoteParts.push(`通知主管：${maintenanceSupervisorName}`)
     if (maintenanceNote) subTypeNoteParts.push(`保養備註：${maintenanceNote}`)
 

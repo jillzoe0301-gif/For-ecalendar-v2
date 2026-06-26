@@ -23663,33 +23663,3 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   font-weight: 850 !important;
 }
 /* FOR-e V002-1H-stable-1-3k END - modal layer and maintenance notify searchable dropdown */
-
-
-/* FOR-e V002-1H-stable-1-3l START - administrative label text and chip accent sync */
-.for-e-card-type-chip,
-.week-schedule-card .for-e-card-type-chip,
-.field-week-schedule-card .for-e-card-type-chip,
-.meeting-room-card .for-e-card-type-chip,
-.continuation-day-mark .for-e-card-type-chip,
-.continuation-day-mark .continuation-day-type-line {
-  background: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 16%, #ffffff 84%) !important;
-  border-color: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 76%, #ffffff 24%) !important;
-  color: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #94a3b8)) 82%, #0f172a 18%) !important;
-  justify-content: flex-start !important;
-  text-align: left !important;
-  padding: 3px 12px !important;
-  max-width: 100% !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: nowrap !important;
-  box-shadow: none !important;
-}
-
-.week-schedule-card .for-e-card-head-row,
-.field-week-schedule-card .for-e-card-head-row,
-.meeting-room-card .for-e-card-head-row,
-.continuation-day-mark .for-e-card-head-row,
-.continuation-day-mark .continuation-card-head-row {
-  align-items: flex-start !important;
-}
-/* FOR-e V002-1H-stable-1-3l END - administrative label text and chip accent sync */
