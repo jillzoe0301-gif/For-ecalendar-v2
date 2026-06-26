@@ -23459,3 +23459,207 @@ body,
   white-space: nowrap !important;
 }
 /* FOR-e V002-1H-stable-1-3j END - calendar sticky header filter reset dropdown layer maintenance label */
+
+/* FOR-e V002-1H-stable-1-3k START - modal layer and maintenance notify searchable dropdown */
+/* 1) Modal 一律高於篩選列，避免行程總覽篩選列穿到新增 / 修改 / 查看視窗上方。 */
+.modal-backdrop,
+body .modal-backdrop {
+  z-index: 9000 !important;
+  pointer-events: auto !important;
+}
+
+.modal-backdrop .modal-panel,
+body .modal-backdrop .modal-panel {
+  position: relative !important;
+  z-index: 9010 !important;
+}
+
+/* 篩選列仍高於行事曆，但不得高於 modal。 */
+#overviewFilterForm,
+#fieldScheduleFilterForm,
+.overview-filter-panel,
+.overview-filter-panel-compact,
+.field-filter-panel-compact,
+.schedule-filter-bar,
+.calendar-filter-bar {
+  z-index: 120 !important;
+  overflow: visible !important;
+}
+
+#overviewFilterForm .overview-filter-compact-row,
+#fieldScheduleFilterForm .overview-filter-compact-row,
+.overview-filter-compact-row,
+.field-filter-panel-compact .overview-filter-compact-row {
+  z-index: 121 !important;
+  overflow: visible !important;
+}
+
+.compact-multi-select,
+.compact-filter-control,
+.overview-group-person-dropdown,
+.field-staff-dropdown,
+.meeting-dropdown-select,
+.line-target-dropdown {
+  z-index: 122 !important;
+}
+
+.compact-multi-select[open],
+.overview-group-person-dropdown[open],
+.field-staff-dropdown[open],
+.meeting-dropdown-select[open],
+.line-target-dropdown[open] {
+  z-index: 180 !important;
+}
+
+.compact-check-panel,
+.overview-group-person-dropdown-panel,
+.field-staff-dropdown-panel,
+.meeting-dropdown-panel,
+.line-target-dropdown-panel,
+.filter-select-menu,
+.multi-select-menu,
+.schedule-filter-dropdown,
+.calendar-filter-dropdown {
+  z-index: 190 !important;
+}
+
+/* Modal 開啟時，後方篩選列不可點擊；避免穿透操作。 */
+body:has(.modal-backdrop) #overviewFilterForm,
+body:has(.modal-backdrop) #fieldScheduleFilterForm,
+body:has(.modal-backdrop) .overview-filter-panel,
+body:has(.modal-backdrop) .overview-filter-panel-compact,
+body:has(.modal-backdrop) .field-filter-panel-compact,
+body:has(.modal-backdrop) .schedule-filter-bar,
+body:has(.modal-backdrop) .calendar-filter-bar {
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+/* Modal 內下拉選單維持在 Modal 上層，不被後方篩選列或行事曆蓋住。 */
+.modal-backdrop .compact-multi-select,
+.modal-backdrop .compact-filter-control,
+.modal-backdrop .service-admin-dropdown,
+.modal-backdrop .maintenance-notify-dropdown,
+.modal-backdrop .meeting-dropdown-select,
+.modal-backdrop .field-staff-dropdown,
+.modal-backdrop .line-target-dropdown {
+  z-index: 9100 !important;
+}
+
+.modal-backdrop .compact-multi-select[open],
+.modal-backdrop .service-admin-dropdown[open],
+.modal-backdrop .maintenance-notify-dropdown[open],
+.modal-backdrop .meeting-dropdown-select[open],
+.modal-backdrop .field-staff-dropdown[open],
+.modal-backdrop .line-target-dropdown[open] {
+  z-index: 9200 !important;
+}
+
+.modal-backdrop .compact-check-panel,
+.modal-backdrop .service-admin-dropdown-panel,
+.modal-backdrop .maintenance-notify-panel,
+.modal-backdrop .meeting-dropdown-panel,
+.modal-backdrop .field-staff-dropdown-panel,
+.modal-backdrop .line-target-dropdown-panel {
+  z-index: 9300 !important;
+}
+
+/* 2) 代步車 / 公務車保養：通知相關人員改為可搜尋式選單，搜尋欄在選項清單內。 */
+.maintenance-notify-field {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.maintenance-notify-field .field-title {
+  margin: 0 !important;
+  color: #334155 !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+}
+
+.maintenance-notify-dropdown summary span {
+  color: #17233d !important;
+}
+
+.maintenance-notify-dropdown.is-empty summary span {
+  color: #8b95a7 !important;
+}
+
+.maintenance-notify-panel {
+  max-height: 220px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.maintenance-notify-panel .service-admin-search-input {
+  width: 100% !important;
+  min-height: 38px !important;
+  border: 1px solid #d6e0f2 !important;
+  border-radius: 12px !important;
+  padding: 0 12px !important;
+  margin: 0 0 8px !important;
+  box-sizing: border-box !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.maintenance-notify-option {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 7px 8px !important;
+  box-sizing: border-box !important;
+  text-align: left !important;
+}
+
+.maintenance-notify-option input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  justify-self: start !important;
+}
+
+.maintenance-notify-option span {
+  display: block !important;
+  min-width: 0 !important;
+  color: #17233d !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.maintenance-notify-option small {
+  display: block !important;
+  margin-top: 2px !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.maintenance-notify-empty {
+  display: block !important;
+  padding: 7px 8px !important;
+  color: #dc2626 !important;
+  font-size: 12.5px !important;
+  font-weight: 850 !important;
+}
+/* FOR-e V002-1H-stable-1-3k END - modal layer and maintenance notify searchable dropdown */
