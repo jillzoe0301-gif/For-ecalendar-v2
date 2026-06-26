@@ -21486,3 +21486,123 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
   object-position: center !important;
 }
 /* FOR-e V002-1H-stable-1 END - announcement record icon sync */
+
+/* FOR-e V002-1H-stable-1-1 START - verify departure salary reminders and card label readability */
+.service-reminder-week-card.is-verify-reminder {
+  background: color-mix(in srgb, var(--schedule-accent, #D69C5F) 18%, #ffffff 82%) !important;
+  border-color: var(--schedule-accent, #D69C5F) !important;
+  box-shadow: inset 4px 0 0 var(--schedule-accent, #D69C5F) !important;
+}
+
+.service-reminder-week-card.is-verify-date-reminder .service-reminder-card-type {
+  background: #D69C5F !important;
+  border-color: #C1874E !important;
+  color: #ffffff !important;
+}
+
+.service-reminder-week-card.is-verify-departure-notice {
+  background: color-mix(in srgb, var(--schedule-accent, #9A5B22) 24%, #ffffff 76%) !important;
+  border-color: #9A5B22 !important;
+  box-shadow: inset 4px 0 0 #9A5B22 !important;
+}
+
+.service-reminder-week-card.is-verify-departure-notice .service-reminder-card-type {
+  background: #9A5B22 !important;
+  border-color: #7A4316 !important;
+  color: #ffffff !important;
+}
+
+.service-reminder-week-card.is-verify-salary-reminder {
+  background: color-mix(in srgb, var(--schedule-accent, #F3C98B) 20%, #ffffff 80%) !important;
+  border-color: #F3C98B !important;
+  box-shadow: inset 4px 0 0 #F3C98B !important;
+}
+
+.service-reminder-week-card.is-verify-salary-reminder .service-reminder-card-type {
+  background: #F3C98B !important;
+  border-color: #D9A85E !important;
+  color: #4A2F10 !important;
+}
+
+.schedule-card[style] .schedule-card-type-line,
+.schedule-card .schedule-card-type-line,
+.schedule-title-stack .schedule-card-type-line,
+.week-schedule-card[style] .week-card-type-line,
+.week-schedule-card[style] .service-reminder-card-type,
+.service-reminder-week-card[style] .service-reminder-card-type,
+.week-schedule-card .week-card-type-line,
+.week-schedule-card .service-reminder-card-type,
+.service-reminder-week-card .service-reminder-card-type,
+.field-week-schedule-card .field-special-badges,
+.field-week-schedule-card .field-result-badge,
+.field-detail-meta,
+.field-detail-content,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.continuation-day-mark .continuation-day-type-line,
+.extra-schedule-chip,
+.extra-schedule-chip.todo-note-item-chip,
+.week-card-extra,
+.reminder-tags span,
+.line-select-row strong,
+.line-select-row small,
+.incident-urgency-badge,
+.incident-title {
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  line-height: 1.38 !important;
+  min-height: auto !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.line-select-row small,
+.field-detail-meta,
+.field-detail-content,
+.reminder-tags span {
+  font-size: 14.5px !important;
+  font-weight: 850 !important;
+}
+
+.service-reminder-week-card.is-verify-reminder > strong {
+  font-size: 17px !important;
+  font-weight: 950 !important;
+  line-height: 1.45 !important;
+}
+
+.service-reminder-week-card.is-verify-reminder .week-card-preview {
+  font-size: 15px !important;
+  font-weight: 850 !important;
+  line-height: 1.5 !important;
+}
+
+@media (max-width: 768px) {
+  .schedule-card[style] .schedule-card-type-line,
+  .schedule-card .schedule-card-type-line,
+  .schedule-title-stack .schedule-card-type-line,
+  .week-schedule-card[style] .week-card-type-line,
+  .week-schedule-card[style] .service-reminder-card-type,
+  .service-reminder-week-card[style] .service-reminder-card-type,
+  .week-schedule-card .week-card-type-line,
+  .week-schedule-card .service-reminder-card-type,
+  .service-reminder-week-card .service-reminder-card-type,
+  .field-week-schedule-card .field-special-badges,
+  .field-week-schedule-card .field-result-badge,
+  .meeting-room-card .meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-room-line,
+  .continuation-day-mark .continuation-day-type-line,
+  .extra-schedule-chip,
+  .extra-schedule-chip.todo-note-item-chip,
+  .week-card-extra,
+  .reminder-tags span,
+  .line-select-row strong,
+  .incident-urgency-badge,
+  .incident-title {
+    font-size: 15px !important;
+    line-height: 1.4 !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-1 END - verify departure salary reminders and card label readability */

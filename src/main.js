@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1'
-const SYSTEM_VERSION_NOTE = '第一次穩固版：公告區只在個人行程表顯示、清理舊檔與公告紀錄 ICON 統一'
+const SYSTEM_VERSION = 'V002-1H-stable-1-1'
+const SYSTEM_VERSION_NOTE = '驗證提醒、離境通知、結薪日提醒與行程卡片文字放大'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -785,7 +785,7 @@ const carOptions = [
 const documentOptions = ['護照', '居留證', '健保卡', '印章', '其他']
 const deliveryDocumentItems = ['護照', '居留證', '健保卡', '印章', '文件', '其他']
 const administrativeTaskTypeOptions = ['補件', '送件異常', '逃跑通知', '離境驗證', '轉出', '其他']
-const notificationTypeOptions = ['今日行程', '任務逾期', '待確認 / 待通知', '尚未到期的待辦或行程', '外務行程', '今日外務', '今日會議室', '逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供', '全部通知']
+const notificationTypeOptions = ['今日行程', '任務逾期', '待確認 / 待通知', '尚未到期的待辦或行程', '外務行程', '今日外務', '今日會議室', '逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供', '驗證提醒', '離境通知', '結薪日提醒', '全部通知']
 const companyActivityTypeOptions = ['公司活動', '尾牙', '聚餐', '教育訓練', '其他']
 const departmentActivityTypeOptions = ['部門活動', '部門會議', '部門教育訓練', '部門聚餐', '其他']
 const serviceRecordStatusOptions = ['未繳交', '已繳交', '超過14天未繳交']
@@ -1991,6 +1991,21 @@ function hasActiveAssignees(row = {}) {
   return getActiveAssigneeIds(row).length > 0
 }
 
+function getScheduleNotificationStaffIds(row = {}) {
+  if (!row) return []
+  const names = [
+    getNoteValue(row, '通知行政'),
+    getNoteValue(row, '通知主管'),
+    getNoteValue(row, '通知主管追蹤'),
+    getFieldNoteValue(row, '通知行政'),
+    getFieldNoteValue(row, '通知主管')
+  ]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join('、')
+  return typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(names) : []
+}
+
 function hasOtherActiveAssignee(row = {}, staffId = '') {
   return getActiveAssigneeIds(row).some(id => id !== staffId)
 }
@@ -2012,6 +2027,8 @@ function scheduleBelongsToStaff(row = {}, staffId = '') {
   if (!row || !staffId) return false
 
   if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, staffId)
+
+  if (getScheduleNotificationStaffIds(row).includes(staffId)) return true
 
   if (hasActiveAssignees(row)) {
     return getActiveAssigneeIds(row).includes(staffId)
@@ -9713,6 +9730,9 @@ const defaultReminderDaySettings = [
   { key: 'runawayDay2', enabled: true, name: '逃跑第二天通知', timingLabel: '逃跑第', days: 2, displayType: '逃跑第二天通知', includeLine: true },
   { key: 'runawayDay3', enabled: true, name: '逃跑第三天通知', timingLabel: '逃跑第', days: 3, displayType: '逃跑第三天通知', includeLine: true },
   { key: 'housingInfoAfterMove', enabled: true, name: '住變資訊提供', timingLabel: '搬遷日後', days: 6, displayType: '住變資訊提供', includeLine: true },
+  { key: 'verifyDateReminder', enabled: true, name: '驗證提醒', timingLabel: '驗證日前', days: 0, displayType: '驗證提醒', includeLine: true },
+  { key: 'departureDateNotice', enabled: true, name: '離境通知', timingLabel: '離境日前', days: 0, displayType: '離境通知', includeLine: true },
+  { key: 'salaryDateReminder', enabled: true, name: '結薪日提醒', timingLabel: '結薪日前', days: 0, displayType: '結薪日提醒', includeLine: true },
   { key: 'serviceRecordUnsubmitted', enabled: true, name: '服務紀錄單未繳交提醒', timingLabel: '行程後', days: 0, displayType: '紀錄單未繳交', includeLine: false },
   { key: 'serviceRecordOver14Days', enabled: true, name: '超過 14 天未繳交提醒', timingLabel: '行程後', days: 14, displayType: '超過14天未繳交', includeLine: false },
   { key: 'administrativeReminder', enabled: true, name: '行政事務提醒', timingLabel: '指定日前', days: 0, displayType: '行政事務提醒', includeLine: false }
@@ -9809,7 +9829,11 @@ function parseLocationLines(value) {
 }
 
 function optionLinesValue(key, fallback = []) {
-  return getManagedListOption(key, fallback).join('\n')
+  const list = getManagedListOption(key, fallback)
+  if (key === 'notificationTypeOptions') {
+    return [...new Set([...list, '驗證提醒', '離境通知', '結薪日提醒'])].join('\n')
+  }
+  return list.join('\n')
 }
 
 function locationLinesValue() {
@@ -10245,7 +10269,9 @@ function getScheduleColorDefinitions() {
     { key: '轉出到期最後一天', label: '提醒事項｜轉出到期最後一天', defaultColor: '#C70039' },
     { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
     { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
-    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF8080' },
+    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#D69C5F' },
+    { key: '離境通知', label: '提醒事項｜離境通知', defaultColor: '#9A5B22' },
+    { key: '結薪日提醒', label: '提醒事項｜結薪日提醒', defaultColor: '#F3C98B' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
     { key: '返台確認', label: '提醒事項｜返台確認', defaultColor: '#4FB477' },
     { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
@@ -10263,7 +10289,7 @@ function getScheduleColorDefinitions() {
   ]
 }
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1P-297'
+const scheduleColorPaletteVersion = 'V002-1H-stable-1-1'
 
 function getPersonalScheduleColorStorageKey() {
   const ownerKey = getPersonalSettingOwnerKey()
@@ -10301,7 +10327,9 @@ function getScheduleColorSettings() {
       '轉出到期最後一天': '#C70039',
       '轉出提醒': '#C70039',
       '住變資訊提供': '#FF8080',
-      '驗證提醒': '#FF8080',
+      '驗證提醒': '#D69C5F',
+      '離境通知': '#9A5B22',
+      '結薪日提醒': '#F3C98B',
       '返台提醒': '#67C090',
       '返台確認': '#4FB477',
       '電表提醒': '#BBD5DA'
@@ -10448,10 +10476,16 @@ function mixHexWithWhite(color = '#ffffff', whiteRatio = 0.86) {
   return `#${mix(r)}${mix(g)}${mix(b)}`
 }
 
+function getScheduleColorInlineStyleByKey(colorKey = '', fallbackRow = null) {
+  const key = String(colorKey || '').trim() || (fallbackRow ? getScheduleColorKey(fallbackRow) : '服務行程')
+  const settings = getScheduleColorSettings()
+  const accentColor = key === '會議室預約' ? '#DFD3C3' : (settings[key] || (fallbackRow ? getScheduleColor(fallbackRow) : '#ffffff'))
+  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
+}
+
 function getScheduleColorInlineStyle(row) {
   const colorKey = getScheduleColorKey(row)
-  const accentColor = colorKey === '會議室預約' ? '#DFD3C3' : getScheduleColor(row)
-  return `background:#ffffff;border:4px solid ${accentColor};--schedule-accent:${accentColor};`
+  return getScheduleColorInlineStyleByKey(colorKey, row)
 }
 
 function renderColorPreviewCard(item, color) {
@@ -10527,7 +10561,9 @@ function applyLineNotifyFormState(formElement) {
 }
 
 function getLineNotifyTypeOptions() {
-  const types = getManagedListOption('notificationTypeOptions', notificationTypeOptions)
+  const managedTypes = getManagedListOption('notificationTypeOptions', notificationTypeOptions)
+  const requiredTypes = ['驗證提醒', '離境通知', '結薪日提醒']
+  const types = [...new Set([...managedTypes, ...requiredTypes])]
   const currentType = lineNotifyState.type === '全部禁行通知' ? '全部通知' : lineNotifyState.type
   return types.map(type => `<option value="${escapeHtml(type)}" ${currentType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
 }
@@ -10629,7 +10665,8 @@ function renderLineNotifyTargetDropdown() {
 function isLineNotifyTargetStaff(row, staffId) {
   if (!row || !staffId) return false
   const assigneeIds = getAssigneeIds(row)
-  return assigneeIds.includes(staffId) || row.creator_staff_id === staffId
+  const notificationIds = typeof getScheduleNotificationStaffIds === 'function' ? getScheduleNotificationStaffIds(row) : []
+  return assigneeIds.includes(staffId) || notificationIds.includes(staffId) || row.creator_staff_id === staffId
 }
 
 function getLineNotifyTargetStaffId() {
@@ -10783,6 +10820,16 @@ function getSpecialReminderLineRows(rows = [], type = '') {
       const reminderDate = getHousingInfoReminderDate(row)
       if (reminderDate && (!hasDateFilter || dateKeys.includes(reminderDate))) result.push(cloneLineNotifyRow(row, reminderDate, 'housing-info'))
     }
+
+
+    if (reminderType === '驗證提醒') {
+      const verifyDate = getVerifyReminderDate(row)
+      const departureDate = getDepartureNoticeDate(row)
+      const salaryDate = getSalaryReminderDate(row)
+      if (type === '驗證提醒' && verifyDate && (!hasDateFilter || dateKeys.includes(verifyDate))) result.push(cloneLineNotifyRow(row, verifyDate, 'verify-date'))
+      if (type === '離境通知' && departureDate && (!hasDateFilter || dateKeys.includes(departureDate))) result.push(cloneLineNotifyRow(row, departureDate, 'departure-notice'))
+      if (type === '結薪日提醒' && salaryDate && (!hasDateFilter || dateKeys.includes(salaryDate))) result.push(cloneLineNotifyRow(row, salaryDate, 'salary-reminder'))
+    }
   })
 
   return result
@@ -10851,7 +10898,7 @@ function getLineNotifyRows() {
       .filter(row => isMeetingRoomSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .map(row => cloneLineNotifyRow(row, today, 'meeting-today'))
-  } else if (['逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供'].includes(type)) {
+  } else if (['逃跑通知', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '住變資訊提供', '驗證提醒', '離境通知', '結薪日提醒'].includes(type)) {
     rows = getSpecialReminderLineRows(baseRows, type)
   } else if (type === '全部通知') {
     rows = expandRowsByLineDateFilter(baseRows.filter(row => row.status !== '取消'))
@@ -10872,6 +10919,14 @@ function getLineNotifyContentText(row = {}) {
   if (lineType === '返台確認') return '返台前確認資料'
   if (lineType === '返台提醒') return '返台提醒'
   if (reminderType === '住變資訊提供' || lineType === '住變資訊提供') return '請提供租約及照片'
+  if (reminderType === '驗證提醒' || ['驗證提醒', '離境通知', '結薪日提醒'].includes(lineType)) {
+    const info = parseVerifyReminderInfo(row)
+    const dateText = getLineNotifyRowDate(row) || row.start_date || ''
+    const displayType = getVerifyReminderDisplayType(row, dateText)
+    if (displayType === '離境通知') return info.leaveDate ? `離境日：${info.leaveDate}` : '離境通知'
+    if (displayType === '結薪日提醒') return info.salaryDate ? `結薪日：${info.salaryDate}` : '結薪日提醒'
+    return info.verifyDate ? `驗證日：${info.verifyDate}` : '驗證提醒'
+  }
 
   const rawContent = String(row.description || row.content || row.memo || row.sub_type_note || '').trim()
   const lines = rawContent
@@ -10949,6 +11004,9 @@ function getLineNotifyLabel(row = {}) {
   if (type === '返台提醒' || type === '返台確認') return '【返台提醒】'
   if (type === '轉出到期前提醒' || type === '轉出到期最後一天') return '【轉出提醒】'
   if (type === '住變資訊提供') return '【住變資訊提供】'
+  if (type === '驗證提醒') return '【驗證提醒】'
+  if (type === '離境通知') return '【離境通知】'
+  if (type === '結薪日提醒') return '【結薪日提醒】'
   return '【行程通知】'
 }
 
@@ -10992,6 +11050,22 @@ function formatLineScheduleItem(row, index) {
       addressText ? lineNotifyPart('地址', addressText) : ''
     ].filter(Boolean)
     return parts.join('\n')
+  }
+
+  if (reminderType === '驗證提醒' || ['驗證提醒', '離境通知', '結薪日提醒'].includes(lineNotifyState.type)) {
+    const info = parseVerifyReminderInfo(row)
+    const displayType = getVerifyReminderDisplayType(row, dateText)
+    const caseName = getServiceReminderCaseName(row, '驗證提醒') || getLineNotifySubject(row)
+    const parts = [`${number}【${displayType}】`, lineNotifyPart('對象', caseName)]
+    if (displayType === '離境通知') {
+      parts.push(lineNotifyPart('離境日', info.leaveDate))
+    } else if (displayType === '結薪日提醒') {
+      parts.push(lineNotifyPart('結薪日', info.salaryDate))
+    } else {
+      parts.push(lineNotifyPart('驗證日', info.verifyDate))
+    }
+    if (addressText) parts.push(lineNotifyPart('地址', addressText))
+    return parts.filter(Boolean).join('\n')
   }
 
   if (shouldShowAdministrativeConversationReminder(row)) {
@@ -16580,12 +16654,23 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
   }
   if (type === '驗證提醒') {
     const info = parseVerifyReminderInfo(row)
+    const displayType = getVerifyReminderDisplayType(row, occurrenceDate)
+    const caseName = getServiceReminderCaseName(row, type) || title
+    if (displayType === '離境通知') {
+      return [
+        caseName,
+        info.leaveDate ? `離境日：${info.leaveDate}` : ''
+      ].filter(Boolean)
+    }
+    if (displayType === '結薪日提醒') {
+      return [
+        caseName,
+        info.salaryDate ? `結薪日：${info.salaryDate}` : ''
+      ].filter(Boolean)
+    }
     return [
-      title,
-      info.salaryDate ? `結薪日：${info.salaryDate}` : '',
-      info.verifyDate ? `驗證日：${info.verifyDate}` : '',
-      info.leaveDate ? `離境日：${info.leaveDate}` : '',
-      info.leaveTime && info.leaveTime !== '不指定' ? `離境時間：${info.leaveTime}` : ''
+      caseName,
+      info.verifyDate ? `驗證日：${info.verifyDate}` : ''
     ].filter(Boolean)
   }
   if (type === '住變資訊提供') {
@@ -16628,10 +16713,7 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
 
 function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)
-  if (type === '驗證提醒') {
-    const info = parseVerifyReminderInfo(row)
-    if (occurrenceDate && info.leaveDate && occurrenceDate === info.leaveDate) return '離境通知'
-  }
+  if (type === '驗證提醒') return getVerifyReminderDisplayType(row, occurrenceDate)
   if (type === '轉出追蹤') {
     const transferStatus = getTransferReminderStatusForDate(row, occurrenceDate)
     if (transferStatus === 'due-reminder') return '轉出到期前提醒'
@@ -16652,12 +16734,14 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const transferClass = transferStatus ? `is-transfer-${transferStatus}` : ''
   const runawayStatus = originalReminderType === '逃跑通知' ? getRunawayReminderStatusForDate(row, occurrenceDateValue) : ''
   const runawayClass = originalReminderType === '逃跑通知' ? `is-runaway-reminder ${runawayStatus ? `is-runaway-${runawayStatus}` : ''}` : ''
+  const verifyClass = originalReminderType === '驗證提醒' ? `is-verify-reminder ${getVerifyReminderCardClass(type)}` : ''
+  const reminderStyle = originalReminderType === '驗證提醒' ? getScheduleColorInlineStyleByKey(type, row) : getScheduleColorInlineStyle(row)
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${runawayClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
         ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -16666,7 +16750,7 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   }
 
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${runawayClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
@@ -19086,6 +19170,44 @@ function parseVerifyReminderInfo(row = {}) {
   }
 }
 
+function getVerifyReminderDate(row = {}) {
+  if (!isReminderSettingEnabled('verifyDateReminder')) return ''
+  const date = parseVerifyReminderInfo(row).verifyDate
+  if (!isStrictDateKey(date)) return ''
+  return getDateKeyOffset(date, -getReminderSettingDays('verifyDateReminder', 0)) || date
+}
+
+function getDepartureNoticeDate(row = {}) {
+  if (!isReminderSettingEnabled('departureDateNotice')) return ''
+  const date = parseVerifyReminderInfo(row).leaveDate
+  if (!isStrictDateKey(date)) return ''
+  return getDateKeyOffset(date, -getReminderSettingDays('departureDateNotice', 0)) || date
+}
+
+function getSalaryReminderDate(row = {}) {
+  if (!isReminderSettingEnabled('salaryDateReminder')) return ''
+  const date = parseVerifyReminderInfo(row).salaryDate
+  if (!isStrictDateKey(date)) return ''
+  return getDateKeyOffset(date, -getReminderSettingDays('salaryDateReminder', 0)) || date
+}
+
+function getVerifyReminderDisplayType(row = {}, occurrenceDate = '') {
+  const info = parseVerifyReminderInfo(row)
+  const dateKey = String(occurrenceDate || '').trim()
+  if (dateKey && getSalaryReminderDate(row) && dateKey === getSalaryReminderDate(row)) return '結薪日提醒'
+  if (dateKey && getDepartureNoticeDate(row) && dateKey === getDepartureNoticeDate(row)) return '離境通知'
+  if (dateKey && getVerifyReminderDate(row) && dateKey === getVerifyReminderDate(row)) return '驗證提醒'
+  if (dateKey && info.leaveDate && dateKey === info.leaveDate) return '離境通知'
+  if (dateKey && info.salaryDate && dateKey === info.salaryDate) return '結薪日提醒'
+  return '驗證提醒'
+}
+
+function getVerifyReminderCardClass(displayType = '') {
+  if (displayType === '離境通知') return 'is-verify-departure-notice'
+  if (displayType === '結薪日提醒') return 'is-verify-salary-reminder'
+  return 'is-verify-date-reminder'
+}
+
 function parseMeterReminderInfo(row = {}) {
   return {
     place: getReminderNoteValue(row, ['雇主/宿舍名', '雇主 / 宿舍名', '宿舍名']) || row.customer_name || row.title || '',
@@ -19103,7 +19225,7 @@ function getServiceReminderDueDateForTimeCheck(row = {}) {
   }
   if (type === '驗證提醒') {
     const info = parseVerifyReminderInfo(row)
-    return info.leaveDate || info.verifyDate || row.end_date || row.start_date || ''
+    return getDepartureNoticeDate(row) || getVerifyReminderDate(row) || getSalaryReminderDate(row) || row.end_date || row.start_date || ''
   }
   if (type === '住變資訊提供') return getHousingInfoReminderDate(row) || row.end_date || row.start_date || ''
   if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.end_date || row.start_date || ''
@@ -19115,7 +19237,7 @@ function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFr
   if (type === '住變資訊提供') return getHousingInfoReminderDate(row) || row.start_date || ''
   if (type === '轉出追蹤') return parseTransferReminderInfo(row).dueDate || row.start_date || ''
   if (type === '逃跑通知') return parseRunawayReminderInfo(row).day1 || row.start_date || ''
-  if (type === '驗證提醒') return parseVerifyReminderInfo(row).verifyDate || row.start_date || ''
+  if (type === '驗證提醒') return getVerifyReminderDate(row) || getSalaryReminderDate(row) || getDepartureNoticeDate(row) || row.start_date || ''
   return row.start_date || ''
 }
 
@@ -19138,8 +19260,7 @@ function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
     return Boolean(reminderDate && reminderDate === dateKey)
   }
   if (type === '驗證提醒') {
-    const info = parseVerifyReminderInfo(row)
-    const dates = [row.start_date, info.verifyDate, info.leaveDate].filter(Boolean)
+    const dates = [getVerifyReminderDate(row), getDepartureNoticeDate(row), getSalaryReminderDate(row)].filter(Boolean)
     return dates.length ? dates.includes(dateKey) : dateKey === row.start_date
   }
   if (type === '返台提醒') return returnTaiwanReminderMatchesDate(row, dateKey)
