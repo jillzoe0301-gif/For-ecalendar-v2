@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-298'
-const SYSTEM_VERSION_NOTE = '行政事務公告權限調整：行政可新增與查看自己公告紀錄'
+const SYSTEM_VERSION = 'V002-1P-299'
+const SYSTEM_VERSION_NOTE = '行政事務公告前台顯示、輸入更新、紀錄篩選與內容防呆修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -94,7 +94,7 @@ const pages = [
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
   { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
-  { key: 'administrativeAnnouncement', label: '行政事務公告', mobileLabel: '公告', roles: ['管理員', '行政 / 海外'], mobile: true },
+  { key: 'administrativeAnnouncement', label: '公告紀錄', mobileLabel: '公告', roles: ['管理員', '行政 / 海外', '行政'], mobile: true },
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
@@ -161,20 +161,96 @@ function renderTopbarTitleIcon() {
 }
 
 const globalAnnouncementStorageKey = 'for-e-global-announcement'
+const announcementRecordsStorageKey = 'for-e-announcement-records'
+const administrativeAnnouncementStorageKey = 'for-e-administrative-announcements'
 
-function getGlobalAnnouncementText() {
+let announcementHistoryFilters = {
+  type: '全部',
+  dateMode: '全部日期',
+  date: '',
+  startDate: '',
+  endDate: '',
+  creator: '',
+  keyword: ''
+}
+let announcementHistoryFilterTimer = null
+
+function cleanAnnouncementPrimitive(value) {
+  if (value === null || value === undefined) return ''
+  const text = String(value).trim()
+  if (!text || text === '[object Object]' || text === 'null' || text === 'undefined') return ''
+  return text
+}
+
+function getAnnouncementText(announcement) {
+  if (!announcement) return ''
+  if (typeof announcement === 'string' || typeof announcement === 'number' || typeof announcement === 'boolean') {
+    return cleanAnnouncementPrimitive(announcement)
+  }
+  if (typeof announcement === 'object') {
+    const fields = ['content', 'message', 'text', 'announcement_content', 'body', 'value', 'label', 'description']
+    for (const field of fields) {
+      const text = getAnnouncementText(announcement[field])
+      if (text) return text
+    }
+    return ''
+  }
+  return cleanAnnouncementPrimitive(announcement)
+}
+
+function getAnnouncementDate(announcement) {
+  if (!announcement || typeof announcement !== 'object') return ''
+  const fields = ['date', 'announcement_date', 'announcementDate', 'start_date', 'created_date', 'createdDate']
+  for (const field of fields) {
+    const date = getDateStringFromAnyValue(announcement[field])
+    if (date) return date
+  }
+  return ''
+}
+
+function getAnnouncementCreatorName(announcement) {
+  if (!announcement || typeof announcement !== 'object') return ''
+  return cleanAnnouncementPrimitive(
+    announcement.creatorName ||
+    announcement.creator_name ||
+    announcement.created_by_name ||
+    announcement.createdByName ||
+    announcement.created_by ||
+    announcement.creator ||
+    announcement.author ||
+    ''
+  )
+}
+
+function getCurrentAnnouncementCreatorName() {
+  return cleanAnnouncementPrimitive(currentProfile?.name || currentProfile?.email || getRoleName() || '')
+}
+
+function getGlobalAnnouncementRawValue() {
   const remote = typeof appSettings === 'object' && appSettings ? appSettings.global_announcement : ''
   const local = (() => {
     try { return localStorage.getItem(globalAnnouncementStorageKey) || '' } catch (error) { return '' }
   })()
-  return String(remote || local || '本週請留意返台與轉出案件').trim()
+  return { remote, local }
+}
+
+function getGlobalAnnouncementText() {
+  const { remote, local } = getGlobalAnnouncementRawValue()
+  const remoteText = getAnnouncementText(remote)
+  const localText = getAnnouncementText(local)
+  return cleanAnnouncementPrimitive(remoteText || localText || '本週請留意返台與轉出案件')
+}
+
+function getGlobalAnnouncementDate() {
+  const { remote } = getGlobalAnnouncementRawValue()
+  return getAnnouncementDate(remote) || todayString()
 }
 
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-296'
-  const versionNote = SYSTEM_VERSION_NOTE || 'LINE 通知搜尋位置、版本提示與公告 ICON 更換'
+  const versionText = SYSTEM_VERSION || 'V002-1P-299'
+  const versionNote = SYSTEM_VERSION_NOTE || '行政事務公告前台顯示、輸入更新、紀錄篩選與內容防呆修正'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
@@ -195,6 +271,7 @@ function renderVersionAnnouncementBanner() {
           </button>
         ` : ''}
       </div>
+      ${renderAdministrativeAnnouncementFrontPanel()}
     </section>
   `
 }
@@ -206,15 +283,22 @@ function bindGlobalAnnouncementEditor() {
     const current = getGlobalAnnouncementText()
     const next = window.prompt('請輸入公告內容', current)
     if (next === null) return
-    const clean = String(next || '').trim()
+    const clean = getAnnouncementText(next)
+    if (!clean) return alert('請輸入公告內容')
+    const record = {
+      type: '一般公告',
+      date: todayString(),
+      content: clean,
+      creatorId: getAdministrativeAnnouncementOwnerId(),
+      creatorName: getCurrentAnnouncementCreatorName() || '管理員',
+      createdAt: new Date().toISOString()
+    }
     try { localStorage.setItem(globalAnnouncementStorageKey, clean) } catch (error) {}
-    await saveAppSetting('global_announcement', clean)
+    await saveAppSetting('global_announcement', record)
+    await appendAnnouncementRecord(record)
     renderApp()
   })
 }
-
-/* FOR-e V002-1P-298 START - administrative announcement permission */
-const administrativeAnnouncementStorageKey = 'for-e-administrative-announcements'
 
 function isAdministrativeAnnouncementAdmin() {
   return getRoleName() === '管理員'
@@ -237,19 +321,79 @@ function getAdministrativeAnnouncementOwnerId() {
   return String(currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.id || currentProfile?.email || currentProfile?.name || '').trim()
 }
 
+function normalizeAnnouncementRecord(record = {}, fallbackType = '一般公告') {
+  const typeText = cleanAnnouncementPrimitive(record.type || record.announcementType || record.announcement_type || record.category || fallbackType)
+  const type = typeText === '行政事務公告' ? '行政事務公告' : '一般公告'
+  const content = getAnnouncementText(record)
+  const date = getAnnouncementDate(record) || getDateStringFromAnyValue(record.date || '') || todayString()
+  const creatorName = getAnnouncementCreatorName(record) || cleanAnnouncementPrimitive(record.creatorName || record.creator_name || '') || '-'
+  const createdAt = record.createdAt || record.created_at || new Date().toISOString()
+  return {
+    id: String(record.id || `${type}-${date}-${content}-${creatorName}-${createdAt}`).replace(/\s+/g, '-'),
+    type,
+    date,
+    content,
+    creatorName,
+    creatorId: cleanAnnouncementPrimitive(record.creatorId || record.creator_id || record.created_by_id || ''),
+    createdAt
+  }
+}
+
+function normalizeAnnouncementRecords(value = {}) {
+  const source = Array.isArray(value) ? value : (Array.isArray(value.records) ? value.records : [])
+  return {
+    records: source
+      .map(row => normalizeAnnouncementRecord(row))
+      .filter(row => row.date && row.content)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  }
+}
+
+function uniqueAnnouncementRecordRows(rows = []) {
+  const seen = new Set()
+  return rows.filter(row => {
+    const key = [row.type, row.date, row.content, row.creatorName, row.createdAt].map(value => String(value || '')).join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function getAnnouncementRecordsSetting() {
+  const remote = hasSharedSetting('announcement_records')
+    ? normalizeAnnouncementRecords(appSettings.announcement_records)
+    : null
+  if (remote) return remote
+  return normalizeAnnouncementRecords(readLocalJsonSetting(announcementRecordsStorageKey))
+}
+
+function saveAnnouncementRecordsSetting(nextValue) {
+  const normalized = normalizeAnnouncementRecords(nextValue)
+  appSettings.announcement_records = normalized
+  try { localStorage.setItem(announcementRecordsStorageKey, JSON.stringify(normalized)) } catch (error) {}
+  return saveAppSetting('announcement_records', normalized)
+}
+
+async function appendAnnouncementRecord(record = {}) {
+  const current = getAnnouncementRecordsSetting()
+  const normalized = normalizeAnnouncementRecord(record, record.type || '一般公告')
+  if (!normalized.content) return
+  await saveAnnouncementRecordsSetting({ records: [normalized, ...(current.records || [])] })
+}
+
 function normalizeAdministrativeAnnouncementRecord(record = {}) {
   const createdAt = record.createdAt || record.created_at || new Date().toISOString()
   const creatorId = String(record.creatorId || record.creator_id || '').trim()
   return {
     id: String(record.id || `admin-ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
-    date: getDateStringFromAnyValue(record.date || record.announcement_date || '') || '',
-    content: String(record.content || record.announcement_content || '').trim(),
+    date: getAnnouncementDate(record) || '',
+    content: getAnnouncementText(record),
     creatorId,
-    creatorName: String(record.creatorName || record.creator_name || '').trim(),
-    creatorRole: String(record.creatorRole || record.creator_role || '').trim(),
+    creatorName: getAnnouncementCreatorName(record) || cleanAnnouncementPrimitive(record.creatorName || record.creator_name || ''),
+    creatorRole: cleanAnnouncementPrimitive(record.creatorRole || record.creator_role || ''),
     createdAt,
-    updatedBy: String(record.updatedBy || record.updated_by || '').trim(),
-    updatedByName: String(record.updatedByName || record.updated_by_name || '').trim(),
+    updatedBy: cleanAnnouncementPrimitive(record.updatedBy || record.updated_by || ''),
+    updatedByName: cleanAnnouncementPrimitive(record.updatedByName || record.updated_by_name || ''),
     updatedAt: record.updatedAt || record.updated_at || '',
     enabled: record.enabled !== false,
     visible: record.visible !== false
@@ -281,41 +425,13 @@ function saveAdministrativeAnnouncementsSetting(nextValue) {
   return saveAppSetting('administrative_announcements', normalized)
 }
 
-function getAdministrativeAnnouncementRows() {
+function getAdministrativeAnnouncementRows({ activeOnly = false } = {}) {
+  if (!canViewAdministrativeAnnouncements()) return []
   const rows = getAdministrativeAnnouncementsSetting().records || []
-  if (isAdministrativeAnnouncementAdmin()) return rows
-  const ownerId = getAdministrativeAnnouncementOwnerId()
   return rows.filter(row => {
-    const own = ownerId && String(row.creatorId || '') === ownerId
-    const activeVisible = row.enabled !== false && row.visible !== false
-    return own || activeVisible
+    if (!activeOnly) return true
+    return row.enabled !== false && row.visible !== false
   })
-}
-
-function isOwnAdministrativeAnnouncement(record = {}) {
-  const ownerId = getAdministrativeAnnouncementOwnerId()
-  return Boolean(ownerId && String(record.creatorId || '') === ownerId)
-}
-
-function canEditAdministrativeAnnouncement(record = {}) {
-  if (isAdministrativeAnnouncementAdmin()) return true
-  if (!isAdministrativeAnnouncementStaff()) return false
-  if (!isOwnAdministrativeAnnouncement(record)) return false
-  return String(record.creatorRole || '') !== '管理員'
-}
-
-function canToggleAdministrativeAnnouncement(record = {}) {
-  return isAdministrativeAnnouncementAdmin()
-}
-
-function canDeleteAdministrativeAnnouncement(record = {}) {
-  return isAdministrativeAnnouncementAdmin()
-}
-
-function getAdministrativeAnnouncementStatusLabel(record = {}) {
-  if (record.enabled === false) return '停用'
-  if (record.visible === false) return '隱藏'
-  return '啟用顯示'
 }
 
 function getAdministrativeAnnouncementInputValue(form, name) {
@@ -328,21 +444,22 @@ async function createAdministrativeAnnouncement(formElement) {
   const date = getAdministrativeAnnouncementInputValue(form, 'announcementDate')
   const content = getAdministrativeAnnouncementInputValue(form, 'announcementContent')
 
-  if (!date) return alert('日期必填')
-  if (!content) return alert('公告內容必填')
+  if (!date) return alert('請選擇公告日期')
+  if (!content) return alert('請輸入公告內容')
 
   const now = new Date().toISOString()
   const creatorId = getAdministrativeAnnouncementOwnerId()
   const record = {
     id: (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `admin-ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    type: '行政事務公告',
     date,
     content,
     creatorId,
-    creatorName: currentProfile?.name || currentProfile?.email || '',
+    creatorName: getCurrentAnnouncementCreatorName(),
     creatorRole: getRoleName(),
     createdAt: now,
     updatedBy: creatorId,
-    updatedByName: currentProfile?.name || currentProfile?.email || '',
+    updatedByName: getCurrentAnnouncementCreatorName(),
     updatedAt: now,
     enabled: true,
     visible: true
@@ -350,98 +467,192 @@ async function createAdministrativeAnnouncement(formElement) {
 
   const current = getAdministrativeAnnouncementsSetting()
   await saveAdministrativeAnnouncementsSetting({ records: [record, ...(current.records || [])] })
-  alert('行政事務公告已新增。')
+  await appendAnnouncementRecord(record)
+  alert('行政事務公告已新增 / 更新。')
   renderApp()
 }
 
-async function editAdministrativeAnnouncement(recordId) {
-  const current = getAdministrativeAnnouncementsSetting()
-  const records = current.records || []
-  const target = records.find(row => row.id === recordId)
-  if (!target) return alert('找不到此行政事務公告。')
-  if (!canEditAdministrativeAnnouncement(target)) return denyPermission('你沒有修改此行政事務公告的權限。')
-
-  const nextDate = window.prompt('請輸入公告日期', target.date || todayString())
-  if (nextDate === null) return
-  const cleanDate = getDateStringFromAnyValue(nextDate) || String(nextDate || '').trim()
-  if (!cleanDate) return alert('日期必填')
-
-  const nextContent = window.prompt('請輸入公告內容', target.content || '')
-  if (nextContent === null) return
-  const cleanContent = String(nextContent || '').trim()
-  if (!cleanContent) return alert('公告內容必填')
-
-  const ownerId = getAdministrativeAnnouncementOwnerId()
-  const now = new Date().toISOString()
-  const nextRecords = records.map(row => row.id === recordId
-    ? {
-        ...row,
-        date: cleanDate,
-        content: cleanContent,
-        updatedBy: ownerId,
-        updatedByName: currentProfile?.name || currentProfile?.email || '',
-        updatedAt: now
-      }
-    : row
-  )
-
-  await saveAdministrativeAnnouncementsSetting({ records: nextRecords })
-  alert('行政事務公告已更新。')
-  renderApp()
+function getAdministrativeAnnouncementFrontRows() {
+  return getAdministrativeAnnouncementRows({ activeOnly: true })
 }
 
-async function toggleAdministrativeAnnouncement(recordId, fieldName) {
-  const current = getAdministrativeAnnouncementsSetting()
-  const records = current.records || []
-  const target = records.find(row => row.id === recordId)
-  if (!target) return alert('找不到此行政事務公告。')
-  if (!canToggleAdministrativeAnnouncement(target)) return denyPermission('只有管理員可以停用或調整顯示狀態。')
-
-  const ownerId = getAdministrativeAnnouncementOwnerId()
-  const now = new Date().toISOString()
-  const key = fieldName === 'visible' ? 'visible' : 'enabled'
-  const nextRecords = records.map(row => row.id === recordId
-    ? {
-        ...row,
-        [key]: row[key] === false,
-        updatedBy: ownerId,
-        updatedByName: currentProfile?.name || currentProfile?.email || '',
-        updatedAt: now
-      }
-    : row
-  )
-
-  await saveAdministrativeAnnouncementsSetting({ records: nextRecords })
-  renderApp()
+function renderAdministrativeAnnouncementFrontPanel() {
+  if (!canViewAdministrativeAnnouncements()) return ''
+  const rows = getAdministrativeAnnouncementFrontRows()
+  const canCreate = canCreateAdministrativeAnnouncement()
+  return `
+    <section class="for-e-admin-announcement-panel">
+      <div class="for-e-admin-announcement-head">
+        <div class="for-e-admin-announcement-title">
+          <img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="行政事務公告">
+          <strong>行政事務公告</strong>
+        </div>
+        ${rows.length ? `<span>${rows.length} 則</span>` : ''}
+      </div>
+      ${rows.length ? `
+        <div class="for-e-admin-announcement-list">
+          ${rows.map(row => `
+            <div class="for-e-admin-announcement-item">
+              <strong>行政事務公告：${escapeHtml(row.date)}｜${escapeHtml(getAnnouncementText(row))}</strong>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${canCreate ? `
+        <form id="administrativeAnnouncementForm" class="for-e-admin-announcement-form">
+          <label>
+            公告日期
+            <input type="date" name="announcementDate" value="${escapeHtml(todayString())}" required>
+          </label>
+          <label class="admin-announcement-content-field">
+            公告內容
+            <input type="text" name="announcementContent" placeholder="請行政同仁留意本週送件期限" required>
+          </label>
+          <button type="submit" class="primary-btn">新增公告 / 更新公告</button>
+        </form>
+      ` : ''}
+    </section>
+  `
 }
 
-async function deleteAdministrativeAnnouncement(recordId) {
-  const current = getAdministrativeAnnouncementsSetting()
-  const records = current.records || []
-  const target = records.find(row => row.id === recordId)
-  if (!target) return alert('找不到此行政事務公告。')
-  if (!canDeleteAdministrativeAnnouncement(target)) return denyPermission('只有管理員可以刪除行政事務公告。')
-  if (!confirm('確定要刪除此行政事務公告嗎？')) return
+async function editAdministrativeAnnouncement() {
+  return denyPermission('行政事務公告已改為前台直接新增 / 更新，後台只保留紀錄查詢。')
+}
 
-  await saveAdministrativeAnnouncementsSetting({ records: records.filter(row => row.id !== recordId) })
-  renderApp()
+async function toggleAdministrativeAnnouncement() {
+  return denyPermission('行政事務公告後台目前只保留紀錄查詢。')
+}
+
+async function deleteAdministrativeAnnouncement() {
+  return denyPermission('行政事務公告後台目前只保留紀錄查詢。')
+}
+
+function getAnnouncementHistoryRows() {
+  const storedRows = getAnnouncementRecordsSetting().records || []
+  const generalText = getGlobalAnnouncementText()
+  const generalRow = generalText ? [normalizeAnnouncementRecord({
+    type: '一般公告',
+    date: getGlobalAnnouncementDate(),
+    content: generalText,
+    creatorName: getAnnouncementCreatorName(getGlobalAnnouncementRawValue().remote) || '管理員',
+    createdAt: getGlobalAnnouncementRawValue().remote?.createdAt || getGlobalAnnouncementRawValue().remote?.created_at || ''
+  }, '一般公告')] : []
+  const adminRows = getAdministrativeAnnouncementsSetting().records.map(row => normalizeAnnouncementRecord({
+    ...row,
+    type: '行政事務公告',
+    creatorName: row.creatorName || row.creator_name || '-'
+  }, '行政事務公告'))
+
+  return uniqueAnnouncementRecordRows([...storedRows, ...generalRow, ...adminRows])
+    .filter(row => row.content)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+}
+
+function isAnnouncementHistoryDateRangeInvalid() {
+  return announcementHistoryFilters.dateMode === '日期區間' &&
+    announcementHistoryFilters.startDate &&
+    announcementHistoryFilters.endDate &&
+    announcementHistoryFilters.startDate > announcementHistoryFilters.endDate
+}
+
+function getFilteredAnnouncementHistoryRows() {
+  if (isAnnouncementHistoryDateRangeInvalid()) return []
+  const type = announcementHistoryFilters.type || '全部'
+  const dateMode = announcementHistoryFilters.dateMode || '全部日期'
+  const date = String(announcementHistoryFilters.date || '').trim()
+  const startDate = String(announcementHistoryFilters.startDate || '').trim()
+  const endDate = String(announcementHistoryFilters.endDate || '').trim()
+  const creatorKeyword = normalizeLineSearchText(announcementHistoryFilters.creator || '')
+  const keyword = normalizeLineSearchText(announcementHistoryFilters.keyword || '')
+
+  return getAnnouncementHistoryRows().filter(row => {
+    if (type !== '全部' && row.type !== type) return false
+    if (dateMode === '指定日期' && date && row.date !== date) return false
+    if (dateMode === '日期區間') {
+      const from = startDate || endDate
+      const to = endDate || startDate
+      if (from && row.date < from) return false
+      if (to && row.date > to) return false
+    }
+    if (creatorKeyword && !normalizeLineSearchText(row.creatorName || '').includes(creatorKeyword)) return false
+    if (keyword && !normalizeLineSearchText(row.content || '').includes(keyword)) return false
+    return true
+  })
+}
+
+function applyAnnouncementHistoryFilterForm(formElement) {
+  const form = formElement instanceof HTMLFormElement ? formElement : document.querySelector('#announcementRecordFilterForm')
+  if (!form) return false
+  const data = new FormData(form)
+  announcementHistoryFilters = {
+    type: String(data.get('type') || '全部'),
+    dateMode: String(data.get('dateMode') || '全部日期'),
+    date: String(data.get('date') || '').trim(),
+    startDate: String(data.get('startDate') || '').trim(),
+    endDate: String(data.get('endDate') || '').trim(),
+    creator: String(data.get('creator') || '').trim(),
+    keyword: String(data.get('keyword') || '').trim()
+  }
+  return true
+}
+
+function renderAnnouncementHistoryFilterForm() {
+  const filters = announcementHistoryFilters
+  return `
+    <form id="announcementRecordFilterForm" class="announcement-record-filter-form">
+      <label>
+        公告類型
+        <select name="type" data-announcement-filter-auto>
+          ${['全部', '一般公告', '行政事務公告'].map(type => `<option value="${escapeHtml(type)}" ${filters.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}
+        </select>
+      </label>
+      <label>
+        日期篩選
+        <select name="dateMode" data-announcement-filter-auto>
+          ${['全部日期', '指定日期', '日期區間'].map(mode => `<option value="${escapeHtml(mode)}" ${filters.dateMode === mode ? 'selected' : ''}>${escapeHtml(mode)}</option>`).join('')}
+        </select>
+      </label>
+      ${filters.dateMode === '指定日期' ? `
+        <label>
+          指定日期
+          <input type="date" name="date" value="${escapeHtml(filters.date || '')}" data-announcement-filter-auto>
+        </label>
+      ` : ''}
+      ${filters.dateMode === '日期區間' ? `
+        <label>
+          起始日期
+          <input type="date" name="startDate" value="${escapeHtml(filters.startDate || '')}" data-announcement-filter-auto>
+        </label>
+        <label>
+          結束日期
+          <input type="date" name="endDate" value="${escapeHtml(filters.endDate || '')}" data-announcement-filter-auto>
+        </label>
+      ` : ''}
+      <label>
+        建立者
+        <input name="creator" value="${escapeHtml(filters.creator || '')}" placeholder="輸入建立者姓名" data-announcement-filter-auto>
+      </label>
+      <label>
+        關鍵字
+        <input name="keyword" value="${escapeHtml(filters.keyword || '')}" placeholder="搜尋公告內容" data-announcement-filter-auto>
+      </label>
+      <button type="submit" class="secondary-btn">套用篩選</button>
+    </form>
+  `
 }
 
 function renderAdministrativeAnnouncementPage() {
   if (!canViewAdministrativeAnnouncements()) {
-    return `<div class="empty-state">你的角色沒有查看行政事務公告權限。</div>`
+    return `<div class="empty-state">你的角色沒有查看公告紀錄權限。</div>`
   }
 
-  const rows = getAdministrativeAnnouncementRows()
-  const activeRows = rows.filter(row => row.enabled !== false && row.visible !== false)
-  const isAdmin = isAdministrativeAnnouncementAdmin()
-  const canCreate = canCreateAdministrativeAnnouncement()
+  const rows = getFilteredAnnouncementHistoryRows()
 
   return `
     <div class="page-toolbar">
       <div>
-        <h3>行政事務公告</h3>
-        <p class="muted">管理員可管理全部行政事務公告；行政人員可新增、查看，並可修改自己新增的公告。</p>
+        <h3>公告紀錄</h3>
+        <p class="muted">後台只保留公告紀錄查詢；一般公告與行政事務公告分開紀錄，可依類型、日期、建立者與關鍵字篩選。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -449,83 +660,42 @@ function renderAdministrativeAnnouncementPage() {
     </div>
 
     ${renderAppSettingSyncNotice()}
+    ${renderAnnouncementHistoryFilterForm()}
+    ${isAnnouncementHistoryDateRangeInvalid() ? '<div class="error-box">起始日期不可晚於結束日期</div>' : ''}
 
-    <section class="administrative-announcement-active-panel">
+    <section class="administrative-announcement-history-panel announcement-record-history-panel">
       <div class="section-title-row">
-        <h4>目前顯示的行政事務公告</h4>
-        <span>${activeRows.length} 則</span>
-      </div>
-      ${activeRows.length ? activeRows.map(row => `
-        <article class="administrative-announcement-active-card">
-          <strong>${escapeHtml(row.date)}：${escapeHtml(row.content)}</strong>
-          <span>建立者：${escapeHtml(row.creatorName || '-')}｜${escapeHtml(row.creatorRole || '-')}</span>
-        </article>
-      `).join('') : '<div class="empty-state">目前沒有啟用中的行政事務公告。</div>'}
-    </section>
-
-    ${canCreate ? `
-      <form id="administrativeAnnouncementForm" class="administrative-announcement-form">
-        <label>
-          日期 <span class="required-mark">*</span>
-          <input type="date" name="announcementDate" required>
-        </label>
-        <label class="span-2">
-          公告內容 <span class="required-mark">*</span>
-          <textarea name="announcementContent" rows="3" placeholder="請輸入行政事務公告內容" required></textarea>
-        </label>
-        <button type="submit" class="primary-btn">新增行政事務公告</button>
-      </form>
-    ` : ''}
-
-    <section class="administrative-announcement-history-panel">
-      <div class="section-title-row">
-        <h4>${isAdmin ? '全部公告紀錄' : '公告紀錄'}</h4>
+        <h4>公告紀錄</h4>
         <span>${rows.length} 筆</span>
       </div>
       ${rows.length ? `
         <div class="administrative-announcement-table-wrap">
-          <table class="data-table administrative-announcement-table">
+          <table class="data-table administrative-announcement-table announcement-record-table">
             <thead>
               <tr>
-                <th>日期：公告內容</th>
+                <th>公告類型</th>
+                <th>日期</th>
+                <th>公告內容</th>
                 <th>建立者</th>
-                <th>建立者角色</th>
-                <th>建立時間</th>
-                <th>最後修改者</th>
-                <th>最後修改時間</th>
-                <th>狀態</th>
-                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               ${rows.map(row => `
-                <tr class="${row.enabled === false || row.visible === false ? 'is-disabled-row' : ''}">
-                  <td><strong>${escapeHtml(row.date)}：${escapeHtml(row.content)}</strong></td>
+                <tr>
+                  <td>${escapeHtml(row.type || '-')}</td>
+                  <td>${escapeHtml(row.date || '-')}</td>
+                  <td><strong>${escapeHtml(getAnnouncementText(row))}</strong></td>
                   <td>${escapeHtml(row.creatorName || '-')}</td>
-                  <td>${escapeHtml(row.creatorRole || '-')}</td>
-                  <td>${escapeHtml(formatDateTime(row.createdAt))}</td>
-                  <td>${escapeHtml(row.updatedByName || '-')}</td>
-                  <td>${escapeHtml(row.updatedAt ? formatDateTime(row.updatedAt) : '-')}</td>
-                  <td>${escapeHtml(getAdministrativeAnnouncementStatusLabel(row))}</td>
-                  <td>
-                    <div class="table-action-group">
-                      ${canEditAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-edit-admin-announcement="${escapeHtml(row.id)}">修改</button>` : ''}
-                      ${canToggleAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-toggle-admin-announcement="${escapeHtml(row.id)}" data-toggle-field="enabled">${row.enabled === false ? '啟用' : '停用'}</button>` : ''}
-                      ${canToggleAdministrativeAnnouncement(row) ? `<button type="button" class="small-secondary-btn" data-toggle-admin-announcement="${escapeHtml(row.id)}" data-toggle-field="visible">${row.visible === false ? '顯示' : '隱藏'}</button>` : ''}
-                      ${canDeleteAdministrativeAnnouncement(row) ? `<button type="button" class="small-danger-btn" data-delete-admin-announcement="${escapeHtml(row.id)}">刪除</button>` : ''}
-                      ${!canEditAdministrativeAnnouncement(row) && !canToggleAdministrativeAnnouncement(row) && !canDeleteAdministrativeAnnouncement(row) ? '<span class="muted">僅查看</span>' : ''}
-                    </div>
-                  </td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>
-      ` : '<div class="empty-state">目前沒有行政事務公告紀錄。</div>'}
+      ` : '<div class="empty-state">查無符合條件的公告紀錄</div>'}
     </section>
   `
 }
-/* FOR-e V002-1P-298 END - administrative announcement permission */
+/* FOR-e V002-1P-299 END - administrative announcement front display and records */
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
@@ -1057,7 +1227,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements']
+const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements', 'announcement_records']
 
 function readLocalJsonSetting(key) {
   try {
@@ -1114,7 +1284,7 @@ async function loadAppSettings() {
 
   appSettings = Object.fromEntries((data || []).map(row => [
     row.setting_key,
-    normalizeSettingValue(row.setting_value)
+    row.setting_key === 'global_announcement' ? row.setting_value : normalizeSettingValue(row.setting_value)
   ]))
 
   // 顏色設定自 V002-1P-297 起改為登入者個人設定，不再寫入全系統共用值。
@@ -4146,6 +4316,25 @@ function renderApp() {
     administrativeAnnouncementForm.addEventListener('submit', async event => {
       event.preventDefault()
       await createAdministrativeAnnouncement(event.target)
+    })
+  }
+
+  const announcementRecordFilterForm = document.querySelector('#announcementRecordFilterForm')
+  if (announcementRecordFilterForm) {
+    announcementRecordFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      if (applyAnnouncementHistoryFilterForm(event.target)) renderApp()
+    })
+    announcementRecordFilterForm.querySelectorAll('[data-announcement-filter-auto]').forEach(input => {
+      const eventName = input.matches('select,input[type="date"]') ? 'change' : 'input'
+      input.addEventListener(eventName, event => {
+        const form = event.target.closest('#announcementRecordFilterForm')
+        if (!form) return
+        window.clearTimeout(announcementHistoryFilterTimer)
+        announcementHistoryFilterTimer = window.setTimeout(() => {
+          if (applyAnnouncementHistoryFilterForm(form)) renderApp()
+        }, eventName === 'input' ? 260 : 0)
+      })
     })
   }
 

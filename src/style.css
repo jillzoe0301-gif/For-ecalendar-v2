@@ -21109,3 +21109,151 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-298 END - administrative announcement page */
+
+/* FOR-e V002-1P-299 START - administrative announcement front display and records */
+.for-e-admin-announcement-panel {
+  border: 1px solid #dbe6ff !important;
+  border-radius: 14px !important;
+  background: #fffdf7 !important;
+  padding: 10px 12px !important;
+  display: grid !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.for-e-admin-announcement-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  color: #1f2f55 !important;
+}
+
+.for-e-admin-announcement-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.for-e-admin-announcement-title strong {
+  font-size: 17px !important;
+  font-weight: 950 !important;
+  line-height: 1.45 !important;
+}
+
+.for-e-admin-announcement-head > span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  white-space: nowrap !important;
+}
+
+.for-e-admin-announcement-list {
+  display: grid !important;
+  gap: 6px !important;
+  max-height: 132px !important;
+  overflow-y: auto !important;
+  padding-right: 2px !important;
+}
+
+.for-e-admin-announcement-item {
+  border: 1px solid #f4d9a6 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  padding: 8px 10px !important;
+}
+
+.for-e-admin-announcement-item strong {
+  display: block !important;
+  color: #7c4a03 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  line-height: 1.55 !important;
+  word-break: break-word !important;
+}
+
+.for-e-admin-announcement-form {
+  display: grid !important;
+  grid-template-columns: minmax(150px, .7fr) minmax(260px, 1.5fr) auto !important;
+  gap: 10px !important;
+  align-items: end !important;
+  margin-top: 2px !important;
+}
+
+.for-e-admin-announcement-form label,
+.announcement-record-filter-form label {
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.for-e-admin-announcement-form input,
+.announcement-record-filter-form input,
+.announcement-record-filter-form select {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+.announcement-record-filter-form {
+  border: 1px solid #dbe6ff !important;
+  border-radius: 18px !important;
+  background: #f8fafc !important;
+  padding: 14px !important;
+  margin: 14px 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) auto !important;
+  gap: 12px !important;
+  align-items: end !important;
+  box-sizing: border-box !important;
+}
+
+.announcement-record-filter-form button[type="submit"] {
+  white-space: nowrap !important;
+}
+
+.announcement-record-history-panel .section-title-row h4 {
+  color: #1f2f55 !important;
+}
+
+.announcement-record-table th,
+.announcement-record-table td {
+  white-space: normal !important;
+}
+
+.announcement-record-table th:nth-child(1),
+.announcement-record-table td:nth-child(1) {
+  min-width: 110px !important;
+}
+
+.announcement-record-table th:nth-child(2),
+.announcement-record-table td:nth-child(2) {
+  min-width: 110px !important;
+}
+
+.announcement-record-table th:nth-child(3),
+.announcement-record-table td:nth-child(3) {
+  min-width: 260px !important;
+}
+
+.announcement-record-table th:nth-child(4),
+.announcement-record-table td:nth-child(4) {
+  min-width: 120px !important;
+}
+
+@media (max-width: 768px) {
+  .for-e-admin-announcement-form,
+  .announcement-record-filter-form {
+    grid-template-columns: 1fr !important;
+  }
+  .for-e-admin-announcement-form .primary-btn,
+  .announcement-record-filter-form button[type="submit"] {
+    width: 100% !important;
+  }
+}
+/* FOR-e V002-1P-299 END - administrative announcement front display and records */
