@@ -21489,38 +21489,38 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
 
 /* FOR-e V002-1H-stable-1-1 START - verify departure salary reminders and card label readability */
 .service-reminder-week-card.is-verify-reminder {
-  background: color-mix(in srgb, var(--schedule-accent, #D69C5F) 18%, #ffffff 82%) !important;
-  border-color: var(--schedule-accent, #D69C5F) !important;
-  box-shadow: inset 4px 0 0 var(--schedule-accent, #D69C5F) !important;
+  background: color-mix(in srgb, var(--schedule-accent, #FF9A86) 18%, #ffffff 82%) !important;
+  border-color: var(--schedule-accent, #FF9A86) !important;
+  box-shadow: inset 4px 0 0 var(--schedule-accent, #FF9A86) !important;
 }
 
 .service-reminder-week-card.is-verify-date-reminder .service-reminder-card-type {
-  background: #D69C5F !important;
-  border-color: #C1874E !important;
+  background: #FF9A86 !important;
+  border-color: #FF8068 !important;
   color: #ffffff !important;
 }
 
 .service-reminder-week-card.is-verify-departure-notice {
-  background: color-mix(in srgb, var(--schedule-accent, #9A5B22) 24%, #ffffff 76%) !important;
-  border-color: #9A5B22 !important;
-  box-shadow: inset 4px 0 0 #9A5B22 !important;
+  background: color-mix(in srgb, var(--schedule-accent, #FFB7AA) 24%, #ffffff 76%) !important;
+  border-color: #FFB7AA !important;
+  box-shadow: inset 4px 0 0 #FFB7AA !important;
 }
 
 .service-reminder-week-card.is-verify-departure-notice .service-reminder-card-type {
-  background: #9A5B22 !important;
-  border-color: #7A4316 !important;
+  background: #FFB7AA !important;
+  border-color: #FF9A86 !important;
   color: #ffffff !important;
 }
 
 .service-reminder-week-card.is-verify-salary-reminder {
-  background: color-mix(in srgb, var(--schedule-accent, #F3C98B) 20%, #ffffff 80%) !important;
-  border-color: #F3C98B !important;
-  box-shadow: inset 4px 0 0 #F3C98B !important;
+  background: color-mix(in srgb, var(--schedule-accent, #FFE1DB) 20%, #ffffff 80%) !important;
+  border-color: #FFE1DB !important;
+  box-shadow: inset 4px 0 0 #FFE1DB !important;
 }
 
 .service-reminder-week-card.is-verify-salary-reminder .service-reminder-card-type {
-  background: #F3C98B !important;
-  border-color: #D9A85E !important;
+  background: #FFE1DB !important;
+  border-color: #FFB7AA !important;
   color: #4A2F10 !important;
 }
 
@@ -21606,3 +21606,86 @@ button[data-page="administrativeAnnouncement"] .nav-icon-img {
   }
 }
 /* FOR-e V002-1H-stable-1-1 END - verify departure salary reminders and card label readability */
+
+/* FOR-e V002-1H-stable-1-2 START - verify reminder FF9A86 palette and dedupe display support */
+.service-reminder-week-card.is-verify-reminder,
+.schedule-card.is-verify-reminder,
+.line-select-row.is-verify-reminder {
+  border-color: var(--schedule-accent, #FF9A86) !important;
+  background: color-mix(in srgb, var(--schedule-accent, #FF9A86) 13%, #ffffff 87%) !important;
+  box-shadow: inset 5px 0 0 var(--schedule-accent, #FF9A86), 0 8px 18px rgba(255, 154, 134, 0.16) !important;
+}
+
+.service-reminder-week-card.is-verify-date-reminder,
+.schedule-card.is-verify-date-reminder,
+.line-select-row.is-verify-date-reminder {
+  background: #FFF0EC !important;
+  border-color: #FF9A86 !important;
+  box-shadow: inset 6px 0 0 #FF9A86, 0 10px 22px rgba(255, 154, 134, 0.22) !important;
+}
+
+.service-reminder-week-card.is-verify-date-reminder .service-reminder-card-type,
+.schedule-card.is-verify-date-reminder .schedule-card-type-line,
+.line-select-row.is-verify-date-reminder strong {
+  background: #FF9A86 !important;
+  border-color: #FF8068 !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+}
+
+.service-reminder-week-card.is-verify-departure-notice,
+.schedule-card.is-verify-departure-notice,
+.line-select-row.is-verify-departure-notice {
+  background: #FFF6F3 !important;
+  border-color: #FFB7AA !important;
+  box-shadow: inset 5px 0 0 #FFB7AA, 0 8px 18px rgba(255, 154, 134, 0.15) !important;
+}
+
+.service-reminder-week-card.is-verify-departure-notice .service-reminder-card-type,
+.schedule-card.is-verify-departure-notice .schedule-card-type-line,
+.line-select-row.is-verify-departure-notice strong {
+  background: #FFB7AA !important;
+  border-color: #FF9A86 !important;
+  color: #7a2e20 !important;
+  font-weight: 920 !important;
+}
+
+.service-reminder-week-card.is-verify-salary-reminder,
+.schedule-card.is-verify-salary-reminder,
+.line-select-row.is-verify-salary-reminder {
+  background: #FFF9F7 !important;
+  border-color: #FFE1DB !important;
+  box-shadow: inset 4px 0 0 #FFE1DB !important;
+}
+
+.service-reminder-week-card.is-verify-salary-reminder .service-reminder-card-type,
+.schedule-card.is-verify-salary-reminder .schedule-card-type-line,
+.line-select-row.is-verify-salary-reminder strong {
+  background: #FFE1DB !important;
+  border-color: #FFB7AA !important;
+  color: #8a3f32 !important;
+  font-weight: 900 !important;
+}
+
+.service-reminder-week-card.is-verify-date-reminder > strong,
+.schedule-card.is-verify-date-reminder .schedule-title strong {
+  color: #8f2d1c !important;
+  font-weight: 950 !important;
+}
+
+.service-reminder-week-card.is-verify-departure-notice > strong,
+.schedule-card.is-verify-departure-notice .schedule-title strong {
+  color: #9a3f2d !important;
+  font-weight: 920 !important;
+}
+
+.service-reminder-week-card.is-verify-salary-reminder > strong,
+.schedule-card.is-verify-salary-reminder .schedule-title strong {
+  color: #a55749 !important;
+  font-weight: 900 !important;
+}
+
+.line-select-row.is-verify-reminder {
+  border-width: 2px !important;
+}
+/* FOR-e V002-1H-stable-1-2 END - verify reminder FF9A86 palette and dedupe display support */

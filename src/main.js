@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-1'
-const SYSTEM_VERSION_NOTE = '驗證提醒、離境通知、結薪日提醒與行程卡片文字放大'
+const SYSTEM_VERSION = 'V002-1H-stable-1-2'
+const SYSTEM_VERSION_NOTE = '驗證提醒去重、#FF9A86 色階與通知對象規則修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -970,13 +970,15 @@ function isTodaySchedule(row) {
 }
 
 function getPersonalReminderRows() {
-  return schedules
+  const today = todayString()
+  return dedupeVerifyReminderRows(schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
-    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => !isVerifyReminderRow(row))
+    .filter(row => scheduleBelongsToStaffOnDate(row, currentProfile?.staff_id, today))
     .filter(row => isActionReminderSchedule(row))
     .filter(row => isReminderSchedule(row))
-    .filter(row => scheduleMatchesActionReminderDate(row, todayString()) || isOverdueSchedule(row))
+    .filter(row => scheduleMatchesActionReminderDate(row, today) || isOverdueSchedule(row)), today)
     .sort((a, b) => {
       const aOverdue = isOverdueSchedule(a)
       const bOverdue = isOverdueSchedule(b)
@@ -994,7 +996,7 @@ function renderPersonalReminderArea() {
         <img src="/icons/reminder-notice.png" alt="提醒">
         <div>
           <strong>待確認 / 待通知提醒</strong>
-          <span>逃跑、轉出、住變、返台、驗證、駐廠與追蹤提醒事項</span>
+          <span>逃跑、轉出、住變、返台、駐廠與追蹤提醒事項</span>
         </div>
       </div>
 
@@ -1993,6 +1995,7 @@ function hasActiveAssignees(row = {}) {
 
 function getScheduleNotificationStaffIds(row = {}) {
   if (!row) return []
+  if (isVerifyReminderRow(row)) return getVerificationReminderAllPotentialStaffIds(row)
   const names = [
     getNoteValue(row, '通知行政'),
     getNoteValue(row, '通知主管'),
@@ -2004,6 +2007,59 @@ function getScheduleNotificationStaffIds(row = {}) {
     .filter(Boolean)
     .join('、')
   return typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(names) : []
+}
+
+
+function isVerifyReminderRow(row = {}) {
+  return typeof getServiceReminderTypeFromRow === 'function' && getServiceReminderTypeFromRow(row) === '驗證提醒'
+}
+
+function getVerificationReminderAdminStaffIds(row = {}) {
+  return typeof getStaffIdsByDisplayNames === 'function'
+    ? getStaffIdsByDisplayNames(getNoteValue(row, '通知行政'))
+    : []
+}
+
+function getVerificationReminderSupervisorStaffIds(row = {}) {
+  return typeof getStaffIdsByDisplayNames === 'function'
+    ? getStaffIdsByDisplayNames(getNoteValue(row, '通知主管'))
+    : []
+}
+
+function getVerificationReminderTranslatorStaffIds(row = {}) {
+  return uniqueOptionList(getActiveAssigneeIds(row).map(id => String(id || '').trim()).filter(Boolean))
+}
+
+function getVerificationReminderNotifyStaffIds(row = {}, displayType = '') {
+  if (!isVerifyReminderRow(row)) return []
+  const type = String(displayType || '驗證提醒').trim()
+  const translators = getVerificationReminderTranslatorStaffIds(row)
+  const supervisors = getVerificationReminderSupervisorStaffIds(row)
+  if (type === '結薪日提醒') return uniqueOptionList([...translators, ...supervisors])
+  const admins = getVerificationReminderAdminStaffIds(row)
+  return uniqueOptionList([...admins, ...translators, ...supervisors])
+}
+
+function getVerificationReminderAllPotentialStaffIds(row = {}) {
+  if (!isVerifyReminderRow(row)) return []
+  return uniqueOptionList([
+    ...getVerificationReminderTranslatorStaffIds(row),
+    ...getVerificationReminderAdminStaffIds(row),
+    ...getVerificationReminderSupervisorStaffIds(row)
+  ])
+}
+
+function verifyReminderBelongsToStaffOnDate(row = {}, staffId = '', dateKey = '') {
+  const id = String(staffId || '').trim()
+  if (!id || !isVerifyReminderRow(row)) return false
+  const displayType = getVerifyReminderDisplayType(row, dateKey || row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || '')
+  return getVerificationReminderNotifyStaffIds(row, displayType).includes(id)
+}
+
+function scheduleBelongsToStaffOnDate(row = {}, staffId = '', dateKey = '') {
+  if (!row || !staffId) return false
+  if (isVerifyReminderRow(row) && dateKey) return verifyReminderBelongsToStaffOnDate(row, staffId, dateKey)
+  return scheduleBelongsToStaff(row, staffId)
 }
 
 function hasOtherActiveAssignee(row = {}, staffId = '') {
@@ -6383,9 +6439,9 @@ function getScheduleTypeTitleParts(row = {}) {
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
     return {
       type: typeof getServiceReminderDisplayType === 'function'
-        ? getServiceReminderDisplayType(row, row.__occurrence_date || row.__render_date || '')
+        ? getServiceReminderDisplayType(row, row.__occurrenceDate || row.__occurrence_date || row.__render_date || '')
         : (getServiceReminderTypeFromRow(row) || getScheduleDisplayType(row)),
-      title: getServiceReminderDisplayLines(row, row.__occurrence_date || row.__render_date || '')[0] || title
+      title: getServiceReminderDisplayLines(row, row.__occurrenceDate || row.__occurrence_date || row.__render_date || '')[0] || title
     }
   }
   return {
@@ -10269,9 +10325,9 @@ function getScheduleColorDefinitions() {
     { key: '轉出到期最後一天', label: '提醒事項｜轉出到期最後一天', defaultColor: '#C70039' },
     { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
     { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
-    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#D69C5F' },
-    { key: '離境通知', label: '提醒事項｜離境通知', defaultColor: '#9A5B22' },
-    { key: '結薪日提醒', label: '提醒事項｜結薪日提醒', defaultColor: '#F3C98B' },
+    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF9A86' },
+    { key: '離境通知', label: '提醒事項｜離境通知', defaultColor: '#FFB7AA' },
+    { key: '結薪日提醒', label: '提醒事項｜結薪日提醒', defaultColor: '#FFE1DB' },
     { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
     { key: '返台確認', label: '提醒事項｜返台確認', defaultColor: '#4FB477' },
     { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
@@ -10289,7 +10345,7 @@ function getScheduleColorDefinitions() {
   ]
 }
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1H-stable-1-1'
+const scheduleColorPaletteVersion = 'V002-1H-stable-1-2'
 
 function getPersonalScheduleColorStorageKey() {
   const ownerKey = getPersonalSettingOwnerKey()
@@ -10327,14 +10383,14 @@ function getScheduleColorSettings() {
       '轉出到期最後一天': '#C70039',
       '轉出提醒': '#C70039',
       '住變資訊提供': '#FF8080',
-      '驗證提醒': '#D69C5F',
-      '離境通知': '#9A5B22',
-      '結薪日提醒': '#F3C98B',
+      '驗證提醒': '#FF9A86',
+      '離境通知': '#FFB7AA',
+      '結薪日提醒': '#FFE1DB',
       '返台提醒': '#67C090',
       '返台確認': '#4FB477',
       '電表提醒': '#BBD5DA'
     }
-    const legacyServiceReminderColors = new Set(['#F4A261', '#9ED3DC', '#B8E0D2', '#F7DD7D'])
+    const legacyServiceReminderColors = new Set(['#F4A261', '#9ED3DC', '#B8E0D2', '#F7DD7D', '#D69C5F', '#9A5B22', '#F3C98B'])
     Object.entries(serviceReminderColorDefaults).forEach(([key, color]) => {
       const current = String(saved[key] || '').toUpperCase()
       if (!saved[key] || legacyServiceReminderColors.has(current)) saved[key] = color
@@ -10664,9 +10720,17 @@ function renderLineNotifyTargetDropdown() {
 
 function isLineNotifyTargetStaff(row, staffId) {
   if (!row || !staffId) return false
+  if (isVerifyReminderRow(row)) return getVerificationReminderAllPotentialStaffIds(row).includes(staffId)
   const assigneeIds = getAssigneeIds(row)
   const notificationIds = typeof getScheduleNotificationStaffIds === 'function' ? getScheduleNotificationStaffIds(row) : []
   return assigneeIds.includes(staffId) || notificationIds.includes(staffId) || row.creator_staff_id === staffId
+}
+
+function isLineNotifyRowAllowedForTarget(row = {}) {
+  if (!isVerifyReminderRow(row)) return true
+  const targetStaffId = getLineNotifyTargetStaffId()
+  if (!targetStaffId) return true
+  return verifyReminderBelongsToStaffOnDate(row, targetStaffId, getLineNotifyRowDate(row))
 }
 
 function getLineNotifyTargetStaffId() {
@@ -10764,6 +10828,39 @@ function getLineNotifyRowDate(row = {}) {
   return String(row.__line_notify_date || row.__occurrence_date || row.__render_date || row.start_date || '').trim()
 }
 
+
+function getVerifyReminderDedupKey(row = {}, dateKey = '') {
+  if (!isVerifyReminderRow(row)) return ''
+  const occurrenceDate = String(dateKey || row.__line_notify_date || row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || '').trim()
+  const displayType = getVerifyReminderDisplayType(row, occurrenceDate)
+  const sourceId = String(
+    row.__source_schedule_id ||
+    row.source_schedule_id ||
+    row.parent_schedule_id ||
+    getReminderNoteValue(row, ['來源行程', '原始行程', 'source_schedule_id']) ||
+    ''
+  ).trim()
+  const caseName = getServiceReminderCaseName(row, '驗證提醒') || String(row.customer_name || row.title || '').trim()
+  const identity = sourceId || caseName || String(row.schedule_id || row.id || '').trim()
+  return ['verify-reminder', displayType, identity, occurrenceDate].join('::')
+}
+
+function dedupeVerifyReminderRows(rows = [], dateKey = '') {
+  const seen = new Set()
+  return (rows || []).filter(row => {
+    const key = getVerifyReminderDedupKey(row, dateKey || row.__line_notify_date || row.__occurrenceDate || row.__occurrence_date || row.__render_date || '')
+    if (!key) return true
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function shouldHideScheduleTimeForOccurrence(row = {}, occurrenceDate = '') {
+  if (!isVerifyReminderRow(row)) return false
+  return getVerifyReminderDisplayType(row, occurrenceDate || row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || '') === '離境通知'
+}
+
 function expandRowsByLineDateFilter(rows = []) {
   const dateKeys = getLineNotifyFilterDateKeys()
   if (!dateKeys.length) return rows
@@ -10832,7 +10929,7 @@ function getSpecialReminderLineRows(rows = [], type = '') {
     }
   })
 
-  return result
+  return dedupeVerifyReminderRows(result)
 }
 
 function isLineNotifyUpcomingOpen(row = {}) {
@@ -10905,6 +11002,8 @@ function getLineNotifyRows() {
   }
 
   rows = applyLineNotifyDateFilter(rows)
+  rows = rows.filter(isLineNotifyRowAllowedForTarget)
+  rows = dedupeVerifyReminderRows(rows)
   rows = applyLineNotifyKeywordFilter(rows)
   return sortLineNotifyRows(rows)
 }
@@ -11160,12 +11259,20 @@ function renderLineNotifySchedulePicker(rows = []) {
           ${rows.map(row => {
             const rowId = getLineNotifyRowId(row)
             const checked = !noneSelected && (useAll || selected.has(rowId))
+            const lineDate = getLineNotifyRowDate(row) || ''
+            const verifyDisplayType = isVerifyReminderRow(row) ? getVerifyReminderDisplayType(row, lineDate) : ''
+            const verifyClass = verifyDisplayType ? `is-verify-reminder ${getVerifyReminderCardClass(verifyDisplayType)}` : ''
+            const rowStyle = verifyDisplayType ? getScheduleColorInlineStyleByKey(verifyDisplayType, row) : ''
+            const lineTitle = verifyDisplayType
+              ? `${verifyDisplayType}｜${getServiceReminderCaseName(row, '驗證提醒') || getLineNotifySubject(row)}`
+              : getScheduleCardTitleText(row)
+            const rowTime = shouldHideScheduleTimeForOccurrence(row, lineDate) ? '' : (formatTime(row) || '')
             return `
-              <label class="line-select-row">
+              <label class="line-select-row ${verifyClass}" style="${rowStyle}">
                 <input type="checkbox" data-line-select-row value="${escapeHtml(rowId)}" ${checked ? 'checked' : ''}>
                 <span>
-                  <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
-                  <small>${escapeHtml(getLineNotifyRowDate(row) || '-')} ${escapeHtml(formatTime(row) || '')}｜${escapeHtml(getAssigneeNames(row) || '-')}</small>
+                  <strong>${escapeHtml(lineTitle)}</strong>
+                  <small>${escapeHtml(getScheduleMetaParts([lineDate || '-', rowTime, getAssigneeNames(row) || '-']))}</small>
                 </span>
               </label>
             `
@@ -11941,13 +12048,13 @@ function getLoginDailyReminderRows() {
   const today = todayString()
   const birthdayRows = getTodayBirthdayRows()
   const personalBirthday = isCurrentUserBirthdayToday()
-  const activeTodayRows = uniqueScheduleRows(schedules
+  const activeTodayRows = dedupeVerifyReminderRows(uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
-    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => scheduleBelongsToStaffOnDate(row, currentProfile?.staff_id, today))
     .filter(row => !isCompletedSchedule(row))
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => scheduleMatchesActionReminderDate(row, today))
-    .filter(row => isActionReminderSchedule(row)))
+    .filter(row => isActionReminderSchedule(row))), today)
 
   const todoCategories = ['一般記事', '待辦事項', '行政事務提醒', '證件交付']
 
@@ -14343,7 +14450,9 @@ function normalizeRowsForOccurrenceDate(rows = [], dateKey = todayString()) {
 }
 
 function getPersonalScheduleDisplayOccurrenceDate(row = {}, baseDate = todayString()) {
-  if (!row?.schedule_id || !isScheduleSeriesLike(row)) return ''
+  if (!row?.schedule_id) return ''
+  if (isVerifyReminderRow(row)) return getPersonalVerifyReminderOccurrenceDate(row, currentProfile?.staff_id || '', baseDate)
+  if (!isScheduleSeriesLike(row)) return ''
   const targetDate = String(baseDate || todayString()).trim()
   const occurrenceDates = getScheduleOccurrenceDates(row)
   if (!occurrenceDates.length) return ''
@@ -14413,15 +14522,21 @@ function renderPersonalOverdueTaskArea() {
 }
 
 function renderPersonalSchedule() {
-  const myRows = schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
   const today = todayString()
-  const displayRows = normalizeRowsForPersonalScheduleDisplay(myRows, today)
-  const todayRows = normalizeRowsForOccurrenceDate(
-    myRows
+  const baseRows = schedules.filter(row => isActivePersonalSchedule(row))
+  const myRows = baseRows.filter(row => {
+    if (isVerifyReminderRow(row)) return Boolean(getPersonalVerifyReminderOccurrenceDate(row, currentProfile?.staff_id || '', today))
+    return isPersonalCalendarForMe(row)
+  })
+  const displayRows = dedupeVerifyReminderRows(normalizeRowsForPersonalScheduleDisplay(myRows, today))
+  const todayRows = dedupeVerifyReminderRows(normalizeRowsForOccurrenceDate(
+    baseRows
+      .filter(row => !isVerifyReminderRow(row))
+      .filter(row => scheduleBelongsToStaffOnDate(row, currentProfile?.staff_id, today))
       .filter(row => isActionReminderSchedule(row))
       .filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'),
     today
-  )
+  ), today)
   const overdueRows = getPersonalOverdueTaskRows()
   const todayMeetingRows = normalizeRowsForOccurrenceDate(
     myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today)),
@@ -15082,7 +15197,7 @@ function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
 
 
 function filterDailyCardsForDate(rows = [], dateKey = '') {
-  return rows.filter(row => {
+  return dedupeVerifyReminderRows(rows.filter(row => {
     if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
     if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return false
     if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return false
@@ -15092,7 +15207,7 @@ function filterDailyCardsForDate(rows = [], dateKey = '') {
     ...row,
     __occurrence_date: dateKey,
     __render_date: dateKey
-  }))
+  })), dateKey)
 }
 
 
@@ -16634,11 +16749,12 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
 
 
 function getSchedulesForStaffDate(staffId, dateKey) {
-  return uniqueScheduleRows(schedules.filter(row => {
+  const rows = uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
-    return scheduleBelongsToStaff(row, staffId)
-  })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+    return scheduleBelongsToStaffOnDate(row, staffId, dateKey)
+  }))
+  return dedupeVerifyReminderRows(rows, dateKey).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
 
@@ -16738,6 +16854,7 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const reminderStyle = originalReminderType === '驗證提醒' ? getScheduleColorInlineStyleByKey(type, row) : getScheduleColorInlineStyle(row)
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
+  const hideReminderTime = shouldHideScheduleTimeForOccurrence(row, occurrenceDateValue)
 
   if (isFactoryStation) {
     return `
@@ -16751,7 +16868,7 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
 
   return `
     <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
-      ${renderCardTime(row, 'week-card-time service-reminder-time')}
+      ${hideReminderTime ? '' : renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => {
@@ -16881,7 +16998,7 @@ function renderReadStatus() {
 }
 
 function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
-  const displayRows = uniqueScheduleRows(rows)
+  const displayRows = dedupeVerifyReminderRows(uniqueScheduleRows(rows))
   if (!displayRows.length) return `<div class="empty-state">${emptyText}</div>`
 
   return `
@@ -16890,10 +17007,14 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const contentPreview = getFirstTwoLines(row.description)
         const reminders = getReminderTokens(row)
         const extra = getDisplaySubTypeExtra(row)
-        const timeText = formatTime(row)
+        const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || ''
+        const timeText = shouldHideScheduleTimeForOccurrence(row, occurrenceDate) ? '' : formatTime(row)
         const isMaintenance = isVehicleMaintenanceSchedule(row)
+        const verifyDisplayType = isVerifyReminderRow(row) ? getVerifyReminderDisplayType(row, occurrenceDate || row.start_date || '') : ''
+        const verifyClass = verifyDisplayType ? `is-verify-reminder ${getVerifyReminderCardClass(verifyDisplayType)}` : ''
+        const cardStyle = verifyDisplayType ? getScheduleColorInlineStyleByKey(verifyDisplayType, row) : getScheduleColorInlineStyle(row)
         return `
-          <div class="schedule-card ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${getScheduleColorInlineStyle(row)}">
+          <div class="schedule-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
@@ -19194,9 +19315,9 @@ function getSalaryReminderDate(row = {}) {
 function getVerifyReminderDisplayType(row = {}, occurrenceDate = '') {
   const info = parseVerifyReminderInfo(row)
   const dateKey = String(occurrenceDate || '').trim()
-  if (dateKey && getSalaryReminderDate(row) && dateKey === getSalaryReminderDate(row)) return '結薪日提醒'
-  if (dateKey && getDepartureNoticeDate(row) && dateKey === getDepartureNoticeDate(row)) return '離境通知'
   if (dateKey && getVerifyReminderDate(row) && dateKey === getVerifyReminderDate(row)) return '驗證提醒'
+  if (dateKey && getDepartureNoticeDate(row) && dateKey === getDepartureNoticeDate(row)) return '離境通知'
+  if (dateKey && getSalaryReminderDate(row) && dateKey === getSalaryReminderDate(row)) return '結薪日提醒'
   if (dateKey && info.leaveDate && dateKey === info.leaveDate) return '離境通知'
   if (dateKey && info.salaryDate && dateKey === info.salaryDate) return '結薪日提醒'
   return '驗證提醒'
@@ -19206,6 +19327,43 @@ function getVerifyReminderCardClass(displayType = '') {
   if (displayType === '離境通知') return 'is-verify-departure-notice'
   if (displayType === '結薪日提醒') return 'is-verify-salary-reminder'
   return 'is-verify-date-reminder'
+}
+
+
+function getVerifyReminderOccurrenceItems(row = {}) {
+  if (!isVerifyReminderRow(row)) return []
+  const items = [
+    { type: '結薪日提醒', date: getSalaryReminderDate(row) },
+    { type: '驗證提醒', date: getVerifyReminderDate(row) },
+    { type: '離境通知', date: getDepartureNoticeDate(row) }
+  ].filter(item => isStrictDateKey(item.date))
+  const seen = new Set()
+  return items
+    .filter(item => {
+      const key = `${item.type}::${item.date}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .sort((a, b) => {
+      const dateCompare = String(a.date).localeCompare(String(b.date))
+      if (dateCompare !== 0) return dateCompare
+      const priority = { '驗證提醒': 0, '離境通知': 1, '結薪日提醒': 2 }
+      return (priority[a.type] ?? 9) - (priority[b.type] ?? 9)
+    })
+}
+
+function getPersonalVerifyReminderOccurrenceDate(row = {}, staffId = '', baseDate = todayString()) {
+  if (!isVerifyReminderRow(row)) return ''
+  const id = String(staffId || '').trim()
+  const base = String(baseDate || todayString()).trim()
+  const items = getVerifyReminderOccurrenceItems(row).filter(item => {
+    if (base && item.date < base) return false
+    return verifyReminderBelongsToStaffOnDate(row, id, item.date)
+  })
+  if (items.length) return items[0].date
+  const pastItems = getVerifyReminderOccurrenceItems(row).filter(item => verifyReminderBelongsToStaffOnDate(row, id, item.date))
+  return pastItems[pastItems.length - 1]?.date || ''
 }
 
 function parseMeterReminderInfo(row = {}) {
