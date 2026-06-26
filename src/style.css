@@ -23934,3 +23934,62 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   font-weight: 750 !important;
 }
 /* FOR-e V002-1H-stable-1-3o END - mobile overview narrow staff column, postponed gray, options/colors completion */
+
+/* FOR-e V002-1H-stable-1-3p START - overview personal week toolbar order */
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+}
+
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > button,
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > .export-csv-btn {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 14px !important;
+  white-space: nowrap !important;
+  line-height: 1.2 !important;
+}
+
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #prevWeekBtn { order: 1 !important; }
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #thisWeekBtn { order: 2 !important; }
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #nextWeekBtn { order: 3 !important; }
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #addScheduleBtn { order: 4 !important; }
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #exportCsvBtn { order: 5 !important; }
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week #refreshBtn { order: 6 !important; }
+
+@media (max-width: 1180px) {
+  .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week {
+    justify-content: flex-start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-bottom: 4px !important;
+  }
+
+  .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > *,
+  .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > button,
+  .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > .export-csv-btn {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 14px !important;
+    white-space: nowrap !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3p END - overview personal week toolbar order */

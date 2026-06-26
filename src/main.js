@@ -11725,7 +11725,9 @@ function canExportCurrentPage() {
 
 function injectExportCsvButton() {
   if (!canExportCurrentPage()) return
-  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return
+  const isSmallScreen = window.matchMedia && window.matchMedia('(max-width: 768px)').matches
+  const allowMobileOverviewPersonalWeekExport = currentPage === 'scheduleOverview' && typeof getOverviewViewMode === 'function' && getOverviewViewMode() === '個人當週'
+  if (isSmallScreen && !allowMobileOverviewPersonalWeekExport) return
 
   const toolbar = document.querySelector('.content-card .page-toolbar .toolbar-actions')
   if (!toolbar || document.querySelector('#exportCsvBtn')) return
@@ -17078,7 +17080,8 @@ function renderScheduleOverview() {
   const staffRows = getOverviewCalendarStaffRows(viewMode)
   const todayKey = todayString()
   const isMonthMode = ['月份顯示', '個人當月'].includes(viewMode)
-  const showWeekNav = viewMode === '全部行程' || isMonthMode
+  const isPersonalWeekMode = viewMode === '個人當週'
+  const showWeekNav = viewMode === '全部行程' || isMonthMode || isPersonalWeekMode
   const tableClass = getOverviewViewModeTableClass(viewMode)
 
   return `
@@ -17087,8 +17090,8 @@ function renderScheduleOverview() {
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
-      <div class="toolbar-actions overview-toolbar-actions">
-        ${renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
+      <div class="toolbar-actions overview-toolbar-actions ${isPersonalWeekMode ? 'overview-toolbar-personal-week' : ''}">
+        ${isPersonalWeekMode ? '' : renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>
           <button class="secondary-btn" id="thisWeekBtn">${isMonthMode ? '本月' : '本週'}</button>
