@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3k'
-const SYSTEM_VERSION_NOTE = 'Modal 層級、篩選列遮擋與代步車通知相關人員搜尋修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3m'
+const SYSTEM_VERSION_NOTE = '行政事務標籤完整文字與橢圓標籤同色系修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2130,7 +2130,7 @@ function getContinuationInitial(row = {}) {
     '服務行程': '服',
     '一般記事': '記',
     '待辦事項': '待',
-    '行政事務提醒': '行',
+    '行政事務提醒': '行政事務',
     '請假': '休',
     '返鄉': '返',
     '會議': '會',
@@ -15002,7 +15002,7 @@ function renderAdministrativeReminderDayMarks(rows = [], dateKey = '') {
   if (!rows.length) return ''
   return uniqueScheduleRows(rows).map(row => `
     <button type="button" class="administrative-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-      <span>行</span>
+      <span>行政事務</span>
       <strong>${escapeHtml(getAdministrativeReminderTitle(row))}</strong>
     </button>
   `).join('')

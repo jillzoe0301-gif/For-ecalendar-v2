@@ -23693,3 +23693,36 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   align-items: flex-start !important;
 }
 /* FOR-e V002-1H-stable-1-3l END - administrative label text and chip accent sync */
+
+
+/* FOR-e V002-1H-stable-1-3m START - full administrative label and accent-matched pills */
+.administrative-reminder-day-mark span,
+.week-day-cell .administrative-reminder-day-mark span,
+.field-week-day-cell .administrative-reminder-day-mark span,
+.month-day-cell .administrative-reminder-day-mark span,
+.meeting-week-day-cell .administrative-reminder-day-mark span {
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  padding: 3px 12px !important;
+  background: color-mix(in srgb, var(--day-accent, #C5D89D) 16%, #ffffff 84%) !important;
+  border: 1px solid color-mix(in srgb, var(--day-accent, #C5D89D) 76%, #ffffff 24%) !important;
+  color: color-mix(in srgb, var(--day-accent, #C5D89D) 82%, #0f172a 18%) !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.for-e-card-type-chip,
+.week-schedule-card .for-e-card-type-chip,
+.field-week-schedule-card .for-e-card-type-chip,
+.meeting-room-card .for-e-card-type-chip,
+.continuation-day-mark .for-e-card-type-chip,
+.continuation-day-mark .continuation-day-type-line,
+.week-card-type-line,
+.service-reminder-card-type {
+  background: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 16%, #ffffff 84%) !important;
+  border: 1px solid color-mix(in srgb, var(--schedule-accent, var(--day-accent, #dbe2f0)) 76%, #ffffff 24%) !important;
+  color: color-mix(in srgb, var(--schedule-accent, var(--day-accent, #94a3b8)) 82%, #0f172a 18%) !important;
+}
+/* FOR-e V002-1H-stable-1-3m END - full administrative label and accent-matched pills */
