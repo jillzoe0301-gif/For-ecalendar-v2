@@ -24187,3 +24187,68 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   pointer-events: auto !important;
 }
 /* FOR-e V002-1H-stable-1-3r END - overview personal week navigation click and state fix */
+
+/* FOR-e V002-1H-stable-1-3s START - meeting room title and room name font sync */
+/*
+  目的：只調整會議室預約卡片文字樣式。
+  1. 會議名稱與會議室名稱同字級、同粗細、同行高。
+  2. 會議名稱使用 #8B7E74。
+  3. 會議室名稱維持原本藍色系，不改為會議名稱顏色。
+*/
+.meeting-room-card .meeting-title,
+.meeting-room-card span.meeting-title,
+.meeting-room-card .meeting-room-preview.meeting-title {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #8B7E74 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.meeting-room-card .meeting-room-name,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.meeting-room-card strong.meeting-room-name {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #2F6BFF !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+.meeting-room-card.is-completed .meeting-title,
+.meeting-room-card.is-ended .meeting-title,
+.meeting-room-card.ended-case .meeting-title {
+  color: #5f6673 !important;
+}
+
+.meeting-room-card.is-completed .meeting-room-name,
+.meeting-room-card.is-ended .meeting-room-name,
+.meeting-room-card.ended-case .meeting-room-name,
+.meeting-room-card.is-completed .meeting-room-room-line,
+.meeting-room-card.is-ended .meeting-room-room-line,
+.meeting-room-card.ended-case .meeting-room-room-line {
+  color: #5f6673 !important;
+}
+
+@media (max-width: 768px) {
+  .meeting-room-card .meeting-title,
+  .meeting-room-card .meeting-room-name,
+  .meeting-room-card .meeting-room-room-line,
+  .meeting-room-card strong.meeting-room-room-line {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3s END - meeting room title and room name font sync */
+
