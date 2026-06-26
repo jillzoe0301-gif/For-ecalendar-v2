@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3n'
-const SYSTEM_VERSION_NOTE = '手機欄寬、待辦延期、公告色彩、外務明細與標籤文字色修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3q'
+const SYSTEM_VERSION_NOTE = '手機外務標籤不壓縮與人員欄排列修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -14832,7 +14832,7 @@ function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
   if (viewMode === '個人當天') return [getDateFromKey(todayString())].filter(Boolean)
   if (viewMode === '個人當月') return getDatesByMonthValue(getOverviewActiveMonth())
   if (viewMode === '月份顯示') return getDatesByMonthValue(getOverviewActiveMonth())
-  if (viewMode === '個人當週') return getWeekDates(0)
+  if (viewMode === '個人當週') return getWeekDates(overviewWeekOffset)
   return getWeekDates(overviewWeekOffset)
 }
 

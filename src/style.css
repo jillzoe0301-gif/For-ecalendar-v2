@@ -23993,3 +23993,197 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3p END - overview personal week toolbar order */
+
+/* FOR-e V002-1H-stable-1-3q START - mobile field worker badge no squeeze */
+/*
+  目的：
+  1. 修正手機版行程總覽 / 外務行程第一欄縮小後，外務人員「外」字標籤被擠壓變形。
+  2. 手機版第一欄仍維持最小可讀寬度，但必須能容納姓名、外務標籤與部門文字。
+  3. 只調整手機 / 平板人員欄與外務標籤呈現，不動行程資料與卡片渲染邏輯。
+*/
+@media (max-width: 768px), (pointer: coarse) {
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .week-overview-table th.staff-col,
+  .week-overview-table th:first-child,
+  .week-overview-table td.staff-name-cell,
+  .week-overview-table td:first-child,
+  .field-week-table .field-staff-col,
+  .field-week-table .field-staff-name-cell,
+  .field-week-table th.field-staff-col,
+  .field-week-table th:first-child,
+  .field-week-table td.field-staff-name-cell,
+  .field-week-table td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 36 !important;
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 110px !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    background: #ffffff !important;
+    border-right: 1px solid #d9e2ef !important;
+    box-shadow: 4px 0 10px rgba(15, 23, 42, 0.08) !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+    vertical-align: top !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  .week-overview-table thead .staff-col,
+  .week-overview-table thead th:first-child,
+  .field-week-table thead .field-staff-col,
+  .field-week-table thead th:first-child {
+    z-index: 42 !important;
+    background: #f8fbff !important;
+  }
+
+  .week-overview-table .staff-name-cell,
+  .field-week-table .field-staff-name-cell,
+  .week-overview-table .staff-name-cell *,
+  .field-week-table .field-staff-name-cell * {
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    transform: none !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell strong.calendar-staff-name-title,
+  .field-week-table .field-staff-name-cell strong.calendar-staff-name-title {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 auto 4px !important;
+    padding: 0 !important;
+    color: #17233d !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-name-text,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-text,
+  .week-overview-table .staff-name-cell strong.calendar-staff-name-title .calendar-staff-name-text,
+  .field-week-table .field-staff-name-cell strong.calendar-staff-name-title .calendar-staff-name-text {
+    display: block !important;
+    flex: 0 1 auto !important;
+    width: 100% !important;
+    max-width: 96px !important;
+    min-width: 0 !important;
+    margin: 0 auto !important;
+    color: #17233d !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    line-height: 1.28 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .field-worker-badge,
+  .staff-role-badge,
+  .outwork-badge,
+  .field-badge,
+  .week-overview-table .staff-name-cell .field-worker-badge,
+  .field-week-table .field-staff-name-cell .field-worker-badge,
+  .week-overview-table .staff-name-cell span.field-worker-badge,
+  .field-week-table .field-staff-name-cell span.field-worker-badge {
+    flex: 0 0 28px !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    text-align: center !important;
+    color: #000000 !important;
+    background: #FFAE6E !important;
+    border: 1px solid #F28A3E !important;
+    font-size: 16px !important;
+    font-weight: 950 !important;
+    letter-spacing: 0 !important;
+    transform: none !important;
+  }
+
+  .week-overview-table .staff-name-cell > span,
+  .field-week-table .field-staff-name-cell > span,
+  .week-overview-table .staff-name-cell .calendar-staff-department,
+  .field-week-table .field-staff-name-cell .calendar-staff-department {
+    display: block !important;
+    width: 100% !important;
+    max-width: 96px !important;
+    min-width: 0 !important;
+    margin: 0 auto !important;
+    color: #64748b !important;
+    font-size: 11.5px !important;
+    font-weight: 750 !important;
+    line-height: 1.3 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .staff-info,
+  .staff-meta,
+  .staff-badges,
+  .calendar-staff-name-title,
+  .field-week-table .field-staff-name-cell,
+  .week-overview-table .staff-name-cell {
+    overflow: visible !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3q END - mobile field worker badge no squeeze */
+
+
+/* FOR-e V002-1H-stable-1-3r START - overview personal week navigation click and state fix */
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week {
+  position: relative !important;
+  z-index: 40 !important;
+  pointer-events: auto !important;
+}
+
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > button,
+.page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > .export-csv-btn {
+  position: relative !important;
+  z-index: 41 !important;
+  pointer-events: auto !important;
+}
+/* FOR-e V002-1H-stable-1-3r END - overview personal week navigation click and state fix */
