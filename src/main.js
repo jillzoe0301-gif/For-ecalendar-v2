@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
+import versionInfoIcon from './assets/version-info-icon.png'
+import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
 /* FOR-e V002-1P-251 START - clean calendar chips and continuous layout */
 /*
@@ -74,7 +76,8 @@ import './style.css'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-295'
+const SYSTEM_VERSION = 'V002-1P-296'
+const SYSTEM_VERSION_NOTE = 'LINE 通知搜尋位置、版本提示與公告 ICON 更換'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -167,21 +170,21 @@ function getGlobalAnnouncementText() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-295'
+  const versionText = SYSTEM_VERSION || 'V002-1P-296'
+  const versionNote = SYSTEM_VERSION_NOTE || 'LINE 通知搜尋位置、版本提示與公告 ICON 更換'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
-        <span class="for-e-version-icon" aria-hidden="true">ℹ</span>
+        <img class="for-e-inline-icon for-e-version-icon-img" src="${versionInfoIcon}" alt="版本提示">
         <span class="for-e-version-label">版本提示</span>
         <strong>${escapeHtml(versionText)}</strong>
-        <span>版本與公告顯示修正</span>
+        <span>${escapeHtml(versionNote)}</span>
       </div>
       <div class="for-e-announcement-line ${canEditAnnouncement ? 'is-admin' : 'is-view-only'}">
         <div class="for-e-announcement-content">
-          <span class="for-e-announcement-icon" aria-hidden="true">📣</span>
+          <img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="公告">
           <strong>公告：</strong>
           <span id="globalAnnouncementText">${escapeHtml(announcementText)}</span>
-          ${canEditAnnouncement ? '' : '<span class="for-e-announcement-lock" aria-hidden="true">🔒</span>'}
         </div>
         ${canEditAnnouncement ? `
           <button type="button" class="secondary-btn for-e-announcement-edit-btn" id="globalAnnouncementEditBtn">
@@ -3904,6 +3907,50 @@ function renderApp() {
       if (applyLineNotifyFormState(event.target)) renderApp()
     })
   }
+
+  document.querySelectorAll('[data-line-target-search]').forEach(input => {
+    const details = input.closest('.line-target-dropdown')
+    const optionRows = details ? [...details.querySelectorAll('[data-line-target-option]')] : []
+    const emptyText = details?.querySelector('[data-line-target-empty]')
+    const applyFilter = () => {
+      const keyword = normalizeLineSearchText(input.value)
+      let visibleCount = 0
+      optionRows.forEach(row => {
+        const sourceText = String(row.dataset.search || '')
+        const isMatch = !keyword || normalizeLineSearchText(sourceText).includes(keyword)
+        row.classList.toggle('is-hidden', !isMatch)
+        if (isMatch) visibleCount += 1
+      })
+      if (emptyText) emptyText.hidden = visibleCount > 0
+    }
+
+    applyFilter()
+    input.addEventListener('input', applyFilter)
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') event.preventDefault()
+      event.stopPropagation()
+    })
+    details?.addEventListener('toggle', () => {
+      if (details.open) {
+        window.setTimeout(() => input.focus(), 0)
+      }
+      applyFilter()
+    })
+  })
+
+  document.querySelectorAll('[data-line-target-choice]').forEach(input => {
+    input.addEventListener('change', event => {
+      const targetInput = event.target
+      const form = targetInput.closest('#lineNotifyForm')
+      if (!form) return
+      form.querySelectorAll('[data-line-target-choice]').forEach(other => {
+        if (other !== targetInput) other.checked = false
+      })
+      const hiddenTarget = form.querySelector('input[name="target"]')
+      if (hiddenTarget) hiddenTarget.value = targetInput.checked ? targetInput.value : ''
+      if (applyLineNotifyFormState(form)) renderApp()
+    })
+  })
 
   document.querySelectorAll('[data-line-auto-filter]').forEach(input => {
     const eventName = input.matches('select,input[type="date"]') ? 'change' : 'input'
@@ -9846,6 +9893,52 @@ function getLineNotifyAllTargetItems() {
   return items
 }
 
+function getLineNotifyTargetSummaryText() {
+  const text = getLineNotifyTargetText()
+  return String(text || '').trim() || '請選擇通知對象'
+}
+
+function renderLineNotifyTargetDropdown() {
+  const items = getLineNotifyAllTargetItems()
+  const selectedValue = String(lineNotifyState.target || '').trim()
+  const summaryText = getLineNotifyTargetSummaryText()
+  const placeholderClass = selectedValue ? '' : ' is-placeholder'
+
+  return `
+    <div class="line-target-field">
+      <span class="line-target-field-label">通知對象</span>
+      <details class="line-target-dropdown">
+        <summary>
+          <span class="line-target-summary${placeholderClass}">${escapeHtml(summaryText)}</span>
+        </summary>
+        <div class="line-target-dropdown-panel">
+          <div class="line-target-search-box">
+            <input type="text" name="targetKeyword" value="${escapeHtml(lineNotifyState.targetKeyword || '')}" placeholder="請輸入姓名搜尋通知對象" data-line-target-search autocomplete="off">
+          </div>
+          <div class="line-target-options" data-line-target-options>
+            ${items.map((item, index) => {
+              const itemLabel = String(item.label || '').trim()
+              const [mainLabel, subLabel] = itemLabel.split('｜')
+              const inputId = `lineNotifyTargetOption-${index}`
+              return `
+                <label class="line-target-option" data-line-target-option data-search="${escapeHtml(`${item.label || ''} ${item.search || ''}`)}" for="${inputId}">
+                  <input type="checkbox" id="${inputId}" value="${escapeHtml(item.value)}" data-line-target-choice ${selectedValue === item.value ? 'checked' : ''}>
+                  <span>
+                    <strong>${escapeHtml(mainLabel || itemLabel)}</strong>
+                    ${subLabel ? `<small>${escapeHtml(subLabel)}</small>` : ''}
+                  </span>
+                </label>
+              `
+            }).join('')}
+          </div>
+          <small class="line-filter-empty-text line-target-empty-text" data-line-target-empty hidden>查無符合通知對象</small>
+        </div>
+      </details>
+      <input type="hidden" name="target" value="${escapeHtml(selectedValue)}">
+    </div>
+  `
+}
+
 function isLineNotifyTargetStaff(row, staffId) {
   if (!row || !staffId) return false
   const assigneeIds = getAssigneeIds(row)
@@ -10400,8 +10493,6 @@ function renderLineNotificationPage() {
   const rows = getLineNotifyRows()
   const selectedRows = getLineNotifyFinalRows(rows)
   const message = buildLineNotifyMessage(selectedRows)
-  const targetMatches = getLineNotifyTargetItems()
-  const hasTargetKeyword = String(lineNotifyState.targetKeyword || '').trim()
 
   return `
     <div class="page-toolbar">
@@ -10424,16 +10515,7 @@ function renderLineNotificationPage() {
         <select name="type" data-line-auto-filter>${getLineNotifyTypeOptions()}</select>
       </label>
 
-      <label>
-        搜尋通知對象
-        <input name="targetKeyword" data-line-auto-filter value="${escapeHtml(lineNotifyState.targetKeyword || '')}" placeholder="輸入姓名搜尋通知對象">
-      </label>
-
-      <label>
-        通知對象
-        <select name="target" data-line-auto-filter>${getLineNotifyTargetOptions()}</select>
-        ${hasTargetKeyword && targetMatches.length <= 0 ? '<small class="line-filter-empty-text">查無符合通知對象</small>' : ''}
-      </label>
+      ${renderLineNotifyTargetDropdown()}
 
       <label>
         行程關鍵字
