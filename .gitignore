@@ -16,3 +16,20 @@ cleanup-candidates.txt
 # build and dependencies
 dist/
 node_modules/
+
+# FOR-e cleanup ignores
+backup-before-*/
+FOR-e-before-cleanup-*.zip
+FOR-e-stable-clean-backup-*.zip
+for-e-v002-*.zip
+.tmp-for-e-update/
+.tmp-v002-*/
+cleanup-candidates.txt
+*.patch
+*.diff
+*.rej
+*.orig
+*.bak
+*.tmp
+dist/
+node_modules/
