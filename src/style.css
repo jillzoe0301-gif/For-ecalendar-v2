@@ -24927,3 +24927,215 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3v END - mobile tablet filter wrap sticky headers and frozen corner */
+
+/* FOR-e V002-1H-stable-1-3w START - mobile staff name room name split tablet landscape filter spacing */
+/* 手機：行程總覽 / 外務行程第一欄姓名放大，但不改變目前欄寬。 */
+@media (max-width: 768px) {
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell .calendar-staff-name-text,
+  .field-week-table .field-staff-name-cell .calendar-staff-name-text,
+  .calendar-staff-name-title,
+  .calendar-staff-name-text {
+    font-size: 18px !important;
+    font-weight: 950 !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+  }
+
+  .week-overview-table .staff-name-cell,
+  .field-week-table .field-staff-name-cell {
+    text-align: center !important;
+    overflow: visible !important;
+  }
+
+  .week-overview-table .staff-name-cell > span,
+  .field-week-table .field-staff-name-cell > span {
+    font-size: 13px !important;
+    font-weight: 650 !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .field-worker-badge,
+  .staff-role-badge,
+  .outwork-badge,
+  .field-badge,
+  .staff-badges .field-worker-badge,
+  .calendar-staff-name-title .field-worker-badge {
+    flex: 0 0 28px !important;
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+  }
+}
+
+/* 會議室名稱：依尾端數字拆成兩行；會議室欄位置中，卡片維持清楚可讀。 */
+.meeting-room-name-main,
+.meeting-room-name-number {
+  display: block !important;
+  width: 100% !important;
+  line-height: 1.25 !important;
+}
+
+.meeting-week-table .meeting-room-name-cell,
+.meeting-week-table .meeting-room-col {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.meeting-week-table .meeting-room-name-cell-label {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  line-height: 1.25 !important;
+}
+
+.meeting-week-table .meeting-room-name-cell-label .meeting-room-name-main,
+.meeting-week-table .meeting-room-name-cell-label .meeting-room-name-number {
+  text-align: center !important;
+}
+
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line,
+.meeting-room-card[style] .meeting-room-room-line,
+.meeting-room-card[style] strong.meeting-room-room-line {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 1px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  color: #8B7E74 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+}
+
+.meeting-room-card .meeting-title,
+.meeting-room-card[style] .meeting-title {
+  color: #2F6BFF !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+}
+
+/* 平板橫向：服務紀錄單 / 統計報表 / 行程搜尋 / 外務明細篩選列日期欄位保留間距。 */
+@media (min-width: 769px) and (max-width: 1180px) and (orientation: landscape) {
+  .service-record-filter,
+  .service-record-filter-upgraded,
+  .stats-filter-panel,
+  .clean-stats-filter,
+  .search-panel,
+  .search-panel-simple,
+  .field-detail-filter,
+  .report-filter-bar,
+  .filter-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    row-gap: 12px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .search-row,
+  .filter-row,
+  .filter-actions,
+  .service-record-filter .filter-actions,
+  .stats-filter-panel .filter-actions,
+  .field-detail-filter .filter-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    row-gap: 12px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .service-record-filter > label,
+  .stats-filter-panel > label,
+  .search-panel > label,
+  .search-row > label,
+  .field-detail-filter > label,
+  .filter-field,
+  .date-filter-field {
+    flex: 0 1 auto !important;
+    min-width: 140px !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .service-record-filter input[type="date"],
+  .stats-filter-panel input[type="date"],
+  .search-panel input[type="date"],
+  .field-detail-filter input[type="date"],
+  .filter-date-input,
+  .filter-select,
+  .service-record-filter select,
+  .stats-filter-panel select,
+  .search-panel select,
+  .field-detail-filter select {
+    min-width: 140px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .service-record-keyword-filter,
+  .field-detail-location-filter,
+  .search-keyword {
+    flex: 1 1 220px !important;
+    min-width: 220px !important;
+    max-width: 100% !important;
+  }
+
+  .service-record-filter button,
+  .stats-filter-panel button,
+  .search-panel button,
+  .field-detail-filter button {
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3w END - mobile staff name room name split tablet landscape filter spacing */

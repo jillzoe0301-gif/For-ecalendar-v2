@@ -6684,6 +6684,17 @@ function getMeetingSchedulesForRoomDate(room, dateKey) {
   ).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
 }
 
+
+function renderMeetingRoomNameLines(roomName = '', className = 'meeting-room-name-lines') {
+  const text = String(roomName || '').trim() || '會議室'
+  const safeClassName = String(className || 'meeting-room-name-lines').replace(/[^A-Za-z0-9_\-\s]/g, '').trim() || 'meeting-room-name-lines'
+  const match = text.match(/^(.+?)(\d+)$/u)
+  if (match && match[1] && match[2]) {
+    return `<strong class="${safeClassName}"><span class="meeting-room-name-main">${escapeHtml(match[1].trim())}</span><span class="meeting-room-name-number">${escapeHtml(match[2])}</span></strong>`
+  }
+  return `<strong class="${safeClassName}"><span class="meeting-room-name-main">${escapeHtml(text)}</span></strong>`
+}
+
 function renderMeetingRoomCard(row, occurrenceDate = '') {
   const reserverName = getMeetingReserverName(row)
   const roomName = String(row.location_name || row.sub_type || '').trim() || '會議室'
@@ -6698,7 +6709,7 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
         ${renderCardTime(row, 'meeting-room-time')}
         <span class="for-e-card-type-chip">${escapeHtml(getScheduleDisplayType(row) || '會議')}</span>
       </div>
-      <strong class="meeting-room-room-line meeting-room-name">${escapeHtml(roomName)}</strong>
+      ${renderMeetingRoomNameLines(roomName, 'meeting-room-room-line meeting-room-name')}
       <span class="for-e-card-title meeting-room-preview meeting-title">${escapeHtml(titleText)}</span>
       <span class="meeting-room-meta for-e-card-secondary-text">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
@@ -15833,7 +15844,7 @@ function renderMeetingMonthTable(roomRows = [], monthDates = [], todayKey = toda
             const continuousRows = getMeetingContinuousSchedulesForRoom(room, monthDates)
             return `
               <tr>
-                <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
+                <th class="meeting-room-name-cell">${renderMeetingRoomNameLines(room, 'meeting-room-name-cell-label')}</th>
                 ${monthDates.map(date => {
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsForDate(getMeetingSchedulesForRoomDate(room, key), key)
@@ -15878,7 +15889,7 @@ function renderMeetingCalendarBody(roomRows = [], dates = [], todayKey = todaySt
             const continuousRows = getMeetingContinuousSchedulesForRoom(room, dates)
             return `
               <tr>
-                <th class="meeting-room-name-cell"><strong>${escapeHtml(room)}</strong></th>
+                <th class="meeting-room-name-cell">${renderMeetingRoomNameLines(room, 'meeting-room-name-cell-label')}</th>
                 ${dates.map(date => {
                   const key = toDateKey(date)
                   const dayRows = filterDailyCardsForDate(getMeetingSchedulesForRoomDate(room, key), key)
