@@ -21257,3 +21257,156 @@ button.login-birthday-card:focus-visible {
   }
 }
 /* FOR-e V002-1P-299 END - administrative announcement front display and records */
+
+/* FOR-e V002-1P-300 START - administrative announcement display, records alignment and reminder text */
+.for-e-admin-announcement-line {
+  width: 100% !important;
+  min-height: 44px !important;
+  background: #f8fbff !important;
+  border-color: #dbe6ff !important;
+  margin: 0 !important;
+}
+
+.for-e-admin-announcement-line .for-e-announcement-content strong,
+.for-e-admin-announcement-line #administrativeAnnouncementText {
+  font-size: 17px !important;
+  line-height: 1.45 !important;
+  font-weight: 900 !important;
+  color: #1f2f55 !important;
+}
+
+.for-e-admin-announcement-line #administrativeAnnouncementText {
+  font-weight: 800 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.for-e-announcement-empty {
+  color: #64748b !important;
+  font-weight: 800 !important;
+}
+
+.for-e-admin-announcement-form.for-e-announcement-edit-form {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(260px, 1.6fr) auto !important;
+  gap: 10px !important;
+  align-items: end !important;
+  justify-content: start !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.for-e-admin-announcement-form.for-e-announcement-edit-form label {
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  text-align: left !important;
+}
+
+.for-e-admin-announcement-form.for-e-announcement-edit-form input {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+.announcement-record-filter-form {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  align-items: flex-end !important;
+  gap: 12px !important;
+  text-align: left !important;
+}
+
+.announcement-record-filter-form label {
+  flex: 0 1 170px !important;
+  text-align: left !important;
+  align-items: stretch !important;
+  justify-items: start !important;
+}
+
+.announcement-record-filter-form label input,
+.announcement-record-filter-form label select {
+  text-align: left !important;
+}
+
+.announcement-record-filter-form button[type="submit"] {
+  flex: 0 0 auto !important;
+  justify-self: start !important;
+}
+
+.announcement-record-history-panel,
+.announcement-record-history-panel * {
+  text-align: left !important;
+}
+
+.announcement-record-table {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.announcement-record-table th,
+.announcement-record-table td {
+  text-align: left !important;
+  vertical-align: top !important;
+}
+
+.announcement-record-table th:nth-child(1),
+.announcement-record-table td:nth-child(1) {
+  width: 120px !important;
+  min-width: 120px !important;
+}
+
+.announcement-record-table th:nth-child(2),
+.announcement-record-table td:nth-child(2) {
+  width: 120px !important;
+  min-width: 120px !important;
+}
+
+.announcement-record-table th:nth-child(3),
+.announcement-record-table td:nth-child(3) {
+  width: 100% !important;
+  min-width: 280px !important;
+}
+
+.announcement-record-table th:nth-child(4),
+.announcement-record-table td:nth-child(4) {
+  width: 130px !important;
+  min-width: 130px !important;
+  white-space: nowrap !important;
+}
+
+.administrative-reminder-day-mark small {
+  display: block !important;
+  flex: 1 1 100% !important;
+  margin: 2px 0 0 0 !important;
+  color: #4b5563 !important;
+  font-size: 11.5px !important;
+  font-weight: 850 !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 768px) {
+  .for-e-admin-announcement-form.for-e-announcement-edit-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  .for-e-admin-announcement-form.for-e-announcement-edit-form .for-e-announcement-edit-btn,
+  .announcement-record-filter-form button[type="submit"] {
+    width: 100% !important;
+  }
+
+  .announcement-record-filter-form label {
+    flex: 1 1 100% !important;
+  }
+}
+/* FOR-e V002-1P-300 END - administrative announcement display, records alignment and reminder text */

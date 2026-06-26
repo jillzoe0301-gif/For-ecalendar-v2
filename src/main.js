@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-299'
-const SYSTEM_VERSION_NOTE = '行政事務公告前台顯示、輸入更新、紀錄篩選與內容防呆修正'
+const SYSTEM_VERSION = 'V002-1P-300'
+const SYSTEM_VERSION_NOTE = '行政公告顯示編輯、公告紀錄權限版面、逃跑第三天與行政提醒文字修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -94,10 +94,10 @@ const pages = [
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
   { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
-  { key: 'administrativeAnnouncement', label: '公告紀錄', mobileLabel: '公告', roles: ['管理員', '行政 / 海外', '行政'], mobile: true },
   { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
+  { key: 'administrativeAnnouncement', label: '公告紀錄', mobileLabel: '公告', roles: ['管理員', '主管'], mobile: false },
   { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'health', label: '系統檢查', mobileLabel: '檢查', roles: ['管理員', '主管'], mobile: false }
 ]
@@ -174,6 +174,7 @@ let announcementHistoryFilters = {
   keyword: ''
 }
 let announcementHistoryFilterTimer = null
+const administrativeConversationScreenshotReminderText = '請提供對話紀錄截圖給行政'
 
 function cleanAnnouncementPrimitive(value) {
   if (value === null || value === undefined) return ''
@@ -249,8 +250,8 @@ function getGlobalAnnouncementDate() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-299'
-  const versionNote = SYSTEM_VERSION_NOTE || '行政事務公告前台顯示、輸入更新、紀錄篩選與內容防呆修正'
+  const versionText = SYSTEM_VERSION || 'V002-1P-300'
+  const versionNote = SYSTEM_VERSION_NOTE || '行政公告顯示編輯、公告紀錄權限版面、逃跑第三天與行政提醒文字修正'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
@@ -304,17 +305,25 @@ function isAdministrativeAnnouncementAdmin() {
   return getRoleName() === '管理員'
 }
 
+function isAdministrativeAnnouncementManager() {
+  return getRoleName() === '主管'
+}
+
 function isAdministrativeAnnouncementStaff() {
   const role = String(getRoleName() || '').trim()
   return role === '行政 / 海外' || role === '行政' || role.includes('行政')
 }
 
 function canViewAdministrativeAnnouncements() {
-  return isAdministrativeAnnouncementAdmin() || isAdministrativeAnnouncementStaff()
+  return isAdministrativeAnnouncementAdmin() || isAdministrativeAnnouncementManager() || isAdministrativeAnnouncementStaff()
 }
 
 function canCreateAdministrativeAnnouncement() {
-  return canViewAdministrativeAnnouncements()
+  return isAdministrativeAnnouncementAdmin() || isAdministrativeAnnouncementStaff()
+}
+
+function canViewAnnouncementRecords() {
+  return isAdministrativeAnnouncementAdmin() || isAdministrativeAnnouncementManager()
 }
 
 function getAdministrativeAnnouncementOwnerId() {
@@ -323,7 +332,7 @@ function getAdministrativeAnnouncementOwnerId() {
 
 function normalizeAnnouncementRecord(record = {}, fallbackType = '一般公告') {
   const typeText = cleanAnnouncementPrimitive(record.type || record.announcementType || record.announcement_type || record.category || fallbackType)
-  const type = typeText === '行政事務公告' ? '行政事務公告' : '一般公告'
+  const type = typeText.includes('行政') ? '行政事務公告' : '一般公告'
   const content = getAnnouncementText(record)
   const date = getAnnouncementDate(record) || getDateStringFromAnyValue(record.date || '') || todayString()
   const creatorName = getAnnouncementCreatorName(record) || cleanAnnouncementPrimitive(record.creatorName || record.creator_name || '') || '-'
@@ -357,6 +366,10 @@ function uniqueAnnouncementRecordRows(rows = []) {
     seen.add(key)
     return true
   })
+}
+
+function getAnnouncementTypeDisplayName(type = '') {
+  return String(type || '').includes('行政') ? '行政公告' : '一般公告'
 }
 
 function getAnnouncementRecordsSetting() {
@@ -439,7 +452,7 @@ function getAdministrativeAnnouncementInputValue(form, name) {
 }
 
 async function createAdministrativeAnnouncement(formElement) {
-  if (!canCreateAdministrativeAnnouncement()) return denyPermission('你的角色沒有新增行政事務公告權限。')
+  if (!canCreateAdministrativeAnnouncement()) return denyPermission('你的角色沒有新增行政公告權限。')
   const form = new FormData(formElement)
   const date = getAdministrativeAnnouncementInputValue(form, 'announcementDate')
   const content = getAdministrativeAnnouncementInputValue(form, 'announcementContent')
@@ -468,7 +481,7 @@ async function createAdministrativeAnnouncement(formElement) {
   const current = getAdministrativeAnnouncementsSetting()
   await saveAdministrativeAnnouncementsSetting({ records: [record, ...(current.records || [])] })
   await appendAnnouncementRecord(record)
-  alert('行政事務公告已新增 / 更新。')
+  alert('行政公告已新增 / 更新。')
   renderApp()
 }
 
@@ -479,52 +492,46 @@ function getAdministrativeAnnouncementFrontRows() {
 function renderAdministrativeAnnouncementFrontPanel() {
   if (!canViewAdministrativeAnnouncements()) return ''
   const rows = getAdministrativeAnnouncementFrontRows()
+  const latest = rows[0] || null
+  const latestText = latest ? `${latest.date}｜${getAnnouncementText(latest)}` : ''
   const canCreate = canCreateAdministrativeAnnouncement()
+
   return `
-    <section class="for-e-admin-announcement-panel">
-      <div class="for-e-admin-announcement-head">
-        <div class="for-e-admin-announcement-title">
-          <img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="行政事務公告">
-          <strong>行政事務公告</strong>
-        </div>
-        ${rows.length ? `<span>${rows.length} 則</span>` : ''}
+    <div class="for-e-announcement-line for-e-admin-announcement-line ${canCreate ? 'is-admin' : 'is-view-only'}">
+      <div class="for-e-announcement-content">
+        <img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="行政公告">
+        <strong>行政公告：</strong>
+        ${latestText
+          ? `<span id="administrativeAnnouncementText">${escapeHtml(latestText)}</span>`
+          : '<span id="administrativeAnnouncementText" class="for-e-announcement-empty">目前沒有行政公告</span>'}
       </div>
-      ${rows.length ? `
-        <div class="for-e-admin-announcement-list">
-          ${rows.map(row => `
-            <div class="for-e-admin-announcement-item">
-              <strong>行政事務公告：${escapeHtml(row.date)}｜${escapeHtml(getAnnouncementText(row))}</strong>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-      ${canCreate ? `
-        <form id="administrativeAnnouncementForm" class="for-e-admin-announcement-form">
-          <label>
-            公告日期
-            <input type="date" name="announcementDate" value="${escapeHtml(todayString())}" required>
-          </label>
-          <label class="admin-announcement-content-field">
-            公告內容
-            <input type="text" name="announcementContent" placeholder="請行政同仁留意本週送件期限" required>
-          </label>
-          <button type="submit" class="primary-btn">新增公告 / 更新公告</button>
-        </form>
-      ` : ''}
-    </section>
+    </div>
+    ${canCreate ? `
+      <form id="administrativeAnnouncementForm" class="for-e-admin-announcement-form for-e-announcement-edit-form">
+        <label>
+          公告日期
+          <input type="date" name="announcementDate" value="${escapeHtml(latest?.date || todayString())}" required>
+        </label>
+        <label class="admin-announcement-content-field">
+          公告內容
+          <input type="text" name="announcementContent" value="${escapeHtml(latest ? getAnnouncementText(latest) : '')}" placeholder="請行政同仁留意本週送件期限" required>
+        </label>
+        <button type="submit" class="secondary-btn for-e-announcement-edit-btn">新增公告 / 更新公告</button>
+      </form>
+    ` : ''}
   `
 }
 
 async function editAdministrativeAnnouncement() {
-  return denyPermission('行政事務公告已改為前台直接新增 / 更新，後台只保留紀錄查詢。')
+  return denyPermission('行政公告已改為前台直接新增 / 更新，後台只保留紀錄查詢。')
 }
 
 async function toggleAdministrativeAnnouncement() {
-  return denyPermission('行政事務公告後台目前只保留紀錄查詢。')
+  return denyPermission('行政公告後台目前只保留紀錄查詢。')
 }
 
 async function deleteAdministrativeAnnouncement() {
-  return denyPermission('行政事務公告後台目前只保留紀錄查詢。')
+  return denyPermission('行政公告後台目前只保留紀錄查詢。')
 }
 
 function getAnnouncementHistoryRows() {
@@ -566,7 +573,7 @@ function getFilteredAnnouncementHistoryRows() {
   const keyword = normalizeLineSearchText(announcementHistoryFilters.keyword || '')
 
   return getAnnouncementHistoryRows().filter(row => {
-    if (type !== '全部' && row.type !== type) return false
+    if (type !== '全部' && getAnnouncementTypeDisplayName(row.type) !== type) return false
     if (dateMode === '指定日期' && date && row.date !== date) return false
     if (dateMode === '日期區間') {
       const from = startDate || endDate
@@ -603,7 +610,7 @@ function renderAnnouncementHistoryFilterForm() {
       <label>
         公告類型
         <select name="type" data-announcement-filter-auto>
-          ${['全部', '一般公告', '行政事務公告'].map(type => `<option value="${escapeHtml(type)}" ${filters.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}
+          ${['全部', '一般公告', '行政公告'].map(type => `<option value="${escapeHtml(type)}" ${filters.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}
         </select>
       </label>
       <label>
@@ -642,7 +649,7 @@ function renderAnnouncementHistoryFilterForm() {
 }
 
 function renderAdministrativeAnnouncementPage() {
-  if (!canViewAdministrativeAnnouncements()) {
+  if (!canViewAnnouncementRecords()) {
     return `<div class="empty-state">你的角色沒有查看公告紀錄權限。</div>`
   }
 
@@ -652,7 +659,7 @@ function renderAdministrativeAnnouncementPage() {
     <div class="page-toolbar">
       <div>
         <h3>公告紀錄</h3>
-        <p class="muted">後台只保留公告紀錄查詢；一般公告與行政事務公告分開紀錄，可依類型、日期、建立者與關鍵字篩選。</p>
+        <p class="muted">後台只保留公告紀錄查詢；一般公告與行政公告分開紀錄，可依類型、日期、建立者與關鍵字篩選。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
@@ -682,7 +689,7 @@ function renderAdministrativeAnnouncementPage() {
             <tbody>
               ${rows.map(row => `
                 <tr>
-                  <td>${escapeHtml(row.type || '-')}</td>
+                  <td>${escapeHtml(getAnnouncementTypeDisplayName(row.type))}</td>
                   <td>${escapeHtml(row.date || '-')}</td>
                   <td><strong>${escapeHtml(getAnnouncementText(row))}</strong></td>
                   <td>${escapeHtml(row.creatorName || '-')}</td>
@@ -695,7 +702,7 @@ function renderAdministrativeAnnouncementPage() {
     </section>
   `
 }
-/* FOR-e V002-1P-299 END - administrative announcement front display and records */
+/* FOR-e V002-1P-300 END - administrative announcement display records permissions runaway third day */
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
@@ -7466,6 +7473,7 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
     adminTaskType ? `通知行政辦理：${adminTaskType}` : '',
     adminStaffName ? `通知行政：${adminStaffName}` : '',
     adminTaskDetail ? `行政通知內容：${adminTaskDetail}` : '',
+    (adminTaskType || adminStaffName || adminTaskDetail) ? administrativeConversationScreenshotReminderText : '',
     supervisorStaffName ? `通知主管：${supervisorStaffName}` : '',
     supervisorTrackingDetail ? `主管通知內容：${supervisorTrackingDetail}` : '',
     form.get('need_service_record') === 'on' ? '服務紀錄單：需要' : '服務紀錄單：不需要',
@@ -10852,13 +10860,16 @@ function getLineNotifyContentText(row = {}) {
   if (reminderType === '住變資訊提供' || lineType === '住變資訊提供') return '請提供租約及照片'
 
   const rawContent = String(row.description || row.content || row.memo || row.sub_type_note || '').trim()
-  if (!rawContent) return ''
-
-  return rawContent
+  const lines = rawContent
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean)
-    .join('\n')
+
+  if (shouldShowAdministrativeConversationReminder(row) && !lines.includes(administrativeConversationScreenshotReminderText)) {
+    lines.push(administrativeConversationScreenshotReminderText)
+  }
+
+  return lines.join('\n')
 }
 
 function getLineNotifyAddress(row = {}) {
@@ -10950,6 +10961,14 @@ function formatLineScheduleItem(row, index) {
       addressText ? lineNotifyPart('地址', addressText) : ''
     ].filter(Boolean)
     return parts.join('\n')
+  }
+
+  if (shouldShowAdministrativeConversationReminder(row)) {
+    return [
+      `${number}【行政提醒】`,
+      lineNotifyPart('對象', getLineNotifySubject(row)),
+      lineNotifyPart('內容', contentText || administrativeConversationScreenshotReminderText)
+    ].filter(Boolean).join('\n')
   }
 
   const parts = [
@@ -14655,12 +14674,20 @@ function getAdministrativeReminderTitle(row = {}) {
   return title || item || '行政事務提醒'
 }
 
+function shouldShowAdministrativeConversationReminder(row = {}) {
+  const text = [row.category, row.schedule_type, row.sub_type, row.sub_type_note, row.title, row.description]
+    .map(item => String(item || ''))
+    .join('｜')
+  return text.includes('通知行政') || text.includes('行政通知') || text.includes('行政事務提醒') || text.includes('異況')
+}
+
 function renderAdministrativeReminderDayMarks(rows = [], dateKey = '') {
   if (!rows.length) return ''
   return uniqueScheduleRows(rows).map(row => `
     <button type="button" class="administrative-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
       <span>行</span>
       <strong>${escapeHtml(getAdministrativeReminderTitle(row))}</strong>
+      ${shouldShowAdministrativeConversationReminder(row) ? `<small>${escapeHtml(administrativeConversationScreenshotReminderText)}</small>` : ''}
     </button>
   `).join('')
 }
@@ -18914,11 +18941,10 @@ function parseCompactTimeParts(rawValue = '', fallbackType = '不指定') {
 }
 
 function parseRunawayReminderInfo(row = {}) {
-  return {
-    day1: getReminderNoteValue(row, ['逃跑第一天']),
-    day2: getReminderNoteValue(row, ['逃跑第二天']),
-    day3: getReminderNoteValue(row, ['逃跑第三天'])
-  }
+  const day1 = getReminderNoteValue(row, ['逃跑第一天']) || row.start_date || ''
+  const day2 = getReminderNoteValue(row, ['逃跑第二天']) || (day1 ? getDateKeyOffset(day1, 1) : '') || ''
+  const day3 = getReminderNoteValue(row, ['逃跑第三天']) || (day1 ? getDateKeyOffset(day1, 2) : '') || ''
+  return { day1, day2, day3 }
 }
 
 function parseTransferReminderInfo(row = {}) {
@@ -22273,7 +22299,8 @@ async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', t
     sourceRow.category ? `來源類別：${sourceRow.category}` : '',
     sourceRow.schedule_type ? `來源類型：${sourceRow.schedule_type}` : '',
     options.sourceLabel ? `來源說明：${options.sourceLabel}` : '',
-    `通知人：${currentProfile?.name || currentProfile?.email || ''}`
+    `通知人：${currentProfile?.name || currentProfile?.email || ''}`,
+    administrativeConversationScreenshotReminderText
   ].filter(Boolean)
 
   const description = [
@@ -22284,6 +22311,7 @@ async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', t
     sourceRow.location_name ? `地點：${sourceRow.location_name}` : '',
     sourceRow.address ? `地址：${sourceRow.address}` : '',
     sourceRow.customer_name ? `客戶 / 工人：${sourceRow.customer_name}` : '',
+    administrativeConversationScreenshotReminderText,
     options.extraNote || ''
   ].filter(Boolean).join('\n')
 
