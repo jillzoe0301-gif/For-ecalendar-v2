@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-2'
-const SYSTEM_VERSION_NOTE = '驗證提醒去重、#FF9A86 色階與通知對象規則修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3'
+const SYSTEM_VERSION_NOTE = '行程卡片外框樣式統一與連續行程顯示規則整合'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2239,7 +2239,7 @@ function getContinuationDisplayTimeText(row = {}) {
     if (factoryTime) return factoryTime
   }
   const timeText = getCardTimeText(row)
-  return timeText ? `時間：${timeText}` : ''
+  return timeText || ''
 }
 
 
@@ -6101,9 +6101,12 @@ function renderFieldScheduleCard(row) {
   const contentPreview = getFirstTwoLines(row.description)
 
   return `
-    <button type="button" class="field-week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      ${renderCardTime(row, 'field-week-card-time')}
-      <strong>${escapeHtml(getScheduleCardTitleText(row))}</strong>
+    <button type="button" class="field-week-schedule-card unified-outline-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderUnifiedCalendarCardHeader(row, {
+        timeClass: 'field-week-card-time',
+        typeClass: 'field-week-card-type-line',
+        titleClass: 'field-week-card-title calendar-card-title'
+      })}
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
       ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
@@ -6466,6 +6469,79 @@ function renderScheduleTypeTitleInline(row = {}, typeClass = 'schedule-card-type
   return `<span class="${escapeHtml(wrapperClass)}">${typeLine}<${titleTag}>${safeTitle}</${titleTag}></span>`
 }
 
+
+function escapeRegExpText(value = '') {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function normalizeCardDisplayText(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim()
+}
+
+function stripDuplicateCardPrefix(title = '', type = '') {
+  let result = normalizeCardDisplayText(title)
+  const typeText = normalizeCardDisplayText(type)
+  if (!result) return ''
+  if (!typeText) return result
+
+  const cleanResult = result.replace(/[\s｜|／/:：－—–-]+/g, '')
+  const cleanType = typeText.replace(/[\s｜|／/:：－—–-]+/g, '')
+  if (cleanResult === cleanType) return ''
+
+  const prefixPattern = new RegExp(`^${escapeRegExpText(typeText)}\\s*[｜|／/:：－—–-]+\\s*`)
+  result = result.replace(prefixPattern, '').trim()
+  return result || ''
+}
+
+function renderUnifiedCalendarCardHeaderFromParts({
+  time = '',
+  type = '',
+  title = '',
+  timeClass = 'week-card-time',
+  typeClass = 'week-card-type-line',
+  titleClass = 'calendar-card-title'
+} = {}) {
+  const cleanTime = normalizeCardDisplayText(time)
+  const cleanType = normalizeCardDisplayText(type)
+  const cleanTitle = stripDuplicateCardPrefix(title, cleanType)
+  const topLine = [
+    cleanTime ? `<span class="${escapeHtml(timeClass)} for-e-card-time calendar-card-time-text">${escapeHtml(cleanTime)}</span>` : '',
+    cleanType ? `<span class="${escapeHtml(typeClass)} calendar-card-type-chip">${escapeHtml(cleanType)}</span>` : ''
+  ].filter(Boolean).join('')
+
+  return `
+    ${topLine ? `<span class="calendar-card-first-line">${topLine}</span>` : ''}
+    ${cleanTitle ? `<strong class="${escapeHtml(titleClass)}">${escapeHtml(cleanTitle)}</strong>` : ''}
+  `
+}
+
+function renderUnifiedCalendarCardHeader(row = {}, {
+  occurrenceDate = '',
+  time = null,
+  type = '',
+  title = '',
+  timeClass = 'week-card-time',
+  typeClass = 'week-card-type-line',
+  titleClass = 'calendar-card-title',
+  hideTime = false
+} = {}) {
+  const parts = getScheduleTypeTitleParts(row)
+  const resolvedType = normalizeCardDisplayText(type || parts.type || getScheduleDisplayType(row))
+  const resolvedTitle = normalizeCardDisplayText(title || parts.title || row.title || row.customer_name || '-')
+  const resolvedTime = hideTime
+    ? ''
+    : (time === null ? getCardTimeText(row) : String(time || '').trim())
+
+  return renderUnifiedCalendarCardHeaderFromParts({
+    time: resolvedTime,
+    type: resolvedType,
+    title: resolvedTitle,
+    timeClass,
+    typeClass,
+    titleClass
+  })
+}
+
 function splitPromptTypeTitle(text = '') {
   const parts = String(text || '').split('｜').map(item => item.trim()).filter(Boolean)
   if (!parts.length) return { type: '', title: '' }
@@ -6565,10 +6641,15 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
   const meetingOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, meetingOccurrenceDate)) ? 'is-completed' : ''
 
   return `
-    <button type="button" class="meeting-room-card ${meetingOccurrenceCompletedClass || (getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : '')} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
-      ${renderCardTime(row, 'meeting-room-time')}
-      <strong class="meeting-room-room-line">${escapeHtml(roomName)}</strong>
-      <strong>${escapeHtml(titleText)}</strong>
+    <button type="button" class="meeting-room-card unified-outline-card ${meetingOccurrenceCompletedClass || (getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : '')} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+      ${renderUnifiedCalendarCardHeader(row, {
+        occurrenceDate: meetingOccurrenceDate,
+        type: roomName,
+        title: titleText,
+        timeClass: 'meeting-room-time',
+        typeClass: 'meeting-room-room-line meeting-room-type-line',
+        titleClass: 'meeting-room-title calendar-card-title'
+      })}
       <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
@@ -11263,16 +11344,24 @@ function renderLineNotifySchedulePicker(rows = []) {
             const verifyDisplayType = isVerifyReminderRow(row) ? getVerifyReminderDisplayType(row, lineDate) : ''
             const verifyClass = verifyDisplayType ? `is-verify-reminder ${getVerifyReminderCardClass(verifyDisplayType)}` : ''
             const rowStyle = verifyDisplayType ? getScheduleColorInlineStyleByKey(verifyDisplayType, row) : ''
-            const lineTitle = verifyDisplayType
-              ? `${verifyDisplayType}｜${getServiceReminderCaseName(row, '驗證提醒') || getLineNotifySubject(row)}`
-              : getScheduleCardTitleText(row)
+            const lineParts = verifyDisplayType
+              ? { type: verifyDisplayType, title: getServiceReminderCaseName(row, '驗證提醒') || getLineNotifySubject(row) }
+              : getScheduleTypeTitleParts(row)
             const rowTime = shouldHideScheduleTimeForOccurrence(row, lineDate) ? '' : (formatTime(row) || '')
+            const lineStyle = rowStyle || `--schedule-accent:${getScheduleColor(row)};`
             return `
-              <label class="line-select-row ${verifyClass}" style="${rowStyle}">
+              <label class="line-select-row unified-outline-card ${verifyClass}" style="${lineStyle}">
                 <input type="checkbox" data-line-select-row value="${escapeHtml(rowId)}" ${checked ? 'checked' : ''}>
-                <span>
-                  <strong>${escapeHtml(lineTitle)}</strong>
-                  <small>${escapeHtml(getScheduleMetaParts([lineDate || '-', rowTime, getAssigneeNames(row) || '-']))}</small>
+                <span class="line-select-content">
+                  ${renderUnifiedCalendarCardHeaderFromParts({
+                    time: rowTime,
+                    type: lineParts.type,
+                    title: lineParts.title,
+                    timeClass: 'line-select-time',
+                    typeClass: 'line-select-type calendar-card-type-chip',
+                    titleClass: 'line-select-title calendar-card-title'
+                  })}
+                  <small>${escapeHtml(getScheduleMetaParts([lineDate || '-', getAssigneeNames(row) || '-']))}</small>
                 </span>
               </label>
             `
@@ -15321,14 +15410,19 @@ function renderContinuationDayMarks(rows = [], dateKey = '', variant = 'overview
 
       const continuationCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, dateKey)) ? ' is-completed' : ''
       const continuationTimeText = getContinuationDisplayTimeText(row)
+      const continuationType = getContinuationDisplayLabel(row)
+      const continuationTitle = getContinuationDisplayTitle(row)
 
       return `
-        <button type="button" class="continuation-day-mark${continuationCompletedClass} calendar-continuation-first-row ${variant}-continuation-day-mark${getContinuationDayMarkClass(row)} ${typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row) ? 'factory-station-continuation factory-station-week-card' : ''}" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
-          <span class="continuation-day-inline-title">
-            <span class="continuation-day-type-line">${escapeHtml(getContinuationDisplayLabel(row))}</span>
-            <strong>${escapeHtml(getContinuationDisplayTitle(row))}</strong>
-            ${continuationTimeText ? `<span class="continuation-day-time">${escapeHtml(continuationTimeText)}</span>` : ''}
-          </span>
+        <button type="button" class="week-schedule-card continuation-day-mark unified-outline-card continuous-compact-card${continuationCompletedClass} calendar-continuation-first-row ${variant}-continuation-day-mark${getContinuationDayMarkClass(row)} ${typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row) ? 'factory-station-continuation factory-station-week-card' : ''}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
+          ${renderUnifiedCalendarCardHeaderFromParts({
+            time: continuationTimeText,
+            type: continuationType,
+            title: continuationTitle,
+            timeClass: 'week-card-time continuation-day-time',
+            typeClass: 'continuation-day-type-line week-card-type-line',
+            titleClass: 'continuation-day-title calendar-card-title'
+          })}
         </button>
       `
     })
@@ -16858,19 +16952,30 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
-        ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
-        ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
+      <button type="button" class="week-schedule-card service-reminder-week-card unified-outline-card factory-station-week-card continuous-like-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+        ${renderUnifiedCalendarCardHeader(row, {
+          time: factoryTime,
+          type: type || '駐廠',
+          title: lines[0] || getScheduleTypeTitleParts(row).title || type,
+          timeClass: 'week-card-time factory-station-time',
+          typeClass: 'service-reminder-card-type week-card-type-line',
+          titleClass: 'service-reminder-title calendar-card-title'
+        })}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
       </button>
     `
   }
 
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
-      ${hideReminderTime ? '' : renderCardTime(row, 'week-card-time service-reminder-time')}
-      <span class="service-reminder-card-type">${escapeHtml(type)}</span>
-      <strong>${escapeHtml(lines[0] || type)}</strong>
+    <button type="button" class="week-schedule-card service-reminder-week-card unified-outline-card ${transferClass} ${runawayClass} ${verifyClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+      ${renderUnifiedCalendarCardHeader(row, {
+        time: hideReminderTime ? '' : getCardTimeText(row),
+        type,
+        title: lines[0] || type,
+        timeClass: 'week-card-time service-reminder-time',
+        typeClass: 'service-reminder-card-type week-card-type-line',
+        titleClass: 'service-reminder-title calendar-card-title'
+      })}
       ${lines.slice(1).map(line => {
         const isAdministrativeReminderText = String(line || '').trim() === administrativeConversationScreenshotReminderText
         return `<span class="week-card-preview${isAdministrativeReminderText ? ' administrative-conversation-reminder-text' : ''}">${escapeHtml(line)}</span>`
@@ -16894,9 +16999,14 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const staticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
   const occurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
   return `
-    <button type="button" class="week-schedule-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${staticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${occurrenceAttr}>
-      ${isFactoryStation ? renderFactoryStationTime(rowForOccurrence, 'week-card-time factory-station-time') : renderCardTime(rowForOccurrence, 'week-card-time')}
-      ${isFactoryStation ? renderScheduleTypeTitleInline(rowForOccurrence, 'week-card-type-line', 'strong', 'calendar-card-inline-title factory-station-inline-title') : renderScheduleTypeTitleStack(rowForOccurrence, 'week-card-type-line')}
+    <button type="button" class="week-schedule-card unified-outline-card ${isFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${weekOccurrenceCompletedClass} ${staticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${occurrenceAttr}>
+      ${renderUnifiedCalendarCardHeader(rowForOccurrence, {
+        occurrenceDate: weekOccurrenceDate,
+        time: isFactoryStation ? getFactoryStationTimeText(rowForOccurrence) : null,
+        timeClass: isFactoryStation ? 'week-card-time factory-station-time' : 'week-card-time',
+        typeClass: 'week-card-type-line',
+        titleClass: 'week-card-title calendar-card-title'
+      })}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
@@ -17017,7 +17127,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
           <div class="schedule-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
-              <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
+              <div class="schedule-title schedule-title-stack">${renderUnifiedCalendarCardHeader(row, { time: '', typeClass: 'schedule-card-type-line', titleClass: 'schedule-card-title-text calendar-card-title' })}</div>
               ${isFactoryStationSchedule(row) && getFactoryStationTimeText(row) ? `<div class="schedule-meta factory-station-time">${escapeHtml(getFactoryStationTimeText(row))}</div>` : ''}
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
