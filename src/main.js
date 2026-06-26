@@ -2490,6 +2490,13 @@ function openOwnPasswordModal(email = currentProfile?.email || '') {
   `
 
   document.body.appendChild(modal)
+  modal.querySelectorAll('[data-copy-address]').forEach(element => {
+    element.addEventListener('click', async event => {
+      event.preventDefault()
+      event.stopPropagation()
+      await copyScheduleAddressToClipboard(element.dataset.copyAddress || '')
+    })
+  })
   initSearchableChoicePanels(modal)
 
   document.querySelector('#closeOwnPasswordBtn').addEventListener('click', () => modal.remove())
@@ -15445,12 +15452,10 @@ function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
     ].filter(Boolean)
   }
   if (type === '逃跑通知') {
-    const info = parseRunawayReminderInfo(row)
+    const caseName = getServiceReminderCaseName(row, type)
     return [
-      title,
-      info.day1 ? `逃跑第一天：${info.day1}` : '',
-      info.day2 ? `逃跑第二天：${info.day2}` : '',
-      info.day3 ? `逃跑第三天：${info.day3}` : ''
+      caseName || title,
+      '請發逃跑訊息'
     ].filter(Boolean)
   }
   return [title]
@@ -15468,6 +15473,7 @@ function getServiceReminderDisplayType(row = {}, occurrenceDate = '') {
     if (transferStatus === 'due-date') return '轉出到期最後一天'
     return '轉出提醒'
   }
+  if (type === '逃跑通知') return getRunawayReminderDisplayType(row, occurrenceDate)
   return type
 }
 
@@ -15479,15 +15485,14 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const originalReminderType = getServiceReminderTypeFromRow(row)
   const transferStatus = originalReminderType === '轉出追蹤' ? getTransferReminderStatusForDate(row, occurrenceDateValue) : ''
   const transferClass = transferStatus ? `is-transfer-${transferStatus}` : ''
-  const transferBadge = transferStatus === 'due-date'
-    ? '<span class="transfer-last-day-badge" aria-label="轉出到期最後一天">!</span>'
-    : ''
+  const runawayStatus = originalReminderType === '逃跑通知' ? getRunawayReminderStatusForDate(row, occurrenceDateValue) : ''
+  const runawayClass = originalReminderType === '逃跑通知' ? `is-runaway-reminder ${runawayStatus ? `is-runaway-${runawayStatus}` : ''}` : ''
   const factoryTime = isFactoryStation ? getFactoryStationTimeText(row) : ''
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
 
   if (isFactoryStation) {
     return `
-      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+      <button type="button" class="week-schedule-card service-reminder-week-card factory-station-week-card continuous-like-week-card ${transferClass} ${runawayClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
         ${factoryTime ? `<span class="week-card-time factory-station-time">${escapeHtml(factoryTime)}</span>` : ''}
         ${renderScheduleTypeTitleInline(row, 'service-reminder-card-type', 'strong', 'calendar-card-inline-title factory-station-inline-title')}
         ${lines.slice(1).filter(line => !String(line || '').includes('駐廠時間')).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
@@ -15496,10 +15501,9 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   }
 
   return `
-    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="week-schedule-card service-reminder-week-card ${transferClass} ${runawayClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       ${renderCardTime(row, 'week-card-time service-reminder-time')}
       <span class="service-reminder-card-type">${escapeHtml(type)}</span>
-      ${transferBadge}
       <strong>${escapeHtml(lines[0] || type)}</strong>
       ${lines.slice(1).map(line => `<span class="week-card-preview">${escapeHtml(line)}</span>`).join('')}
     </button>
@@ -17335,6 +17339,33 @@ function openTodoNoteStatusModal(scheduleId = '') {
   })
 }
 
+async function copyScheduleAddressToClipboard(address = '') {
+  const value = String(address || '').trim()
+  if (!value) return
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    alert('無法自動複製，請手動選取地址')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(value)
+    showForETransientToast('地址已複製')
+  } catch (error) {
+    alert('無法自動複製，請手動選取地址')
+  }
+}
+
+function showForETransientToast(message = '') {
+  const text = String(message || '').trim()
+  if (!text) return
+  const old = document.querySelector('.for-e-transient-toast')
+  if (old) old.remove()
+  const toast = document.createElement('div')
+  toast.className = 'for-e-transient-toast'
+  toast.textContent = text
+  document.body.appendChild(toast)
+  window.setTimeout(() => toast.remove(), 1600)
+}
+
 function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -17373,7 +17404,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div class="span-2"><span>標題 / 辦理內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.title)}</strong></div>
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
-        ${showAddressDetail ? `<div class="span-2"><span>地址</span><strong>${escapeHtml(row.address || '-')}</strong></div>` : ''}
+        ${showAddressDetail ? `<div class="span-2 detail-address-row"><span>地址</span><strong class="detail-address-value" data-copy-address="${escapeHtml(row.address || '')}" title="點擊複製地址">${escapeHtml(row.address || '-')}</strong><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(row.address || '')}">複製</button></div>` : ''}
         <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.description || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
@@ -17807,6 +17838,40 @@ function getTransferReminderStatusForDate(row = {}, dateKey = '') {
   if (info.dueDate && dateKey === info.dueDate) return 'due-date'
   if (row.start_date && dateKey === row.start_date) return 'tracking-start'
   return ''
+}
+
+function getRunawayReminderStatusForDate(row = {}, dateKey = '') {
+  const info = parseRunawayReminderInfo(row)
+  if (!dateKey) return ''
+  if (info.day1 && dateKey === info.day1) return 'day1'
+  if (info.day2 && dateKey === info.day2) return 'day2'
+  if (info.day3 && dateKey === info.day3) return 'day3'
+  if (!info.day1 && row.start_date && dateKey === row.start_date) return 'day1'
+  return ''
+}
+
+function getRunawayReminderDisplayType(row = {}, dateKey = '') {
+  const status = getRunawayReminderStatusForDate(row, dateKey)
+  if (status === 'day1') return '逃跑第一天通知'
+  if (status === 'day2') return '逃跑第二天通知'
+  if (status === 'day3') return '逃跑第三天通知'
+  return '逃跑通知'
+}
+
+function getServiceReminderCaseName(row = {}, reminderType = '') {
+  const generic = new Set(['逃跑通知', '轉出追蹤', '返台提醒', '驗證提醒', '住變資訊提供', '電表提醒', '駐廠', '提醒事項'])
+  const candidates = [
+    row.customer_name,
+    getReminderNoteValue(row, ['雇主及工人名稱', '雇主/工人名稱', '雇主_工人名稱', '案件名稱', '客戶名稱']),
+    row.title
+  ]
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim()
+    if (!value) continue
+    if (generic.has(value) || value === reminderType) continue
+    return value
+  }
+  return String(row.title || row.customer_name || reminderType || '').trim()
 }
 
 function parseHousingReminderInfo(row = {}) {
@@ -25106,18 +25171,29 @@ function renderServiceRecordDepartmentStatusV2(records) {
 
 /* FOR-e V002-1P-283｜direct source update: incident follow type, assigned tracking filter, meeting room occurrence date fix */
 
-/* FOR-e V002-1P-292 START - drag scroll calendar areas */
-if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__) {
-  window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__ = true
+/* FOR-e V002-1P-293 START - safe drag scroll calendar areas */
+if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
+  window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__ = true
   const dragSelector = '.week-overview-scroll, .field-week-scroll, .meeting-week-scroll, .personal-month-calendar, .calendar-scroll, .schedule-calendar-scroll'
-  const interactiveSelector = 'button, a, input, select, textarea, summary, label, details, [role="button"], .week-schedule-card, .schedule-card, .field-week-schedule-card, .meeting-room-card, .continuation-day-mark, .return-reminder-day-mark, .administrative-reminder-day-mark, .service-reminder-week-card'
+  const hardInteractiveSelector = 'a, input, select, textarea, summary, label, details, .icon-btn, .primary-btn, .secondary-btn, .danger-btn, .filter-btn, .field-result-btn, [data-no-drag-scroll]'
   let active = null
+  let suppressUntil = 0
+  let suppressScroller = null
+  const threshold = 7
+
+  const isHardInteractiveTarget = (target) => {
+    if (!target?.closest) return false
+    const hard = target.closest(hardInteractiveSelector)
+    if (!hard) return false
+    const draggableCard = target.closest('.week-schedule-card, .schedule-card, .field-week-schedule-card, .meeting-room-card, .continuation-day-mark, .return-reminder-day-mark, .administrative-reminder-day-mark, .service-reminder-week-card')
+    return !draggableCard
+  }
 
   document.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return
+    if (event.button !== undefined && event.button !== 0) return
     const scroller = event.target?.closest?.(dragSelector)
     if (!scroller) return
-    if (event.target?.closest?.(interactiveSelector)) return
+    if (isHardInteractiveTarget(event.target)) return
     if (scroller.scrollWidth <= scroller.clientWidth) return
     active = {
       scroller,
@@ -25134,7 +25210,7 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__) {
     if (!active || active.pointerId !== event.pointerId) return
     const dx = event.clientX - active.startX
     const dy = event.clientY - active.startY
-    if (!active.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+    if (!active.moved && Math.hypot(dx, dy) < threshold) return
     active.moved = true
     active.scroller.classList.add('is-drag-scrolling')
     active.scroller.scrollLeft = active.startLeft - dx
@@ -25143,11 +25219,26 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_BOUND__) {
 
   const stopDragScroll = event => {
     if (!active || (event.pointerId && active.pointerId !== event.pointerId)) return
+    if (active.moved) {
+      suppressUntil = Date.now() + 350
+      suppressScroller = active.scroller
+    }
     active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
     active = null
   }
+
+  const suppressClickAfterDrag = event => {
+    if (!suppressScroller || Date.now() > suppressUntil) return
+    if (!event.target?.closest?.(dragSelector)) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation()
+  }
+
   document.addEventListener('pointerup', stopDragScroll, { passive: true })
   document.addEventListener('pointercancel', stopDragScroll, { passive: true })
+  document.addEventListener('click', suppressClickAfterDrag, true)
+  document.addEventListener('dblclick', suppressClickAfterDrag, true)
 }
-/* FOR-e V002-1P-292 END - drag scroll calendar areas */
+/* FOR-e V002-1P-293 END - safe drag scroll calendar areas */
 
