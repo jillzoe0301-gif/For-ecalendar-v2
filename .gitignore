@@ -6,3 +6,13 @@ dist
 .DS_Store
 .vercel
 .env*
+
+# FOR-e local backup folders and update packages
+backup-before-*/
+for-e-v002-*.zip
+.tmp-v002-*/
+cleanup-candidates.txt
+
+# build and dependencies
+dist/
+node_modules/
