@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-2'
-const SYSTEM_VERSION_NOTE = '驗證提醒去重、#FF9A86 色階與通知對象規則修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3b'
+const SYSTEM_VERSION_NOTE = '卡片樣式統一、標籤改到時間下方與安卓單指滑動修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2226,9 +2226,11 @@ function getContinuationDisplayTitle(row = {}) {
   const candidates = [row.title, row.customer_name, getFirstTwoLines(row.description || '')]
   for (const candidate of candidates) {
     const rawTitle = String(candidate || '').trim()
+    if (!rawTitle) continue
+    if (typeof administrativeConversationScreenshotReminderText !== 'undefined' && rawTitle.includes(administrativeConversationScreenshotReminderText)) continue
     const compactTitle = rawTitle.replace(/[\s／/]+/g, '')
     if (compactTitle === '上線教育訓練') return '上線'
-    if (rawTitle && !genericTitles.has(rawTitle)) return sanitizeRepeatedTypeTitle(typeLabel, rawTitle)
+    if (!genericTitles.has(rawTitle)) return sanitizeRepeatedTypeTitle(typeLabel, rawTitle)
   }
 
   return typeLabel || getScheduleDisplayType(row) || '連續行程'
@@ -6114,7 +6116,7 @@ function renderFieldScheduleCard(row) {
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
+      ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
     </button>
   `
 }
@@ -6621,7 +6623,7 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
       </div>
       <strong class="for-e-card-title meeting-room-room-line">${escapeHtml(roomName)}</strong>
       <span class="meeting-room-preview">${escapeHtml(titleText)}</span>
-      <span class="meeting-room-meta">預約人：${escapeHtml(reserverName)}</span>
+      <span class="meeting-room-meta for-e-card-secondary-text">預約人：${escapeHtml(reserverName)}</span>
       ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
     </button>
   `
@@ -16963,7 +16965,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
       </div>
       <strong class="for-e-card-title">${safeTitle}</strong>
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
+      ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
     </button>
   `
@@ -26742,7 +26744,15 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V293_BOUND__) {
     if (!active || active.pointerId !== event.pointerId) return
     const dx = event.clientX - active.startX
     const dy = event.clientY - active.startY
+    const absX = Math.abs(dx)
+    const absY = Math.abs(dy)
     if (!active.moved && Math.hypot(dx, dy) < threshold) return
+    if (!active.moved && absY > absX + 4) {
+      active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+      active = null
+      return
+    }
+    if (!active.moved && absX < threshold) return
     active.moved = true
     active.scroller.classList.add('is-drag-scrolling')
     active.scroller.scrollLeft = active.startLeft - dx
