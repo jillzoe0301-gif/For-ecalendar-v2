@@ -21460,3 +21460,29 @@ button.login-birthday-card:focus-visible {
 }
 
 /* FOR-e V002-1P-301 END - administrative announcement inline edit and runaway third day content */
+
+/* FOR-e V002-1H-stable-1 START - announcement record icon sync */
+.announcement-record-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+.announcement-record-title .for-e-announcement-icon-img {
+  width: 20px !important;
+  height: 20px !important;
+  flex: 0 0 20px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.nav button[data-page="administrativeAnnouncement"] .nav-icon-img,
+.mobile-nav button[data-page="administrativeAnnouncement"] .nav-icon-img,
+button[data-page="administrativeAnnouncement"] .nav-icon-img {
+  object-fit: contain !important;
+  object-position: center !important;
+}
+/* FOR-e V002-1H-stable-1 END - announcement record icon sync */

@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1P-301'
-const SYSTEM_VERSION_NOTE = '行政公告右側編輯與逃跑第三天通知內容修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1'
+const SYSTEM_VERSION_NOTE = '第一次穩固版：公告區只在個人行程表顯示、清理舊檔與公告紀錄 ICON 統一'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -138,7 +138,7 @@ const pageImageIconMap = {
   serviceRecord: '/icons/nav/hand-heart.png',
   recordSubmit: '/icons/nav/hand-leaf.png',
   line: '/icons/nav/line.png',
-  administrativeAnnouncement: '/icons/nav/note.png',
+  administrativeAnnouncement: announcementMegaphoneIcon,
   color: '/icons/nav/palette.png',
   options: '/icons/nav/settings.png',
   audit: '/icons/nav/note.png',
@@ -250,8 +250,8 @@ function getGlobalAnnouncementDate() {
 function renderVersionAnnouncementBanner() {
   const announcementText = getGlobalAnnouncementText()
   const canEditAnnouncement = getRoleName() === '管理員'
-  const versionText = SYSTEM_VERSION || 'V002-1P-301'
-  const versionNote = SYSTEM_VERSION_NOTE || '行政公告右側編輯與逃跑第三天通知內容修正'
+  const versionText = SYSTEM_VERSION || 'V002-1H-stable-1'
+  const versionNote = SYSTEM_VERSION_NOTE || '第一次穩固版：公告區只在個人行程表顯示、清理舊檔與公告紀錄 ICON 統一'
   return `
     <section class="for-e-version-announcement-panel">
       <div class="for-e-version-line">
@@ -668,7 +668,7 @@ function renderAdministrativeAnnouncementPage() {
   return `
     <div class="page-toolbar">
       <div>
-        <h3>公告紀錄</h3>
+        <h3 class="announcement-record-title"><img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="公告紀錄">公告紀錄</h3>
         <p class="muted">後台只保留公告紀錄查詢；一般公告與行政公告分開紀錄，可依類型、日期、建立者與關鍵字篩選。</p>
       </div>
       <div class="toolbar-actions">
@@ -682,7 +682,7 @@ function renderAdministrativeAnnouncementPage() {
 
     <section class="administrative-announcement-history-panel announcement-record-history-panel">
       <div class="section-title-row">
-        <h4>公告紀錄</h4>
+        <h4 class="announcement-record-title"><img class="for-e-inline-icon for-e-announcement-icon-img" src="${announcementMegaphoneIcon}" alt="公告紀錄">公告紀錄</h4>
         <span>${rows.length} 筆</span>
       </div>
       ${rows.length ? `
@@ -713,6 +713,10 @@ function renderAdministrativeAnnouncementPage() {
   `
 }
 /* FOR-e V002-1P-301 END - administrative announcement inline edit and runaway third day content */
+
+/* FOR-e V002-1H-stable-1 START - first stable cleanup and announcement record icon sync */
+/* Stable base: V002-1P-301. Keep latest announcement, LINE, reminder, color, option management fixes and unify announcement record icon with announcement icon. */
+/* FOR-e V002-1H-stable-1 END - first stable cleanup and announcement record icon sync */
 
 const formCategories = ['服務行程', '公務車保養', '待辦事項', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
 
@@ -3850,7 +3854,7 @@ function renderApp() {
           <button class="logout-btn" id="logoutBtn">登出</button>
         </header>
 
-        ${renderVersionAnnouncementBanner()}
+        ${currentPage === 'personalSchedule' ? renderVersionAnnouncementBanner() : ''}
 
         <section class="content-card">
           ${renderPageContent()}
