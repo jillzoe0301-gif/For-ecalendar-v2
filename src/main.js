@@ -798,6 +798,13 @@ const companyActivityTypeOptions = ['公司活動', '尾牙', '聚餐', '教育�
 const departmentActivityTypeOptions = ['部門活動', '部門會議', '部門教育訓練', '部門聚餐', '其他']
 const serviceRecordStatusOptions = ['未繳交', '已繳交', '超過14天未繳交']
 const housingInfoReminderOptions = ['住變資訊提供']
+const scheduleCategoryOptionDefaults = ['服務行程', '公務車保養', '待辦事項', '一般記事', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '外務行程', '外務明細', '會議室預約', '異況追蹤']
+const scheduleStatusOptionDefaults = ['未完成', '已完成', '已取消', '取消', '延期處理', '已結案', '已結束案件', '行事曆顯示']
+const scheduleSubtypeOptionDefaults = ['--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療', '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '請假', '返鄉', '會議', '活動', '外訓', '公司活動', '部門活動', '延期處理', '其他']
+const notifyTargetOptionDefaults = ['通知行政', '通知主管', '通知相關人員', '翻譯', '主管', '行政', '外務人員', '建立者', '執行者']
+const reminderDisplayOptionDefaults = ['提醒事項', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '逃跑第一天通知', '逃跑第二天通知', '逃跑第三天通知', '驗證提醒', '離境通知', '結薪日提醒', '住變資訊提供', '服務紀錄單未繳交', '超過14天未繳交', '延期處理']
+const vehicleRelatedOptionDefaults = ['公務車保養', '代步車', '保養期間代步車', '通知相關人員']
+const areaOptionDefaults = ['北區', '中區', '南區', '東區', '桃園', '新竹', '苗栗', '宜蘭', '其他']
 const fieldPurposeOptions = ['送件', '申請', '登記', '送審', '領件', '認證', '繳費', '外務日', '其他']
 const fieldSpecialReminderOptions = ['必送件', '無法更換人員', '急件']
 const incidentTypeOptions = ['逃跑', '轉出', '車禍', '醫療異況', '雇主反映', '工人反映', '宿舍異況', '文件異常', '其他']
@@ -4519,24 +4526,32 @@ function renderApp() {
         serviceScheduleTypes: parseOptionLines(form.get('serviceScheduleTypes')),
         serviceReminderTypes: parseOptionLines(form.get('serviceReminderTypes')),
         scheduleContentTemplates: parseTemplateLines(form.get('scheduleContentTemplates')),
+        scheduleCategoryOptions: parseOptionLines(form.get('scheduleCategoryOptions')),
+        scheduleSubtypeOptionDefaults: parseOptionLines(form.get('scheduleSubtypeOptionDefaults')),
         todoItems: parseOptionLines(form.get('todoItems')),
+        scheduleStatusOptionDefaults: parseOptionLines(form.get('scheduleStatusOptionDefaults')),
         administrativeReminderItems: parseOptionLines(form.get('administrativeReminderItems')),
         leaveMeetingTypes: parseOptionLines(form.get('leaveMeetingTypes')),
         serviceDocumentOptions: parseOptionLines(form.get('serviceDocumentOptions')),
         deliveryDocumentItems: parseOptionLines(form.get('deliveryDocumentItems')),
         administrativeTaskTypeOptions: parseOptionLines(form.get('administrativeTaskTypeOptions')),
+        notifyTargetOptionDefaults: parseOptionLines(form.get('notifyTargetOptionDefaults')),
         notificationTypeOptions: parseOptionLines(form.get('notificationTypeOptions')),
+        reminderDisplayOptionDefaults: parseOptionLines(form.get('reminderDisplayOptionDefaults')),
         companyActivityTypeOptions: parseOptionLines(form.get('companyActivityTypeOptions')),
         departmentActivityTypeOptions: parseOptionLines(form.get('departmentActivityTypeOptions')),
         serviceRecordStatusOptions: parseOptionLines(form.get('serviceRecordStatusOptions')),
         housingInfoReminderOptions: parseOptionLines(form.get('housingInfoReminderOptions')),
         reminderDaySettings: parseReminderDaySettingsForm(form),
         carOptions: parseOptionLines(form.get('carOptions')),
+        vehicleRelatedOptionDefaults: parseOptionLines(form.get('vehicleRelatedOptionDefaults')),
+        fieldTypeOptions: parseOptionLines(form.get('fieldTypeOptions')),
         fieldPurposeOptions: parseOptionLines(form.get('fieldPurposeOptions')),
         fieldSpecialReminderOptions: parseOptionLines(form.get('fieldSpecialReminderOptions')),
         incidentTypeOptions: parseOptionLines(form.get('incidentTypeOptions')),
         incidentUrgencyOptions: parseOptionLines(form.get('incidentUrgencyOptions')),
         meetingRoomOptions: parseOptionLines(form.get('meetingRoomOptions')),
+        areaOptionDefaults: parseOptionLines(form.get('areaOptionDefaults')),
         fieldLocationOptions: parseLocationLines(form.get('fieldLocationOptions'))
       }
 
@@ -10355,18 +10370,24 @@ function renderOptionsPage() {
           ${optionTextarea('服務行程｜行程類型', 'serviceScheduleTypes', getManagedServiceScheduleTypes().join('\n'), '服務行程主要行程類型；-- 代表不指定', '例如：醫療')}
           ${optionTextarea('服務行程｜提醒事項', 'serviceReminderTypes', getManagedServiceReminderTypes().join('\n'), '服務行程提醒事項；-- 代表不指定', '例如：返台提醒')}
           ${scheduleTemplateEditor()}
+          ${optionTextarea('行程類別', 'scheduleCategoryOptions', optionLinesValue('scheduleCategoryOptions', scheduleCategoryOptionDefaults), '新增 / 修改行程最上層類別；歷史資料使用過的值請改名為停用，不直接刪除', '例如：服務行程')}
+          ${optionTextarea('行程類型 / 類別細項', 'scheduleSubtypeOptionDefaults', optionLinesValue('scheduleSubtypeOptionDefaults', scheduleSubtypeOptionDefaults), '行程卡片、表單類別細項、下拉選單共用參考項目', '例如：會議')}
           ${optionTextarea('待辦項目', 'todoItems', getManagedTodoItems().join('\n'), '每行一個待辦項目；提醒事項與重要通知已移除', '例如：送件')}
+          ${optionTextarea('狀態 / 處理類型', 'scheduleStatusOptionDefaults', optionLinesValue('scheduleStatusOptionDefaults', scheduleStatusOptionDefaults), '行程狀態與特殊處理標籤；延期處理需保留', '例如：延期處理')}
           ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', getManagedLeaveMeetingTypes().join('\n'), '每行一個類別細項', '例如：TalkTalk')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
           ${optionTextarea('通知行政辦理項目', 'administrativeTaskTypeOptions', optionLinesValue('administrativeTaskTypeOptions', administrativeTaskTypeOptions), '異況與外務通知行政時使用，每行一個', '例如：補件')}
+          ${optionTextarea('通知對象 / 通知相關人員選項', 'notifyTargetOptionDefaults', optionLinesValue('notifyTargetOptionDefaults', notifyTargetOptionDefaults), '通知行政、通知主管、通知相關人員等勾選與多選欄位參考項目', '例如：通知相關人員')}
           ${optionTextarea('通知類型', 'notificationTypeOptions', optionLinesValue('notificationTypeOptions', notificationTypeOptions), 'LINE 通知與提醒類型管理，每行一個', '例如：住變資訊提供')}
+          ${optionTextarea('提醒顯示類型', 'reminderDisplayOptionDefaults', optionLinesValue('reminderDisplayOptionDefaults', reminderDisplayOptionDefaults), '提醒事項、卡片標籤、提醒天數設定的顯示類型參考項目', '例如：延期處理')}
           ${optionTextarea('公司活動類型', 'companyActivityTypeOptions', optionLinesValue('companyActivityTypeOptions', companyActivityTypeOptions), '公司活動下拉與顏色對應項目，每行一個', '例如：尾牙')}
           ${optionTextarea('部門活動類型', 'departmentActivityTypeOptions', optionLinesValue('departmentActivityTypeOptions', departmentActivityTypeOptions), '部門活動下拉與顏色對應項目，每行一個', '例如：部門會議')}
           ${optionTextarea('服務紀錄單狀態選項', 'serviceRecordStatusOptions', optionLinesValue('serviceRecordStatusOptions', serviceRecordStatusOptions), '服務紀錄單顯示狀態，每行一個；歷史資料使用過的值建議改為停用註記，不直接刪除', '例如：未繳交')}
           ${optionTextarea('住變資訊提供', 'housingInfoReminderOptions', optionLinesValue('housingInfoReminderOptions', housingInfoReminderOptions), '住變資訊提供提醒相關選項，每行一個', '例如：住變資訊提供')}
           ${optionTextarea('公務車資訊', 'carOptions', optionLinesValue('carOptions', carOptions), '每行一台車；建議格式：車號｜使用者 / 開始日期', '例如：RDG-7626｜賴黃娟 113/12/09開始用')}
+          ${optionTextarea('公務車 / 代步車相關選項', 'vehicleRelatedOptionDefaults', optionLinesValue('vehicleRelatedOptionDefaults', vehicleRelatedOptionDefaults), '公務車保養、代步車、保養期間代步車與通知相關人員相關顯示項目', '例如：代步車')}
         </div>
       </section>
 
@@ -10376,12 +10397,14 @@ function renderOptionsPage() {
           <p>管理外務與會議室、異況追蹤會使用到的選項。</p>
         </div>
         <div class="option-group-body">
+          ${optionTextarea('外務類型', 'fieldTypeOptions', optionLinesValue('fieldTypeOptions', ['外務行程', '外務日', '外務明細']), '外務行程卡片與外務明細顯示類型', '例如：外務明細')}
           ${optionTextarea('外務目的', 'fieldPurposeOptions', optionLinesValue('fieldPurposeOptions', fieldPurposeOptions), '用於外務新增 / 修改', '例如：送件')}
           ${optionTextarea('外務特殊提醒', 'fieldSpecialReminderOptions', optionLinesValue('fieldSpecialReminderOptions', fieldSpecialReminderOptions), '每行一個特殊提醒', '例如：急件')}
           ${optionTextarea('外務地點與地址', 'fieldLocationOptions', locationLinesValue(), '格式：地點名稱｜地址', '例如：內湖_印辦｜台北市內湖區瑞光路550號2樓')}
           ${optionTextarea('異況類型', 'incidentTypeOptions', optionLinesValue('incidentTypeOptions', incidentTypeOptions), '每行一個異況類型', '例如：醫療異況')}
           ${optionTextarea('異況緊急程度', 'incidentUrgencyOptions', optionLinesValue('incidentUrgencyOptions', incidentUrgencyOptions), '每行一個緊急程度，可新增或修改', '例如：緊急')}
           ${optionTextarea('會議室', 'meetingRoomOptions', optionLinesValue('meetingRoomOptions', meetingRoomOptions), '每行一個會議室名稱', '例如：第一會議室')}
+          ${optionTextarea('區域選項', 'areaOptionDefaults', optionLinesValue('areaOptionDefaults', areaOptionDefaults), '區域 / 地區 / 分區欄位參考項目', '例如：桃園')}
         </div>
       </section>
 
@@ -10415,7 +10438,9 @@ function getScheduleColorDefinitions() {
     { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#C7C8CC' },
     { key: '一般記事', label: '一般記事', defaultColor: '#F5E6A6' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#F7DD7D' },
+    { key: '延期處理', label: '待辦事項 / 一般記事｜延期處理', defaultColor: '#BCCCDC' },
     { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
+    { key: '行政事務', label: '行政事務', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
@@ -10425,8 +10450,10 @@ function getScheduleColorDefinitions() {
     { key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
     { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
     { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
+    { key: '外務明細', label: '外務明細', defaultColor: '#FFCF95' },
     { key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
     { key: '公務車保養', label: '公務車保養', defaultColor: '#EBD6FB' },
+    { key: '代步車', label: '代步車', defaultColor: '#EBD6FB' },
     { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
     { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
     { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
@@ -10448,6 +10475,11 @@ function getScheduleColorDefinitions() {
     { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
     { key: '服務紀錄單未繳交提醒', label: '服務紀錄單｜未繳交提醒', defaultColor: '#EF4444' },
     { key: '超過14天未繳交提醒', label: '服務紀錄單｜超過 14 天未繳交', defaultColor: '#B91C1C' },
+    { key: '服務紀錄單未繳交', label: '服務紀錄單｜未繳交', defaultColor: '#EF4444' },
+    { key: '超過 14 天未繳交', label: '服務紀錄單｜超過 14 天未繳交', defaultColor: '#B91C1C' },
+    { key: '已完成', label: '狀態｜已完成', defaultColor: '#D1D5DB' },
+    { key: '已取消', label: '狀態｜已取消', defaultColor: '#CBD5E1' },
+    { key: '已結束案件', label: '狀態｜已結束案件', defaultColor: '#E2E4E8' },
     { key: 'TalkTalk', label: '請假 / 會議 / 活動 / 外訓｜TalkTalk', defaultColor: '#5E7AC4' },
     { key: '產文件', label: '待辦項目｜產文件', defaultColor: '#F7DD7D' },
     { key: '用印申請', label: '待辦項目｜用印申請', defaultColor: '#F7DD7D' },
@@ -10575,6 +10607,7 @@ function resetScheduleColorSettings() {
 
 function getScheduleColorKey(row) {
   if (!row) return '服務行程'
+  if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return '延期處理'
   if (String(row?.category || '') === '公務車保養' || String(row?.schedule_type || '') === '公務車保養') return '公務車保養'
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
