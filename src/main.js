@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3b'
-const SYSTEM_VERSION_NOTE = '卡片樣式統一、標籤改到時間下方與安卓單指滑動修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3c'
+const SYSTEM_VERSION_NOTE = '行政事務卡片文字、已結束灰階、行事曆欄寬與行程類別字體修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -175,6 +175,14 @@ let announcementHistoryFilters = {
 }
 let announcementHistoryFilterTimer = null
 const administrativeConversationScreenshotReminderText = '請提供對話紀錄截圖給行政'
+
+function removeAdministrativeConversationScreenshotText(value = '') {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && line !== administrativeConversationScreenshotReminderText && line !== '請提供對話紀錄給行政')
+    .join('\n')
+}
 
 function cleanAnnouncementPrimitive(value) {
   if (value === null || value === undefined) return ''
@@ -6101,7 +6109,7 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
 }
 
 function renderFieldScheduleCard(row) {
-  const contentPreview = getFirstTwoLines(row.description)
+  const contentPreview = getFirstTwoLines(removeAdministrativeConversationScreenshotText(row.description))
   const parts = getScheduleTypeTitleParts(row)
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(row) || '外務行程')
   const safeTitle = escapeHtml(parts.title || row.location_name || getScheduleCardTitleText(row) || '-')
@@ -7614,7 +7622,6 @@ function buildIncidentNoteParts(form, incidentType, customerName, responsibleSta
     adminTaskType ? `通知行政辦理：${adminTaskType}` : '',
     adminStaffName ? `通知行政：${adminStaffName}` : '',
     adminTaskDetail ? `行政通知內容：${adminTaskDetail}` : '',
-    (adminTaskType || adminStaffName || adminTaskDetail) ? administrativeConversationScreenshotReminderText : '',
     supervisorStaffName ? `通知主管：${supervisorStaffName}` : '',
     supervisorTrackingDetail ? `主管通知內容：${supervisorTrackingDetail}` : '',
     form.get('need_service_record') === 'on' ? '服務紀錄單：需要' : '服務紀錄單：不需要',
@@ -11087,11 +11094,7 @@ function getLineNotifyContentText(row = {}) {
     .map(line => line.trim())
     .filter(Boolean)
 
-  if (shouldShowAdministrativeConversationReminder(row) && !lines.includes(administrativeConversationScreenshotReminderText)) {
-    lines.push(administrativeConversationScreenshotReminderText)
-  }
-
-  return lines.join('\n')
+  return removeAdministrativeConversationScreenshotText(lines.join('\n'))
 }
 
 function getLineNotifyAddress(row = {}) {
@@ -11219,14 +11222,6 @@ function formatLineScheduleItem(row, index) {
     }
     if (addressText) parts.push(lineNotifyPart('地址', addressText))
     return parts.filter(Boolean).join('\n')
-  }
-
-  if (shouldShowAdministrativeConversationReminder(row)) {
-    return [
-      `${number}【行政提醒】`,
-      lineNotifyPart('對象', getLineNotifySubject(row)),
-      lineNotifyPart('內容', contentText || administrativeConversationScreenshotReminderText)
-    ].filter(Boolean).join('\n')
   }
 
   const parts = [
@@ -14942,10 +14937,11 @@ function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
 }
 
 function getAdministrativeReminderTitle(row = {}) {
-  const item = String(row.sub_type || '').trim()
-  const title = String(row.title || '').trim()
-  if (item && title && !title.includes(item)) return `${item}｜${title}`
-  return title || item || '行政事務提醒'
+  const item = removeAdministrativeConversationScreenshotText(row.sub_type).trim()
+  const title = removeAdministrativeConversationScreenshotText(row.title).trim()
+  const cleanTitle = title || item || '行政事務提醒'
+  if (item && title && !title.includes(item)) return removeAdministrativeConversationScreenshotText(`${item}｜${title}`)
+  return cleanTitle
 }
 
 function shouldShowAdministrativeConversationReminder(row = {}) {
@@ -14961,7 +14957,6 @@ function renderAdministrativeReminderDayMarks(rows = [], dateKey = '') {
     <button type="button" class="administrative-reminder-day-mark" style="--day-accent:${getScheduleColor(row)}" data-view-schedule="${row.schedule_id}" data-occurrence-date="${escapeHtml(dateKey)}">
       <span>行</span>
       <strong>${escapeHtml(getAdministrativeReminderTitle(row))}</strong>
-      ${shouldShowAdministrativeConversationReminder(row) ? `<small>${escapeHtml(administrativeConversationScreenshotReminderText)}</small>` : ''}
     </button>
   `).join('')
 }
@@ -16948,7 +16943,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     ? { ...row, __occurrence_date: weekOccurrenceDate, __render_date: weekOccurrenceDate }
     : row
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(rowForOccurrence)) return renderServiceReminderScheduleCard(rowForOccurrence, weekOccurrenceDate)
-  const contentPreview = getFirstTwoLines(rowForOccurrence.description)
+  const contentPreview = getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const parts = getScheduleTypeTitleParts(rowForOccurrence)
@@ -22681,8 +22676,7 @@ async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', t
     sourceRow.category ? `來源類別：${sourceRow.category}` : '',
     sourceRow.schedule_type ? `來源類型：${sourceRow.schedule_type}` : '',
     options.sourceLabel ? `來源說明：${options.sourceLabel}` : '',
-    `通知人：${currentProfile?.name || currentProfile?.email || ''}`,
-    administrativeConversationScreenshotReminderText
+    `通知人：${currentProfile?.name || currentProfile?.email || ''}`
   ].filter(Boolean)
 
   const description = [
@@ -22693,7 +22687,6 @@ async function createAdministrativeTodoSchedule(sourceRow = {}, taskType = '', t
     sourceRow.location_name ? `地點：${sourceRow.location_name}` : '',
     sourceRow.address ? `地址：${sourceRow.address}` : '',
     sourceRow.customer_name ? `客戶 / 工人：${sourceRow.customer_name}` : '',
-    administrativeConversationScreenshotReminderText,
     options.extraNote || ''
   ].filter(Boolean).join('\n')
 
