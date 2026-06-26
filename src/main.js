@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3g'
-const SYSTEM_VERSION_NOTE = '手機外務會議室表頭不固定、行事曆縮放與個人行程表卡片滿版修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3h'
+const SYSTEM_VERSION_NOTE = '安卓單指上下滑動、橫向滑動與雙指縮放修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -26785,7 +26785,9 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__) {
 
   document.addEventListener('pointermove', event => {
     if (!active || active.pointerId !== event.pointerId) return
-    if (active.pointerType === 'touch' && activeTouchPointers.size > 1) {
+
+    // 多指觸控一定交給瀏覽器，避免阻擋 Android / iOS 雙指縮放。
+    if ((event.touches && event.touches.length > 1) || (active.pointerType === 'touch' && activeTouchPointers.size > 1)) {
       active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
       active = null
       return
@@ -26801,10 +26803,11 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__) {
     if (!active.mode && !isHorizontalSwipe && !isVerticalSwipe) return
 
     if (!active.mode && isVerticalSwipe) {
-      active.mode = 'vertical'
-      active.moved = true
-      suppressNextClick(active.scroller)
-      active.scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+      // 垂直滑動交給瀏覽器原生上下捲動；不 preventDefault、不拖曳、不開卡片。
+      const scroller = active.scroller
+      suppressNextClick(scroller)
+      scroller.classList.remove('is-drag-scroll-ready', 'is-drag-scrolling')
+      active = null
       return
     }
 
@@ -26818,7 +26821,7 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__) {
     if (active.mode !== 'horizontal') return
 
     if (active.pointerType === 'touch') {
-      // Android / iOS touch uses native overflow scrolling so vertical pan and pinch zoom remain available.
+      // 觸控水平滑動使用原生 overflow-x；不 preventDefault，避免鎖死上下捲動與 pinch zoom。
       suppressNextClick(active.scroller)
       return
     }
