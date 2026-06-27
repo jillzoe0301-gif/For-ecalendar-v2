@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3x'
-const SYSTEM_VERSION_NOTE = '第一欄姓名與會議室名稱主動分行顯示修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3z'
+const SYSTEM_VERSION_NOTE = '一般職員統一表單與會議室假日色彩修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -730,6 +730,7 @@ const formCategories = ['服務行程', '公務車保養', '待辦事項', '行�
 const generalStaffOverviewFormCategories = ['一般行程', '待辦事項', '一般記事', '請假', '會議', '活動', '外訓']
 const generalStaffOverviewSimpleCategories = ['一般行程', '待辦事項', '一般記事']
 const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓']
+const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
 
 function getCreateFormCategoryDisplayLabel(value = '') {
   const text = String(value || '').trim()
@@ -761,11 +762,28 @@ function isGeneralStaffRole() {
 }
 
 function isGeneralStaffOverviewCreateMode() {
-  return currentPage === 'scheduleOverview' && isGeneralStaffRole()
+  return isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage)
+}
+
+function isGeneralStaffUnifiedFormMode() {
+  return isGeneralStaffOverviewCreateMode()
 }
 
 function isGeneralStaffOverviewSimpleCategory(value = '') {
-  return isGeneralStaffOverviewCreateMode() && generalStaffOverviewSimpleCategories.includes(String(value || '').trim())
+  return isGeneralStaffUnifiedFormMode() && generalStaffOverviewSimpleCategories.includes(String(value || '').trim())
+}
+
+function getGeneralStaffRawCategoryFromRow(row = {}) {
+  const category = String(row?.category || '').trim()
+  const scheduleType = String(row?.schedule_type || row?.sub_type || '').trim()
+  if (category === '請假 / 會議 / 活動 / 外訓' && generalStaffOverviewLeaveMeetingTypes.includes(scheduleType)) return scheduleType
+  if (generalStaffOverviewFormCategories.includes(category)) return category
+  if (generalStaffOverviewFormCategories.includes(scheduleType)) return scheduleType
+  return category
+}
+
+function isGeneralStaffEditableSchedule(row = {}) {
+  return isGeneralStaffRole() && generalStaffOverviewFormCategories.includes(getGeneralStaffRawCategoryFromRow(row))
 }
 
 function isPublicGeneralSchedule(row = {}) {
@@ -22065,7 +22083,7 @@ function openScheduleModal(defaults = {}) {
   modal.innerHTML = `
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</h3>
+        <h3>${currentPage === 'personalTodo' && !isGeneralStaffUnifiedFormMode() ? '新增一般待辦' : '新增行程'}</h3>
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
       </div>
 
@@ -23735,8 +23753,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
   const start = parseTimeForEdit(row.start_time, '09', '00')
   const end = parseTimeForEdit(row.end_time, '10', '00')
-  const editCategoryList = formCategories.includes(row.category) ? formCategories : [...formCategories, row.category].filter(Boolean)
-  const categoryOptions = optionHtml(editCategoryList, row.category)
+  const isGeneralStaffEditMode = isGeneralStaffEditableSchedule(row) && generalStaffUnifiedFormPages.includes(currentPage)
+  const editRawCategory = isGeneralStaffEditMode ? getGeneralStaffRawCategoryFromRow(row) : row.category
+  const editCategoryList = isGeneralStaffEditMode
+    ? generalStaffOverviewFormCategories
+    : (formCategories.includes(row.category) ? formCategories : [...formCategories, row.category].filter(Boolean))
+  const categoryOptions = optionHtml(editCategoryList, editRawCategory)
   const normalizedEditServiceType = getServiceReminderTypeFromRow(row) || normalizeServiceTypeOption(row.schedule_type || '')
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
   const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
@@ -23792,7 +23814,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         <button class="icon-btn" id="closeEditModalBtn" type="button">×</button>
       </div>
 
-      <form id="editScheduleForm" class="form-grid" data-current-category="${escapeHtml(row.category || '')}">
+      <form id="editScheduleForm" class="form-grid" data-current-category="${escapeHtml(editRawCategory || row.category || '')}">
         <label>
           類別
           <select name="category" id="editCategorySelect">
@@ -23800,7 +23822,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </select>
         </label>
 
-        <label>
+        <label class="edit-status-field">
           狀態
           <input value="${escapeHtml(row.status || '未完成')}" disabled>
         </label>
@@ -24157,7 +24179,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
 
   function refreshEditServiceBlock() {
-    const category = categorySelect.value
+    const rawCategory = String(categorySelect.value || '').trim()
+    const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
+    const category = categoryInfo.category
+    const forcedScheduleType = categoryInfo.forcedScheduleType
     const todoBlock = document.querySelector('#editTodoBlock')
     const leaveBlock = document.querySelector('#editLeaveMeetingBlock')
     const administrativeReminderBlock = document.querySelector('#editAdministrativeReminderBlock')
@@ -24165,7 +24190,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
     const editVehicleMaintenanceBlock = document.querySelector('#editVehicleMaintenanceBlock')
     const editForm = document.querySelector('#editScheduleForm')
-    if (editForm) editForm.dataset.currentCategory = category
+    const isGeneralEditMode = isGeneralStaffEditMode && generalStaffOverviewFormCategories.includes(rawCategory)
+    const isGeneralSimple = isGeneralEditMode && generalStaffOverviewSimpleCategories.includes(rawCategory)
+    if (editForm) {
+      editForm.dataset.currentCategory = category
+      editForm.dataset.rawCategory = rawCategory
+    }
 
     serviceBlock.classList.toggle('hidden', category !== '服務行程')
     if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', category !== '服務行程')
@@ -24173,9 +24203,25 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
     if (administrativeReminderBlock) administrativeReminderBlock.classList.toggle('hidden', category !== '行政事務提醒')
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
-    document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
-    document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
-    document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒')
+    if (forcedScheduleType) {
+      const editLeaveSelect = document.querySelector('select[name="edit_leave_meeting_type"]')
+      if (editLeaveSelect && [...editLeaveSelect.options].some(option => option.value === forcedScheduleType)) editLeaveSelect.value = forcedScheduleType
+    }
+    document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓' || isGeneralEditMode)
+    document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒' || isGeneralEditMode)
+    document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒' || isGeneralEditMode)
+    document.querySelector('.edit-note-field')?.classList.toggle('hidden', isGeneralSimple)
+    document.querySelector('.edit-status-field')?.classList.toggle('hidden', isGeneralSimple)
+    const editRepeatSelect = document.querySelector('#editRepeatModeSelect')
+    const editRepeatLabel = editRepeatSelect?.closest('label')
+    if (editRepeatLabel) editRepeatLabel.classList.toggle('hidden', isGeneralSimple)
+    if (isGeneralSimple && editRepeatSelect) {
+      editRepeatSelect.value = '單日'
+      document.querySelector('#editEndDateBlock')?.classList.add('hidden')
+      document.querySelector('#editWeekdayBlock')?.classList.add('hidden')
+      document.querySelector('#editMonthlyDayBlock')?.classList.add('hidden')
+    }
+    if (isGeneralSimple && todoBlock) todoBlock.classList.add('hidden')
     document.querySelector('.edit-time-type-field')?.classList.toggle('hidden', category === '行政事務提醒')
     document.querySelector('#editTimeRangeBlock')?.classList.toggle('hidden', category === '行政事務提醒' || !['上午', '下午'].includes(timeTypeSelect.value))
     if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
@@ -24286,17 +24332,26 @@ async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
   const form = new FormData(event.target)
-  const category = form.get('category')
+  const rawCategory = String(form.get('category') || '').trim()
+  const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
+  const category = categoryInfo.category
+  const forcedScheduleType = categoryInfo.forcedScheduleType
+  if (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && !generalStaffOverviewFormCategories.includes(rawCategory)) {
+    alert('一般職員只能新增或修改一般行程、待辦事項、一般記事、請假、會議、活動、外訓。')
+    return
+  }
   const editScope = getScheduleEditScopeValue(form, originalRow)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
-  const editNotifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
+  const editNotifySupervisorName = ['公務車保養', '行政事務提醒'].includes(category) || (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage)) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
   const editServiceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'edit_service_admin_staff_ids') : []
   const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
-  const editExecutorIds = category === '行政事務提醒'
+  const editExecutorIds = (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && generalStaffOverviewFormCategories.includes(rawCategory))
     ? [currentProfile?.staff_id].filter(Boolean)
-    : (category === '公務車保養'
-      ? getVehicleMaintenanceNotifyStaffIds(form)
-      : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category))
+    : (category === '行政事務提醒'
+      ? [currentProfile?.staff_id].filter(Boolean)
+      : (category === '公務車保養'
+        ? getVehicleMaintenanceNotifyStaffIds(form)
+        : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)))
 
   if (!editExecutorIds.length) {
     alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
@@ -24418,7 +24473,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
-    editScheduleType = form.get('edit_leave_meeting_type') || '請假'
+    editScheduleType = forcedScheduleType || form.get('edit_leave_meeting_type') || '請假'
     editSubType = editScheduleType
     const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
     const editProxyName = getStaffNameFromSelect('edit_proxy_staff_id')

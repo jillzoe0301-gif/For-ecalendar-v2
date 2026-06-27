@@ -25390,3 +25390,49 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3x END - first column readable names and locked room split */
+
+/* FOR-e V002-1H-stable-1-3z START - general staff unified form and meeting room holiday colors */
+/* 會議室預約：假日 / 節日背景統一使用星期日色系；今日只用 #A79277 外框提示。 */
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday,
+.meeting-week-day-cell.is-holiday.is-field-day,
+.meeting-week-day-cell.is-holiday.is-meeting-day,
+.meeting-week-day-cell.is-holiday.is-continuous-day {
+  background: #D1BB9E !important;
+  border-color: #C4A982 !important;
+  box-shadow: inset 0 0 0 1px #C4A982 !important;
+}
+
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  border-color: #A79277 !important;
+  box-shadow: inset 0 0 0 2px #A79277 !important;
+}
+
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday,
+.meeting-week-day-cell.is-holiday.is-today {
+  background: #D1BB9E !important;
+  border-color: #A79277 !important;
+  box-shadow: inset 0 0 0 2px #A79277 !important;
+}
+
+.meeting-week-day-cell.is-holiday .meeting-room-card,
+.meeting-week-day-cell.is-today .meeting-room-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 一般職員簡化表單：隱藏後保持表單不留空格。 */
+#scheduleForm .schedule-status-field.hidden,
+#scheduleForm .notify-supervisor-field.hidden,
+#scheduleForm .schedule-template-row.hidden,
+#scheduleForm #scheduleAssigneeBlock.hidden,
+#editScheduleForm .edit-status-field.hidden,
+#editScheduleForm .edit-note-field.hidden,
+#editScheduleForm .edit-notify-supervisor-field.hidden,
+#editScheduleForm .edit-assignee-box.hidden,
+#editScheduleForm .edit-schedule-mode-box label.hidden {
+  display: none !important;
+}
+/* FOR-e V002-1H-stable-1-3z END - general staff unified form and meeting room holiday colors */
