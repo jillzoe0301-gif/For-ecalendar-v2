@@ -733,7 +733,7 @@ const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '�
 const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
 
 const unifiedCreateCategoryPages = ['personalSchedule', 'assignedTracking', 'scheduleOverview']
-const adminManagerPersonalCategories = ['服務行程', '一般記事', '辦件提醒', '證件交付', '公務車保養']
+const adminManagerPersonalCategories = ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '辦件提醒', '證件交付', '公務車保養']
 const adminManagerTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓', '辦件提醒', '證件交付']
 const translatorPersonalCategories = ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
 const translatorTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓']
@@ -809,9 +809,9 @@ function getCanonicalStatsTypeName(value = '') {
 function getCreateFormCategoryDisplayLabel(value = '') {
   const text = String(value || '').trim()
   if (!text) return '-'
+  if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '請假/會議/活動/外訓'
   if (isGeneralStaffOverviewCreateMode()) {
     if (text === '一般記事') return '個人記事'
-    if (text === '請假 / 會議 / 活動 / 外訓') return '請假 / 會議 / 活動 / 外訓'
     if (text === '公務車保養') return '公務車保養'
   }
   return getUnifiedScheduleCategoryLabel(text)
@@ -819,8 +819,9 @@ function getCreateFormCategoryDisplayLabel(value = '') {
 
 function getCreateFormCategoryGroup(value = '') {
   const text = String(value || '').trim()
+  const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
   if (isAdministrativeReminderCategoryName(text)) return '辦件提醒'
-  if (generalStaffOverviewLeaveMeetingTypes.includes(text)) return '請假 / 會議 / 活動 / 外訓'
+  if (generalStaffOverviewLeaveMeetingTypes.includes(text) || compact === '請假/會議/活動/外訓') return '請假 / 會議 / 活動 / 外訓'
   return text
 }
 
@@ -1348,12 +1349,85 @@ let userAccountFilters = {
 }
 
 
-const userManageDefaultDepartments = ['總經理室', '財務稽核', '營管處', '營運二部', '業務處', '人才發展', '管顧事業']
-const userManageDefaultPositions = ['協理', '執行長', '總經理', '副總經理', '副理', '組長', '海外行政', 'PT']
+const userManageDefaultDepartments = ['營運處', '營運一部', '營運二部', '人才發展處', '營管處', '業務處', '管顧事業處', '總經理室']
+const userManageDefaultPositions = ['總經理', '副總經理', '協理', '處長', '副處長', '經理', '副理', '主任', '副主任', '組長', '副組長', '海外行政', '專員', 'PT']
 const userManageRemovedPositions = ['管理員', '主管', '行政/海外', '行政 / 海外', '外務/宿管人員/會計', '外務 / 宿管人員 / 會計']
 
+const forEDepartmentSortOrder = ['營運處', '營運一部', '營運二部', '人才發展處', '營管處', '業務處', '管顧事業處', '總經理室']
+const forEPositionSortOrder = ['董事長', '總經理', '副總經理', '執行長', '總監', '協理', '處長', '副處長', '經理', '副理', '主任', '副主任', '組長', '副組長', '行政主任', '行政組長', '秘書', '顧問', '專員', '翻譯', '一般職員', 'PT']
+
 function normalizePositionLabel(value = '') {
-  return String(value || '').replaceAll(' ', '').trim()
+  return String(value || '').replaceAll(' ', '').replace(/[／/]/g, '/').trim()
+}
+
+function normalizeDepartmentLabel(value = '') {
+  const text = String(value || '').trim()
+  const aliasMap = {
+    '人才發展': '人才發展處',
+    '管顧事業': '管顧事業處'
+  }
+  return aliasMap[text] || text
+}
+
+function getDepartmentSortIndex(name = '') {
+  const text = normalizeDepartmentLabel(name)
+  const index = forEDepartmentSortOrder.indexOf(text)
+  return index >= 0 ? index : 999
+}
+
+function compareDepartmentNames(a = '', b = '') {
+  const aName = normalizeDepartmentLabel(a)
+  const bName = normalizeDepartmentLabel(b)
+  const aIndex = getDepartmentSortIndex(aName)
+  const bIndex = getDepartmentSortIndex(bName)
+  if (aIndex !== bIndex) return aIndex - bIndex
+  if (!aName && bName) return 1
+  if (aName && !bName) return -1
+  return String(aName || '').localeCompare(String(bName || ''), 'zh-Hant')
+}
+
+function sortDepartmentNamesByFixedOrder(names = []) {
+  return [...new Set((names || []).map(item => String(item || '').trim()).filter(Boolean))].sort(compareDepartmentNames)
+}
+
+function getStaffPositionText(staff = {}) {
+  return [staff.position, staff.position_name, staff.title, staff.role].filter(Boolean).join('｜')
+}
+
+function getPositionSortIndex(value = '') {
+  const text = normalizePositionLabel(value)
+  if (!text) return 999
+  const exactIndex = forEPositionSortOrder.findIndex(item => normalizePositionLabel(item) === text)
+  if (exactIndex >= 0) return exactIndex
+  const includeIndex = forEPositionSortOrder.findIndex(item => text.includes(normalizePositionLabel(item)))
+  return includeIndex >= 0 ? includeIndex : 999
+}
+
+function compareStaffRowsByDepartmentPositionName(a = {}, b = {}) {
+  const deptCompare = compareDepartmentNames(a.department_name || '', b.department_name || '')
+  if (deptCompare !== 0) return deptCompare
+
+  const positionCompare = getPositionSortIndex(getStaffPositionText(a)) - getPositionSortIndex(getStaffPositionText(b))
+  if (positionCompare !== 0) return positionCompare
+
+  return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+}
+
+function sortStaffRowsForSelection(rows = []) {
+  const map = new Map()
+  ;(rows || []).forEach(staff => {
+    if (staff?.staff_id && !map.has(staff.staff_id)) map.set(staff.staff_id, staff)
+  })
+  return [...map.values()].sort(compareStaffRowsByDepartmentPositionName)
+}
+
+function sortPositionNamesByRank(names = []) {
+  return [...new Set((names || []).map(item => String(item || '').trim()).filter(Boolean))]
+    .sort((a, b) => {
+      const rankCompare = getPositionSortIndex(a) - getPositionSortIndex(b)
+      if (rankCompare !== 0) return rankCompare
+      return String(a || '').localeCompare(String(b || ''), 'zh-Hant')
+    })
 }
 
 function isRemovedUserManagePosition(position = '') {
@@ -1363,12 +1437,12 @@ function isRemovedUserManagePosition(position = '') {
 
 
 function getManagedUserDepartmentOptions() {
-  return getManagedListOption('userManageDepartments', userManageDefaultDepartments)
+  return sortDepartmentNamesByFixedOrder(getManagedListOption('userManageDepartments', userManageDefaultDepartments))
 }
 
 function getManagedUserPositionOptions() {
-  return getManagedListOption('userManagePositions', userManageDefaultPositions)
-    .filter(position => !isRemovedUserManagePosition(position))
+  return sortPositionNamesByRank(getManagedListOption('userManagePositions', userManageDefaultPositions)
+    .filter(position => !isRemovedUserManagePosition(position)))
 }
 
 function getManagedServiceDocumentOptions() {
@@ -1822,7 +1896,7 @@ function canLineNotifyAll() {
 }
 
 function getActiveStaffRows() {
-  return staffList.filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用')
+  return sortStaffRowsForSelection(staffList.filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用'))
 }
 
 function shouldAllowFullStaffSelectionForGeneralStaff(category = '') {
@@ -1838,7 +1912,7 @@ function shouldAllowFullStaffSelectionForGeneralStaffRow(row = {}) {
 }
 
 function getAssignableStaffRows() {
-  if (canAssignAllStaff()) return staffList
+  if (canAssignAllStaff()) return getActiveStaffRows()
   const myStaffId = currentProfile?.staff_id
   if (isGeneralStaffRole()) {
     const myDepartmentId = currentProfile?.department_id || getStaffRowById(myStaffId)?.department_id || ''
@@ -1847,9 +1921,9 @@ function getAssignableStaffRows() {
       if (myDepartmentId && staff.department_id === myDepartmentId) return true
       return Boolean(myDepartmentName && staff.department_name === myDepartmentName)
     })
-    return rows.length ? rows : staffList.filter(staff => staff.staff_id === myStaffId)
+    return rows.length ? sortStaffRowsForSelection(rows) : getActiveStaffRows().filter(staff => staff.staff_id === myStaffId)
   }
-  return staffList.filter(staff => staff.staff_id === myStaffId)
+  return getActiveStaffRows().filter(staff => staff.staff_id === myStaffId)
 }
 
 function canCreateForCurrentPage() {
@@ -5452,14 +5526,14 @@ function getAuditSourceTypeOptions() {
 
 function getAuditDepartmentOptions() {
   const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
-  const names = ['全部', ...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
+  const names = ['全部', ...sortDepartmentNamesByFixedOrder(sourceRows.map(staff => staff.department_name).filter(Boolean))]
   return names.map(name => `<option value="${escapeHtml(name)}" ${auditFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 function getAuditStaffOptions() {
   const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
   return `<option value="全部" ${auditFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
-    sourceRows.map(staff => `<option value="${escapeHtml(staff.staff_id)}" ${auditFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>`).join('')
+    sortStaffRowsForSelection(sourceRows.filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')).map(staff => `<option value="${escapeHtml(staff.staff_id)}" ${auditFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>`).join('')
 }
 
 function getAuditRelatedSchedule(row) {
@@ -6303,7 +6377,7 @@ function getFieldFilterSummary() {
 
 function getFieldDepartmentCheckboxes() {
   const rows = getFieldBaseStaffRows()
-  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  const names = sortDepartmentNamesByFixedOrder(rows.map(staff => staff.department_name).filter(Boolean))
   if (!names.length) return `<div class="compact-check-empty">沒有部門資料</div>`
   return names.map(name => renderCompactCheckOption(name, name, isFieldDepartmentSelected(name), 'fieldDepartments')).join('')
 }
@@ -6317,7 +6391,7 @@ function getFieldStaffCheckboxes() {
   }
 
   if (!rows.length) return `<div class="compact-check-empty">沒有可選外務人員</div>`
-  return rows.map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isFieldStaffSelected(staff.staff_id), 'fieldStaffIds')).join('')
+  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isFieldStaffSelected(staff.staff_id), 'fieldStaffIds')).join('')
 }
 
 function getFieldStaffRows() {
@@ -6476,11 +6550,7 @@ function getFieldDetailStaffOptionsHtml() {
   ;[...getFieldBaseStaffRows(), ...getFieldStaffRows(), ...staffList].forEach(staff => {
     if (staff?.staff_id && !staff.deleted_at) rowsMap.set(staff.staff_id, staff)
   })
-  const rows = [...rowsMap.values()].sort((a, b) => {
-    const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
-    if (deptCompare !== 0) return deptCompare
-    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
-  })
+  const rows = sortStaffRowsForSelection([...rowsMap.values()])
 
   return `<option value="全部" ${fieldDetailFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
     rows.map(staff => `
@@ -9395,7 +9465,7 @@ function getStatsDepartmentOptions() {
     .map(getStatsDepartment)
     .filter(Boolean)
 
-  return ['全部', ...new Set(names)]
+  return ['全部', ...sortDepartmentNamesByFixedOrder(names)]
 }
 
 function getStatsCategoryOptions() {
@@ -9410,8 +9480,9 @@ function getStatsCategoryOptions() {
 
 function getStatsStaffOptionsHtml() {
   return `<option value="全部" ${statsFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
-    staffList
-      .filter(staff => String(staff?.role || '').trim() !== '一般職員')
+    sortStaffRowsForSelection(staffList
+      .filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')
+      .filter(staff => String(staff?.role || '').trim() !== '一般職員'))
       .map(staff => `
         <option value="${staff.staff_id}" ${statsFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>
       `).join('')
@@ -10752,7 +10823,7 @@ function getScheduleColorDefinitions() {
   ]
 }
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1H-stable-1-3af'
+const scheduleColorPaletteVersion = 'V002-1H-stable-1-3ah'
 
 function getPersonalScheduleColorStorageKey() {
   const ownerKey = getPersonalSettingOwnerKey()
@@ -12239,7 +12310,7 @@ function getExportDayOptions() {
 
 function getExportDepartmentOptions() {
   const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
-  const names = [...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
+  const names = sortDepartmentNamesByFixedOrder(sourceRows.map(staff => staff.department_name).filter(Boolean))
   return `<option value="">全部部門</option>` + names.map(name => `
     <option value="${escapeHtml(name)}">${escapeHtml(name)}</option>
   `).join('')
@@ -12247,7 +12318,7 @@ function getExportDepartmentOptions() {
 
 function getExportStaffOptions() {
   const sourceRows = typeof allStaffList !== 'undefined' && allStaffList.length ? allStaffList : staffList
-  return `<option value="">全部人員</option>` + sourceRows.map(staff => `
+  return `<option value="">全部人員</option>` + sortStaffRowsForSelection(sourceRows.filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')).map(staff => `
     <option value="${escapeHtml(staff.staff_id)}">${escapeHtml(staff.name)}｜${escapeHtml(staff.department_name || '')}</option>
   `).join('')
 }
@@ -16705,7 +16776,7 @@ function getOverviewQuickGroupManageStaffRows() {
   addOverviewGroupStaffSource(sourceMap, safeOverviewGroupStaffRows(() => getOverviewGroupStaffRowsFromProfiles()))
   if (currentProfile?.staff_id || currentProfile?.email) addOverviewGroupStaffSource(sourceMap, [currentProfile])
 
-  return sortStaffRowsByFilter([...sourceMap.values()], { sortBy: 'display_order', sortDir: 'asc' })
+  return sortStaffRowsForSelection([...sourceMap.values()])
 }
 
 async function ensureOverviewQuickGroupManageStaffRowsLoaded() {
@@ -17103,11 +17174,11 @@ function sortStaffRowsByFilter(rows, filters = {}) {
     }
 
     if (sortBy === 'department') {
-      const depCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
+      const depCompare = compareDepartmentNames(a.department_name || '', b.department_name || '')
       if (depCompare !== 0) return depCompare * sortDir
-      const orderCompare = (Number(a.display_order || 999999) - Number(b.display_order || 999999))
-      if (orderCompare !== 0) return orderCompare
-      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+      const positionCompare = getPositionSortIndex(getStaffPositionText(a)) - getPositionSortIndex(getStaffPositionText(b))
+      if (positionCompare !== 0) return positionCompare * sortDir
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant') * sortDir
     }
 
     return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant') * sortDir
@@ -17117,7 +17188,7 @@ function sortStaffRowsByFilter(rows, filters = {}) {
 
 function getOverviewDepartmentCheckboxes() {
   const rows = getOverviewBaseStaffRows()
-  const names = [...new Set(rows.map(staff => staff.department_name).filter(Boolean))]
+  const names = sortDepartmentNamesByFixedOrder(rows.map(staff => staff.department_name).filter(Boolean))
   if (!names.length) return `<div class="compact-check-empty">沒有部門資料</div>`
   return names.map(name => renderCompactCheckOption(name, name, isOverviewDepartmentSelected(name), 'departments')).join('')
 }
@@ -17131,7 +17202,7 @@ function getOverviewStaffCheckboxes() {
   }
 
   if (!rows.length) return `<div class="compact-check-empty">沒有可選人員</div>`
-  return rows.map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds')).join('')
+  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds')).join('')
 }
 
 
@@ -17896,7 +17967,7 @@ function renderServiceRecordDetailTitle() {
 }
 
 function getServiceRecordDepartmentOptions() {
-  return ['全部', ...new Set(getEffectiveServiceRecords().map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
+  return ['全部', ...sortDepartmentNamesByFixedOrder(getEffectiveServiceRecords().map(getServiceRecordDepartment).filter(item => item && item !== '-'))]
 }
 
 function getServiceRecordTypeOptions() {
@@ -18412,7 +18483,7 @@ function renderRecordSubmit() {
 
 function getUserAccountDepartmentOptions() {
   const sourceRows = (allStaffList.length ? allStaffList : staffList).filter(staff => !isStaffDeleted(staff))
-  const names = ['全部', ...new Set(sourceRows.map(staff => staff.department_name).filter(Boolean))]
+  const names = ['全部', ...sortDepartmentNamesByFixedOrder(sourceRows.map(staff => staff.department_name).filter(Boolean))]
   return names.map(name => `<option value="${escapeHtml(name)}" ${userAccountFilters.department === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
@@ -18587,7 +18658,7 @@ function renderUsersList(rows) {
 
 function renderUsersPage() {
   const sourceRows = allStaffList.length ? allStaffList : staffList
-  const rows = getUserAccountVisibleRows(sourceRows).filter(matchesUserAccountFilters)
+  const rows = sortStaffRowsForSelection(getUserAccountVisibleRows(sourceRows).filter(matchesUserAccountFilters))
   const canEditUserAccount = canManageUsers()
   const canViewAllAccounts = canViewAllUserAccounts()
 
@@ -18689,9 +18760,9 @@ function getUserManageRoleOptions(selectedRole = '') {
 
 function getUserManageDepartmentOptions(selectedDepartment = '') {
   const names = [...getManagedUserDepartmentOptions()]
-  if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
+  if (selectedDepartment && !names.includes(selectedDepartment)) names.push(selectedDepartment)
 
-  return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+  return sortDepartmentNamesByFixedOrder(names).map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 
@@ -19531,9 +19602,9 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
 
 function editStaffOptionsHtml(row) {
   const selectedIds = new Set(getAssigneeIds(row))
-  const rows = canAssignAllStaff() || shouldAllowFullStaffSelectionForGeneralStaffRow(row)
+  const rows = sortStaffRowsForSelection(canAssignAllStaff() || shouldAllowFullStaffSelectionForGeneralStaffRow(row)
     ? getActiveStaffRows()
-    : staffList.filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id)
+    : getActiveStaffRows().filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id))
   return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="edit_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
@@ -19545,12 +19616,13 @@ function editStaffOptionsHtml(row) {
 
 function getAssignableDepartmentRows(rowsOverride = null) {
   const rowsSource = Array.isArray(rowsOverride) ? rowsOverride : getAssignableStaffRows()
-  return [...new Set(
+  return sortDepartmentNamesByFixedOrder(
     rowsSource
       .map(staff => String(staff.department_name || '').trim())
       .filter(Boolean)
-  )].sort((a, b) => a.localeCompare(b, 'zh-Hant'))
+  )
 }
+
 
 function departmentAssigneeOptionsHtml(inputName = 'executor_departments', selectedDepartments = [], rowsOverride = null) {
   const selected = new Set((selectedDepartments || []).map(item => String(item || '').trim()).filter(Boolean))
@@ -19603,9 +19675,7 @@ function getFieldStaffRowsForEdit(row = {}) {
 
   return [...map.values()].sort((a, b) => {
     if (selectedIds.has(a.staff_id) !== selectedIds.has(b.staff_id)) return selectedIds.has(a.staff_id) ? -1 : 1
-    const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
-    if (deptCompare !== 0) return deptCompare
-    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+    return compareStaffRowsByDepartmentPositionName(a, b)
   })
 }
 
@@ -19676,7 +19746,8 @@ function getSelectedScheduleExecutorIds(form, staffInputName = 'executor', depar
 function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_departments', staffInputName = 'executor') {
   if (!form) return
   const departments = [...form.querySelectorAll(`input[name="${departmentInputName}"]:checked`)].map(input => input.value)
-  const staffIds = new Set(getStaffIdsFromAssigneeDepartments(departments))
+  const categoryValue = form.querySelector('select[name="category"], select[name="edit_category"]')?.value || ''
+  const staffIds = new Set(getStaffIdsFromAssigneeDepartments(departments, categoryValue))
   form.querySelectorAll(`input[name="${staffInputName}"]`).forEach(input => {
     if (staffIds.has(input.value)) input.checked = true
   })
@@ -19684,7 +19755,7 @@ function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_depa
 
 
 function staffOptionsHtml(defaultStaffId = '', rowsOverride = null) {
-  const rows = Array.isArray(rowsOverride) ? rowsOverride : (isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : getAssignableStaffRows())
+  const rows = sortStaffRowsForSelection(Array.isArray(rowsOverride) ? rowsOverride : (isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : getAssignableStaffRows()))
   return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
@@ -19694,7 +19765,7 @@ function staffOptionsHtml(defaultStaffId = '', rowsOverride = null) {
 }
 
 function staffSelectOptionsHtml() {
-  return `<option value="">未指定</option>` + getAssignableStaffRows().map(staff => `
+  return `<option value="">未指定</option>` + sortStaffRowsForSelection(getAssignableStaffRows()).map(staff => `
     <option value="${staff.staff_id}">${staff.name}｜${staff.department_name}</option>
   `).join('')
 }
@@ -20353,7 +20424,7 @@ function applyEditCompactSpecialFields() {
 */
 
 function fieldStaffOptionsHtml(defaultStaffId = '') {
-  const rows = getFieldStaffRows()
+  const rows = sortStaffRowsForSelection(getFieldStaffRows().filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用'))
   return rows.map(staff => `
     <label class="check-row field-staff-check-row">
       <input type="checkbox" name="field_executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
@@ -20363,7 +20434,7 @@ function fieldStaffOptionsHtml(defaultStaffId = '') {
 }
 
 function fieldStaffSelectOptionsHtml(selectedStaffId = '') {
-  return `<option value="">未指定</option>` + getFieldStaffRows().map(staff => `
+  return `<option value="">未指定</option>` + sortStaffRowsForSelection(getFieldStaffRows().filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')).map(staff => `
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>
   `).join('')
 }
@@ -21381,31 +21452,24 @@ function getScheduleModeEndDate(form) {
 }
 
 function departmentOptionsHtml(selectedDepartment = '') {
-  const names = [...new Set(staffList.map(staff => staff.department_name).filter(Boolean))]
+  const names = sortDepartmentNamesByFixedOrder(staffList.map(staff => staff.department_name).filter(Boolean))
   if (selectedDepartment && !names.includes(selectedDepartment)) names.unshift(selectedDepartment)
 
-  return names.map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
+  return sortDepartmentNamesByFixedOrder(names).map(name => `<option value="${escapeHtml(name)}" ${name === selectedDepartment ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')
 }
 
 
 function getActiveMeetingStaffRows() {
-  return staffList
+  return sortStaffRowsForSelection(staffList
     .filter(staff => staff && staff.staff_id)
     .filter(staff => !staff.deleted_at)
-    .filter(staff => String(staff.status || '啟用') !== '停用')
-    .sort((a, b) => {
-      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''))
-      if (deptCompare !== 0) return deptCompare
-      const orderCompare = Number(a.display_order || 9999) - Number(b.display_order || 9999)
-      if (orderCompare !== 0) return orderCompare
-      return String(a.name || '').localeCompare(String(b.name || ''))
-    })
+    .filter(staff => String(staff.status || '啟用') !== '停用'))
 }
 
 function getMeetingParticipantDepartmentOptions() {
   const managed = typeof getManagedUserDepartmentOptions === 'function' ? getManagedUserDepartmentOptions() : []
   const fromStaff = staffList.map(staff => staff.department_name).filter(Boolean)
-  return [...new Set([...managed, ...fromStaff])]
+  return sortDepartmentNamesByFixedOrder([...managed, ...fromStaff])
 }
 
 function meetingDepartmentCheckboxesHtml(selectedDepartments = []) {
@@ -21728,8 +21792,8 @@ function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffId
 
 
 function staffOptionsSelectHtml(selectedStaffId = '') {
-  const rows = canAssignAllStaff() ? staffList : getAssignableStaffRows()
-  return rows.map(staff => `
+  const rows = canAssignAllStaff() ? getActiveStaffRows() : getAssignableStaffRows()
+  return sortStaffRowsForSelection(rows).map(staff => `
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''} data-department="${escapeHtml(staff.department_name || '')}">
       ${staff.name}｜${staff.department_name || ''}
     </option>
@@ -23189,13 +23253,13 @@ function compactTimeSelectHtmlSelected(prefix, selectedType = '不指定', selec
 }
 
 function staffSelectOptionsHtmlSelected(selectedStaffId = '') {
-  const rows = canAssignAllStaff() ? staffList : getAssignableStaffRows()
+  const rows = canAssignAllStaff() ? getActiveStaffRows() : getAssignableStaffRows()
   const selectedExists = rows.some(staff => staff.staff_id === selectedStaffId)
   const extra = selectedStaffId && !selectedExists
     ? staffList.filter(staff => staff.staff_id === selectedStaffId)
     : []
 
-  return `<option value="" ${!selectedStaffId ? 'selected' : ''}>未指定</option>` + [...extra, ...rows].map(staff => `
+  return `<option value="" ${!selectedStaffId ? 'selected' : ''}>未指定</option>` + sortStaffRowsForSelection([...extra, ...rows]).map(staff => `
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>
   `).join('')
 }
@@ -23215,11 +23279,7 @@ function getSupervisorRows() {
       ].filter(Boolean).join('｜')
       return supervisorTitles.some(title => positionText.includes(title))
     })
-    .sort((a, b) => {
-      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
-      if (deptCompare !== 0) return deptCompare
-      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
-    })
+    .sort(compareStaffRowsByDepartmentPositionName)
 }
 
 function supervisorSelectOptionsHtml(selectedStaffId = '') {
@@ -23245,11 +23305,7 @@ function getAdministrativeStaffRows() {
       const departmentText = String(staff.department_name || '')
       return positionText.includes('行政') || positionText.includes('海外行政') || departmentText.includes('營運處') || String(staff.name || '').trim() === '徐嘉陽'
     })
-    .sort((a, b) => {
-      const deptCompare = String(a.department_name || '').localeCompare(String(b.department_name || ''), 'zh-Hant')
-      if (deptCompare !== 0) return deptCompare
-      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
-    })
+    .sort(compareStaffRowsByDepartmentPositionName)
 }
 
 function administrativeStaffOptionsHtml(selectedStaffId = '') {
@@ -23270,7 +23326,7 @@ function administrativeStaffCheckboxesHtml(selectedStaffIds = [], inputName = 's
   const rows = getAdministrativeStaffRows()
   const existingIds = new Set(rows.map(staff => staff.staff_id))
   const extraRows = staffList.filter(staff => selected.has(staff.staff_id) && !existingIds.has(staff.staff_id))
-  const allRows = [...extraRows, ...rows]
+  const allRows = sortStaffRowsForSelection([...extraRows, ...rows])
   if (!allRows.length) return '<div class="field-hint">尚未設定行政人員</div>'
   return allRows.map(staff => `
     <label class="inline-check service-admin-check-option">
