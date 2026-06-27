@@ -751,9 +751,9 @@ function getCreateFormCategoryDisplayLabel(value = '') {
   const text = String(value || '').trim()
   if (!text) return '-'
   if (isGeneralStaffOverviewCreateMode()) {
-    if (text === '一般記事') return '個人記事（僅自己可見）'
-    if (text === '請假 / 會議 / 活動 / 外訓') return '請假/會議/活動/外訓（所有權限共用）'
-    if (text === '公務車保養') return '公務車保養（所有權限共用）'
+    if (text === '一般記事') return '個人記事'
+    if (text === '請假 / 會議 / 活動 / 外訓') return '請假 / 會議 / 活動 / 外訓'
+    if (text === '公務車保養') return '公務車保養'
   }
   return getUnifiedScheduleCategoryLabel(text)
 }
@@ -22588,6 +22588,59 @@ function openScheduleModal(defaults = {}) {
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
 
+  function moveScheduleFormNodesAfter(anchor, nodes = []) {
+    if (!anchor) return
+    let current = anchor
+    ;(nodes || []).filter(Boolean).forEach(node => {
+      current.insertAdjacentElement('afterend', node)
+      current = node
+    })
+  }
+
+  function reorderCreateScheduleFormFields(category = '', rawCategory = '') {
+    const form = document.querySelector('#scheduleForm')
+    if (!form) return
+    const timeGroup = form.querySelector('.schedule-time-group')
+    const dateGroup = form.querySelector('.schedule-date-cycle-group')
+    const commonSimple = form.querySelector('[data-section="common-simple"]')
+    const serviceLocation = form.querySelector('[data-section="service-location"]')
+    const leaveSubtype = form.querySelector('.leave-meeting-subtype-section')
+    const notifySupervisor = form.querySelector('.notify-supervisor-field')
+    const leaveProxy = form.querySelector('.leave-meeting-proxy-section')
+    const adminReminder = form.querySelector('[data-section="administrative-reminder"]')
+    const documentDelivery = form.querySelector('[data-section="document-delivery"]')
+    const assigneeBlock = form.querySelector('#scheduleAssigneeBlock')
+
+    if (category === '服務行程') {
+      moveScheduleFormNodesAfter(serviceLocation, [commonSimple])
+      return
+    }
+
+    if (category === '辦件提醒' || category === '行政事務提醒') {
+      moveScheduleFormNodesAfter(dateGroup, [adminReminder, commonSimple])
+      return
+    }
+
+    if (category === '請假 / 會議 / 活動 / 外訓') {
+      moveScheduleFormNodesAfter(timeGroup, [leaveSubtype, commonSimple, notifySupervisor, leaveProxy])
+      return
+    }
+
+    if (category === '證件交付') {
+      moveScheduleFormNodesAfter(timeGroup, [commonSimple, notifySupervisor, documentDelivery])
+      return
+    }
+
+    if (category === '一般行程') {
+      moveScheduleFormNodesAfter(timeGroup, [commonSimple, assigneeBlock])
+      return
+    }
+
+    if (category === '待辦事項' || category === '一般記事') {
+      moveScheduleFormNodesAfter(timeGroup, [commonSimple, notifySupervisor])
+    }
+  }
+
   const categorySelect = document.querySelector('#categorySelect')
   const timeTypeSelect = document.querySelector('#timeTypeSelect')
   const repeatModeSelect = document.querySelector('#repeatModeSelect')
@@ -22662,7 +22715,9 @@ function openScheduleModal(defaults = {}) {
     if (commonTitleField) commonTitleField.classList.toggle('hidden', category === '服務行程' || category === '公務車保養')
     const hideTemplateRow = category === '行政事務提醒' || ['待辦事項', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(category) || isGeneralOverview
     form.querySelector('.schedule-template-row')?.classList.toggle('hidden', hideTemplateRow)
-    form.querySelector('.schedule-status-field')?.classList.toggle('hidden', isGeneralOverview)
+    form.querySelector('.schedule-status-field')?.classList.remove('hidden')
+
+    reorderCreateScheduleFormFields(category, rawCategory)
 
     const repeatLabel = form.querySelector('#repeatModeSelect')?.closest('label')
     if (repeatLabel) repeatLabel.classList.toggle('hidden', isGeneralPersonalNote)
@@ -24268,6 +24323,67 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
 
+  function moveEditScheduleFormNodesAfter(anchor, nodes = []) {
+    if (!anchor) return
+    let current = anchor
+    ;(nodes || []).filter(Boolean).forEach(node => {
+      current.insertAdjacentElement('afterend', node)
+      current = node
+    })
+  }
+
+  function reorderEditScheduleFormFields(category = '', rawCategory = '') {
+    const form = document.querySelector('#editScheduleForm')
+    if (!form) return
+    const categoryLabel = form.querySelector('#editCategorySelect')?.closest('label')
+    const seriesScope = form.querySelector('.edit-series-scope-box')
+    const modeBox = form.querySelector('.edit-schedule-mode-box')
+    const timeTypeField = form.querySelector('.edit-time-type-field')
+    const timeRangeBlock = form.querySelector('#editTimeRangeBlock')
+    const notifySupervisor = form.querySelector('.edit-notify-supervisor-field')
+    const serviceLocation = form.querySelector('#editServiceLocationBlock')
+    const generalFields = form.querySelector('.edit-general-staff-general-fields')
+    const titleField = form.querySelector('.edit-common-title-field')
+    const descriptionField = form.querySelector('.edit-common-description-field')
+    const adminReminder = form.querySelector('#editAdministrativeReminderBlock')
+    const leaveBlock = form.querySelector('#editLeaveMeetingBlock')
+    const leaveProxy = form.querySelector('#editLeaveMeetingProxyBlock')
+    const deliveryBlock = form.querySelector('#editDocumentDeliveryBlock')
+    const assigneeBox = form.querySelector('.edit-assignee-box')
+    const dateTimeAnchor = seriesScope || categoryLabel
+
+    moveEditScheduleFormNodesAfter(dateTimeAnchor, [modeBox, timeTypeField, timeRangeBlock])
+
+    if (category === '服務行程') {
+      moveEditScheduleFormNodesAfter(serviceLocation, [titleField, descriptionField])
+      return
+    }
+
+    if (category === '辦件提醒' || category === '行政事務提醒') {
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [adminReminder, titleField, descriptionField])
+      return
+    }
+
+    if (category === '請假 / 會議 / 活動 / 外訓') {
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [leaveBlock, titleField, descriptionField, notifySupervisor, leaveProxy])
+      return
+    }
+
+    if (category === '證件交付') {
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [titleField, descriptionField, notifySupervisor, deliveryBlock])
+      return
+    }
+
+    if (category === '一般行程') {
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [generalFields, titleField, descriptionField, assigneeBox])
+      return
+    }
+
+    if (category === '待辦事項' || category === '一般記事') {
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [titleField, descriptionField, notifySupervisor])
+    }
+  }
+
   const categorySelect = document.querySelector('#editCategorySelect')
   const serviceBlock = document.querySelector('#editServiceBlock')
   const serviceLocationBlock = document.querySelector('#editServiceLocationBlock')
@@ -24321,7 +24437,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     document.querySelector('.edit-privacy-hint')?.classList.toggle('hidden', !(category === '待辦事項' || category === '一般記事'))
     document.querySelector('.edit-admin-reminder-form-purpose-hint')?.classList.toggle('hidden', category !== '行政事務提醒')
     document.querySelector('.edit-note-field')?.classList.toggle('hidden', isGeneralPersonalNote || ['待辦事項', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(category))
-    document.querySelector('.edit-status-field')?.classList.toggle('hidden', isGeneralEditMode)
+    document.querySelector('.edit-status-field')?.classList.remove('hidden')
+    reorderEditScheduleFormFields(category, rawCategory)
     const editRepeatSelect = document.querySelector('#editRepeatModeSelect')
     const editRepeatLabel = editRepeatSelect?.closest('label')
     if (editRepeatLabel) editRepeatLabel.classList.toggle('hidden', isGeneralPersonalNote)

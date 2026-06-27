@@ -25647,3 +25647,43 @@ body:has(.modal-backdrop) .calendar-filter-bar {
 }
 
 /* FOR-e V002-1H-stable-1-3ab END - meeting colors, form hints and field labels polish */
+
+/* FOR-e V002-1H-stable-1-3ac START - form field order and compact category labels */
+/* 本版欄位順序由 DOM 依類型重新排列，避免舊版 order 規則壓過表單順序。 */
+#scheduleForm > *,
+#editScheduleForm > * {
+  order: 0 !important;
+}
+
+/* 表單按鈕固定在最下方。 */
+#scheduleForm > .modal-actions,
+#editScheduleForm > .modal-actions {
+  order: 999 !important;
+}
+
+/* 公務車保養：通知相關人員標題完全比照一般欄位標題，不壓縮、不變細。 */
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field {
+  min-width: 0 !important;
+  width: 100% !important;
+  align-self: stretch !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .field-title,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .field-title {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  transform: none !important;
+  text-align: left !important;
+  color: #334155 !important;
+}
+/* FOR-e V002-1H-stable-1-3ac END - form field order and compact category labels */
