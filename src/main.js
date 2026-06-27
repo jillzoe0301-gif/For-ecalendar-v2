@@ -726,11 +726,26 @@ function renderAdministrativeAnnouncementPage() {
 /* Stable base: V002-1P-301. Keep latest announcement, LINE, reminder, color, option management fixes and unify announcement record icon with announcement icon. */
 /* FOR-e V002-1H-stable-1 END - first stable cleanup and announcement record icon sync */
 
-const formCategories = ['服務行程', '待辦事項', '一般記事', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
+const formCategories = ['服務行程', '一般記事', '行政事務提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
 const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '公務車保養']
 const generalStaffOverviewSimpleCategories = ['一般記事']
 const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓']
 const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
+
+const unifiedCreateCategoryPages = ['personalSchedule', 'assignedTracking', 'scheduleOverview']
+const adminManagerPersonalCategories = ['服務行程', '一般記事', '行政事務提醒', '證件交付', '公務車保養']
+const adminManagerTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓', '行政事務提醒', '證件交付']
+const translatorPersonalCategories = ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
+const translatorTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓']
+
+function getUnifiedScheduleCategoryLabel(value = '') {
+  const text = String(value || '').trim()
+  const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
+  if (!text) return '-'
+  if (['待辦事項', '一般記事', '待辦事項/個人記事', '待辦/個人記事', '待辦/記事'].includes(compact) || ['待辦事項/個人記事', '待辦/記事'].includes(text)) return '待辦/記事'
+  if (['行政事務提醒', '行政提醒', '行政事務', '辦件提醒'].includes(text)) return '辦件提醒'
+  return text
+}
 
 function getCreateFormCategoryDisplayLabel(value = '') {
   const text = String(value || '').trim()
@@ -740,10 +755,7 @@ function getCreateFormCategoryDisplayLabel(value = '') {
     if (text === '請假 / 會議 / 活動 / 外訓') return '請假/會議/活動/外訓（所有權限共用）'
     if (text === '公務車保養') return '公務車保養（所有權限共用）'
   }
-  if (text === '待辦事項') return '待辦事項/個人記事'
-  if (text === '一般記事') return '待辦 / 記事'
-  if (text === '行政事務提醒') return '行政提醒'
-  return text
+  return getUnifiedScheduleCategoryLabel(text)
 }
 
 function getCreateFormCategoryGroup(value = '') {
@@ -819,10 +831,7 @@ function isPublicGeneralSchedule(row = {}) {
 }
 
 function getScheduleCategoryDisplayLabel(value = '') {
-  const text = String(value || '').trim()
-  if (text === '待辦事項') return '待辦事項/個人記事'
-  if (text === '一般記事') return '待辦 / 記事'
-  return text
+  return getUnifiedScheduleCategoryLabel(value)
 }
 const serviceScheduleTypes = [
   '--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療',
@@ -10063,7 +10072,7 @@ const defaultReminderDaySettings = [
   { key: 'salaryDateReminder', enabled: true, name: '結薪日提醒', timingLabel: '結薪日前', days: 0, displayType: '結薪日提醒', includeLine: true },
   { key: 'serviceRecordUnsubmitted', enabled: true, name: '服務紀錄單未繳交提醒', timingLabel: '行程後', days: 0, displayType: '紀錄單未繳交', includeLine: false },
   { key: 'serviceRecordOver14Days', enabled: true, name: '超過 14 天未繳交提醒', timingLabel: '行程後', days: 14, displayType: '超過14天未繳交', includeLine: false },
-  { key: 'administrativeReminder', enabled: true, name: '行政事務提醒', timingLabel: '指定日前', days: 0, displayType: '行政事務提醒', includeLine: false }
+  { key: 'administrativeReminder', enabled: true, name: '辦件提醒', timingLabel: '指定日前', days: 0, displayType: '辦件提醒', includeLine: false }
 ]
 
 function getReminderDaySettings() {
@@ -10516,7 +10525,7 @@ function renderOptionsPage() {
           ${optionTextarea('行程類型 / 類別細項', 'scheduleSubtypeOptionDefaults', optionLinesValue('scheduleSubtypeOptionDefaults', scheduleSubtypeOptionDefaults), '行程卡片、表單類別細項、下拉選單共用參考項目', '例如：會議')}
           ${optionTextarea('待辦項目', 'todoItems', getManagedTodoItems().join('\n'), '每行一個待辦項目；提醒事項與重要通知已移除', '例如：送件')}
           ${optionTextarea('狀態 / 處理類型', 'scheduleStatusOptionDefaults', optionLinesValue('scheduleStatusOptionDefaults', scheduleStatusOptionDefaults), '行程狀態與特殊處理標籤；延期處理需保留', '例如：延期處理')}
-          ${optionTextarea('行政事務提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
+          ${optionTextarea('辦件提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '行政事務提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
           ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', getManagedLeaveMeetingTypes().join('\n'), '每行一個類別細項', '例如：TalkTalk')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
@@ -10582,8 +10591,8 @@ function getScheduleColorDefinitions() {
     { key: '一般記事', label: '一般記事', defaultColor: '#F5E6A6' },
     { key: '待辦事項', label: '待辦事項', defaultColor: '#F7DD7D' },
     { key: '延期處理', label: '待辦事項 / 一般記事｜延期處理', defaultColor: '#BCCCDC' },
-    { key: '行政事務提醒', label: '行政事務提醒', defaultColor: '#C5D89D' },
-    { key: '行政事務', label: '行政事務', defaultColor: '#C5D89D' },
+    { key: '行政事務提醒', label: '辦件提醒', defaultColor: '#C5D89D' },
+    { key: '行政事務', label: '辦件提醒', defaultColor: '#C5D89D' },
     { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
     { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
@@ -19566,12 +19575,14 @@ function getRolePersonalScheduleCategories() {
   const role = getRoleName()
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
   if (['管理員', '主管', '行政 / 海外'].includes(role)) {
-    if (currentPage === 'personalTodo') return ['一般記事', '請假 / 會議 / 活動 / 外訓', '行政事務提醒', '證件交付']
-    return ['服務行程', '待辦事項', '一般記事', '行政事務提醒', '證件交付', '公務車保養']
+    if (currentPage === 'personalTodo') return adminManagerTodoCategories
+    if (unifiedCreateCategoryPages.includes(currentPage)) return adminManagerPersonalCategories
+    return adminManagerPersonalCategories
   }
   if (role === '翻譯') {
-    if (currentPage === 'personalTodo') return ['一般記事', '請假 / 會議 / 活動 / 外訓']
-    return ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
+    if (currentPage === 'personalTodo') return translatorTodoCategories
+    if (unifiedCreateCategoryPages.includes(currentPage)) return translatorPersonalCategories
+    return translatorPersonalCategories
   }
   if (currentPage === 'personalTodo') return ['一般記事', '請假 / 會議 / 活動 / 外訓']
   if (!canCreateServiceSchedule()) return ['一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付']
@@ -19579,9 +19590,8 @@ function getRolePersonalScheduleCategories() {
 }
 
 function getAvailableFormCategories() {
-  if (currentPage === 'personalSchedule' || currentPage === 'personalTodo') return getRolePersonalScheduleCategories()
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
-  if (currentPage === 'scheduleOverview' && !canCreateServiceSchedule()) return ['一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付']
+  if (currentPage === 'personalSchedule' || currentPage === 'personalTodo' || unifiedCreateCategoryPages.includes(currentPage)) return getRolePersonalScheduleCategories()
   return formCategories
 }
 
@@ -22155,6 +22165,9 @@ function openScheduleModal(defaults = {}) {
           </select>
         </label>
 
+        <p class="field-hint span-2 todo-note-privacy-hint hidden">僅自己與指定人員可在行程表查看。</p>
+        <p class="field-hint span-2 admin-reminder-form-purpose-hint hidden">用於行政紀錄送件、補件、請款、到期或其他辦件及回覆時間提醒。</p>
+
         <div class="span-2 block-group schedule-date-cycle-group">
           <div class="group-title">日期與週期</div>
 
@@ -22310,6 +22323,15 @@ function openScheduleModal(defaults = {}) {
           </label>
         </div>
 
+        <div class="span-2 form-section hidden leave-meeting-subtype-section" data-section="leave-meeting">
+          <label>
+            類別細項
+            <select name="leave_meeting_type">
+              ${leaveOptions}
+            </select>
+          </label>
+        </div>
+
         <div class="span-2 form-section" data-section="common-simple">
           <label class="general-staff-general-field general-staff-item-field hidden">
             項目
@@ -22330,7 +22352,6 @@ function openScheduleModal(defaults = {}) {
             內容
             <textarea name="description" rows="3" placeholder="請輸入內容"></textarea>
           </label>
-          <p class="field-hint span-2 todo-note-privacy-hint hidden">僅自己與指定人員可查看。</p>
           <div class="span-2 schedule-template-row meter-hide-for-reminder">
             <button type="button" class="secondary-btn" id="applyScheduleTypeContentBtn">帶入對應內容</button>
             <span>依行程類型帶入預設內容；已輸入內容時，按此按鈕才會覆蓋。</span>
@@ -22397,26 +22418,19 @@ function openScheduleModal(defaults = {}) {
 
         <div class="span-2 form-section hidden" data-section="administrative-reminder">
           <label>
-            提醒項目
+            辦件提醒項目
             <select name="administrative_reminder_item">
               ${administrativeReminderOptions}
             </select>
           </label>
           <label>
-            手動輸入提醒項目
+            手動輸入辦件提醒項目
             <input name="administrative_reminder_item_custom" placeholder="選項沒有時可自行輸入">
           </label>
-          <p class="field-hint span-2">行政事務提醒只會顯示給本人；日期到時會出現在當日待辦提醒，不需要結案。</p>
+          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
-        <div class="span-2 form-section hidden" data-section="leave-meeting">
-          <label>
-            類別細項
-            <select name="leave_meeting_type">
-              ${leaveOptions}
-            </select>
-          </label>
-
+        <div class="span-2 form-section hidden leave-meeting-proxy-section" data-section="leave-meeting">
           <label>
             代理人
             <select name="proxy_staff_id" id="proxyStaffSelect">
@@ -22597,7 +22611,7 @@ function openScheduleModal(defaults = {}) {
 
     if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
     if (category === '行政事務提醒') form.querySelector('[data-section="administrative-reminder"]')?.classList.remove('hidden')
-    if (category === '請假 / 會議 / 活動 / 外訓') form.querySelector('[data-section="leave-meeting"]')?.classList.remove('hidden')
+    if (category === '請假 / 會議 / 活動 / 外訓') form.querySelectorAll('[data-section="leave-meeting"]').forEach(section => section.classList.remove('hidden'))
     form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (category === '證件交付') form.querySelector('[data-section="document-delivery"]')?.classList.remove('hidden')
     if (category === '服務行程') {
@@ -22617,12 +22631,13 @@ function openScheduleModal(defaults = {}) {
     if (isGeneralPersonalNote || isGeneralNormalSchedule) {
       form.querySelector('[data-section="todo"]')?.classList.add('hidden')
       form.querySelector('[data-section="administrative-reminder"]')?.classList.add('hidden')
-      form.querySelector('[data-section="leave-meeting"]')?.classList.add('hidden')
+      form.querySelectorAll('[data-section="leave-meeting"]').forEach(section => section.classList.add('hidden'))
       form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.add('hidden')
     }
 
     form.querySelectorAll('.general-staff-general-field').forEach(field => field.classList.toggle('hidden', !isGeneralNormalSchedule))
     form.querySelector('.todo-note-privacy-hint')?.classList.toggle('hidden', !(category === '待辦事項' || category === '一般記事'))
+    form.querySelector('.admin-reminder-form-purpose-hint')?.classList.toggle('hidden', category !== '行政事務提醒')
 
     if (isGeneralLeaveMeeting && forcedScheduleType) {
       const leaveSelect = form.querySelector('select[name="leave_meeting_type"]')
@@ -23887,6 +23902,11 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
       </div>
 
       <form id="editScheduleForm" class="form-grid" data-current-category="${escapeHtml(editRawCategory || row.category || '')}">
+        <label class="edit-status-field">
+          狀態
+          <input value="${escapeHtml(row.status || '未完成')}" disabled>
+        </label>
+
         <label>
           類別
           <select name="category" id="editCategorySelect">
@@ -23894,10 +23914,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </select>
         </label>
 
-        <label class="edit-status-field">
-          狀態
-          <input value="${escapeHtml(row.status || '未完成')}" disabled>
-        </label>
+        <p class="field-hint span-2 edit-privacy-hint hidden">僅自己與指定人員可在行程表查看。</p>
+        <p class="field-hint span-2 edit-admin-reminder-form-purpose-hint hidden">用於行政紀錄送件、補件、請款、到期或其他辦件及回覆時間提醒。</p>
 
         ${editSeriesScopeFieldsHtml(row, editOccurrenceDate, 'schedule')}
 
@@ -24133,30 +24151,23 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
         <div class="span-2 form-section hidden" id="editAdministrativeReminderBlock">
           <label>
-            提醒項目
+            辦件提醒項目
             <select name="edit_administrative_reminder_item">
               ${editAdministrativeReminderOptions}
             </select>
           </label>
           <label>
-            手動輸入提醒項目
+            手動輸入辦件提醒項目
             <input name="edit_administrative_reminder_item_custom" value="${escapeHtml(currentAdministrativeReminderIsManaged ? '' : currentAdministrativeReminderValue)}" placeholder="選項沒有時可自行輸入">
           </label>
-          <p class="field-hint span-2">行政事務提醒只會顯示給本人；日期到時會出現在當日待辦提醒，不需要結案。</p>
+          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
-        <div class="span-2 form-section hidden" id="editLeaveMeetingBlock">
+        <div class="span-2 form-section hidden edit-leave-meeting-block" id="editLeaveMeetingBlock">
           <label>
             類別細項
             <select name="edit_leave_meeting_type">
               ${editLeaveOptions}
-            </select>
-          </label>
-
-          <label>
-            代理人
-            <select name="edit_proxy_staff_id">
-              ${staffSelectOptionsHtmlSelected(editProxyStaffId)}
             </select>
           </label>
         </div>
@@ -24189,6 +24200,15 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
         </label>
 
+        <div class="span-2 form-section hidden edit-leave-meeting-block" id="editLeaveMeetingProxyBlock">
+          <label>
+            代理人
+            <select name="edit_proxy_staff_id">
+              ${staffSelectOptionsHtmlSelected(editProxyStaffId)}
+            </select>
+          </label>
+        </div>
+
         ${editScheduleModeFieldsHtml(row)}
 
         <label class="edit-time-type-field">
@@ -24219,7 +24239,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </div>
         </div>
 
-        <p class="field-hint span-2 edit-privacy-hint hidden">僅自己與指定人員可查看。</p>
 
         <label class="span-2 edit-note-field">
           備註 / 提醒 / 證件
@@ -24270,6 +24289,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     const forcedScheduleType = categoryInfo.forcedScheduleType
     const todoBlock = document.querySelector('#editTodoBlock')
     const leaveBlock = document.querySelector('#editLeaveMeetingBlock')
+    const leaveProxyBlock = document.querySelector('#editLeaveMeetingProxyBlock')
     const administrativeReminderBlock = document.querySelector('#editAdministrativeReminderBlock')
     const deliveryBlock = document.querySelector('#editDocumentDeliveryBlock')
 
@@ -24289,6 +24309,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
     if (administrativeReminderBlock) administrativeReminderBlock.classList.toggle('hidden', category !== '行政事務提醒')
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
+    if (leaveProxyBlock) leaveProxyBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (forcedScheduleType) {
       const editLeaveSelect = document.querySelector('select[name="edit_leave_meeting_type"]')
       if (editLeaveSelect && [...editLeaveSelect.options].some(option => option.value === forcedScheduleType)) editLeaveSelect.value = forcedScheduleType
@@ -24298,6 +24319,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || category === '行政事務提醒' || isGeneralNormalSchedule || isGeneralPersonalNote)
     document.querySelector('.edit-general-staff-general-fields')?.classList.toggle('hidden', !isGeneralNormalSchedule)
     document.querySelector('.edit-privacy-hint')?.classList.toggle('hidden', !(category === '待辦事項' || category === '一般記事'))
+    document.querySelector('.edit-admin-reminder-form-purpose-hint')?.classList.toggle('hidden', category !== '行政事務提醒')
     document.querySelector('.edit-note-field')?.classList.toggle('hidden', isGeneralPersonalNote || ['待辦事項', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(category))
     document.querySelector('.edit-status-field')?.classList.toggle('hidden', isGeneralEditMode)
     const editRepeatSelect = document.querySelector('#editRepeatModeSelect')
@@ -24448,7 +24470,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
         : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)))
 
   if (!editExecutorIds.length) {
-    alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人行政事務提醒。' : '請至少選擇一位執行者。'))
+    alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法修改個人辦件提醒。' : '請至少選擇一位執行者。'))
     return
   }
 
@@ -24729,7 +24751,7 @@ async function saveSchedule(event, modal) {
         : getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)))
 
   if (!executorIds.length) {
-    alert(category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法建立個人行政事務提醒。' : '請至少選擇一位執行者。')
+    alert(category === '行政事務提醒' ? '目前登入帳號沒有綁定人員，無法建立個人辦件提醒。' : '請至少選擇一位執行者。')
     saving = false
     return
   }

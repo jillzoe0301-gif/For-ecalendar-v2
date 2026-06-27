@@ -25392,29 +25392,29 @@ body:has(.modal-backdrop) .calendar-filter-bar {
 /* FOR-e V002-1H-stable-1-3x END - first column readable names and locked room split */
 
 /* FOR-e V002-1H-stable-1-3z START - general staff unified form and meeting room holiday colors */
-/* 會議室預約：假日 / 節日背景統一使用星期日色系；今日只用 #B0926A 外框提示。 */
+/* 會議室預約：假日 / 節日背景統一使用星期日色系；今日只用 #C9B59C 外框提示。 */
 .meeting-week-table thead th.is-holiday,
 .meeting-week-day-cell.is-holiday,
 .meeting-week-day-cell.is-holiday.is-field-day,
 .meeting-week-day-cell.is-holiday.is-meeting-day,
 .meeting-week-day-cell.is-holiday.is-continuous-day {
-  background: #EAD7BB !important;
-  border-color: #D2B58A !important;
-  box-shadow: inset 0 0 0 1px #D2B58A !important;
+  background: #EFE9E3 !important;
+  border-color: #E0D3C4 !important;
+  box-shadow: inset 0 0 0 1px #E0D3C4 !important;
 }
 
 .meeting-week-table thead th.is-today,
 .meeting-week-day-cell.is-today {
-  border-color: #B0926A !important;
-  box-shadow: inset 0 0 0 2px #B0926A !important;
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
 }
 
 .meeting-week-table thead th.is-today.is-holiday,
 .meeting-week-day-cell.is-today.is-holiday,
 .meeting-week-day-cell.is-holiday.is-today {
-  background: #EAD7BB !important;
-  border-color: #B0926A !important;
-  box-shadow: inset 0 0 0 2px #B0926A !important;
+  background: #EFE9E3 !important;
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
 }
 
 .meeting-week-day-cell.is-holiday .meeting-room-card,
@@ -25529,29 +25529,29 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   margin: -4px 0 4px;
 }
 
-/* 會議室預約：最新指定色。今日外框 #B0926A；假日 / 節日背景 #EAD7BB。 */
+/* 會議室預約：最新指定色。今日外框 #C9B59C；假日 / 節日背景 #EFE9E3。 */
 .meeting-week-table thead th.is-holiday,
 .meeting-week-day-cell.is-holiday,
 .meeting-week-day-cell.is-holiday.is-field-day,
 .meeting-week-day-cell.is-holiday.is-meeting-day,
 .meeting-week-day-cell.is-holiday.is-continuous-day {
-  background: #EAD7BB !important;
-  border-color: #D2B58A !important;
-  box-shadow: inset 0 0 0 1px #D2B58A !important;
+  background: #EFE9E3 !important;
+  border-color: #E0D3C4 !important;
+  box-shadow: inset 0 0 0 1px #E0D3C4 !important;
 }
 
 .meeting-week-table thead th.is-today,
 .meeting-week-day-cell.is-today {
-  border-color: #B0926A !important;
-  box-shadow: inset 0 0 0 2px #B0926A !important;
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
 }
 
 .meeting-week-table thead th.is-today.is-holiday,
 .meeting-week-day-cell.is-today.is-holiday,
 .meeting-week-day-cell.is-holiday.is-today {
-  background: #EAD7BB !important;
-  border-color: #B0926A !important;
-  box-shadow: inset 0 0 0 2px #B0926A !important;
+  background: #EFE9E3 !important;
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
 }
 
 .meeting-week-day-cell.is-holiday .meeting-room-card,
@@ -25560,3 +25560,90 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   z-index: 2 !important;
 }
 /* FOR-e V002-1H-stable-1-3aa END - integrated tablet filters staff forms stats and meeting colors */
+
+
+/* FOR-e V002-1H-stable-1-3ab START - meeting colors, form hints and field labels polish */
+/* 會議室預約：今日外框與假日 / 節日背景色最終版。 */
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday,
+.meeting-week-day-cell.is-holiday.is-field-day,
+.meeting-week-day-cell.is-holiday.is-meeting-day,
+.meeting-week-day-cell.is-holiday.is-continuous-day {
+  background: #EFE9E3 !important;
+  border-color: #E0D3C4 !important;
+  box-shadow: inset 0 0 0 1px #E0D3C4 !important;
+}
+
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
+}
+
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday,
+.meeting-week-day-cell.is-holiday.is-today {
+  background: #EFE9E3 !important;
+  border-color: #C9B59C !important;
+  box-shadow: inset 0 0 0 2px #C9B59C !important;
+}
+
+.meeting-week-day-cell.is-holiday .meeting-room-card,
+.meeting-week-day-cell.is-today .meeting-room-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 公務車保養：通知相關人員標題與其他欄位標題一致。 */
+.vehicle-maintenance-section .maintenance-notify-field .field-title,
+#editVehicleMaintenanceBlock .maintenance-notify-field .field-title,
+.maintenance-notify-field > .field-title {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  transform: none !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.45 !important;
+  text-align: left !important;
+  color: #334155 !important;
+}
+
+/* 待辦/記事、個人記事與辦件提醒說明移到表單上方後使用一致提示樣式。 */
+#scheduleForm .todo-note-privacy-hint,
+#scheduleForm .admin-reminder-form-purpose-hint,
+#editScheduleForm .edit-privacy-hint,
+#editScheduleForm .edit-admin-reminder-form-purpose-hint {
+  margin: 0 0 2px 0 !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+  border: 1px solid #dbe3ef !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+/* 請假 / 會議 / 活動 / 外訓：類別細項在標題上方、代理人在內容下方。 */
+.leave-meeting-subtype-section,
+#editLeaveMeetingBlock {
+  order: 35;
+}
+
+#scheduleForm [data-section="common-simple"],
+#editScheduleForm .edit-general-staff-general-fields,
+#editScheduleForm .edit-common-title-field,
+#editScheduleForm .edit-common-description-field {
+  order: 40;
+}
+
+.leave-meeting-proxy-section,
+#editLeaveMeetingProxyBlock {
+  order: 45;
+}
+
+/* FOR-e V002-1H-stable-1-3ab END - meeting colors, form hints and field labels polish */
