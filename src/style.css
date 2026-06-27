@@ -25817,3 +25817,92 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   width: 100% !important;
 }
 /* FOR-e V002-1H-stable-1-3af END - delivery order maintenance label color stats sync */
+
+
+/* FOR-e V002-1H-stable-1-3ag START - real maintenance notify label field structure */
+/*
+  公務車保養「通知相關人員」實際渲染位置：
+  src/main.js 內 vehicle-maintenance-section / editVehicleMaintenanceBlock 的
+  .maintenance-notify-field。這是自訂可搜尋多選元件外層，不是一般欄位 label。
+  本版將標題移到 multi-select 外層，以 .form-label 統一渲染，
+  結構固定為 label 在上、選擇框在下。
+*/
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 14px 0 6px !important;
+  padding: 0 !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  overflow: visible !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  color: inherit !important;
+  letter-spacing: normal !important;
+  text-align: left !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field > .form-label.maintenance-notify-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field > .form-label.maintenance-notify-label {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 0 6px 0 !important;
+  padding: 0 !important;
+  font: inherit !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  color: inherit !important;
+  letter-spacing: normal !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field > .maintenance-notify-dropdown,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field > .maintenance-notify-dropdown {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  font-weight: 700 !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field .multi-select-label,
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field .select-label,
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field .notification-label,
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field .form-helper,
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field.form-field .field-note,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field .multi-select-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field .select-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field .notification-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field .form-helper,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field.form-field .field-note {
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: normal !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+/* FOR-e V002-1H-stable-1-3ag END - real maintenance notify label field structure */

@@ -22531,8 +22531,8 @@ function openScheduleModal(defaults = {}) {
             <input name="maintenance_replacement_car" placeholder="請輸入代步車或留空">
           </label>
 
-          <div class="maintenance-notify-field">
-            <label class="field-title maintenance-notify-label">通知相關人員</label>
+          <div class="maintenance-notify-field form-field maintenance-notify-form-field">
+            <label class="form-label maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml([], 'maintenance_notify_staff')}
           </div>
 
@@ -24322,8 +24322,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             <input name="maintenance_replacement_car" value="${escapeHtml(maintenanceReplacementCar)}" placeholder="請輸入代步車或留空">
           </label>
 
-          <div class="maintenance-notify-field">
-            <label class="field-title maintenance-notify-label">通知相關人員</label>
+          <div class="maintenance-notify-field form-field maintenance-notify-form-field">
+            <label class="form-label maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml(maintenanceNotifySelectedIds, 'maintenance_notify_staff')}
           </div>
 
