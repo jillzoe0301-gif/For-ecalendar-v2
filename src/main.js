@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3z'
-const SYSTEM_VERSION_NOTE = '平板篩選列、一般職員表單選項與統計排除整合修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3af'
+const SYSTEM_VERSION_NOTE = '證件交付交付項目順序、公務車保養標題、顏色設定與統計名稱同步修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -756,6 +756,54 @@ function isAdministrativeReminderCategoryName(value = '') {
 
 function normalizeAdministrativeReminderCategory(value = '') {
   return isAdministrativeReminderCategoryName(value) ? '辦件提醒' : String(value || '').trim()
+}
+
+
+function normalizeLegacyScheduleDisplayName(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
+  const map = {
+    '一般記事': '個人記事',
+    '個人記事（僅自己可見）': '個人記事',
+    '待辦事項': '待辦/記事',
+    '待辦事項/個人記事': '待辦/記事',
+    '待辦/個人記事': '待辦/記事',
+    '行政提醒': '辦件提醒',
+    '行政事務': '辦件提醒',
+    '行政事務提醒': '辦件提醒',
+    '轉出追蹤': '轉出到期最後一天',
+    '轉出最後一天': '轉出到期最後一天',
+    '轉出提醒': '轉出到期最後一天',
+    '超過14天未繳交提醒': '超過 14 天未繳交',
+    '服務紀錄單未繳交提醒': '服務紀錄單未繳交'
+  }
+  const compactMap = {
+    '一般記事': '個人記事',
+    '個人記事(僅自己可見)': '個人記事',
+    '個人記事（僅自己可見）': '個人記事',
+    '待辦事項': '待辦/記事',
+    '待辦事項/個人記事': '待辦/記事',
+    '待辦/個人記事': '待辦/記事',
+    '待辦記事': '待辦/記事',
+    '行政提醒': '辦件提醒',
+    '行政事務': '辦件提醒',
+    '行政事務提醒': '辦件提醒',
+    '轉出追蹤': '轉出到期最後一天',
+    '轉出最後一天': '轉出到期最後一天',
+    '轉出提醒': '轉出到期最後一天',
+    '超過14天未繳交提醒': '超過 14 天未繳交',
+    '服務紀錄單未繳交提醒': '服務紀錄單未繳交'
+  }
+  return map[text] || compactMap[compact] || text
+}
+
+function getCanonicalColorSettingKey(value = '') {
+  return normalizeLegacyScheduleDisplayName(value)
+}
+
+function getCanonicalStatsTypeName(value = '') {
+  return normalizeLegacyScheduleDisplayName(value) || '未分類'
 }
 
 function getCreateFormCategoryDisplayLabel(value = '') {
@@ -9314,7 +9362,14 @@ function isStatsExcludedSchedule(row) {
 
 function getStatsScheduleType(row) {
   if (!row) return '未分類'
-  return row.schedule_type || row.category || '未分類'
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '辦件提醒'
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
+  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) return '公務車保養'
+  if (row.category === '請假 / 會議 / 活動 / 外訓') return '請假 / 會議 / 活動 / 外訓'
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  if (reminderType) return getCanonicalStatsTypeName(reminderType)
+  const raw = row.schedule_type || row.sub_type || row.category || '未分類'
+  return getCanonicalStatsTypeName(raw)
 }
 
 function getStatsDepartment(row) {
@@ -10615,65 +10670,89 @@ const scheduleColorStorageKey = 'for-e-schedule-color-settings-v002'
 
 function getScheduleColorDefinitions() {
   return [
-    { key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
-    { key: '駐廠', label: '服務行程｜駐廠', defaultColor: '#C7C8CC' },
-    { key: '一般行程', label: '一般行程', defaultColor: '#D8E2DC' },
-    { key: '一般記事', label: '一般記事', defaultColor: '#F5E6A6' },
-    { key: '待辦事項', label: '待辦事項', defaultColor: '#F7DD7D' },
-    { key: '延期處理', label: '待辦事項 / 一般記事｜延期處理', defaultColor: '#BCCCDC' },
-    { key: '辦件提醒', label: '辦件提醒', defaultColor: '#C5D89D' },
-    { key: '請假', label: '請假 / 休假', defaultColor: '#BFDDF0' },
-    { key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
-    { key: '會議', label: '會議', defaultColor: '#5E7AC4' },
-    { key: '活動', label: '活動', defaultColor: '#FF937E' },
-    { key: '公司活動', label: '公司活動', defaultColor: '#FFB3A7' },
-    { key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
-    { key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
-    { key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
-    { key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
-    { key: '外務明細', label: '外務明細', defaultColor: '#FFCF95' },
-    { key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
-    { key: '公務車保養', label: '公務車保養', defaultColor: '#EBD6FB' },
-    { key: '代步車', label: '代步車', defaultColor: '#EBD6FB' },
-    { key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
-    { key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
-    { key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
-    { key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
-    { key: '逃跑通知', label: '提醒事項｜逃跑通知', defaultColor: '#FF8080' },
-    { key: '逃跑第一天通知', label: '提醒事項｜逃跑第一天通知', defaultColor: '#FF8080' },
-    { key: '逃跑第二天通知', label: '提醒事項｜逃跑第二天通知', defaultColor: '#FF9A9A' },
-    { key: '逃跑第三天通知', label: '提醒事項｜逃跑第三天通知', defaultColor: '#FFB2B2' },
-    { key: '轉出追蹤', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
-    { key: '轉出到期前提醒', label: '提醒事項｜轉出到期前提醒', defaultColor: '#F7D6DF' },
-    { key: '轉出到期最後一天', label: '提醒事項｜轉出到期最後一天', defaultColor: '#C70039' },
-    { key: '轉出提醒', label: '提醒事項｜轉出提醒', defaultColor: '#C70039' },
-    { key: '住變資訊提供', label: '提醒事項｜住變資訊提供', defaultColor: '#FF8080' },
-    { key: '驗證提醒', label: '提醒事項｜驗證提醒', defaultColor: '#FF9A86' },
-    { key: '離境通知', label: '提醒事項｜離境通知', defaultColor: '#FFB7AA' },
-    { key: '結薪日提醒', label: '提醒事項｜結薪日提醒', defaultColor: '#FFE1DB' },
-    { key: '返台提醒', label: '提醒事項｜返台提醒', defaultColor: '#67C090' },
-    { key: '返台確認', label: '提醒事項｜返台確認', defaultColor: '#4FB477' },
-    { key: '電表提醒', label: '提醒事項｜電表提醒', defaultColor: '#BBD5DA' },
-    { key: '服務紀錄單未繳交提醒', label: '服務紀錄單｜未繳交提醒', defaultColor: '#EF4444' },
-    { key: '超過14天未繳交提醒', label: '服務紀錄單｜超過 14 天未繳交', defaultColor: '#B91C1C' },
-    { key: '服務紀錄單未繳交', label: '服務紀錄單｜未繳交', defaultColor: '#EF4444' },
-    { key: '超過 14 天未繳交', label: '服務紀錄單｜超過 14 天未繳交', defaultColor: '#B91C1C' },
-    { key: '已完成', label: '狀態｜已完成', defaultColor: '#D1D5DB' },
-    { key: '已取消', label: '狀態｜已取消', defaultColor: '#CBD5E1' },
-    { key: '已結束案件', label: '狀態｜已結束案件', defaultColor: '#E2E4E8' },
-    { key: 'TalkTalk', label: '請假 / 會議 / 活動 / 外訓｜TalkTalk', defaultColor: '#5E7AC4' },
-    { key: '產文件', label: '待辦項目｜產文件', defaultColor: '#F7DD7D' },
-    { key: '用印申請', label: '待辦項目｜用印申請', defaultColor: '#F7DD7D' },
-    { key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
-    { key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
-    { key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
-    { key: '外務日提示背景色', label: '外務日提示背景色', defaultColor: '#FFF7ED' },
-    { key: '外務日提示外框色', label: '外務日提示外框色', defaultColor: '#FFAE6E' },
-    { key: '外務日提示文字色', label: '外務日提示文字色', defaultColor: '#9A3412' }
+    { group: '一般行程類', key: '一般行程', label: '一般行程', defaultColor: '#D8E2DC' },
+    { group: '一般行程類', key: '個人記事', label: '個人記事', defaultColor: '#F5E6A6' },
+    { group: '一般行程類', key: '待辦/記事', label: '待辦/記事', defaultColor: '#F7DD7D' },
+    { group: '一般行程類', key: '請假 / 會議 / 活動 / 外訓', label: '請假 / 會議 / 活動 / 外訓', defaultColor: '#BFDDF0' },
+    { group: '一般行程類', key: '請假', label: '請假', defaultColor: '#BFDDF0' },
+    { group: '一般行程類', key: '會議', label: '會議', defaultColor: '#5E7AC4' },
+    { group: '一般行程類', key: '活動', label: '活動', defaultColor: '#FF937E' },
+    { group: '一般行程類', key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
+    { group: '一般行程類', key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
+    { group: '一般行程類', key: '公司活動', label: '公司活動', defaultColor: '#FFB3A7' },
+    { group: '一般行程類', key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
+
+    { group: '服務與外務類', key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
+    { group: '服務與外務類', key: '駐廠', label: '駐廠', defaultColor: '#C7C8CC' },
+    { group: '服務與外務類', key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務明細', label: '外務明細', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務目的', label: '外務目的', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務地點', label: '外務地點', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務類型', label: '外務類型', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務狀態', label: '外務狀態', defaultColor: '#FFCF95' },
+    { group: '服務與外務類', key: '外務日', label: '外務日提醒', defaultColor: '#F48F68' },
+
+    { group: '行政辦件類', key: '辦件提醒', label: '辦件提醒', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '送件', label: '送件', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '補件', label: '補件', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '請款', label: '請款', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '到期', label: '到期', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '回覆時間提醒', label: '回覆時間提醒', defaultColor: '#C5D89D' },
+    { group: '行政辦件類', key: '其他辦件提醒', label: '其他辦件提醒', defaultColor: '#C5D89D' },
+
+    { group: '證件與公務車類', key: '證件交付', label: '證件交付', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '護照', label: '護照', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '居留證', label: '居留證', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '健保卡', label: '健保卡', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '印章', label: '印章', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '文件', label: '文件', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '其他', label: '其他', defaultColor: '#B0BA99' },
+    { group: '證件與公務車類', key: '公務車保養', label: '公務車保養', defaultColor: '#EBD6FB' },
+    { group: '證件與公務車類', key: '代步車', label: '代步車', defaultColor: '#EBD6FB' },
+    { group: '證件與公務車類', key: '通知相關人員', label: '通知相關人員', defaultColor: '#EBD6FB' },
+    { group: '證件與公務車類', key: '保養日期', label: '保養日期', defaultColor: '#EBD6FB' },
+    { group: '證件與公務車類', key: '歸還日期', label: '歸還日期', defaultColor: '#EBD6FB' },
+    { group: '證件與公務車類', key: '保養期間代步車', label: '保養期間代步車', defaultColor: '#EBD6FB' },
+
+    { group: '提醒通知類', key: '提醒事項', label: '提醒事項', defaultColor: '#FF8080' },
+    { group: '提醒通知類', key: '逃跑通知', label: '逃跑通知', defaultColor: '#FF8080' },
+    { group: '提醒通知類', key: '逃跑第一天通知', label: '逃跑第一天通知', defaultColor: '#FF8080' },
+    { group: '提醒通知類', key: '逃跑第二天通知', label: '逃跑第二天通知', defaultColor: '#FF9A9A' },
+    { group: '提醒通知類', key: '逃跑第三天通知', label: '逃跑第三天通知', defaultColor: '#FFB2B2' },
+    { group: '提醒通知類', key: '轉出到期前提醒', label: '轉出到期前提醒', defaultColor: '#F7D6DF' },
+    { group: '提醒通知類', key: '轉出到期最後一天', label: '轉出到期最後一天', defaultColor: '#C70039' },
+    { group: '提醒通知類', key: '住變資訊提供', label: '住變資訊提供', defaultColor: '#FF8080' },
+    { group: '提醒通知類', key: '驗證提醒', label: '驗證提醒', defaultColor: '#FF9A86' },
+    { group: '提醒通知類', key: '離境通知', label: '離境通知', defaultColor: '#FFB7AA' },
+    { group: '提醒通知類', key: '結薪日提醒', label: '結薪日提醒', defaultColor: '#FFE1DB' },
+    { group: '提醒通知類', key: '返台提醒', label: '返台提醒', defaultColor: '#67C090' },
+    { group: '提醒通知類', key: '返台確認', label: '返台確認', defaultColor: '#4FB477' },
+    { group: '提醒通知類', key: '電表提醒', label: '電表提醒', defaultColor: '#BBD5DA' },
+
+    { group: '會議室與異況類', key: '會議室預約', label: '會議室預約', defaultColor: '#BFA28C' },
+    { group: '會議室與異況類', key: '大會議室716', label: '大會議室716', defaultColor: '#BFA28C' },
+    { group: '會議室與異況類', key: '小會議室300', label: '小會議室300', defaultColor: '#BFA28C' },
+    { group: '會議室與異況類', key: '異況追蹤', label: '異況追蹤', defaultColor: '#F62440' },
+    { group: '會議室與異況類', key: '追蹤事項', label: '追蹤事項', defaultColor: '#9ED3DC' },
+
+    { group: '狀態類', key: '延期處理', label: '延期處理', defaultColor: '#BCCCDC' },
+    { group: '狀態類', key: '已完成', label: '已完成', defaultColor: '#D1D5DB' },
+    { group: '狀態類', key: '已取消', label: '已取消', defaultColor: '#CBD5E1' },
+    { group: '狀態類', key: '已結束案件', label: '已結束案件', defaultColor: '#E2E4E8' },
+
+    { group: '服務紀錄單類', key: '服務紀錄單未繳交', label: '服務紀錄單未繳交', defaultColor: '#EF4444' },
+    { group: '服務紀錄單類', key: '超過 14 天未繳交', label: '超過 14 天未繳交', defaultColor: '#B91C1C' },
+
+    { group: '其他提示色', key: '生日背景色', label: '生日背景色', defaultColor: '#FFF7F7' },
+    { group: '其他提示色', key: '生日外框色', label: '生日外框色', defaultColor: '#CFECF3' },
+    { group: '其他提示色', key: '生日提示文字色', label: '生日提示文字色', defaultColor: '#8CA9FF' },
+    { group: '其他提示色', key: '外務日提示背景色', label: '外務日提示背景色', defaultColor: '#FFF7ED' },
+    { group: '其他提示色', key: '外務日提示外框色', label: '外務日提示外框色', defaultColor: '#FFAE6E' },
+    { group: '其他提示色', key: '外務日提示文字色', label: '外務日提示文字色', defaultColor: '#9A3412' }
   ]
 }
 const scheduleColorPaletteVersionKey = 'for-e-schedule-color-palette-version'
-const scheduleColorPaletteVersion = 'V002-1H-stable-1-2'
+const scheduleColorPaletteVersion = 'V002-1H-stable-1-3af'
 
 function getPersonalScheduleColorStorageKey() {
   const ownerKey = getPersonalSettingOwnerKey()
@@ -10694,11 +10773,30 @@ function getScheduleColorSettings() {
     const defaults = getDefaultScheduleColorMap()
     const saved = Object.keys(personalSaved).length ? personalSaved : (Object.keys(legacyLocalSaved).length ? legacyLocalSaved : {})
 
+    const legacyColorNameMap = {
+      '一般記事': '個人記事',
+      '待辦事項': '待辦/記事',
+      '待辦事項/個人記事': '待辦/記事',
+      '待辦/個人記事': '待辦/記事',
+      '行政提醒': '辦件提醒',
+      '行政事務': '辦件提醒',
+      '行政事務提醒': '辦件提醒',
+      '轉出追蹤': '轉出到期最後一天',
+      '轉出最後一天': '轉出到期最後一天',
+      '轉出提醒': '轉出到期最後一天',
+      '超過14天未繳交提醒': '超過 14 天未繳交',
+      '服務紀錄單未繳交提醒': '服務紀錄單未繳交'
+    }
+    Object.entries(legacyColorNameMap).forEach(([legacyKey, canonicalKey]) => {
+      if (saved[legacyKey] && !saved[canonicalKey]) saved[canonicalKey] = saved[legacyKey]
+      delete saved[legacyKey]
+    })
+
     delete saved['請假 / 會議 / 活動 / 外訓']
-    if (!saved['一般記事']) saved['一般記事'] = '#F5E6A6'
-    if (!saved['辦件提醒']) saved['辦件提醒'] = saved['行政事務提醒'] || saved['行政提醒'] || saved['行政事務'] || '#C5D89D'
+    if (!saved['個人記事']) saved['個人記事'] = '#F5E6A6'
+    if (!saved['待辦/記事']) saved['待辦/記事'] = '#F7DD7D'
+    if (!saved['辦件提醒']) saved['辦件提醒'] = '#C5D89D'
     if (String(saved['辦件提醒']).toUpperCase() === '#8CA9FF') saved['辦件提醒'] = '#C5D89D'
-    if (!saved['待辦事項'] || ['#FFD65A', '#BFC9D1'].includes(String(saved['待辦事項']).toUpperCase())) saved['待辦事項'] = '#F7DD7D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
     if (!saved['駐廠']) saved['駐廠'] = '#C7C8CC'
 
@@ -10729,8 +10827,6 @@ function getScheduleColorSettings() {
     if (!saved['服務紀錄單未繳交提醒']) saved['服務紀錄單未繳交提醒'] = '#EF4444'
     if (!saved['超過14天未繳交提醒']) saved['超過14天未繳交提醒'] = '#B91C1C'
     if (!saved['TalkTalk']) saved['TalkTalk'] = saved['會議'] || '#5E7AC4'
-    if (!saved['產文件']) saved['產文件'] = saved['待辦事項'] || '#F7DD7D'
-    if (!saved['用印申請']) saved['用印申請'] = saved['待辦事項'] || '#F7DD7D'
 
     const currentPaletteVersion = localStorage.getItem(personalPaletteKey)
 
@@ -10799,12 +10895,15 @@ function getScheduleColorKey(row) {
   const directReminderColorKey = typeof getServiceReminderTypeFromRow === 'function'
     ? getServiceReminderTypeFromRow(row)
     : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
-  if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return directReminderColorKey
-  if (String(row?.category || '') === '一般記事' || String(row?.schedule_type || '') === '一般記事') return '一般記事'
-  if (String(row?.category || '') === '待辦事項' || String(row?.schedule_type || '') === '待辦事項') {
-    const todoSubtype = String(row?.sub_type || '').trim()
-    if (['產文件', '用印申請'].includes(todoSubtype)) return todoSubtype
-    return '待辦事項'
+  if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return getCanonicalColorSettingKey(directReminderColorKey)
+  const categoryText = String(row?.category || '').trim()
+  const scheduleTypeText = String(row?.schedule_type || '').trim()
+  if (categoryText === '一般行程' || scheduleTypeText === '一般行程') return '一般行程'
+  if (categoryText === '一般記事' || scheduleTypeText === '一般記事' || categoryText === '個人記事' || scheduleTypeText === '個人記事') {
+    return scheduleHasGeneralStaff(row) ? '個人記事' : '待辦/記事'
+  }
+  if (['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(categoryText) || ['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(scheduleTypeText)) {
+    return '待辦/記事'
   }
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
@@ -10831,8 +10930,8 @@ function getScheduleColorKey(row) {
   if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
   if (String(row.schedule_type || '').includes('提醒')) return '提醒事項'
 
-  if (row.category === '請假 / 會議 / 活動 / 外訓') return row.sub_type || row.schedule_type || '服務行程'
-  return row.category || row.schedule_type || '服務行程'
+  if (row.category === '請假 / 會議 / 活動 / 外訓') return row.sub_type || row.schedule_type || '請假 / 會議 / 活動 / 外訓'
+  return getCanonicalColorSettingKey(row.category || row.schedule_type || '服務行程')
 }
 
 function getScheduleColor(row) {
@@ -11827,6 +11926,29 @@ function renderLineNotificationPage() {
 }
 
 
+function renderColorSettingRows(settings = {}, canEdit = false) {
+  const definitions = getScheduleColorDefinitions()
+  let currentGroup = ''
+  return definitions.map(item => {
+    const group = item.group || '其他'
+    const groupHeader = group !== currentGroup
+      ? (() => { currentGroup = group; return `<div class="color-settings-group-title span-4">${escapeHtml(group)}</div>` })()
+      : ''
+    const color = normalizeManualColorCode(settings[item.key], item.defaultColor) || item.defaultColor
+    return `
+      ${groupHeader}
+      <section class="color-setting-row color-setting-row-clean">
+        <div class="color-item-name">${escapeHtml(item.label)}</div>
+        <label class="color-picker-cell" title="${escapeHtml(item.label)}">
+          <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
+        </label>
+        <input class="color-code-input" name="color_text_${item.key}" value="${escapeHtml(color)}" placeholder="#FFFFFF" maxlength="7" pattern="^#?[0-9A-Fa-f]{6}$" ${canEdit ? '' : 'readonly'}>
+        ${renderColorPreviewCard(item, color)}
+      </section>
+    `
+  }).join('')
+}
+
 function renderColorSettingsPage() {
   const canEdit = Boolean(currentProfile)
   const settings = getScheduleColorSettings()
@@ -11855,19 +11977,7 @@ function renderColorSettingsPage() {
         <span>預覽</span>
       </div>
 
-      ${getScheduleColorDefinitions().map(item => {
-        const color = normalizeManualColorCode(settings[item.key], item.defaultColor) || item.defaultColor
-        return `
-          <section class="color-setting-row color-setting-row-clean">
-            <div class="color-item-name">${escapeHtml(item.label)}</div>
-            <label class="color-picker-cell" title="${escapeHtml(item.label)}">
-              <input type="color" name="color_${item.key}" value="${escapeHtml(color)}" ${canEdit ? '' : 'disabled'}>
-            </label>
-            <input class="color-code-input" name="color_text_${item.key}" value="${escapeHtml(color)}" placeholder="#FFFFFF" maxlength="7" pattern="^#?[0-9A-Fa-f]{6}$" ${canEdit ? '' : 'readonly'}>
-            ${renderColorPreviewCard(item, color)}
-          </section>
-        `
-      }).join('')}
+      ${renderColorSettingRows(settings, canEdit)}
     </form>
   `
 }
@@ -22422,7 +22532,7 @@ function openScheduleModal(defaults = {}) {
           </label>
 
           <div class="maintenance-notify-field">
-            <label class="maintenance-notify-label">通知相關人員</label>
+            <label class="field-title maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml([], 'maintenance_notify_staff')}
           </div>
 
@@ -22642,6 +22752,7 @@ function openScheduleModal(defaults = {}) {
     const timeGroup = form.querySelector('.schedule-time-group')
     const dateGroup = form.querySelector('.schedule-date-cycle-group')
     const commonSimple = form.querySelector('[data-section="common-simple"]')
+    const commonTitleField = form.querySelector('.common-title-field')
     const serviceLocation = form.querySelector('[data-section="service-location"]')
     const leaveSubtype = form.querySelector('.leave-meeting-subtype-section')
     const notifySupervisor = form.querySelector('.notify-supervisor-field')
@@ -22667,7 +22778,8 @@ function openScheduleModal(defaults = {}) {
     }
 
     if (category === '證件交付') {
-      moveScheduleFormNodesAfter(timeGroup, [commonSimple, notifySupervisor, assigneeBlock, documentDelivery])
+      moveScheduleFormNodesAfter(timeGroup, [commonSimple, notifySupervisor, assigneeBlock])
+      if (commonTitleField && documentDelivery) moveScheduleFormNodesAfter(commonTitleField, [documentDelivery])
       return
     }
 
@@ -24211,7 +24323,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </label>
 
           <div class="maintenance-notify-field">
-            <label class="maintenance-notify-label">通知相關人員</label>
+            <label class="field-title maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml(maintenanceNotifySelectedIds, 'maintenance_notify_staff')}
           </div>
 
@@ -24411,7 +24523,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     }
 
     if (category === '證件交付') {
-      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [titleField, descriptionField, notifySupervisor, assigneeBox, deliveryBlock])
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [titleField, deliveryBlock, descriptionField, notifySupervisor, assigneeBox])
       return
     }
 

@@ -25757,3 +25757,63 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   margin-top: 0 !important;
 }
 /* FOR-e V002-1H-stable-1-3ae END - case reminder naming, maintenance notify spacing and assignee scope */
+
+/* FOR-e V002-1H-stable-1-3af START - delivery order maintenance label color stats sync */
+/* 顏色設定分區標題：讓新類型、細項與狀態項目分區顯示，不顯示舊名稱。 */
+.color-settings-group-title {
+  grid-column: 1 / -1 !important;
+  padding: 12px 14px !important;
+  margin: 8px 0 0 !important;
+  border-radius: 14px !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #dbe3ef !important;
+  color: #25314d !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+}
+
+/* 公務車保養：通知相關人員標題來自自訂複選元件，強制與一般欄位 label 一致，並貼近自己的輸入框。 */
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-self: end !important;
+  justify-self: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .maintenance-notify-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .maintenance-notify-label,
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .field-title.maintenance-notify-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .field-title.maintenance-notify-label {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 0 6px 0 !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+  color: #334155 !important;
+  letter-spacing: normal !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .maintenance-notify-dropdown,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .maintenance-notify-dropdown {
+  margin-top: 0 !important;
+  width: 100% !important;
+}
+/* FOR-e V002-1H-stable-1-3af END - delivery order maintenance label color stats sync */
