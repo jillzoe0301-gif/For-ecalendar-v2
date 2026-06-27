@@ -25392,29 +25392,29 @@ body:has(.modal-backdrop) .calendar-filter-bar {
 /* FOR-e V002-1H-stable-1-3x END - first column readable names and locked room split */
 
 /* FOR-e V002-1H-stable-1-3z START - general staff unified form and meeting room holiday colors */
-/* 會議室預約：假日 / 節日背景統一使用星期日色系；今日只用 #A79277 外框提示。 */
+/* 會議室預約：假日 / 節日背景統一使用星期日色系；今日只用 #B0926A 外框提示。 */
 .meeting-week-table thead th.is-holiday,
 .meeting-week-day-cell.is-holiday,
 .meeting-week-day-cell.is-holiday.is-field-day,
 .meeting-week-day-cell.is-holiday.is-meeting-day,
 .meeting-week-day-cell.is-holiday.is-continuous-day {
-  background: #D1BB9E !important;
-  border-color: #C4A982 !important;
-  box-shadow: inset 0 0 0 1px #C4A982 !important;
+  background: #EAD7BB !important;
+  border-color: #D2B58A !important;
+  box-shadow: inset 0 0 0 1px #D2B58A !important;
 }
 
 .meeting-week-table thead th.is-today,
 .meeting-week-day-cell.is-today {
-  border-color: #A79277 !important;
-  box-shadow: inset 0 0 0 2px #A79277 !important;
+  border-color: #B0926A !important;
+  box-shadow: inset 0 0 0 2px #B0926A !important;
 }
 
 .meeting-week-table thead th.is-today.is-holiday,
 .meeting-week-day-cell.is-today.is-holiday,
 .meeting-week-day-cell.is-holiday.is-today {
-  background: #D1BB9E !important;
-  border-color: #A79277 !important;
-  box-shadow: inset 0 0 0 2px #A79277 !important;
+  background: #EAD7BB !important;
+  border-color: #B0926A !important;
+  box-shadow: inset 0 0 0 2px #B0926A !important;
 }
 
 .meeting-week-day-cell.is-holiday .meeting-room-card,
@@ -25436,3 +25436,127 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   display: none !important;
 }
 /* FOR-e V002-1H-stable-1-3z END - general staff unified form and meeting room holiday colors */
+
+
+/* FOR-e V002-1H-stable-1-3aa START - integrated tablet filters staff forms stats and meeting colors */
+/* 平板橫向：服務紀錄單 / 統計報表 / 行程搜尋 / 外務明細日期欄位不可重疊。 */
+@media (min-width: 769px) and (max-width: 1180px) and (orientation: landscape) {
+  .service-record-filter,
+  .service-record-filter-upgraded,
+  .stats-filter-panel,
+  .clean-stats-filter,
+  .search-panel,
+  .search-panel-simple,
+  .schedule-search-filter-bar,
+  .field-detail-filter,
+  .outwork-detail-filter-bar,
+  .report-filter-bar,
+  .filter-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    row-gap: 12px !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .service-record-filter > *,
+  .service-record-filter-upgraded > *,
+  .stats-filter-panel > *,
+  .clean-stats-filter > *,
+  .search-panel > *,
+  .search-panel-simple > *,
+  .field-detail-filter > *,
+  .schedule-search-filter-bar > *,
+  .outwork-detail-filter-bar > *,
+  .report-filter-bar > *,
+  .filter-bar > * {
+    flex: 0 1 auto !important;
+    min-width: 140px !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .service-record-filter input[type="date"],
+  .service-record-filter-upgraded input[type="date"],
+  .stats-filter-panel input[type="date"],
+  .clean-stats-filter input[type="date"],
+  .search-panel input[type="date"],
+  .search-panel-simple input[type="date"],
+  .field-detail-filter input[type="date"],
+  .schedule-search-filter-bar input[type="date"],
+  .outwork-detail-filter-bar input[type="date"],
+  .report-filter-bar input[type="date"],
+  .filter-bar input[type="date"],
+  .filter-date-input,
+  .date-filter-field input,
+  .date-filter-field select {
+    min-width: 140px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .filter-actions,
+  .service-record-filter .filter-actions,
+  .stats-filter-panel .filter-actions,
+  .clean-stats-filter .filter-actions,
+  .search-panel .filter-actions,
+  .field-detail-filter .filter-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    row-gap: 8px !important;
+    min-width: 0 !important;
+  }
+}
+
+/* 一般職員簡化 / 共用表單：隱藏欄位不保留空白。 */
+#scheduleForm .general-staff-general-field.hidden,
+#scheduleForm .todo-note-privacy-hint.hidden,
+#editScheduleForm .edit-general-staff-general-fields.hidden,
+#editScheduleForm .edit-privacy-hint.hidden {
+  display: none !important;
+}
+
+#scheduleForm .todo-note-privacy-hint,
+#editScheduleForm .edit-privacy-hint {
+  color: #64748b;
+  font-weight: 700;
+  margin: -4px 0 4px;
+}
+
+/* 會議室預約：最新指定色。今日外框 #B0926A；假日 / 節日背景 #EAD7BB。 */
+.meeting-week-table thead th.is-holiday,
+.meeting-week-day-cell.is-holiday,
+.meeting-week-day-cell.is-holiday.is-field-day,
+.meeting-week-day-cell.is-holiday.is-meeting-day,
+.meeting-week-day-cell.is-holiday.is-continuous-day {
+  background: #EAD7BB !important;
+  border-color: #D2B58A !important;
+  box-shadow: inset 0 0 0 1px #D2B58A !important;
+}
+
+.meeting-week-table thead th.is-today,
+.meeting-week-day-cell.is-today {
+  border-color: #B0926A !important;
+  box-shadow: inset 0 0 0 2px #B0926A !important;
+}
+
+.meeting-week-table thead th.is-today.is-holiday,
+.meeting-week-day-cell.is-today.is-holiday,
+.meeting-week-day-cell.is-holiday.is-today {
+  background: #EAD7BB !important;
+  border-color: #B0926A !important;
+  box-shadow: inset 0 0 0 2px #B0926A !important;
+}
+
+.meeting-week-day-cell.is-holiday .meeting-room-card,
+.meeting-week-day-cell.is-today .meeting-room-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+/* FOR-e V002-1H-stable-1-3aa END - integrated tablet filters staff forms stats and meeting colors */
