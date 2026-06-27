@@ -25729,3 +25729,31 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   margin-top: 0 !important;
 }
 /* FOR-e V002-1H-stable-1-3ad END - maintenance notify label source and service supervisor order */
+
+/* FOR-e V002-1H-stable-1-3ae START - case reminder naming, maintenance notify spacing and assignee scope */
+/* 公務車保養：通知相關人員標題靠近自己的選擇欄位，並與一般欄位標題一致。 */
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field {
+  margin-top: 10px !important;
+  padding-top: 0 !important;
+  row-gap: 6px !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .maintenance-notify-label,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .maintenance-notify-label {
+  margin: 0 0 6px 0 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+  color: #334155 !important;
+  letter-spacing: normal !important;
+  transform: none !important;
+  scale: 1 !important;
+  zoom: 1 !important;
+}
+
+#scheduleForm .vehicle-maintenance-section .maintenance-notify-field > .maintenance-notify-dropdown,
+#editScheduleForm #editVehicleMaintenanceBlock .maintenance-notify-field > .maintenance-notify-dropdown {
+  margin-top: 0 !important;
+}
+/* FOR-e V002-1H-stable-1-3ae END - case reminder naming, maintenance notify spacing and assignee scope */
