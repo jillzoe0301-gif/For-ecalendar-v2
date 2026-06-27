@@ -22383,7 +22383,7 @@ function openScheduleModal(defaults = {}) {
           </label>
 
           <div class="maintenance-notify-field">
-            <div class="field-title">通知相關人員</div>
+            <label class="maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml([], 'maintenance_notify_staff')}
           </div>
 
@@ -22612,7 +22612,7 @@ function openScheduleModal(defaults = {}) {
     const assigneeBlock = form.querySelector('#scheduleAssigneeBlock')
 
     if (category === '服務行程') {
-      moveScheduleFormNodesAfter(serviceLocation, [commonSimple])
+      moveScheduleFormNodesAfter(serviceLocation, [commonSimple, notifySupervisor, assigneeBlock])
       return
     }
 
@@ -24171,7 +24171,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </label>
 
           <div class="maintenance-notify-field">
-            <div class="field-title">通知相關人員</div>
+            <label class="maintenance-notify-label">通知相關人員</label>
             ${maintenanceNotifyDropdownHtml(maintenanceNotifySelectedIds, 'maintenance_notify_staff')}
           </div>
 
@@ -24355,7 +24355,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     moveEditScheduleFormNodesAfter(dateTimeAnchor, [modeBox, timeTypeField, timeRangeBlock])
 
     if (category === '服務行程') {
-      moveEditScheduleFormNodesAfter(serviceLocation, [titleField, descriptionField])
+      moveEditScheduleFormNodesAfter(serviceLocation, [titleField, descriptionField, notifySupervisor, assigneeBox])
       return
     }
 
