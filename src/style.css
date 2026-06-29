@@ -25906,3 +25906,79 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   zoom: 1 !important;
 }
 /* FOR-e V002-1H-stable-1-3ag END - real maintenance notify label field structure */
+
+/* FOR-e V002-1H-stable-1-3am START - field special note and mobile address copy */
+.field-special-notice-line {
+  font-weight: 700;
+  color: #7c4a03;
+}
+.copyable-address-line,
+.schedule-card-address-row {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.copyable-address-label {
+  font-weight: 700;
+}
+.copyable-address-text {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+@media (max-width: 1180px), (pointer: coarse) {
+  .copyable-address-text[data-copy-card-address] {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    touch-action: manipulation;
+  }
+  .copyable-address-text[data-copy-card-address]::after {
+    content: ' 複製';
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.86em;
+    font-weight: 700;
+    opacity: 0.72;
+  }
+}
+/* FOR-e V002-1H-stable-1-3am END - field special note and mobile address copy */
+
+/* FOR-e V002-1H-stable-1-3an START - detail modal address/content separation */
+.detail-address-row .copy-address-text,
+.detail-address-value.copy-address-text {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-weight: 850 !important;
+  line-height: 1.45 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  overflow-wrap: anywhere !important;
+  white-space: pre-wrap !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 3px !important;
+}
+
+.detail-address-row .copy-address-text:active {
+  opacity: .72 !important;
+}
+
+@media (max-width: 1180px), (pointer: coarse) {
+  .detail-address-row .copy-address-text,
+  .detail-address-value.copy-address-text,
+  .copyable-address-text {
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: rgba(79, 112, 255, .16) !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3an END - detail modal address/content separation */

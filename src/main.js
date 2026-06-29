@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3am'
-const SYSTEM_VERSION_NOTE = '行程總覽外務卡片補上特殊提醒顯示'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ai'
+const SYSTEM_VERSION_NOTE = '待辦記事項目欄位全入口補正與一般職員一般行程欄位合併修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6514,6 +6514,8 @@ function renderFieldScheduleCard(row) {
   const parts = getScheduleTypeTitleParts(row)
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(row) || '外務行程')
   const safeTitle = escapeHtml(parts.title || row.location_name || getScheduleCardTitleText(row) || '-')
+  const addressText = getScheduleAddressText(row)
+  const fieldSpecialText = getFieldSpecialNoticeText(row)
 
   return `
     <button type="button" class="field-week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
@@ -6524,6 +6526,8 @@ function renderFieldScheduleCard(row) {
       <strong class="for-e-card-title">${safeTitle}</strong>
       ${renderFieldSpecialReminderBadges(row)}
       ${renderFieldResultBadge(row)}
+      ${addressText ? renderCopyableAddressLine(addressText, 'field-week-card-preview', '地址') : ''}
+      ${fieldSpecialText ? `<span class="field-week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
       ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
     </button>
@@ -6787,7 +6791,7 @@ function renderFieldDetailList(rows) {
               </div>
               <div class="field-detail-meta">
                 地點：${escapeHtml(row.location_name || '-')}
-                ${row.address ? '｜地址：' + escapeHtml(row.address) : ''}
+                ${row.address ? '｜地址：<span class="copyable-address-text field-detail-address-copy" data-copy-card-address="' + escapeHtml(row.address) + '" title="點擊複製地址">' + escapeHtml(row.address) + '</span>' : ''}
               </div>
               ${row.description ? `<div class="field-detail-content"><span>內容：</span>${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', '<br>')}</div>` : ''}
               ${specialReminders.length ? `<div class="field-detail-badges">${specialReminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div>` : ''}
@@ -17478,10 +17482,10 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
     : getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
-  const fieldSpecialReminderHtml = (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence) && typeof renderFieldSpecialReminderBadges === 'function')
-    ? renderFieldSpecialReminderBadges(rowForOccurrence)
-    : ''
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
+  const isFieldOverviewCard = typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence)
+  const addressText = getScheduleAddressText(rowForOccurrence)
+  const fieldSpecialText = isFieldOverviewCard ? getFieldSpecialNoticeText(rowForOccurrence) : ''
   const parts = getScheduleTypeTitleParts(rowForOccurrence)
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(rowForOccurrence) || '-')
   const safeTitle = escapeHtml(parts.title || rowForOccurrence.customer_name || '-')
@@ -17496,7 +17500,8 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
         <span class="for-e-card-type-chip">${safeType}</span>
       </div>
       <strong class="for-e-card-title">${safeTitle}</strong>
-      ${fieldSpecialReminderHtml}
+      ${addressText ? renderCopyableAddressLine(addressText, 'week-card-preview', '地址') : ''}
+      ${fieldSpecialText ? `<span class="week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
@@ -17629,6 +17634,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               ${isMaintenance ? '' : `<div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>`}
               ${row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim() ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
               ${row.location_name && !isMaintenance && row.category !== '服務行程' ? `<div class="schedule-meta">地點：${escapeHtml(row.location_name)}</div>` : ''}
+              ${getScheduleAddressText(row) ? `<div class="schedule-meta schedule-card-address-row">地址：<span class="copyable-address-text" data-copy-card-address="${escapeHtml(getScheduleAddressText(row))}" title="點擊複製地址">${escapeHtml(getScheduleAddressText(row))}</span></div>` : ''}
               ${reminders.length ? `<div class="reminder-tags">${reminders.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
               ${row.need_service_record ? `<div class="service-record-hint ${isScheduleServiceRecordSubmitted(row) ? 'is-submitted' : 'is-missing'}">${isScheduleServiceRecordSubmitted(row) ? '服務紀錄單已交' : '服務紀錄單未完成'}</div>` : ''}
             </div>
@@ -19493,17 +19499,46 @@ function openTodoNoteStatusModal(scheduleId = '') {
   })
 }
 
+function copyTextByFallback(value = '') {
+  const text = String(value || '')
+  if (!text) return false
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'readonly')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '0'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  textarea.setSelectionRange(0, textarea.value.length)
+  let copied = false
+  try {
+    copied = document.execCommand('copy')
+  } catch (error) {
+    copied = false
+  }
+  textarea.remove()
+  return copied
+}
+
 async function copyScheduleAddressToClipboard(address = '') {
   const value = String(address || '').trim()
   if (!value) return
-  if (!navigator.clipboard || !navigator.clipboard.writeText) {
-    alert('無法自動複製，請手動選取地址')
-    return
-  }
   try {
-    await navigator.clipboard.writeText(value)
-    showForETransientToast('地址已複製')
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value)
+      showForETransientToast('地址已複製')
+      return
+    }
   } catch (error) {
+    // iOS / Android WebView 可能會拒絕 clipboard API，下面改用 fallback。
+  }
+
+  if (copyTextByFallback(value)) {
+    showForETransientToast('地址已複製')
+  } else {
     alert('無法自動複製，請手動選取地址')
   }
 }
@@ -19520,15 +19555,34 @@ function showForETransientToast(message = '') {
   window.setTimeout(() => toast.remove(), 1600)
 }
 
+function isMobileOrTabletViewport() {
+  return window.matchMedia('(max-width: 1180px), (pointer: coarse)').matches
+}
+
+if (!window.__FOR_E_COPY_CARD_ADDRESS_BOUND__) {
+  window.__FOR_E_COPY_CARD_ADDRESS_BOUND__ = true
+  document.addEventListener('click', async event => {
+    const target = event.target?.closest?.('[data-copy-card-address]')
+    if (!target) return
+    if (!isMobileOrTabletViewport()) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation()
+    await copyScheduleAddressToClipboard(target.dataset.copyCardAddress || target.textContent || '')
+  }, true)
+}
+
 function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
   const noCompletionControl = isNoCompletionControlSchedule(row)
   const serviceReminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  const detailAddressText = getScheduleDetailAddressText(row)
+  const detailContentText = getScheduleDetailContentText(row, detailAddressText)
   const showCustomerDetail = serviceReminderType !== '電表提醒' && row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
   const showLocationDetail = row.category !== '服務行程' && Boolean(row.location_name)
-  const showAddressDetail = Boolean(row.address) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供')
+  const showAddressDetail = Boolean(detailAddressText) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供')
   const permissionNote = noCompletionControl
     ? '此類行程只顯示在行事曆，不控管是否已完成。'
     : (canModifySchedule(row)
@@ -19558,8 +19612,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div class="span-2"><span>標題 / 辦理內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.title)}</strong></div>
         ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
         ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
-        ${showAddressDetail ? `<div class="span-2 detail-address-row"><span>地址</span><strong class="detail-address-value" data-copy-address="${escapeHtml(row.address || '')}" title="點擊複製地址">${escapeHtml(row.address || '-')}</strong><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(row.address || '')}">複製</button></div>` : ''}
-        <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.description || '-')}</strong></div>
+        ${showAddressDetail ? `<div class="span-2 detail-address-row"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(detailAddressText)}">複製</button></div>` : ''}
+        <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentText || '-')}</strong></div>
         <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
         ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
         ${isTodoOrNoteSchedule(row) && isPostponedOriginalSchedule(row) ? `<div class="span-2"><span>延期狀態</span><strong class="schedule-detail-text-preserve">延期處理${getTodoNotePostponedDate(row) ? '｜已延期至：' + escapeHtml(getTodoNotePostponedDate(row)) : ''}</strong></div>` : ''}
@@ -19591,6 +19645,14 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   bindIncidentTrackingEditButtons(modal)
   document.querySelector('#closeDetailBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#closeDetailBtn2').addEventListener('click', () => modal.remove())
+  modal.querySelectorAll('[data-copy-address]').forEach(element => {
+    element.addEventListener('click', async event => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation()
+      await copyScheduleAddressToClipboard(element.dataset.copyAddress || element.textContent || '')
+    })
+  })
 
   const medicalFollowBtn = document.querySelector('#detailMedicalFollowBtn')
   if (medicalFollowBtn) {
@@ -20834,49 +20896,11 @@ function getFieldSpecialReminderDisplay(value) {
   return normalizeFieldSpecialReminder(value)
 }
 
-function getFieldSpecialRemindersFromRow(row = {}) {
-  const values = []
-
-  const addValue = value => {
-    if (value == null) return
-    if (Array.isArray(value)) {
-      value.forEach(addValue)
-      return
-    }
-    if (typeof value === 'object') {
-      addValue(value.label || value.name || value.value || value.text || '')
-      return
-    }
-
-    const text = String(value || '').trim()
-    if (!text || ['null', 'undefined', '[object Object]', '未選擇', '無'].includes(text)) return
-
-    text
-      .replace(/^特殊提醒[:：]/, '')
-      .split(/[、,，;；\n\r]+/)
-      .map(item => item.trim())
-      .filter(Boolean)
-      .forEach(item => values.push(item))
-  }
-
+function getFieldSpecialRemindersFromRow(row) {
   const note = String(row?.sub_type_note || '')
-  const noteMatch = note.match(/特殊提醒：([^｜\n\r]+)/)
-  if (noteMatch) addValue(noteMatch[1])
-
-  ;[
-    row.field_special_reminder,
-    row.field_special_reminders,
-    row.special_reminder,
-    row.special_reminders,
-    row.specialReminder,
-    row.specialReminders,
-    row.special_notice,
-    row.specialNotice,
-    row.warningText,
-    row.warning_text
-  ].forEach(addValue)
-
-  return [...new Set(values.map(normalizeFieldSpecialReminder).filter(Boolean))]
+  const match = note.match(/特殊提醒：([^｜]+)/)
+  if (!match) return []
+  return match[1].split('、').map(item => item.trim()).filter(Boolean)
 }
 
 function getFieldResultFromRow(row) {
@@ -20900,6 +20924,120 @@ function renderFieldSpecialReminderBadges(row) {
       ${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}
     </span>
   `
+}
+
+function getCleanDisplayText(value = '') {
+  const text = String(value ?? '').trim()
+  if (!text || text === 'null' || text === 'undefined' || text === '[object Object]') return ''
+  return text
+}
+
+function getScheduleAddressText(row = {}) {
+  return getCleanDisplayText(row.address || row.location_address || row.address_text || '')
+}
+
+function getScheduleAddressNoteText(row = {}) {
+  if (typeof getFieldNoteValue !== 'function') return ''
+  return [
+    getFieldNoteValue(row, '地址'),
+    getFieldNoteValue(row, '地點地址'),
+    getFieldNoteValue(row, '外務地址'),
+    getFieldNoteValue(row, '行程地址'),
+    getFieldNoteValue(row, '完整地址'),
+    getFieldNoteValue(row, '住變地址'),
+    getFieldNoteValue(row, '搬遷地址'),
+    getFieldNoteValue(row, '搬家地址')
+  ].map(getCleanDisplayText).find(Boolean) || ''
+}
+
+function normalizeAddressCompareText(value = '') {
+  return String(value || '').replace(/\s+/g, '').replace(/[，,。．.]/g, '').trim()
+}
+
+function stripAddressLabel(value = '') {
+  return getCleanDisplayText(String(value || '').replace(/^(地址|地點地址|外務地址|行程地址|完整地址|住變地址|搬遷地址|搬家地址)\s*[:：]\s*/, ''))
+}
+
+function looksLikeTaiwanAddressLine(value = '') {
+  const text = stripAddressLabel(value)
+  if (!text || text.length < 6) return false
+  if (/^(請|麻煩|通知|備註|內容|特殊|行程|目的|公務車|不使用)/.test(text)) return false
+  return /(台|臺|新北|桃園|新竹|苗栗|台中|臺中|彰化|南投|雲林|嘉義|台南|臺南|高雄|屏東|宜蘭|花蓮|台東|臺東|基隆|澎湖|金門|連江).*(縣|市|區|鄉|鎮|里|村).*(路|街|道|巷|弄|號)/.test(text) || /[縣市].*(區|鄉|鎮|市).*(路|街|道|巷|弄|號)/.test(text)
+}
+
+function getAddressFromDescriptionText(description = '') {
+  const lines = String(description || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  if (!lines.length) return ''
+  const firstLine = lines[0]
+  if (/^(地址|地點地址|外務地址|行程地址|完整地址)\s*[:：]/.test(firstLine)) return stripAddressLabel(firstLine)
+  return looksLikeTaiwanAddressLine(firstLine) ? stripAddressLabel(firstLine) : ''
+}
+
+function getScheduleDetailAddressText(row = {}) {
+  return [
+    getScheduleAddressText(row),
+    getScheduleAddressNoteText(row),
+    getAddressFromDescriptionText(row.description)
+  ].map(getCleanDisplayText).find(Boolean) || ''
+}
+
+function getScheduleDetailContentText(row = {}, addressText = '') {
+  const description = getCleanDisplayText(row.description || '')
+  if (!description) return ''
+  const address = getCleanDisplayText(addressText)
+  if (!address) return description
+
+  const target = normalizeAddressCompareText(address)
+  const lines = String(description).split(/\r?\n/)
+  let removedAddress = false
+  const filtered = lines.filter((line, index) => {
+    const cleanLine = getCleanDisplayText(line)
+    if (!cleanLine) return true
+    const stripped = stripAddressLabel(cleanLine)
+    const normalizedLine = normalizeAddressCompareText(stripped)
+    const isAddressLine = normalizedLine && target && (normalizedLine === target || normalizedLine.includes(target) || target.includes(normalizedLine))
+    const isLeadingAddress = index === 0 && (isAddressLine || looksLikeTaiwanAddressLine(cleanLine))
+    if (!removedAddress && isLeadingAddress) {
+      removedAddress = true
+      return false
+    }
+    return true
+  })
+
+  return getCleanDisplayText(filtered.join('\n').replace(/^\s+/, '').trim())
+}
+
+function getFieldSpecialNoticeText(row = {}) {
+  const explicit = [
+    row.special_notice,
+    row.specialNote,
+    row.special_note,
+    row.special_reminder,
+    row.specialReminder,
+    row.special,
+    row.remark,
+    row.note
+  ].map(getCleanDisplayText).find(Boolean)
+  if (explicit) return explicit
+
+  if (typeof getFieldNoteValue === 'function') {
+    const noteValue = [
+      getFieldNoteValue(row, '特殊事項'),
+      getFieldNoteValue(row, '特殊提醒'),
+      getFieldNoteValue(row, '特殊備註'),
+      getFieldNoteValue(row, '注意事項')
+    ].map(getCleanDisplayText).find(Boolean)
+    if (noteValue) return noteValue
+  }
+
+  const reminders = typeof getFieldSpecialRemindersFromRow === 'function' ? getFieldSpecialRemindersFromRow(row) : []
+  return reminders.length ? reminders.join('、') : ''
+}
+
+function renderCopyableAddressLine(address = '', className = 'week-card-preview', label = '地址') {
+  const value = getCleanDisplayText(address)
+  if (!value) return ''
+  return `<span class="${escapeHtml(className)} copyable-address-line"><span class="copyable-address-label">${escapeHtml(label)}：</span><span class="copyable-address-text" data-copy-card-address="${escapeHtml(value)}" title="點擊複製地址">${escapeHtml(value)}</span></span>`
 }
 
 function setFieldLocationFromSelect(selectElement) {
