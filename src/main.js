@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3af'
-const SYSTEM_VERSION_NOTE = '證件交付交付項目順序、公務車保養標題、顏色設定與統計名稱同步修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ai'
+const SYSTEM_VERSION_NOTE = '待辦記事新增項目欄位與新增修改查看同步修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -22615,18 +22615,11 @@ function openScheduleModal(defaults = {}) {
           <p class="field-hint span-2">公務車保養會依保養日期與歸還日期建立行程，不需要填寫一般標題與內容。</p>
         </div>
 
-        <div class="span-2 form-section hidden" data-section="todo">
-          <label>
-            待辦項目
-            <select name="todo_item">
-              ${todoOptions}
-            </select>
+        <div class="span-2 form-section hidden todo-note-item-section" data-section="todo">
+          <label class="todo-note-item-field">
+            項目
+            <input name="todo_item_custom" placeholder="請輸入項目">
           </label>
-          <label>
-            手動輸入待辦項目
-            <input name="todo_item_custom" placeholder="選項沒有時可自行輸入">
-          </label>
-          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
         <div class="span-2 form-section hidden" data-section="administrative-reminder">
@@ -22822,6 +22815,7 @@ function openScheduleModal(defaults = {}) {
     const notifySupervisor = form.querySelector('.notify-supervisor-field')
     const leaveProxy = form.querySelector('.leave-meeting-proxy-section')
     const adminReminder = form.querySelector('[data-section="administrative-reminder"]')
+    const todoBlock = form.querySelector('[data-section="todo"]')
     const documentDelivery = form.querySelector('[data-section="document-delivery"]')
     const departmentAssignee = form.querySelector('#meetingDepartmentAssigneeBlock')
     const assigneeBlock = form.querySelector('#scheduleAssigneeBlock')
@@ -22853,7 +22847,7 @@ function openScheduleModal(defaults = {}) {
     }
 
     if (category === '待辦事項' || category === '一般記事') {
-      moveScheduleFormNodesAfter(timeGroup, [commonSimple, notifySupervisor])
+      moveScheduleFormNodesAfter(timeGroup, [todoBlock, commonSimple, notifySupervisor])
     }
   }
 
@@ -24398,18 +24392,11 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <p class="field-hint span-2">公務車保養只通知相關人員及部門主管，不需要選擇執行者。</p>
         </div>
 
-        <div class="span-2 form-section hidden" id="editTodoBlock">
-          <label>
-            待辦項目
-            <select name="edit_todo_item">
-              ${editTodoOptions}
-            </select>
+        <div class="span-2 form-section hidden todo-note-item-section" id="editTodoBlock">
+          <label class="todo-note-item-field">
+            項目
+            <input name="edit_todo_item_custom" value="${escapeHtml(currentTodoValue || '')}" placeholder="請輸入項目">
           </label>
-          <label>
-            手動輸入待辦項目
-            <input name="edit_todo_item_custom" value="${escapeHtml(currentTodoIsManaged ? '' : currentTodoValue)}" placeholder="選項沒有時可自行輸入">
-          </label>
-          <p class="field-hint span-2">可從選項選擇，也可以手動輸入；手動輸入會優先套用。</p>
         </div>
 
         <div class="span-2 form-section hidden" id="editAdministrativeReminderBlock">
@@ -24554,6 +24541,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     const titleField = form.querySelector('.edit-common-title-field')
     const descriptionField = form.querySelector('.edit-common-description-field')
     const adminReminder = form.querySelector('#editAdministrativeReminderBlock')
+    const todoBlock = form.querySelector('#editTodoBlock')
     const leaveBlock = form.querySelector('#editLeaveMeetingBlock')
     const leaveProxy = form.querySelector('#editLeaveMeetingProxyBlock')
     const deliveryBlock = form.querySelector('#editDocumentDeliveryBlock')
@@ -24589,7 +24577,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     }
 
     if (category === '待辦事項' || category === '一般記事') {
-      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [titleField, descriptionField, notifySupervisor])
+      moveEditScheduleFormNodesAfter(timeRangeBlock || timeTypeField || modeBox, [todoBlock, titleField, descriptionField, notifySupervisor])
     }
   }
 
