@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3ai'
-const SYSTEM_VERSION_NOTE = '待辦記事項目欄位全入口補正與一般職員一般行程欄位合併修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3am'
+const SYSTEM_VERSION_NOTE = '行程總覽外務卡片補上特殊提醒顯示'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -17478,6 +17478,9 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
     : getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
+  const fieldSpecialReminderHtml = (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence) && typeof renderFieldSpecialReminderBadges === 'function')
+    ? renderFieldSpecialReminderBadges(rowForOccurrence)
+    : ''
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const parts = getScheduleTypeTitleParts(rowForOccurrence)
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(rowForOccurrence) || '-')
@@ -17493,6 +17496,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
         <span class="for-e-card-type-chip">${safeType}</span>
       </div>
       <strong class="for-e-card-title">${safeTitle}</strong>
+      ${fieldSpecialReminderHtml}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
@@ -20830,11 +20834,49 @@ function getFieldSpecialReminderDisplay(value) {
   return normalizeFieldSpecialReminder(value)
 }
 
-function getFieldSpecialRemindersFromRow(row) {
+function getFieldSpecialRemindersFromRow(row = {}) {
+  const values = []
+
+  const addValue = value => {
+    if (value == null) return
+    if (Array.isArray(value)) {
+      value.forEach(addValue)
+      return
+    }
+    if (typeof value === 'object') {
+      addValue(value.label || value.name || value.value || value.text || '')
+      return
+    }
+
+    const text = String(value || '').trim()
+    if (!text || ['null', 'undefined', '[object Object]', '未選擇', '無'].includes(text)) return
+
+    text
+      .replace(/^特殊提醒[:：]/, '')
+      .split(/[、,，;；\n\r]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .forEach(item => values.push(item))
+  }
+
   const note = String(row?.sub_type_note || '')
-  const match = note.match(/特殊提醒：([^｜]+)/)
-  if (!match) return []
-  return match[1].split('、').map(item => item.trim()).filter(Boolean)
+  const noteMatch = note.match(/特殊提醒：([^｜\n\r]+)/)
+  if (noteMatch) addValue(noteMatch[1])
+
+  ;[
+    row.field_special_reminder,
+    row.field_special_reminders,
+    row.special_reminder,
+    row.special_reminders,
+    row.specialReminder,
+    row.specialReminders,
+    row.special_notice,
+    row.specialNotice,
+    row.warningText,
+    row.warning_text
+  ].forEach(addValue)
+
+  return [...new Set(values.map(normalizeFieldSpecialReminder).filter(Boolean))]
 }
 
 function getFieldResultFromRow(row) {
