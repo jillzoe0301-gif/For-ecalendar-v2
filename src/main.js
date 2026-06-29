@@ -77,7 +77,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const SYSTEM_VERSION = 'V002-1H-stable-1-3ai'
-const SYSTEM_VERSION_NOTE = '待辦記事新增項目欄位與新增修改查看同步修正'
+const SYSTEM_VERSION_NOTE = '待辦記事項目欄位全入口補正與一般職員一般行程欄位合併修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -828,6 +828,39 @@ function getCreateFormCategoryGroup(value = '') {
 function getCreateFormForcedScheduleType(value = '') {
   const text = String(value || '').trim()
   return generalStaffOverviewLeaveMeetingTypes.includes(text) ? text : ''
+}
+
+function combineGeneralStaffCustomerTitle(customerName = '', title = '') {
+  const customer = String(customerName || '').trim()
+  const titleText = String(title || '').trim()
+  if (customer && titleText && customer !== titleText) return `${customer}｜${titleText}`
+  return customer || titleText
+}
+
+function isSharedTodoNoteCategory(category = '') {
+  const text = String(category || '').trim()
+  return text === '待辦事項' || text === '一般記事'
+}
+
+function setFormFieldLabelText(labelElement, text = '') {
+  if (!labelElement) return
+  const labelText = String(text || '').trim()
+  const explicit = labelElement.querySelector(':scope > .form-label-text, :scope > .common-title-label-text, :scope > .edit-common-title-label-text')
+  if (explicit) {
+    explicit.textContent = labelText
+    return
+  }
+  const textNode = Array.from(labelElement.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+  if (textNode) textNode.textContent = `\n          ${labelText}\n          `
+}
+
+function normalizeTodoNoteItemValue(row = {}) {
+  return String(row?.sub_type || getNoteValue(row, '項目') || '').trim()
+}
+
+function normalizeGeneralStaffGeneralTitleForEdit(row = {}, isGeneralStaffGeneralSchedule = false) {
+  if (!isGeneralStaffGeneralSchedule) return String(row?.title || '').trim()
+  return combineGeneralStaffCustomerTitle(row?.customer_name || getNoteValue(row, '客戶名稱') || '', row?.title || '')
 }
 
 function normalizeCreateScheduleCategory(value = '') {
@@ -19480,7 +19513,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
         <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
-        <div><span>類別</span><strong>${escapeHtml(row.category)}</strong></div>
+        <div><span>類別</span><strong>${escapeHtml(scheduleHasGeneralStaff(row) && row.category === '一般記事' ? '個人記事' : getScheduleCategoryDisplayLabel(row.category))}</strong></div>
         <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
         <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
@@ -22557,7 +22590,7 @@ function openScheduleModal(defaults = {}) {
           </label>
 
           <label class="common-title-field">
-            標題
+            <span class="form-label-text common-title-label-text">標題</span>
             <input name="title" placeholder="請輸入標題">
           </label>
 
@@ -22872,7 +22905,8 @@ function openScheduleModal(defaults = {}) {
     form.querySelectorAll('.form-section').forEach(section => section.classList.add('hidden'))
     if (category !== '公務車保養') form.querySelector('[data-section="common-simple"]')?.classList.remove('hidden')
 
-    if (category === '待辦事項') form.querySelector('[data-section="todo"]')?.classList.remove('hidden')
+    const shouldShowTodoItemField = isSharedTodoNoteCategory(category) && !(isGeneralStaffOverviewCreateMode() && rawCategory === '一般記事')
+    form.querySelector('[data-section="todo"]')?.classList.toggle('hidden', !shouldShowTodoItemField)
     if (isAdministrativeReminderCategoryName(category)) form.querySelector('[data-section="administrative-reminder"]')?.classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') form.querySelectorAll('[data-section="leave-meeting"]').forEach(section => section.classList.remove('hidden'))
     form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !(category === '請假 / 會議 / 活動 / 外訓' || (isGeneralStaffOverviewCreateMode() && rawCategory === '一般行程')))
@@ -22899,7 +22933,12 @@ function openScheduleModal(defaults = {}) {
     }
 
     form.querySelectorAll('.general-staff-general-field').forEach(field => field.classList.toggle('hidden', !isGeneralNormalSchedule))
-    form.querySelector('.todo-note-privacy-hint')?.classList.toggle('hidden', !(category === '待辦事項' || category === '一般記事'))
+    form.querySelector('.general-staff-customer-field')?.classList.toggle('hidden', true)
+    const createTitleLabel = form.querySelector('.common-title-field')
+    setFormFieldLabelText(createTitleLabel, isGeneralNormalSchedule ? '客戶 / 標題' : '標題')
+    const createTitleInput = createTitleLabel?.querySelector('input[name="title"]')
+    if (createTitleInput) createTitleInput.placeholder = isGeneralNormalSchedule ? '請輸入客戶或標題' : '請輸入標題'
+    form.querySelector('.todo-note-privacy-hint')?.classList.toggle('hidden', !(shouldShowTodoItemField || isGeneralPersonalNote))
     form.querySelector('.admin-reminder-form-purpose-hint')?.classList.toggle('hidden', !isAdministrativeReminderCategoryName(category))
 
     if (isGeneralLeaveMeeting && forcedScheduleType) {
@@ -24115,7 +24154,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const currentAdministrativeReminderValue = row.isAdministrativeReminderCategoryName(category) ? (row.sub_type || getNoteValue(row, '提醒項目') || '') : ''
   const currentAdministrativeReminderIsManaged = managedAdministrativeReminderItemsForEdit.includes(currentAdministrativeReminderValue)
   const editAdministrativeReminderOptions = optionHtml(managedAdministrativeReminderItemsForEdit, currentAdministrativeReminderIsManaged ? currentAdministrativeReminderValue : '')
-  const currentTodoValue = row.category === '待辦事項' ? (row.sub_type || '') : ''
+  const currentTodoValue = isSharedTodoNoteCategory(row.category) ? normalizeTodoNoteItemValue(row) : ''
+  const editGeneralCustomerTitleValue = normalizeGeneralStaffGeneralTitleForEdit(row, isGeneralStaffEditMode && getGeneralStaffRawCategoryFromRow(row) === '一般行程')
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
   const editTodoOptions = todoItemOptionsHtml(currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveOptions = optionHtml(getManagedLeaveMeetingTypes(), row.category === '請假 / 會議 / 活動 / 外訓' ? (row.sub_type || row.schedule_type || '') : '')
@@ -24441,8 +24481,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         </div>
 
         <label class="span-2 edit-common-title-field">
-          標題
-          <input name="title" required value="${escapeHtml(row.title || '')}">
+          <span class="form-label-text edit-common-title-label-text">標題</span>
+          <input name="title" required value="${escapeHtml(editGeneralCustomerTitleValue || '')}">
         </label>
 
         <label class="span-2 edit-common-description-field meter-hide-for-reminder">
@@ -24619,7 +24659,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     serviceBlock.classList.toggle('hidden', category !== '服務行程')
     if (serviceLocationBlock) serviceLocationBlock.classList.toggle('hidden', category !== '服務行程')
     if (editVehicleMaintenanceBlock) editVehicleMaintenanceBlock.classList.toggle('hidden', category !== '公務車保養')
-    if (todoBlock) todoBlock.classList.toggle('hidden', category !== '待辦事項')
+    const shouldShowEditTodoItemField = isSharedTodoNoteCategory(category) && !isGeneralPersonalNote
+    if (todoBlock) todoBlock.classList.toggle('hidden', !shouldShowEditTodoItemField)
     if (administrativeReminderBlock) administrativeReminderBlock.classList.toggle('hidden', !isAdministrativeReminderCategoryName(category))
     if (leaveBlock) leaveBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
     if (leaveProxyBlock) leaveProxyBlock.classList.toggle('hidden', category !== '請假 / 會議 / 活動 / 外訓')
@@ -24631,7 +24672,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralPersonalNote)
     document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralNormalSchedule || isGeneralPersonalNote)
     document.querySelector('.edit-general-staff-general-fields')?.classList.toggle('hidden', !isGeneralNormalSchedule)
-    document.querySelector('.edit-privacy-hint')?.classList.toggle('hidden', !(category === '待辦事項' || category === '一般記事'))
+    document.querySelector('.edit-general-staff-general-fields label:nth-child(2)')?.classList.toggle('hidden', true)
+    const editTitleLabel = document.querySelector('.edit-common-title-field')
+    setFormFieldLabelText(editTitleLabel, isGeneralNormalSchedule ? '客戶 / 標題' : '標題')
+    const editTitleInput = editTitleLabel?.querySelector('input[name="title"]')
+    if (editTitleInput) editTitleInput.placeholder = isGeneralNormalSchedule ? '請輸入客戶或標題' : '請輸入標題'
+    document.querySelector('.edit-privacy-hint')?.classList.toggle('hidden', !(shouldShowEditTodoItemField || isGeneralPersonalNote))
     document.querySelector('.edit-admin-reminder-form-purpose-hint')?.classList.toggle('hidden', !isAdministrativeReminderCategoryName(category))
     document.querySelector('.edit-note-field')?.classList.toggle('hidden', isGeneralPersonalNote || ['待辦事項', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付'].includes(category))
     document.querySelector('.edit-status-field')?.classList.remove('hidden')
@@ -24877,9 +24923,10 @@ async function saveEditedSchedule(event, modal, originalRow) {
   }
 
   if (category === '一般行程') {
+    const isGeneralStaffNormalScheduleEdit = isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && rawCategory === '一般行程'
     editScheduleType = '一般行程'
     editSubType = String(form.get('edit_general_item') || '').trim() || null
-    payloadCustomerName = String(form.get('edit_general_customer_name') || '').trim() || null
+    payloadCustomerName = isGeneralStaffNormalScheduleEdit ? null : (String(form.get('edit_general_customer_name') || '').trim() || null)
     const generalNoteParts = [buildRepeatNote(form)]
     if (editSubType) generalNoteParts.push(`項目：${editSubType}`)
     if (payloadCustomerName) generalNoteParts.push(`客戶名稱：${payloadCustomerName}`)
@@ -24887,8 +24934,10 @@ async function saveEditedSchedule(event, modal, originalRow) {
   }
 
   if (category === '一般記事') {
-    editScheduleType = '一般記事'
-    editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form)], editNotifySupervisorName).join('｜') || null
+    const isGeneralStaffPersonalNoteEdit = isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && rawCategory === '一般記事'
+    editScheduleType = isGeneralStaffPersonalNoteEdit ? '一般記事' : '待辦/記事'
+    editSubType = isGeneralStaffPersonalNoteEdit ? null : (String(form.get('edit_todo_item_custom') || '').trim() || form.get('edit_todo_item') || null)
+    editSubTypeNote = appendNotifySupervisorNote([buildRepeatNote(form), editSubType ? `項目：${editSubType}` : ''].filter(Boolean), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '待辦事項') {
@@ -25108,13 +25157,17 @@ async function saveSchedule(event, modal) {
   if (category === '一般行程') {
     scheduleType = '一般行程'
     subType = String(form.get('general_item') || '').trim() || null
-    customerName = String(form.get('general_customer_name') || '').trim() || null
+    customerName = isGeneralStaffOverviewCreateMode() && rawCategory === '一般行程' ? null : (String(form.get('general_customer_name') || '').trim() || null)
     if (subType) subTypeNoteParts.push(`項目：${subType}`)
     if (customerName) subTypeNoteParts.push(`客戶名稱：${customerName}`)
   }
 
   if (category === '一般記事') {
-    scheduleType = '一般記事'
+    scheduleType = isGeneralStaffOverviewCreateMode() && rawCategory === '一般記事' ? '一般記事' : '待辦/記事'
+    if (!(isGeneralStaffOverviewCreateMode() && rawCategory === '一般記事')) {
+      subType = String(form.get('todo_item_custom') || '').trim() || form.get('todo_item') || null
+      if (subType) subTypeNoteParts.push(`項目：${subType}`)
+    }
   }
 
   if (category === '待辦事項') {
