@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3ai'
-const SYSTEM_VERSION_NOTE = '待辦記事項目欄位全入口補正與一般職員一般行程欄位合併修正'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ap'
+const SYSTEM_VERSION_NOTE = '快速人員群組移除行政群，外務特殊提醒同步顯示於行程總覽'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -16501,7 +16501,7 @@ function normalizeOverviewQuickGroups(value = {}) {
       name: String(group.name || '').trim(),
       staffIds: normalizeOverviewFilterList(group.staffIds || group.staffId || [])
     }))
-    .filter(group => group.name)
+    .filter(group => group.name && !isHiddenOverviewQuickGroup(group))
 
   const activeId = String(value.activeId || 'all').trim() || 'all'
   const validIds = new Set(['all', 'field-workers', ...groups.map(group => group.id)])
@@ -16614,14 +16614,14 @@ function getAdministrativeQuickGroupStaffIds() {
 function getOverviewBuiltInQuickGroups() {
   return [
     { id: 'all', name: '全部', builtIn: true, staffIds: [] },
-    { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) },
-    { id: 'admin-staff', name: '行政群', builtIn: true, staffIds: getAdministrativeQuickGroupStaffIds() },]
+    { id: 'field-workers', name: '外務人員', builtIn: true, staffIds: getOverviewBaseStaffRows().filter(isStaffFieldWorker).map(staff => staff.staff_id) }
+  ]
 }
 
 function isHiddenOverviewQuickGroup(group = {}) {
   const id = String(group?.id || '').trim()
   const name = String(group?.name || '').trim()
-  return id === 'cat-sister-group' || name === '貓姐群'
+  return id === 'cat-sister-group' || name === '貓姐群' || id === 'admin-staff' || name === '行政群'
 }
 
 function getOverviewQuickGroupRows() {
@@ -17485,7 +17485,9 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const isFieldOverviewCard = typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence)
   const addressText = getScheduleAddressText(rowForOccurrence)
+  const fieldSpecialBadges = isFieldOverviewCard && typeof renderFieldSpecialReminderBadges === 'function' ? renderFieldSpecialReminderBadges(rowForOccurrence) : ''
   const fieldSpecialText = isFieldOverviewCard ? getFieldSpecialNoticeText(rowForOccurrence) : ''
+  const shouldRenderFieldSpecialNoticeLine = isFieldOverviewCard && fieldSpecialText && !fieldSpecialBadges
   const parts = getScheduleTypeTitleParts(rowForOccurrence)
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(rowForOccurrence) || '-')
   const safeTitle = escapeHtml(parts.title || rowForOccurrence.customer_name || '-')
@@ -17500,8 +17502,9 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
         <span class="for-e-card-type-chip">${safeType}</span>
       </div>
       <strong class="for-e-card-title">${safeTitle}</strong>
+      ${fieldSpecialBadges}
       ${addressText ? renderCopyableAddressLine(addressText, 'week-card-preview', '地址') : ''}
-      ${fieldSpecialText ? `<span class="week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
+      ${shouldRenderFieldSpecialNoticeLine ? `<span class="week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
       ${shouldShowCreatorName(rowForOccurrence) ? `<span class="week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(rowForOccurrence.creator_name || '-')}</span>` : ''}
       ${extra ? `<span class="week-card-extra${getScheduleItemChipClass(rowForOccurrence)}">${renderScheduleItemLabel(extra)}</span>` : ''}
@@ -20897,10 +20900,55 @@ function getFieldSpecialReminderDisplay(value) {
 }
 
 function getFieldSpecialRemindersFromRow(row) {
+  const reminders = []
+  const pushReminderValue = value => {
+    if (value === null || value === undefined || value === false) return
+    if (Array.isArray(value)) {
+      value.forEach(pushReminderValue)
+      return
+    }
+    if (typeof value === 'object') {
+      if (value.checked === false || value.selected === false || value.enabled === false) return
+      const preferred = value.label || value.text || value.name || value.title || value.value
+      if (preferred) pushReminderValue(preferred)
+      return
+    }
+
+    String(value || '')
+      .replace(/^特殊事項\s*[:：]\s*/u, '')
+      .replace(/^特殊項目\s*[:：]\s*/u, '')
+      .replace(/^特殊提醒\s*[:：]\s*/u, '')
+      .replace(/^特殊備註\s*[:：]\s*/u, '')
+      .replace(/^注意事項\s*[:：]\s*/u, '')
+      .split(/[、,，｜|\n\r]+/u)
+      .map(item => normalizeFieldSpecialReminder(String(item || '').trim()))
+      .filter(item => item && item !== 'null' && item !== 'undefined' && item !== '[object Object]')
+      .forEach(item => reminders.push(item))
+  }
+
   const note = String(row?.sub_type_note || '')
   const match = note.match(/特殊提醒：([^｜]+)/)
-  if (!match) return []
-  return match[1].split('、').map(item => item.trim()).filter(Boolean)
+  if (match) pushReminderValue(match[1])
+
+  ;[
+    row?.field_special_reminder,
+    row?.field_special_reminders,
+    row?.fieldSpecialReminder,
+    row?.fieldSpecialReminders,
+    row?.special_reminder,
+    row?.specialReminder,
+    row?.special_reminders,
+    row?.specialReminders,
+    row?.special_item,
+    row?.specialItem,
+    row?.special_items,
+    row?.specialItems,
+    row?.fieldSpecial,
+    row?.fieldSpecialText,
+    row?.specialItemsText
+  ].forEach(pushReminderValue)
+
+  return Array.from(new Set(reminders))
 }
 
 function getFieldResultFromRow(row) {
@@ -21013,6 +21061,7 @@ function cleanFieldSpecialNoticeText(value = '', options = {}) {
 
   const normalized = raw
     .replace(/^特殊事項\s*[:：]\s*/u, '')
+    .replace(/^特殊項目\s*[:：]\s*/u, '')
     .replace(/^特殊提醒\s*[:：]\s*/u, '')
     .replace(/^特殊備註\s*[:：]\s*/u, '')
     .replace(/^注意事項\s*[:：]\s*/u, '')
@@ -21022,7 +21071,7 @@ function cleanFieldSpecialNoticeText(value = '', options = {}) {
 
   if (options.strict) {
     const rawText = String(raw || '').trim()
-    const knownFieldSpecial = /^(特殊事項|特殊提醒|特殊備註|注意事項)\s*[:：]/u.test(rawText)
+    const knownFieldSpecial = /^(特殊事項|特殊項目|特殊提醒|特殊備註|注意事項)\s*[:：]/u.test(rawText)
       || /^(必送件|無法更換|無法更換人員|急件|請勿安排其他行程|請勿安排|勿安排其他行程)$/u.test(normalized)
     if (!knownFieldSpecial) return ''
   }
@@ -21042,6 +21091,19 @@ function getFieldSpecialNoticeText(row = {}) {
     row.special_note,
     row.special_reminder,
     row.specialReminder,
+    row.special_reminders,
+    row.specialReminders,
+    row.special_item,
+    row.specialItem,
+    row.special_items,
+    row.specialItems,
+    row.specialItemsText,
+    row.field_special_reminder,
+    row.field_special_reminders,
+    row.fieldSpecialReminder,
+    row.fieldSpecialReminders,
+    row.fieldSpecial,
+    row.fieldSpecialText,
     row.special
   ].map(value => cleanFieldSpecialNoticeText(value)).find(Boolean)
   if (explicit) return explicit
@@ -21049,6 +21111,7 @@ function getFieldSpecialNoticeText(row = {}) {
   if (typeof getFieldNoteValue === 'function') {
     const noteValue = [
       getFieldNoteValue(row, '特殊事項'),
+      getFieldNoteValue(row, '特殊項目'),
       getFieldNoteValue(row, '特殊提醒'),
       getFieldNoteValue(row, '特殊備註'),
       getFieldNoteValue(row, '注意事項')
