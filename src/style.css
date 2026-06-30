@@ -26321,3 +26321,139 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3ar END - quick group save and overview staff column min readable */
+
+/* FOR-e V002-1H-stable-1-3as START - overview staff column centered and quick group name chips */
+/* 行程總覽第一欄：文字置中，但維持 1-3ar 的最小可讀寬度與不壓縮姓名規則。 */
+.week-overview-table .staff-col,
+.week-overview-table thead th:first-child,
+.week-overview-table .staff-name-cell,
+.week-overview-table tbody th:first-child {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.week-overview-table .staff-name-cell,
+.week-overview-table tbody th.staff-name-cell,
+.week-overview-table tbody th:first-child {
+  text-align: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text,
+.week-overview-table .staff-name-cell strong,
+.week-overview-table .staff-name-cell strong span {
+  justify-content: center !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title {
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+}
+
+.week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+.week-overview-table .staff-name-cell .calendar-staff-department {
+  display: block !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+}
+
+.week-overview-table .staff-name-cell .field-worker-badge,
+.week-overview-table .staff-name-cell span.field-worker-badge,
+.calendar-staff-name-title .field-worker-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  margin-left: 4px !important;
+  margin-right: 0 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  transform: none !important;
+}
+
+/* 快速群組按鈕：新增後一定以群組名稱顯示，避免空白晶片或名稱被壓扁。 */
+.overview-quick-group-chips {
+  align-items: center !important;
+}
+
+.overview-group-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .week-overview-table .staff-col,
+  .week-overview-table thead th:first-child,
+  .week-overview-table .staff-name-cell,
+  .week-overview-table tbody th:first-child {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text,
+  .week-overview-table .staff-name-cell strong,
+  .week-overview-table .staff-name-cell strong span,
+  .week-overview-table .staff-col * {
+    justify-content: center !important;
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    transform: none !important;
+  }
+
+  .week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+  .week-overview-table .staff-name-cell .calendar-staff-department {
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3as END - overview staff column centered and quick group name chips */
