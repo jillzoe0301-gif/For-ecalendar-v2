@@ -25982,3 +25982,79 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3an END - detail modal address/content separation */
+
+/* FOR-e V002-1H-stable-1-3ao START - card title time field special stable display */
+/* 行程卡片主要標題統一深色，避免外務/提醒/警示 class 把一般標題染紅。 */
+.week-schedule-card .for-e-card-title,
+.week-schedule-card[style] .for-e-card-title,
+.field-week-schedule-card .for-e-card-title,
+.field-week-schedule-card[style] .for-e-card-title,
+.meeting-room-card .for-e-card-title,
+.meeting-room-card[style] .for-e-card-title,
+.schedule-card .for-e-card-title,
+.schedule-card[style] .for-e-card-title,
+.continuation-day-mark .for-e-card-title,
+.continuation-day-mark[style] .for-e-card-title,
+.continuation-day-mark .continuation-card-title,
+.service-reminder-week-card .for-e-card-title,
+.service-reminder-week-card[style] .for-e-card-title,
+.factory-station-week-card .for-e-card-title,
+.factory-station-week-card[style] .for-e-card-title {
+  color: #1F2937 !important;
+}
+
+/* 所有行程卡片時間統一醒目藍色。 */
+.for-e-card-time,
+.week-card-time:not(.factory-station-time),
+.week-schedule-card .week-card-time:not(.factory-station-time),
+.week-schedule-card[style] .week-card-time:not(.factory-station-time),
+.week-card-time.service-reminder-time,
+.week-schedule-card .week-card-time.service-reminder-time,
+.week-schedule-card[style] .week-card-time.service-reminder-time,
+.service-reminder-week-card .week-card-time.service-reminder-time,
+.service-reminder-week-card[style] .week-card-time.service-reminder-time,
+.field-week-card-time,
+.field-week-schedule-card .field-week-card-time,
+.field-week-schedule-card[style] .field-week-card-time,
+.meeting-room-time,
+.meeting-room-card .meeting-room-time,
+.meeting-room-card[style] .meeting-room-time,
+.schedule-card-time,
+.schedule-card .schedule-card-time,
+.schedule-card[style] .schedule-card-time,
+.schedule-card-list-time,
+.schedule-card .schedule-card-list-time,
+.schedule-card[style] .schedule-card-list-time,
+.continuation-day-time,
+.continuation-day-mark .continuation-day-time,
+.week-day-cell .continuation-day-mark .continuation-day-time,
+.field-week-day-cell .continuation-day-mark .continuation-day-time,
+.month-day-cell .continuation-day-mark .continuation-day-time,
+.meeting-week-day-cell .continuation-day-mark .continuation-day-time,
+.factory-station-time,
+.week-card-time.factory-station-time {
+  color: #4274D9 !important;
+  font-weight: 800 !important;
+}
+
+/* 外務特殊提醒固定為專屬提醒樣式，不混入一般內容文字。 */
+.field-special-notice-line,
+.week-card-preview.field-special-notice-line,
+.field-week-card-preview.field-special-notice-line {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 2px !important;
+  color: #B45309 !important;
+  font-weight: 850 !important;
+  line-height: 1.4 !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+.field-special-badge,
+.field-special-badges .field-special-badge {
+  color: #B45309 !important;
+  font-weight: 850 !important;
+}
+/* FOR-e V002-1H-stable-1-3ao END - card title time field special stable display */

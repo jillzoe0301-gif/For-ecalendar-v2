@@ -21007,17 +21007,43 @@ function getScheduleDetailContentText(row = {}, addressText = '') {
   return getCleanDisplayText(filtered.join('\n').replace(/^\s+/, '').trim())
 }
 
+function cleanFieldSpecialNoticeText(value = '', options = {}) {
+  const raw = getCleanDisplayText(value)
+  if (!raw) return ''
+
+  const normalized = raw
+    .replace(/^特殊事項\s*[:：]\s*/u, '')
+    .replace(/^特殊提醒\s*[:：]\s*/u, '')
+    .replace(/^特殊備註\s*[:：]\s*/u, '')
+    .replace(/^注意事項\s*[:：]\s*/u, '')
+    .trim()
+
+  if (!normalized || normalized === 'null' || normalized === 'undefined' || normalized === '[object Object]') return ''
+
+  if (options.strict) {
+    const rawText = String(raw || '').trim()
+    const knownFieldSpecial = /^(特殊事項|特殊提醒|特殊備註|注意事項)\s*[:：]/u.test(rawText)
+      || /^(必送件|無法更換|無法更換人員|急件|請勿安排其他行程|請勿安排|勿安排其他行程)$/u.test(normalized)
+    if (!knownFieldSpecial) return ''
+  }
+
+  return normalized
+}
+
 function getFieldSpecialNoticeText(row = {}) {
+  /*
+    外務特殊提醒統一由專用欄位、sub_type_note 標籤或外務特殊提醒複選值取得。
+    不再任意讀取 content / description / note 作為特殊提醒，避免一般內容有時被渲染成特殊提醒，
+    或同一筆外務在行程總覽裡忽而顯示、忽而變成一般文字。
+  */
   const explicit = [
     row.special_notice,
     row.specialNote,
     row.special_note,
     row.special_reminder,
     row.specialReminder,
-    row.special,
-    row.remark,
-    row.note
-  ].map(getCleanDisplayText).find(Boolean)
+    row.special
+  ].map(value => cleanFieldSpecialNoticeText(value)).find(Boolean)
   if (explicit) return explicit
 
   if (typeof getFieldNoteValue === 'function') {
@@ -21026,12 +21052,18 @@ function getFieldSpecialNoticeText(row = {}) {
       getFieldNoteValue(row, '特殊提醒'),
       getFieldNoteValue(row, '特殊備註'),
       getFieldNoteValue(row, '注意事項')
-    ].map(getCleanDisplayText).find(Boolean)
+    ].map(value => cleanFieldSpecialNoticeText(value)).find(Boolean)
     if (noteValue) return noteValue
   }
 
   const reminders = typeof getFieldSpecialRemindersFromRow === 'function' ? getFieldSpecialRemindersFromRow(row) : []
-  return reminders.length ? reminders.join('、') : ''
+  if (reminders.length) return reminders.map(getFieldSpecialReminderDisplay).map(cleanFieldSpecialNoticeText).filter(Boolean).join('、')
+
+  const labeledFallback = [row.remark, row.note]
+    .map(value => cleanFieldSpecialNoticeText(value, { strict: true }))
+    .find(Boolean)
+
+  return labeledFallback || ''
 }
 
 function renderCopyableAddressLine(address = '', className = 'week-card-preview', label = '地址') {
