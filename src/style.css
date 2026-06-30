@@ -26457,3 +26457,103 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3as END - overview staff column centered and quick group name chips */
+
+/* FOR-e V002-1H-stable-1-3av START - mobile overview fixed day columns and unchanged staff column width
+   本次只調整手機 / 觸控介面的「行程總覽」週曆欄寬：
+   1) 日期欄位固定寬度，靠橫向滑動查看，不壓縮卡片。
+   2) 第一欄人員名稱維持桌機既有寬度，不再被手機 media query 改窄或改寬。
+   3) 姓名字體大小、文字方向、置中規則都不改變。 */
+@media (max-width: 900px), (pointer: coarse) {
+  .week-overview-scroll {
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .week-overview-table {
+    table-layout: fixed !important;
+    width: 1574px !important;
+    min-width: 1574px !important;
+    max-width: none !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table thead th:first-child,
+  .week-overview-table tbody th:first-child,
+  .week-overview-table .staff-name-cell {
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+    left: 0 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    transform: none !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell {
+    width: 206px !important;
+    min-width: 206px !important;
+    max-width: 206px !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell {
+    position: sticky !important;
+    left: 0 !important;
+    background: #fff !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table thead th:first-child {
+    z-index: 8 !important;
+    background: #f8fafc !important;
+  }
+
+  .week-overview-table .staff-name-cell {
+    z-index: 7 !important;
+  }
+
+  .week-overview-table .staff-name-cell strong,
+  .week-overview-table .staff-name-cell span,
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell .calendar-staff-name-text,
+  .week-overview-table .staff-name-cell .calendar-staff-department {
+    font-size: inherit;
+    transform: none !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .week-overview-table {
+    table-layout: fixed !important;
+    width: 1574px !important;
+    min-width: 1574px !important;
+    max-width: none !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table thead th:first-child,
+  .week-overview-table tbody th:first-child,
+  .week-overview-table .staff-name-cell {
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+  }
+
+  .week-overview-table th:not(.staff-col),
+  .week-overview-table td.week-day-cell {
+    width: 206px !important;
+    min-width: 206px !important;
+    max-width: 206px !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3av END - mobile overview fixed day columns and unchanged staff column width */
+
