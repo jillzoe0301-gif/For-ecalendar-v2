@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3as'
-const SYSTEM_VERSION_NOTE = '行程總覽第一欄文字置中，快速人員群組新增後群組名稱穩定顯示'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3at'
+const SYSTEM_VERSION_NOTE = '快速人員群組自訂群組儲存、讀取、合併與顯示穩定修正'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1563,7 +1563,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements', 'announcement_records']
+const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements', 'announcement_records', 'overview_quick_groups']
 
 function readLocalJsonSetting(key) {
   try {
@@ -1662,15 +1662,23 @@ async function loadAppSettings() {
   }
 
   const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  const sharedOverviewQuickGroups = appSettings.overview_quick_groups
+
   if (personalQuickGroupKey && appSettings[personalQuickGroupKey]) {
-    appSettings.overview_quick_groups = appSettings[personalQuickGroupKey]
+    appSettings.overview_quick_groups = mergeOverviewQuickGroupStates([
+      sharedOverviewQuickGroups,
+      appSettings[personalQuickGroupKey]
+    ], appSettings[personalQuickGroupKey]?.activeId || sharedOverviewQuickGroups?.activeId || 'all')
   }
 
   const localOverviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, {})
   const hasLocalOverviewQuickGroups = Boolean((localOverviewQuickGroups.groups || []).length || localOverviewQuickGroups.activeId !== 'all')
   if (personalQuickGroupKey && !appSettings[personalQuickGroupKey] && hasLocalOverviewQuickGroups) {
     appSettings[personalQuickGroupKey] = localOverviewQuickGroups
-    appSettings.overview_quick_groups = localOverviewQuickGroups
+    appSettings.overview_quick_groups = mergeOverviewQuickGroupStates([
+      sharedOverviewQuickGroups,
+      localOverviewQuickGroups
+    ], localOverviewQuickGroups.activeId || sharedOverviewQuickGroups?.activeId || 'all')
     saveAppSetting(personalQuickGroupKey, localOverviewQuickGroups)
   }
 }
@@ -4550,6 +4558,12 @@ function renderApp() {
   document.querySelectorAll('[data-overview-group-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       const groupId = btn.dataset.overviewGroupId || 'all'
+      const selectedGroup = getOverviewQuickGroupById(groupId)
+
+      if (selectedGroup && !selectedGroup.builtIn) {
+        ensureOverviewQuickGroupVisibleInState(selectedGroup, groupId)
+      }
+
       overviewQuickGroups = normalizeOverviewQuickGroups({
         ...overviewQuickGroups,
         activeId: groupId
@@ -16518,15 +16532,19 @@ function saveOverviewFiltersPreference() {
 const overviewQuickGroupsStorageKey = 'for-e-overview-quick-groups-v002'
 const legacyOverviewCustomGroupStorageKey = 'for-e-overview-custom-group-v002'
 
-const overviewQuickGroupInvalidNameValues = new Set(['undefined', 'null', '[object object]'])
+const overviewQuickGroupInvalidNameValues = new Set(['undefined', 'null', '[object object]', '未命名', '未命名群組'])
 
 function getOverviewQuickGroupDisplayName(group = {}) {
   const candidates = [
-    group?.group_name,
     group?.name,
+    group?.group_name,
     group?.groupName,
     group?.title,
-    group?.label
+    group?.label,
+    group?.displayName,
+    group?.display_name,
+    group?.quickGroupName,
+    group?.quick_group_name
   ]
 
   for (const candidate of candidates) {
@@ -16539,116 +16557,274 @@ function getOverviewQuickGroupDisplayName(group = {}) {
   return ''
 }
 
-function withOverviewQuickGroupNameAliases(group = {}) {
+function getOverviewQuickGroupRawGroups(value = {}) {
+  if (!value) return []
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'object') return []
+
+  const rawGroups = []
+  const groupArrayKeys = [
+    'groups',
+    'customGroups',
+    'custom_groups',
+    'quickGroups',
+    'quick_groups',
+    'staffGroups',
+    'staff_groups',
+    'overviewGroups',
+    'overview_groups',
+    'quickStaffGroups',
+    'quick_staff_groups',
+    'items',
+    'rows',
+    'list',
+    'data'
+  ]
+
+  groupArrayKeys.forEach(key => {
+    const item = value[key]
+    if (Array.isArray(item)) rawGroups.push(...item)
+    else if (item && typeof item === 'object' && Array.isArray(item.groups)) rawGroups.push(...item.groups)
+  })
+
+  const looksLikeSingleGroup = Boolean(
+    getOverviewQuickGroupDisplayName(value)
+    || value.staffIds
+    || value.staff_ids
+    || value.selectedStaffIds
+    || value.selected_staff_ids
+    || value.memberIds
+    || value.member_ids
+    || value.members
+    || value.people
+    || value.staff
+  )
+
+  if (looksLikeSingleGroup) rawGroups.push(value)
+
+  return rawGroups
+}
+
+function splitOverviewQuickGroupStaffIdText(value = '') {
+  return String(value || '')
+    .split(/[、,，\n\r\t]+/)
+    .map(item => normalizeStaffId(item))
+    .filter(Boolean)
+}
+
+function collectOverviewQuickGroupStaffValues(value, ids = [], names = []) {
+  if (value === null || value === undefined || value === false) return { ids, names }
+
+  if (Array.isArray(value)) {
+    value.forEach(item => collectOverviewQuickGroupStaffValues(item, ids, names))
+    return { ids, names }
+  }
+
+  if (typeof value === 'object') {
+    const idCandidate = value.staff_id
+      || value.staffId
+      || value.staff_uuid
+      || value.profile_staff_id
+      || value.profile_id
+      || value.user_id
+      || value.id
+      || value.value
+      || value.email
+      || ''
+
+    if (idCandidate) ids.push(...splitOverviewQuickGroupStaffIdText(idCandidate))
+
+    const nameCandidate = value.name
+      || value.staff_name
+      || value.full_name
+      || value.display_name
+      || value.label
+      || value.title
+      || ''
+
+    if (nameCandidate) names.push(String(nameCandidate || '').trim())
+
+    return { ids, names }
+  }
+
+  ids.push(...splitOverviewQuickGroupStaffIdText(value))
+  return { ids, names }
+}
+
+function collectOverviewQuickGroupStaffNameValues(value, names = []) {
+  if (value === null || value === undefined || value === false) return names
+
+  if (Array.isArray(value)) {
+    value.forEach(item => collectOverviewQuickGroupStaffNameValues(item, names))
+    return names
+  }
+
+  if (typeof value === 'object') {
+    const nameCandidate = value.name
+      || value.staff_name
+      || value.full_name
+      || value.display_name
+      || value.label
+      || value.title
+      || ''
+    if (nameCandidate) names.push(String(nameCandidate || '').trim())
+    return names
+  }
+
+  String(value || '')
+    .split(/[、,，\n\r\t]+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .forEach(item => names.push(item))
+
+  return names
+}
+
+function getOverviewQuickGroupStaffIdsFromGroup(group = {}) {
+  const idValues = [
+    group.staffIds,
+    group.staff_ids,
+    group.staffId,
+    group.staff_id,
+    group.selectedStaffIds,
+    group.selected_staff_ids,
+    group.memberIds,
+    group.member_ids,
+    group.personIds,
+    group.person_ids,
+    group.userIds,
+    group.user_ids,
+    group.assigneeIds,
+    group.assignee_ids,
+    group.staff,
+    group.members,
+    group.people,
+    group.persons,
+    group.assignees,
+    group.rows
+  ]
+
+  const nameValues = [
+    group.staffNames,
+    group.staff_names,
+    group.memberNames,
+    group.member_names,
+    group.peopleNames,
+    group.people_names,
+    group.names
+  ]
+
+  const ids = []
+  const names = []
+
+  idValues.forEach(value => collectOverviewQuickGroupStaffValues(value, ids, names))
+  nameValues.forEach(value => collectOverviewQuickGroupStaffNameValues(value, names))
+
+  const normalizedIds = normalizeOverviewFilterList(ids)
+  if (normalizedIds.length) return normalizedIds
+
+  return getOverviewQuickGroupStaffIdsByNames(names)
+}
+
+function getOverviewQuickGroupGeneratedId(groupName = '', index = 0) {
+  const text = normalizeOverviewQuickGroupNameText(groupName) || `group-${index}`
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(i)
+    hash |= 0
+  }
+  return `custom-${Math.abs(hash).toString(36)}`
+}
+
+function normalizeOverviewQuickGroupEntry(group = {}, index = 0) {
   const groupName = getOverviewQuickGroupDisplayName(group)
+  const now = new Date().toISOString()
+  const ownerMeta = getOverviewQuickGroupOwnerMeta()
+  const enabled = group.enabled === false || group.is_enabled === false || group.disabled === true ? false : true
+  const createdAt = group.createdAt || group.created_at || group.inserted_at || now
+  const updatedAt = group.updatedAt || group.updated_at || now
+  const groupId = String(group.id || group.group_id || group.key || '').trim() || getOverviewQuickGroupGeneratedId(groupName, index)
+
   return {
     ...group,
+    id: groupId,
+    group_id: group.group_id || groupId,
     name: groupName,
     group_name: groupName,
     groupName,
     title: groupName,
-    label: groupName
+    label: groupName,
+    staffIds: getOverviewQuickGroupStaffIdsFromGroup(group),
+    staff_ids: getOverviewQuickGroupStaffIdsFromGroup(group),
+    ownerId: String(group.ownerId || group.owner_id || ownerMeta.ownerId || '').trim(),
+    owner_id: String(group.owner_id || group.ownerId || ownerMeta.owner_id || '').trim(),
+    profile_id: String(group.profile_id || ownerMeta.profile_id || '').trim(),
+    user_id: String(group.user_id || ownerMeta.user_id || '').trim(),
+    createdBy: String(group.createdBy || group.created_by || ownerMeta.created_by || '').trim(),
+    created_by: String(group.created_by || group.createdBy || ownerMeta.created_by || '').trim(),
+    createdAt,
+    created_at: group.created_at || createdAt,
+    updatedAt,
+    updated_at: group.updated_at || updatedAt,
+    enabled,
+    is_enabled: enabled
   }
 }
 
-function ensureOverviewQuickGroupVisibleInState(group = {}, activeId = '') {
-  const normalizedGroup = withOverviewQuickGroupNameAliases(group)
-  const groupId = String(normalizedGroup.id || '').trim()
-  if (!groupId || !normalizedGroup.name) return overviewQuickGroups
-
-  const groups = [...(overviewQuickGroups.groups || [])]
-  const index = groups.findIndex(item => String(item.id || '') === groupId)
-  if (index >= 0) groups[index] = { ...groups[index], ...normalizedGroup }
-  else groups.push(normalizedGroup)
-
-  overviewQuickGroups = normalizeOverviewQuickGroups({
-    ...overviewQuickGroups,
-    activeId: activeId || groupId,
-    groups
-  })
-
-  return overviewQuickGroups
+function withOverviewQuickGroupNameAliases(group = {}) {
+  return normalizeOverviewQuickGroupEntry(group)
 }
 
-async function refreshOverviewQuickGroupsAfterSave(activeId = '', fallbackGroup = null) {
-  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
-  let refreshed = null
+function mergeOverviewQuickGroupGroups(...collections) {
+  const merged = []
+  const idIndex = new Map()
+  const nameIndex = new Map()
+  let orderIndex = 0
 
-  if (personalQuickGroupKey) {
-    try {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('setting_key, setting_value, updated_at')
-        .eq('setting_key', personalQuickGroupKey)
-        .maybeSingle()
+  const addGroup = rawGroup => {
+    const group = normalizeOverviewQuickGroupEntry(rawGroup, orderIndex)
+    orderIndex += 1
 
-      if (!error && data?.setting_value) {
-        refreshed = normalizeOverviewQuickGroups(data.setting_value)
-      }
-    } catch (err) {
-      console.warn('快速人員群組儲存後重新讀取失敗，改用目前畫面狀態。', err)
+    const groupName = getOverviewQuickGroupDisplayName(group)
+    if (!groupName || group.enabled === false || isHiddenOverviewQuickGroup(group)) return
+
+    const idKey = String(group.id || '').trim()
+    const nameKey = normalizeOverviewQuickGroupNameText(groupName)
+    const existingIndex = idIndex.has(idKey) ? idIndex.get(idKey) : nameIndex.get(nameKey)
+
+    if (existingIndex !== undefined) {
+      const previous = merged[existingIndex]
+      const staffIds = normalizeOverviewFilterList([...(previous.staffIds || []), ...(group.staffIds || [])])
+      const nextGroup = withOverviewQuickGroupNameAliases({
+        ...previous,
+        ...group,
+        name: groupName || getOverviewQuickGroupDisplayName(previous),
+        group_name: groupName || getOverviewQuickGroupDisplayName(previous),
+        staffIds,
+        staff_ids: staffIds,
+        enabled: previous.enabled === false ? false : group.enabled
+      })
+      merged[existingIndex] = nextGroup
+      idIndex.set(String(nextGroup.id || '').trim(), existingIndex)
+      nameIndex.set(normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(nextGroup)), existingIndex)
+      return
     }
+
+    const normalizedGroup = withOverviewQuickGroupNameAliases(group)
+    idIndex.set(String(normalizedGroup.id || '').trim(), merged.length)
+    nameIndex.set(normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(normalizedGroup)), merged.length)
+    merged.push(normalizedGroup)
   }
 
-  if (refreshed) {
-    overviewQuickGroups = normalizeOverviewQuickGroups({
-      ...refreshed,
-      activeId: activeId || refreshed.activeId || 'all'
-    })
-  }
+  collections.flatMap(collection => Array.isArray(collection) ? collection : getOverviewQuickGroupRawGroups(collection))
+    .forEach(addGroup)
 
-  if (fallbackGroup) {
-    ensureOverviewQuickGroupVisibleInState(fallbackGroup, activeId || fallbackGroup.id)
-  }
-
-  try {
-    saveFilterPreference(overviewQuickGroupsStorageKey, overviewQuickGroups, normalizeOverviewQuickGroups)
-  } catch (err) {
-    console.warn('快速人員群組儲存後本機清單更新失敗', err)
-  }
-
-  if (personalQuickGroupKey) appSettings[personalQuickGroupKey] = overviewQuickGroups
-  appSettings.overview_quick_groups = overviewQuickGroups
-
-  return overviewQuickGroups
+  return merged
 }
 
 function normalizeOverviewQuickGroups(value = {}) {
   const source = Array.isArray(value) ? { groups: value } : (value && typeof value === 'object' ? value : {})
-  const rawGroups = Array.isArray(source.groups) ? source.groups : []
-  const now = new Date().toISOString()
-  const ownerMeta = getOverviewQuickGroupOwnerMeta()
-
-  const groups = rawGroups
-    .map(group => {
-      const enabled = group.enabled === false || group.is_enabled === false || group.disabled === true ? false : true
-      const createdAt = group.createdAt || group.created_at || now
-      const updatedAt = group.updatedAt || group.updated_at || now
-      const groupName = getOverviewQuickGroupDisplayName(group)
-      return {
-        id: String(group.id || group.group_id || '').trim() || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: groupName,
-        group_name: groupName,
-        groupName,
-        title: groupName,
-        label: groupName,
-        staffIds: normalizeOverviewFilterList(group.staffIds || group.staff_ids || group.staffId || group.staff_id || []),
-        ownerId: String(group.ownerId || group.owner_id || ownerMeta.ownerId || '').trim(),
-        owner_id: String(group.owner_id || group.ownerId || ownerMeta.owner_id || '').trim(),
-        profile_id: String(group.profile_id || ownerMeta.profile_id || '').trim(),
-        user_id: String(group.user_id || ownerMeta.user_id || '').trim(),
-        createdBy: String(group.createdBy || group.created_by || ownerMeta.created_by || '').trim(),
-        created_by: String(group.created_by || group.createdBy || ownerMeta.created_by || '').trim(),
-        createdAt,
-        created_at: group.created_at || createdAt,
-        updatedAt,
-        updated_at: group.updated_at || updatedAt,
-        enabled,
-        is_enabled: enabled
-      }
-    })
-    .filter(group => group.enabled !== false && getOverviewQuickGroupDisplayName(group) && !isHiddenOverviewQuickGroup(group))
-
+  const groups = mergeOverviewQuickGroupGroups(getOverviewQuickGroupRawGroups(source))
   const activeId = String(source.activeId || source.active_id || 'all').trim() || 'all'
   const validIds = new Set(['all', 'field-workers', ...groups.map(group => group.id)])
 
@@ -16658,39 +16834,93 @@ function normalizeOverviewQuickGroups(value = {}) {
   }
 }
 
-function cleanupLegacyOverviewCustomGroupStorage() {
-  getFilterStorageKeys(legacyOverviewCustomGroupStorageKey).forEach(key => {
-    try {
-      localStorage.removeItem(key)
-    } catch (err) {
-      console.warn('清除舊自訂行事曆人選設定失敗', key, err)
+function readOverviewQuickGroupLocalSources() {
+  const sources = []
+  const keys = new Set([
+    ...getFilterStorageKeys(overviewQuickGroupsStorageKey),
+    ...getFilterStorageKeys(legacyOverviewCustomGroupStorageKey)
+  ])
+
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      if (key.includes(overviewQuickGroupsStorageKey) || key.includes(legacyOverviewCustomGroupStorageKey)) keys.add(key)
     }
+  } catch (err) {
+    console.warn('快速人員群組 localStorage 掃描失敗', err)
+  }
+
+  keys.forEach(key => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return
+      sources.push(JSON.parse(raw))
+    } catch (err) {
+      console.warn('快速人員群組 localStorage 讀取失敗', key, err)
+    }
+  })
+
+  return sources
+}
+
+function getOverviewQuickGroupAppSettingSources() {
+  const sources = []
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey && appSettings[personalQuickGroupKey]) sources.push(appSettings[personalQuickGroupKey])
+  if (appSettings.overview_quick_groups) sources.push(appSettings.overview_quick_groups)
+  if (appSettings.quick_staff_groups) sources.push(appSettings.quick_staff_groups)
+  if (appSettings.overview_staff_groups) sources.push(appSettings.overview_staff_groups)
+  if (appSettings.user_staff_groups) sources.push(appSettings.user_staff_groups)
+  return sources
+}
+
+function mergeOverviewQuickGroupStates(sources = [], fallbackActiveId = 'all') {
+  let activeId = fallbackActiveId || 'all'
+  const groups = []
+
+  sources.forEach(source => {
+    const normalized = normalizeOverviewQuickGroups(source)
+    if (normalized.activeId && normalized.activeId !== 'all') activeId = normalized.activeId
+    groups.push(...normalized.groups)
+  })
+
+  return normalizeOverviewQuickGroups({
+    activeId,
+    groups: mergeOverviewQuickGroupGroups(groups)
   })
 }
 
+function cleanupLegacyOverviewCustomGroupStorage() {
+  // 1-3at：舊版自訂群組不可再直接刪除；載入時會和新版 groups 合併，避免清理舊補丁後只剩固定群組。
+}
+
 function getSharedOverviewQuickGroupsSetting() {
-  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
-  if (personalQuickGroupKey && hasSharedSetting(personalQuickGroupKey)) {
-    return normalizeOverviewQuickGroups(appSettings[personalQuickGroupKey])
-  }
-  return null
+  const sources = getOverviewQuickGroupAppSettingSources()
+  if (!sources.length) return null
+  return mergeOverviewQuickGroupStates(sources, overviewQuickGroups.activeId || 'all')
 }
 
 function loadOverviewQuickGroupsPreference() {
   cleanupLegacyOverviewCustomGroupStorage()
-  const sharedGroups = getSharedOverviewQuickGroupsSetting()
 
-  if (sharedGroups) {
-    overviewQuickGroups = sharedGroups
-    try {
-      saveFilterPreference(overviewQuickGroupsStorageKey, sharedGroups, normalizeOverviewQuickGroups)
-    } catch (err) {
-      console.warn('快速人員群組本機同步失敗', err)
-    }
-    return
+  const sources = [
+    overviewQuickGroups,
+    ...readOverviewQuickGroupLocalSources(),
+    ...getOverviewQuickGroupAppSettingSources()
+  ]
+
+  overviewQuickGroups = mergeOverviewQuickGroupStates(sources, overviewQuickGroups.activeId || 'all')
+
+  try {
+    saveFilterPreference(overviewQuickGroupsStorageKey, overviewQuickGroups, normalizeOverviewQuickGroups)
+  } catch (err) {
+    console.warn('快速人員群組本機同步失敗', err)
   }
 
-  overviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, overviewQuickGroups)
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (personalQuickGroupKey) appSettings[personalQuickGroupKey] = overviewQuickGroups
+  appSettings.overview_quick_groups = overviewQuickGroups
 }
 
 async function persistOverviewQuickGroupsRemote(normalized = overviewQuickGroups, options = {}) {
@@ -16745,6 +16975,8 @@ async function persistOverviewQuickGroupsRemote(normalized = overviewQuickGroups
 }
 
 function saveOverviewQuickGroupsPreference(options = {}) {
+  // 1-3at：儲存時以目前 state 為準；讀取時才合併 app_settings / localStorage。
+  // 這樣新增群組可立即顯示，也避免刪除或修改時被舊 localStorage 快照反向覆蓋。
   const normalized = normalizeOverviewQuickGroups(overviewQuickGroups)
   overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, normalized, normalizeOverviewQuickGroups)
 
@@ -16766,10 +16998,66 @@ function getDuplicateOverviewQuickGroupByName(groupName = '', exceptGroupId = ''
   const nameKey = normalizeOverviewQuickGroupNameText(groupName)
   if (!nameKey) return null
 
-  return (overviewQuickGroups.groups || []).find(group => {
+  return getOverviewQuickGroupRows().find(group => {
+    if (group.builtIn) return false
     if (exceptGroupId && String(group.id || '') === String(exceptGroupId)) return false
     return normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(group)) === nameKey
   }) || null
+}
+
+function ensureOverviewQuickGroupVisibleInState(group = {}, activeId = '') {
+  const normalizedGroup = withOverviewQuickGroupNameAliases(group)
+  const groupId = String(normalizedGroup.id || '').trim()
+  if (!groupId || !normalizedGroup.name) return overviewQuickGroups
+
+  overviewQuickGroups = mergeOverviewQuickGroupStates([
+    overviewQuickGroups,
+    { activeId: activeId || groupId, groups: [normalizedGroup] }
+  ], activeId || groupId)
+
+  return overviewQuickGroups
+}
+
+async function refreshOverviewQuickGroupsAfterSave(activeId = '', fallbackGroup = null) {
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  let refreshed = null
+
+  if (personalQuickGroupKey) {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('setting_key, setting_value, updated_at')
+        .eq('setting_key', personalQuickGroupKey)
+        .maybeSingle()
+
+      if (!error && data?.setting_value) {
+        refreshed = normalizeOverviewQuickGroups(data.setting_value)
+      }
+    } catch (err) {
+      console.warn('快速人員群組儲存後重新讀取失敗，改用目前畫面狀態。', err)
+    }
+  }
+
+  const sources = [
+    ...readOverviewQuickGroupLocalSources(),
+    ...getOverviewQuickGroupAppSettingSources(),
+    overviewQuickGroups
+  ]
+  if (refreshed) sources.push(refreshed)
+  if (fallbackGroup) sources.push({ activeId: activeId || fallbackGroup.id, groups: [fallbackGroup] })
+
+  overviewQuickGroups = mergeOverviewQuickGroupStates(sources, activeId || overviewQuickGroups.activeId || 'all')
+
+  try {
+    saveFilterPreference(overviewQuickGroupsStorageKey, overviewQuickGroups, normalizeOverviewQuickGroups)
+  } catch (err) {
+    console.warn('快速人員群組儲存後本機清單更新失敗', err)
+  }
+
+  if (personalQuickGroupKey) appSettings[personalQuickGroupKey] = overviewQuickGroups
+  appSettings.overview_quick_groups = overviewQuickGroups
+
+  return overviewQuickGroups
 }
 
 function getOverviewQuickGroupSaveErrorMessage(result) {
@@ -16850,10 +17138,14 @@ function isHiddenOverviewQuickGroup(group = {}) {
 }
 
 function getOverviewQuickGroupRows() {
-  return [
-    ...getOverviewBuiltInQuickGroups(),
-    ...(overviewQuickGroups.groups || [])
-  ]
+  // 1-3at：行程總覽按鈕一定使用「固定群組 + state + app_settings + localStorage」合併結果，
+  // 避免舊清理 / 補丁覆蓋後只剩固定群組，導致新增自訂群組沒有出現在快速群組區。
+  return mergeOverviewQuickGroupGroups(
+    getOverviewBuiltInQuickGroups(),
+    overviewQuickGroups.groups || [],
+    ...getOverviewQuickGroupAppSettingSources(),
+    ...readOverviewQuickGroupLocalSources()
+  )
     .map(group => withOverviewQuickGroupNameAliases(group))
     .filter(group => getOverviewQuickGroupDisplayName(group) && !isHiddenOverviewQuickGroup(group))
 }
@@ -17158,7 +17450,7 @@ function updateOverviewGroupStaffDropdownSummary(modal, rows = []) {
 }
 
 async function openOverviewQuickGroupManagerModal(editGroupId = '') {
-  const savedGroups = overviewQuickGroups.groups || []
+  const savedGroups = getOverviewQuickGroupRows().filter(group => !group.builtIn)
   const editGroup = savedGroups.find(group => group.id === editGroupId) || null
   const selectedIds = new Set(editGroup ? normalizeOverviewFilterList(editGroup.staffIds) : [])
   const rows = await ensureOverviewQuickGroupManageStaffRowsLoaded()
@@ -17335,11 +17627,14 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
     const remoteErrorMessage = getOverviewQuickGroupSaveErrorMessage(saveResult)
 
     if (remoteErrorMessage) {
-      setOverviewQuickGroupFormStatus(modal, remoteErrorMessage, 'error')
-      formEl.querySelectorAll('input, button').forEach(input => { input.disabled = false })
-      if (submitBtn) submitBtn.textContent = editGroup ? '儲存修改' : '新增群組'
+      await refreshOverviewQuickGroupsAfterSave(nextGroup.id, nextGroup)
+      const warningMessage = `${remoteErrorMessage}
+
+此群組已保留在本機並已顯示於行程總覽；請再檢查 Supabase app_settings 的 select / insert / update RLS policy，確保重新整理與跨裝置可讀取。`
+      setOverviewQuickGroupFormStatus(modal, warningMessage, 'error')
+      alert(warningMessage)
+      modal.remove()
       renderApp()
-      alert(remoteErrorMessage)
       return
     }
 
@@ -17359,7 +17654,10 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
 
   modal.querySelectorAll('[data-apply-overview-group]').forEach(btn => {
     btn.addEventListener('click', () => {
-      overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: btn.dataset.applyOverviewGroup })
+      const groupId = btn.dataset.applyOverviewGroup
+      const selectedGroup = getOverviewQuickGroupById(groupId)
+      if (selectedGroup && !selectedGroup.builtIn) ensureOverviewQuickGroupVisibleInState(selectedGroup, groupId)
+      overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: groupId })
       saveOverviewQuickGroupsPreference()
       modal.remove()
       renderApp()
@@ -17376,11 +17674,21 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
   modal.querySelectorAll('[data-delete-overview-group]').forEach(btn => {
     btn.addEventListener('click', () => {
       const groupId = btn.dataset.deleteOverviewGroup
-      const group = (overviewQuickGroups.groups || []).find(item => item.id === groupId)
-      if (!group) return
+      const group = getOverviewQuickGroupById(groupId)
+      if (!group || group.builtIn) return
       if (!confirm(`確定要刪除「${getOverviewQuickGroupDisplayName(group)}」群組嗎？`)) return
 
-      const groups = (overviewQuickGroups.groups || []).filter(item => item.id !== groupId)
+      overviewQuickGroups = mergeOverviewQuickGroupStates([
+        overviewQuickGroups,
+        { groups: getOverviewQuickGroupRows().filter(item => !item.builtIn) }
+      ], overviewQuickGroups.activeId || 'all')
+
+      const deleteNameKey = normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(group))
+      const groups = (overviewQuickGroups.groups || []).filter(item => {
+        if (String(item.id || '') === String(groupId)) return false
+        return normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(item)) !== deleteNameKey
+      })
+
       overviewQuickGroups = normalizeOverviewQuickGroups({
         activeId: overviewQuickGroups.activeId === groupId ? 'all' : overviewQuickGroups.activeId,
         groups
