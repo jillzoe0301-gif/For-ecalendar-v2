@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3ap'
-const SYSTEM_VERSION_NOTE = '快速人員群組移除行政群，外務特殊提醒同步顯示於行程總覽'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ar'
+const SYSTEM_VERSION_NOTE = '快速人員群組新增儲存修正，行程總覽第一欄姓名最小可讀寬度'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1585,10 +1585,32 @@ function normalizeSettingValue(value) {
 }
 
 function getPersonalSettingOwnerKey() {
-  const rawOwner = currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.email || currentProfile?.name || ''
+  // 1-3ar：保留舊版 staff_id / profile_id / email 優先順序，避免既有快速群組搬家；
+  // 只在舊欄位缺失時補 user_id / auth_user_id / id，讓新帳號仍有穩定 owner key。
+  const rawOwner = currentProfile?.staff_id
+    || currentProfile?.profile_id
+    || currentProfile?.email
+    || currentProfile?.name
+    || currentProfile?.user_id
+    || currentProfile?.auth_user_id
+    || currentProfile?.auth_id
+    || currentProfile?.id
+    || ''
   return String(rawOwner || '')
     .trim()
     .replace(/[^a-zA-Z0-9@._-]/g, '_')
+}
+
+function getOverviewQuickGroupOwnerMeta() {
+  const ownerId = String(currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.email || currentProfile?.name || '').trim()
+  return {
+    ownerId,
+    owner_id: ownerId,
+    profile_id: String(currentProfile?.profile_id || currentProfile?.id || '').trim(),
+    user_id: String(currentProfile?.user_id || currentProfile?.auth_user_id || currentProfile?.auth_id || '').trim(),
+    created_by: ownerId,
+    updated_by_profile_id: String(currentProfile?.profile_id || currentProfile?.id || '').trim()
+  }
 }
 
 function getPersonalOverviewQuickGroupsSettingKey() {
@@ -1675,12 +1697,15 @@ async function saveAppSetting(settingKey, settingValue) {
     if (error) {
       console.warn('app_settings 儲存失敗，已保留本機設定。', error.message)
       appSettingsError = error.message
-    } else {
-      appSettingsError = ''
+      return { ok: false, error: error.message, code: error.code || '', source: 'app_settings' }
     }
+
+    appSettingsError = ''
+    return { ok: true, error: '', source: 'app_settings' }
   } catch (err) {
     console.warn('app_settings 儲存發生錯誤，已保留本機設定。', err)
     appSettingsError = err.message || String(err)
+    return { ok: false, error: appSettingsError, source: 'app_settings' }
   }
 }
 
@@ -16494,16 +16519,37 @@ const overviewQuickGroupsStorageKey = 'for-e-overview-quick-groups-v002'
 const legacyOverviewCustomGroupStorageKey = 'for-e-overview-custom-group-v002'
 
 function normalizeOverviewQuickGroups(value = {}) {
-  const rawGroups = Array.isArray(value.groups) ? value.groups : []
-  const groups = rawGroups
-    .map(group => ({
-      id: String(group.id || '').trim() || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name: String(group.name || '').trim(),
-      staffIds: normalizeOverviewFilterList(group.staffIds || group.staffId || [])
-    }))
-    .filter(group => group.name && !isHiddenOverviewQuickGroup(group))
+  const source = Array.isArray(value) ? { groups: value } : (value && typeof value === 'object' ? value : {})
+  const rawGroups = Array.isArray(source.groups) ? source.groups : []
+  const now = new Date().toISOString()
+  const ownerMeta = getOverviewQuickGroupOwnerMeta()
 
-  const activeId = String(value.activeId || 'all').trim() || 'all'
+  const groups = rawGroups
+    .map(group => {
+      const enabled = group.enabled === false || group.is_enabled === false || group.disabled === true ? false : true
+      const createdAt = group.createdAt || group.created_at || now
+      const updatedAt = group.updatedAt || group.updated_at || now
+      return {
+        id: String(group.id || group.group_id || '').trim() || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: String(group.name || group.groupName || group.group_name || '').trim(),
+        staffIds: normalizeOverviewFilterList(group.staffIds || group.staff_ids || group.staffId || group.staff_id || []),
+        ownerId: String(group.ownerId || group.owner_id || ownerMeta.ownerId || '').trim(),
+        owner_id: String(group.owner_id || group.ownerId || ownerMeta.owner_id || '').trim(),
+        profile_id: String(group.profile_id || ownerMeta.profile_id || '').trim(),
+        user_id: String(group.user_id || ownerMeta.user_id || '').trim(),
+        createdBy: String(group.createdBy || group.created_by || ownerMeta.created_by || '').trim(),
+        created_by: String(group.created_by || group.createdBy || ownerMeta.created_by || '').trim(),
+        createdAt,
+        created_at: group.created_at || createdAt,
+        updatedAt,
+        updated_at: group.updated_at || updatedAt,
+        enabled,
+        is_enabled: enabled
+      }
+    })
+    .filter(group => group.enabled !== false && group.name && !isHiddenOverviewQuickGroup(group))
+
+  const activeId = String(source.activeId || source.active_id || 'all').trim() || 'all'
   const validIds = new Set(['all', 'field-workers', ...groups.map(group => group.id)])
 
   return {
@@ -16547,22 +16593,101 @@ function loadOverviewQuickGroupsPreference() {
   overviewQuickGroups = loadFilterPreference(overviewQuickGroupsStorageKey, normalizeOverviewQuickGroups, overviewQuickGroups)
 }
 
-function saveOverviewQuickGroupsPreference() {
+async function persistOverviewQuickGroupsRemote(normalized = overviewQuickGroups, options = {}) {
+  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
+  if (!personalQuickGroupKey) {
+    const message = '尚未取得登入者 owner key，快速人員群組已保留於本機，無法同步 Supabase。'
+    appSettingsError = message
+    return { ok: false, error: message, source: 'owner-key' }
+  }
+
+  appSettings[personalQuickGroupKey] = normalized
+  appSettings.overview_quick_groups = normalized
+
+  const result = await saveAppSetting(personalQuickGroupKey, normalized)
+  if (!result?.ok) {
+    return {
+      ok: false,
+      error: result?.error || appSettingsError || 'Supabase app_settings 儲存失敗。',
+      source: result?.source || 'app_settings',
+      code: result?.code || ''
+    }
+  }
+
+  if (options.verifyRemote) {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('setting_key, setting_value, updated_at')
+        .eq('setting_key', personalQuickGroupKey)
+        .maybeSingle()
+
+      if (error) {
+        console.warn('快速人員群組遠端驗證讀取失敗。', error.message)
+        return { ok: true, warning: error.message, source: 'app_settings' }
+      }
+
+      const remoteGroups = normalizeOverviewQuickGroups(data?.setting_value || {})
+      const localIds = new Set((normalized.groups || []).map(group => group.id))
+      const missingIds = (normalized.groups || []).filter(group => !remoteGroups.groups.some(remote => remote.id === group.id))
+      if (localIds.size && missingIds.length) {
+        const message = `Supabase 已回應成功，但遠端驗證沒有讀到 ${missingIds.length} 組快速群組，請檢查 app_settings RLS select policy。`
+        console.warn(message)
+        return { ok: true, warning: message, source: 'app_settings' }
+      }
+    } catch (err) {
+      console.warn('快速人員群組遠端驗證發生錯誤。', err)
+      return { ok: true, warning: err.message || String(err), source: 'app_settings' }
+    }
+  }
+
+  return { ok: true, error: '', source: 'app_settings' }
+}
+
+function saveOverviewQuickGroupsPreference(options = {}) {
   const normalized = normalizeOverviewQuickGroups(overviewQuickGroups)
   overviewQuickGroups = saveFilterPreference(overviewQuickGroupsStorageKey, normalized, normalizeOverviewQuickGroups)
 
-  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
-  if (personalQuickGroupKey) {
-    appSettings[personalQuickGroupKey] = overviewQuickGroups
-    appSettings.overview_quick_groups = overviewQuickGroups
-    saveAppSetting(personalQuickGroupKey, overviewQuickGroups)
-  }
+  const persistPromise = persistOverviewQuickGroupsRemote(overviewQuickGroups, options)
+  if (options.awaitRemote) return persistPromise
+
+  persistPromise.catch(err => {
+    console.warn('快速人員群組遠端同步失敗，已保留本機設定。', err)
+  })
 
   return overviewQuickGroups
 }
 
 function normalizeOverviewQuickGroupNameText(value = '') {
-  return String(value || '').replace(/\s+/g, '').trim()
+  return String(value || '').replace(/\s+/g, '').trim().toLowerCase()
+}
+
+function getDuplicateOverviewQuickGroupByName(groupName = '', exceptGroupId = '') {
+  const nameKey = normalizeOverviewQuickGroupNameText(groupName)
+  if (!nameKey) return null
+
+  return (overviewQuickGroups.groups || []).find(group => {
+    if (exceptGroupId && String(group.id || '') === String(exceptGroupId)) return false
+    return normalizeOverviewQuickGroupNameText(group.name || '') === nameKey
+  }) || null
+}
+
+function getOverviewQuickGroupSaveErrorMessage(result) {
+  if (!result || result.ok) return ''
+  const error = String(result.error || '儲存失敗').trim()
+  const lower = error.toLowerCase()
+  if (lower.includes('row-level security') || lower.includes('rls') || lower.includes('permission') || lower.includes('policy') || lower.includes('not authorized') || lower.includes('403')) {
+    return `快速人員群組已先暫存在本機，但 Supabase 權限 / RLS 擋住遠端儲存：${error}`
+  }
+  return `快速人員群組已先暫存在本機，但 Supabase 遠端儲存失敗：${error}`
+}
+
+function setOverviewQuickGroupFormStatus(modal, message = '', type = 'info') {
+  const target = modal?.querySelector?.('#overviewQuickGroupStatus')
+  if (!target) return
+  target.textContent = message
+  target.classList.remove('is-error', 'is-success', 'is-info')
+  target.classList.add(type === 'error' ? 'is-error' : type === 'success' ? 'is-success' : 'is-info')
 }
 
 function getOverviewQuickGroupStaffPool() {
@@ -16959,9 +17084,11 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
           <p class="field-hint">群組只用來快速切換行程總覽人員，不會影響原本部門、人員、排序篩選欄位。</p>
         </div>
 
+        <div class="overview-group-form-status span-2" id="overviewQuickGroupStatus" aria-live="polite"></div>
+
         <div class="modal-actions span-2">
           <button type="button" class="secondary-btn" id="cancelOverviewGroupModalBtn">取消</button>
-          <button type="submit" class="primary-btn">${editGroup ? '儲存修改' : '新增群組'}</button>
+          <button type="submit" class="primary-btn" id="saveOverviewQuickGroupBtn">${editGroup ? '儲存修改' : '新增群組'}</button>
         </div>
       </form>
 
@@ -17031,28 +17158,57 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
     })
   }
 
-  modal.querySelector('#overviewQuickGroupForm').addEventListener('submit', event => {
+  modal.querySelector('#overviewQuickGroupForm').addEventListener('submit', async event => {
     event.preventDefault()
-    const form = new FormData(event.target)
+
+    const formEl = event.target
+    const submitBtn = modal.querySelector('#saveOverviewQuickGroupBtn')
+    const form = new FormData(formEl)
     const groupId = String(form.get('groupId') || '').trim()
     const groupName = String(form.get('groupName') || '').trim()
     const staffIds = normalizeOverviewFilterList(form.getAll('groupStaffIds'))
 
     if (!groupName) {
+      setOverviewQuickGroupFormStatus(modal, '請輸入群組名稱。', 'error')
       alert('請輸入群組名稱。')
       return
     }
 
     if (!staffIds.length) {
+      setOverviewQuickGroupFormStatus(modal, '請至少選擇一位人員。', 'error')
       alert('請至少選擇一位人員。')
       return
     }
 
     const groups = [...(overviewQuickGroups.groups || [])]
+    const duplicatedGroup = getDuplicateOverviewQuickGroupByName(groupName, groupId)
+    let targetGroupId = groupId
+    let previousGroup = targetGroupId ? groups.find(group => group.id === targetGroupId) : null
+
+    if (duplicatedGroup) {
+      const overwrite = confirm(`快速人員群組「${duplicatedGroup.name}」已存在，是否覆蓋原群組的人員清單？`)
+      if (!overwrite) {
+        setOverviewQuickGroupFormStatus(modal, '已取消建立，請更換群組名稱。', 'error')
+        return
+      }
+      targetGroupId = duplicatedGroup.id
+      previousGroup = duplicatedGroup
+    }
+
+    const now = new Date().toISOString()
+    const ownerMeta = getOverviewQuickGroupOwnerMeta()
     const nextGroup = {
-      id: groupId || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      ...(previousGroup || {}),
+      ...ownerMeta,
+      id: targetGroupId || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name: groupName,
-      staffIds
+      staffIds,
+      enabled: true,
+      is_enabled: true,
+      createdAt: previousGroup?.createdAt || previousGroup?.created_at || now,
+      created_at: previousGroup?.created_at || previousGroup?.createdAt || now,
+      updatedAt: now,
+      updated_at: now
     }
 
     const foundIndex = groups.findIndex(group => group.id === nextGroup.id)
@@ -17065,10 +17221,33 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
       groups
     })
 
-    saveOverviewQuickGroupsPreference()
+    formEl.querySelectorAll('input, button').forEach(input => { input.disabled = true })
+    if (submitBtn) submitBtn.textContent = '儲存中...'
+    setOverviewQuickGroupFormStatus(modal, '正在儲存快速人員群組...', 'info')
+
+    const saveResult = await saveOverviewQuickGroupsPreference({ awaitRemote: true, verifyRemote: true })
+    const remoteErrorMessage = getOverviewQuickGroupSaveErrorMessage(saveResult)
+
+    if (remoteErrorMessage) {
+      setOverviewQuickGroupFormStatus(modal, remoteErrorMessage, 'error')
+      formEl.querySelectorAll('input, button').forEach(input => { input.disabled = false })
+      if (submitBtn) submitBtn.textContent = editGroup ? '儲存修改' : '新增群組'
+      renderApp()
+      alert(remoteErrorMessage)
+      return
+    }
+
+    const successMessage = saveResult?.warning
+      ? `群組已建立，但遠端驗證有提醒：${saveResult.warning}`
+      : (groupId ? '群組已更新。' : duplicatedGroup ? '群組已覆蓋。' : '群組已建立。')
+    setOverviewQuickGroupFormStatus(modal, successMessage, 'success')
+    alert(successMessage)
+
     modal.remove()
     renderApp()
   })
+
+
 
   modal.querySelectorAll('[data-apply-overview-group]').forEach(btn => {
     btn.addEventListener('click', () => {

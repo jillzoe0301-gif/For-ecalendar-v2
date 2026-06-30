@@ -26096,3 +26096,228 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   object-fit: contain !important;
 }
 /* FOR-e V002-1H-stable-1-3ap END - quick group overview field special stable */
+
+/* FOR-e V002-1H-stable-1-3ar START - quick group save and overview staff column min readable */
+/* 快速人員群組新增 / 儲存狀態提示。 */
+.overview-group-form-status {
+  min-height: 20px !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: #64748b !important;
+}
+
+.overview-group-form-status.is-success {
+  color: #047857 !important;
+  font-weight: 800 !important;
+}
+
+.overview-group-form-status.is-error {
+  color: #b91c1c !important;
+  font-weight: 800 !important;
+}
+
+.overview-group-form-status.is-info {
+  color: #475569 !important;
+}
+
+/* 行程總覽：第一欄縮到姓名需要的最小可讀寬度，但不壓縮、不縮小、不裁切姓名。 */
+.week-overview-scroll {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.week-overview-table {
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.week-overview-table .staff-col,
+.week-overview-table .staff-name-cell,
+.week-overview-table th:first-child {
+  width: 1px !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  transform: none !important;
+  font-size: inherit !important;
+}
+
+.week-overview-table .staff-col,
+.week-overview-table thead th:first-child {
+  position: sticky !important;
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 42 !important;
+  background: #f8fafc !important;
+  text-align: center !important;
+}
+
+.week-overview-table .staff-name-cell,
+.week-overview-table tbody th:first-child {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 36 !important;
+  background: #ffffff !important;
+  padding: 10px 8px !important;
+  text-align: left !important;
+  box-shadow: 4px 0 10px rgba(15, 23, 42, 0.06) !important;
+  border-right: 1px solid #d9e2ef !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text,
+.week-overview-table .staff-name-cell strong,
+.week-overview-table .staff-name-cell strong span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  font-size: 17px !important;
+  font-weight: 850 !important;
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  text-align: left !important;
+  transform: none !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text {
+  display: inline !important;
+}
+
+.week-overview-table .staff-name-cell .field-worker-badge {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 18px !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+.week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+.week-overview-table .staff-name-cell .calendar-staff-department {
+  display: block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 9em !important;
+  margin-top: 3px !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-align: left !important;
+  transform: none !important;
+}
+
+.week-overview-table th:not(.staff-col):not(:first-child),
+.week-overview-table td.week-day-cell {
+  min-width: 205px !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .week-overview-scroll,
+  .month-sliding-scroll {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .week-overview-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell,
+  .week-overview-table th:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    right: auto !important;
+    width: 1px !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    overflow: visible !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    transform: none !important;
+  }
+
+  .week-overview-table .staff-col,
+  .week-overview-table thead th:first-child {
+    top: 0 !important;
+    z-index: 52 !important;
+    background: #f8fafc !important;
+  }
+
+  .week-overview-table .staff-name-cell,
+  .week-overview-table tbody th:first-child {
+    top: auto !important;
+    z-index: 46 !important;
+    background: #ffffff !important;
+    text-align: left !important;
+    box-shadow: 4px 0 10px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .week-overview-table .staff-name-cell .calendar-staff-name-title,
+  .week-overview-table .staff-name-cell .calendar-staff-name-title .calendar-staff-name-text,
+  .week-overview-table .staff-name-cell strong,
+  .week-overview-table .staff-name-cell strong span,
+  .week-overview-table .staff-col * {
+    display: inline-flex !important;
+    width: max-content !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    font-size: 17px !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    overflow: visible !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    transform: none !important;
+  }
+
+  .week-overview-table .staff-name-cell > span:not(.calendar-staff-name-title),
+  .week-overview-table .staff-name-cell .calendar-staff-department {
+    display: block !important;
+    font-size: 12px !important;
+    max-width: 9em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .week-overview-table th:not(.staff-col):not(:first-child),
+  .week-overview-table td.week-day-cell {
+    min-width: 205px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3ar END - quick group save and overview staff column min readable */
