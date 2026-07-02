@@ -26844,3 +26844,143 @@ body:has(.modal-backdrop) .calendar-filter-bar {
   }
 }
 /* FOR-e V002-1H-stable-1-3ax END - mobile overview frozen corner strict and fit-content staff column */
+
+/* FOR-e V002-1H-stable-1-3ay START - desktop tablet overview frozen corner and min staff column
+   本次補強電腦版 / 平板版行程總覽：
+   1) 左上角第一列第一欄「人員」格，桌機與平板也要同時凍結 top + left。
+   2) 人員首欄使用內容所需最小可讀寬度，不壓縮文字、不縮小圖片 / icon、不裁切、不直排。
+   3) 右側日期欄維持固定欄寬，畫面不足時用橫向滑動。
+   4) 只影響行程總覽 week-overview-table，不動行程資料、新增 / 修改 / 刪除、快速群組與其他頁面邏輯。 */
+.week-overview-scroll,
+.overview-calendar-scroll:has(.week-overview-table) {
+  width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+.week-overview-table {
+  table-layout: auto !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.week-overview-table > thead > tr > th:not(:first-child),
+.week-overview-table th:not(.staff-col):not(:first-child),
+.week-overview-table > tbody > tr > td.week-day-cell,
+.week-overview-table td.week-day-cell {
+  width: 206px !important;
+  min-width: 206px !important;
+  max-width: 206px !important;
+}
+
+.week-overview-table > thead > tr > th:first-child,
+.week-overview-table > tbody > tr > th:first-child,
+.week-overview-table .staff-col,
+.week-overview-table .staff-name-cell {
+  width: 1px !important;
+  min-width: max-content !important;
+  max-width: max-content !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.week-overview-table > thead > tr > th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 80 !important;
+  background: #f8fafc !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.35) !important;
+}
+
+.week-overview-table > tbody > tr > th:first-child,
+.week-overview-table tbody th.staff-name-cell,
+.week-overview-table .staff-name-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 75 !important;
+  background: #ffffff !important;
+  background-clip: padding-box !important;
+  box-shadow: 1px 0 0 rgba(148, 163, 184, 0.35) !important;
+}
+
+.week-overview-table > thead > tr:first-child > th:first-child,
+.week-overview-table > thead > tr:first-child > th.staff-col,
+.week-overview-table thead th.staff-col,
+.week-overview-table .staff-col {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 150 !important;
+  background: #f8fafc !important;
+  background-clip: padding-box !important;
+  box-shadow: 1px 0 0 rgba(148, 163, 184, 0.45), 0 1px 0 rgba(148, 163, 184, 0.45) !important;
+}
+
+.week-overview-table .staff-name-cell,
+.week-overview-table .staff-name-cell *,
+.week-overview-table .staff-col,
+.week-overview-table .staff-col * {
+  font-size: inherit !important;
+  transform: none !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  max-width: none !important;
+  text-align: center !important;
+}
+
+.week-overview-table .staff-name-cell .calendar-staff-name-title,
+.week-overview-table .staff-name-cell strong.calendar-staff-name-title,
+.week-overview-table .staff-name-cell strong {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  gap: 3px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.week-overview-table .staff-name-cell img,
+.week-overview-table .staff-col img,
+.week-overview-table .staff-name-cell svg,
+.week-overview-table .staff-col svg,
+.week-overview-table .staff-name-cell .field-worker-badge,
+.week-overview-table .staff-col .field-worker-badge {
+  flex: 0 0 auto !important;
+  transform: none !important;
+  object-fit: contain !important;
+  width: auto;
+  height: auto;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+body:has(.modal-backdrop) .week-overview-table > thead > tr > th,
+body:has(.modal-backdrop) .week-overview-table > tbody > tr > th:first-child,
+body:has(.modal-backdrop) .week-overview-table .staff-name-cell,
+body:has(.modal-backdrop) .week-overview-table .staff-col {
+  z-index: 1 !important;
+}
+/* FOR-e V002-1H-stable-1-3ay END - desktop tablet overview frozen corner and min staff column */
+
