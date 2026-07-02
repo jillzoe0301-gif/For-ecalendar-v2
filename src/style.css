@@ -26984,3 +26984,69 @@ body:has(.modal-backdrop) .week-overview-table .staff-col {
 }
 /* FOR-e V002-1H-stable-1-3ay END - desktop tablet overview frozen corner and min staff column */
 
+
+
+/* FOR-e V002-1H-stable-1-3az START - desktop overview auto content columns
+   本次只調整電腦版行程總覽日期欄位：
+   1) 電腦版日期欄不再固定 206px，改依欄內行程內容自動調整欄寬。
+   2) 保留左上角「人員」格凍結與人員首欄最小可讀寬度。
+   3) 平板 / 手機仍沿用前版固定欄寬與橫向滑動，避免小螢幕跑版。
+   4) 不動行程資料、新增 / 修改 / 刪除、快速群組與提醒邏輯。 */
+@media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+  .week-overview-scroll,
+  .overview-calendar-scroll:has(.week-overview-table) {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+  }
+
+  .week-overview-table {
+    table-layout: auto !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* 電腦版日期欄位改依內容自動撐開，不再套用前版固定 206px。 */
+  .week-overview-table > thead > tr > th:not(:first-child),
+  .week-overview-table th:not(.staff-col):not(:first-child),
+  .week-overview-table > tbody > tr > td.week-day-cell,
+  .week-overview-table td.week-day-cell {
+    width: auto !important;
+    min-width: 148px !important;
+    max-width: none !important;
+  }
+
+  .week-overview-table td.week-day-cell {
+    vertical-align: top !important;
+  }
+
+  /* 讓欄寬可依卡片內容估算，但保留最大閱讀寬，避免單筆長地址把欄位撐到過寬。 */
+  .week-overview-table td.week-day-cell .week-schedule-card {
+    width: max-content !important;
+    min-width: 132px !important;
+    max-width: 320px !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+
+  .week-overview-table td.week-day-cell .week-schedule-card strong,
+  .week-overview-table td.week-day-cell .week-card-preview,
+  .week-overview-table td.week-day-cell .week-card-extra {
+    max-width: 300px !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+
+  /* 人員首欄仍維持前版的內容最小可讀寬度與凍結，不跟著日期欄被拉寬。 */
+  .week-overview-table > thead > tr > th:first-child,
+  .week-overview-table > tbody > tr > th:first-child,
+  .week-overview-table .staff-col,
+  .week-overview-table .staff-name-cell {
+    width: 1px !important;
+    min-width: max-content !important;
+    max-width: max-content !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3az END - desktop overview auto content columns */
