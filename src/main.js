@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3aw'
-const SYSTEM_VERSION_NOTE = '手機版行程總覽左上角凍結，首欄人員欄位縮到最小可讀寬度且不壓縮文字圖片'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ax'
+const SYSTEM_VERSION_NOTE = '手機版行程總覽左上角人員格強制凍結，首欄人員欄位縮到最小可讀寬度且不壓縮文字圖片'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
