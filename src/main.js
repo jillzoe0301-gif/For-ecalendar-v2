@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3ay'
-const SYSTEM_VERSION_NOTE = '電腦版、平板與手機行程總覽左上角人員格凍結，首欄人員欄位縮到最小可讀寬度且不壓縮文字圖片'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3ba'
+const SYSTEM_VERSION_NOTE = '正式上線效能穩定補強：行程總覽建立單次索引快取，降低大量行程與多裝置瀏覽時的重複計算。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2938,6 +2938,8 @@ function isPersonalLeaveOrRestSchedule(row = {}) {
 
 function hasStaffLeaveOrRestOnDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return false
+  const cachedRows = getOverviewPerformanceCachedRows('leaveRestRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows.length > 0
   return schedules.some(row => {
     if (!isVisibleSchedule(row)) return false
     if (!isPersonalLeaveOrRestSchedule(row)) return false
@@ -15427,6 +15429,8 @@ function returnTaiwanReminderMatchesDate(row = {}, dateKey = '') {
 
 function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
+  const cachedRows = getOverviewPerformanceCachedRows('returnTaiwanRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows
 
   return uniqueScheduleRows(schedules
     .filter(isVisibleSchedule)
@@ -15492,6 +15496,8 @@ function renderReturnTaiwanReminderDayMarks(rows = [], dateKey = '') {
 
 function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
+  const cachedRows = getOverviewPerformanceCachedRows('administrativeRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows
 
   return uniqueScheduleRows(schedules
     .filter(isVisibleSchedule)
@@ -15646,69 +15652,79 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
 }
 
 function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, tableClass) {
-  if (['個人當月', '月份顯示'].includes(viewMode)) {
-    if (staffRows.length === 1) return renderOverviewSingleMonthCalendar(staffRows[0], weekDates, todayKey)
-    return renderOverviewMonthSlidingTable(staffRows, weekDates, todayKey, tableClass)
-  }
+  const previousOverviewPerformanceCache = overviewPerformanceCache
+  const cacheDates = ['個人當月', '月份顯示'].includes(viewMode) && staffRows.length === 1
+    ? getMonthCalendarGridDates(weekDates)
+    : weekDates
 
-  return `
-    <div class="week-overview-scroll">
-      <table class="week-overview-table ${tableClass}">
-        <thead>
-          <tr>
-            <th class="staff-col">人員</th>
-            ${weekDates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
+  overviewPerformanceCache = buildOverviewPerformanceCache(staffRows, cacheDates)
+
+  try {
+    if (['個人當月', '月份顯示'].includes(viewMode)) {
+      if (staffRows.length === 1) return renderOverviewSingleMonthCalendar(staffRows[0], weekDates, todayKey)
+      return renderOverviewMonthSlidingTable(staffRows, weekDates, todayKey, tableClass)
+    }
+
+    return `
+      <div class="week-overview-scroll">
+        <table class="week-overview-table ${tableClass}">
+          <thead>
+            <tr>
+              <th class="staff-col">人員</th>
+              ${weekDates.map(date => {
+                const key = toDateKey(date)
+                const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+                return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                  <span>${weekName}</span>
+                  <strong>${key.slice(5)}</strong>
+                  ${renderHolidayLabels(key)}
+                </th>`
+              }).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${staffRows.map(staff => {
+              const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, weekDates)
+              return `
+                <tr>
+                  <th class="staff-name-cell">
+                    ${renderCalendarStaffNameTitle(staff)}
+                    <span>${escapeHtml(staff.department_name || '')}</span>
+                  </th>
+                  ${weekDates.map(date => {
+                    const key = toDateKey(date)
+                    const rawRows = getSchedulesForStaffDate(staff.staff_id, key)
+                    const dayRows = filterDailyCardsForDate(rawRows, key)
+                    const continuationRows = getContinuationRowsForDate(continuousRows, key)
+                    const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
+                    const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
+                    const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                    return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                      ${renderContinuationDayMarks(continuousRows, key, 'overview')}
+
+                      ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+
+                      ${birthdayCard}
+
+                      ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
+
+                      ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
+
+                      ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
+                      ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+                    </td>`
+                  }).join('')}
+                </tr>
+              `
             }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${staffRows.map(staff => {
-            const continuousRows = getOverviewContinuousSchedulesForStaff(staff.staff_id, weekDates)
-            return `
-              <tr>
-                <th class="staff-name-cell">
-                  ${renderCalendarStaffNameTitle(staff)}
-                  <span>${escapeHtml(staff.department_name || '')}</span>
-                </th>
-                ${weekDates.map(date => {
-                  const key = toDateKey(date)
-                  const rawRows = getSchedulesForStaffDate(staff.staff_id, key)
-                  const dayRows = filterDailyCardsForDate(rawRows, key)
-                  const continuationRows = getContinuationRowsForDate(continuousRows, key)
-                  const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
-                  const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
-                  const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
-                  return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
-                    ${renderContinuationDayMarks(continuousRows, key, 'overview')}
-
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-
-                    ${birthdayCard}
-
-                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
-
-                    ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
-
-                    ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-                    ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
-                  </td>`
-                }).join('')}
-              </tr>
-            `
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
+          </tbody>
+        </table>
+      </div>
+    `
+  } finally {
+    overviewPerformanceCache = previousOverviewPerformanceCache
+  }
 }
-
 
 function isContinuousDateSchedule(row = {}) {
   if (!row?.start_date || !row?.end_date) return false
@@ -15758,6 +15774,8 @@ function rowNeedsFullDayBackground(row = {}) {
 
 function getStaffFieldBackgroundRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
+  const cachedRows = getOverviewPerformanceCachedRows('fieldBackgroundRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows
 
   return schedules
     .filter(isVisibleSchedule)
@@ -15784,6 +15802,8 @@ function isStaffAssignedToSchedule(row = {}, staffId = '') {
 
 function getStaffLeaveReturnRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
+  const cachedRows = getOverviewPerformanceCachedRows('leaveReturnRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows
 
   return uniqueScheduleRows(schedules
     .filter(isVisibleSchedule)
@@ -15800,6 +15820,8 @@ function getStaffLeaveReturnRowsForDate(staffId = '', dateKey = '') {
 
 function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
   if (!staffId || !dateKey) return []
+  const cachedRows = getOverviewPerformanceCachedRows('fieldDayRowsByStaffDate', staffId, dateKey)
+  if (cachedRows) return cachedRows
 
   return schedules
     .filter(isVisibleSchedule)
@@ -15989,6 +16011,9 @@ function renderFieldDayReminderPrompt(rows = []) {
 
 
 function getOverviewContinuousSchedulesForStaff(staffId, dates = []) {
+  const cachedRows = getOverviewPerformanceCachedContinuousRows(staffId)
+  if (cachedRows) return cachedRows
+
   const dateKeys = getDateKeysFromDates(dates)
   if (!staffId || !dateKeys.length) return []
   const firstKey = dateKeys[0]
@@ -18220,8 +18245,146 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
   return getMeetingEffectiveStaffIds(row).includes(staffId)
 }
 
+/* FOR-e V002-1H-stable-1-3ba START - overview performance cache */
+let overviewPerformanceCache = null
+
+function getOverviewPerformanceMapKey(staffId = '', dateKey = '') {
+  return `${String(staffId || '')}@@${String(dateKey || '')}`
+}
+
+function getOverviewPerformanceCachedRows(mapName = '', staffId = '', dateKey = '') {
+  if (!overviewPerformanceCache || !mapName || !staffId || !dateKey) return null
+  if (!overviewPerformanceCache.dateKeySet?.has(dateKey)) return null
+  if (!overviewPerformanceCache.staffIdSet?.has(staffId)) return null
+  const map = overviewPerformanceCache[mapName]
+  if (!map) return null
+  const rows = map.get(getOverviewPerformanceMapKey(staffId, dateKey))
+  return Array.isArray(rows) ? rows : []
+}
+
+function getOverviewPerformanceCachedContinuousRows(staffId = '') {
+  if (!overviewPerformanceCache || !staffId) return null
+  if (!overviewPerformanceCache.staffIdSet?.has(staffId)) return null
+  const rows = overviewPerformanceCache.continuousRowsByStaff?.get(staffId)
+  return Array.isArray(rows) ? rows : []
+}
+
+function pushOverviewPerformanceRow(map, staffId = '', dateKey = '', row = {}) {
+  if (!map || !staffId || !dateKey || !row) return
+  const key = getOverviewPerformanceMapKey(staffId, dateKey)
+  if (!map.has(key)) map.set(key, [])
+  map.get(key).push(row)
+}
+
+function sortOverviewPerformanceRows(map) {
+  if (!map) return
+  map.forEach((rows, key) => {
+    map.set(key, uniqueScheduleRows(rows).sort((a, b) => String(a.start_time || a.start_date || '').localeCompare(String(b.start_time || b.start_date || ''))))
+  })
+}
+
+function sortOverviewPerformanceSimpleRows(map) {
+  if (!map) return
+  map.forEach((rows, key) => {
+    map.set(key, uniqueScheduleRows(rows).sort((a, b) => String(a.start_date || a.start_time || '').localeCompare(String(b.start_date || b.start_time || ''))))
+  })
+}
+
+function buildOverviewPerformanceCache(staffRows = [], dates = []) {
+  const dateKeys = getDateKeysFromDates(dates).filter(Boolean)
+  const staffIds = staffRows.map(staff => staff?.staff_id).filter(Boolean)
+  const cache = {
+    dateKeys,
+    staffIds,
+    dateKeySet: new Set(dateKeys),
+    staffIdSet: new Set(staffIds),
+    schedulesByStaffDate: new Map(),
+    leaveReturnRowsByStaffDate: new Map(),
+    fieldDayRowsByStaffDate: new Map(),
+    fieldBackgroundRowsByStaffDate: new Map(),
+    administrativeRowsByStaffDate: new Map(),
+    returnTaiwanRowsByStaffDate: new Map(),
+    leaveRestRowsByStaffDate: new Map(),
+    continuousRowsByStaff: new Map()
+  }
+
+  if (!dateKeys.length || !staffIds.length) return cache
+
+  const firstKey = dateKeys[0]
+  const lastKey = dateKeys[dateKeys.length - 1]
+
+  schedules.forEach(row => {
+    if (!isVisibleSchedule(row)) return
+
+    staffIds.forEach(staffId => {
+      if (!staffId) return
+
+      if (isContinuousDateSchedule(row) && !(row.start_date > lastKey || row.end_date < firstKey) && scheduleBelongsToStaff(row, staffId)) {
+        if (!cache.continuousRowsByStaff.has(staffId)) cache.continuousRowsByStaff.set(staffId, [])
+        cache.continuousRowsByStaff.get(staffId).push(row)
+      }
+
+      dateKeys.forEach(dateKey => {
+        if (scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaffOnDate(row, staffId, dateKey)) {
+          pushOverviewPerformanceRow(cache.schedulesByStaffDate, staffId, dateKey, row)
+        }
+
+        if (isPersonalLeaveOrRestSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)) {
+          pushOverviewPerformanceRow(cache.leaveRestRowsByStaffDate, staffId, dateKey, row)
+        }
+
+        if (rowNeedsFullDayBackground(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+          pushOverviewPerformanceRow(cache.fieldBackgroundRowsByStaffDate, staffId, dateKey, row)
+        }
+
+        if (isLeaveOrReturnSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && isStaffAssignedToSchedule(row, staffId)) {
+          pushOverviewPerformanceRow(cache.leaveReturnRowsByStaffDate, staffId, dateKey, row)
+        }
+
+        if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+          pushOverviewPerformanceRow(cache.fieldDayRowsByStaffDate, staffId, dateKey, row)
+        }
+
+        if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+          pushOverviewPerformanceRow(cache.administrativeRowsByStaffDate, staffId, dateKey, row)
+        }
+
+        if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row) && returnTaiwanReminderMatchesDate(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+          pushOverviewPerformanceRow(cache.returnTaiwanRowsByStaffDate, staffId, dateKey, row)
+        }
+      })
+    })
+  })
+
+  sortOverviewPerformanceRows(cache.schedulesByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.leaveRestRowsByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.fieldBackgroundRowsByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.fieldDayRowsByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.administrativeRowsByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.returnTaiwanRowsByStaffDate)
+
+  cache.leaveReturnRowsByStaffDate.forEach((rows, key) => {
+    cache.leaveReturnRowsByStaffDate.set(key, uniqueScheduleRows(rows).sort((a, b) => {
+      const returnCompare = Number(isReturnHomeSchedule(b)) - Number(isReturnHomeSchedule(a))
+      if (returnCompare !== 0) return returnCompare
+      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+    }))
+  })
+
+  cache.continuousRowsByStaff.forEach((rows, staffId) => {
+    cache.continuousRowsByStaff.set(staffId, uniqueContinuousRows(rows))
+  })
+
+  return cache
+}
+/* FOR-e V002-1H-stable-1-3ba END - overview performance cache */
+
+
 
 function getSchedulesForStaffDate(staffId, dateKey) {
+  const cachedRows = getOverviewPerformanceCachedRows('schedulesByStaffDate', staffId, dateKey)
+  if (cachedRows) return dedupeVerifyReminderRows(cachedRows, dateKey).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+
   const rows = uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
