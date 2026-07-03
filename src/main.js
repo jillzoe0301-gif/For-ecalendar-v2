@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bf'
-const SYSTEM_VERSION_NOTE = '個人行程表今日會議資料來源修正：以會議室預約與人員行務會議細項為主，排除非會議項目。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bg'
+const SYSTEM_VERSION_NOTE = '行程顯示排序統一：同一天內無時間行程優先，有時間行程依開始時間由早到晚排序。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1223,7 +1223,7 @@ function getPersonalReminderRows() {
       const aOverdue = isOverdueSchedule(a)
       const bOverdue = isOverdueSchedule(b)
       if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     })
 }
 
@@ -1394,15 +1394,7 @@ function getPersonalTodayMeetingDedupKey(row = {}) {
 }
 
 function sortPersonalTodayMeetingRows(rows = []) {
-  return [...rows].sort((a, b) => {
-    const aTime = normalizePersonalTodayMeetingText(a.start_time)
-    const bTime = normalizePersonalTodayMeetingText(b.start_time)
-    const aHasTime = Boolean(aTime)
-    const bHasTime = Boolean(bTime)
-    if (aHasTime !== bHasTime) return aHasTime ? -1 : 1
-    if (aTime !== bTime) return aTime.localeCompare(bTime)
-    return getPersonalTodayMeetingTitle(a).localeCompare(getPersonalTodayMeetingTitle(b), 'zh-Hant')
-  })
+  return sortScheduleRowsForDisplay(rows, { dateFirst: false })
 }
 
 function uniquePersonalTodayMeetingRows(rows = []) {
@@ -3164,6 +3156,97 @@ function getCardTimeText(row = {}) {
   if (!text || text === '不指定') return ''
   return text
 }
+
+
+
+/* FOR-e V002-1H-stable-1-3bg START - unified schedule display sort */
+function normalizeScheduleSortPrimitive(value = '') {
+  const text = String(value ?? '').trim()
+  if (!text || text === 'null' || text === 'undefined' || text === '[object Object]') return ''
+  return text
+}
+
+function getScheduleSortDateValue(row = {}) {
+  return normalizeScheduleSortPrimitive(row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || row.date || row.schedule_date || '')
+}
+
+function getScheduleSortTimeCandidateValues(row = {}) {
+  return [
+    row.start_time,
+    row.startTime,
+    row.time_start,
+    row.time,
+    row.display_time,
+    row.time_text,
+    row.time_type && !['不指定', '未指定'].includes(String(row.time_type).trim()) ? row.time_type : '',
+    typeof formatTime === 'function' ? formatTime(row) : ''
+  ]
+}
+
+function getScheduleSortStartMinutes(row = {}) {
+  const noTimePattern = /^(未指定|不指定|無|沒有|全天|日期)$/
+  const candidates = getScheduleSortTimeCandidateValues(row)
+
+  for (const candidate of candidates) {
+    let text = normalizeScheduleSortPrimitive(candidate)
+    if (!text || noTimePattern.test(text)) continue
+    text = text
+      .replace(/[：]/g, ':')
+      .replace(/[－—–]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    const hasPm = /下午|晚上|晚間|PM|pm/.test(text)
+    const hasAm = /上午|早上|AM|am/.test(text)
+    const match = text.match(/(\d{1,2})\s*:\s*(\d{2})/)
+    if (!match) continue
+
+    let hour = Number(match[1])
+    const minute = Number(match[2])
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) continue
+
+    if (hasPm && hour < 12) hour += 12
+    if (hasAm && hour === 12) hour = 0
+    return hour * 60 + minute
+  }
+
+  return null
+}
+
+function compareScheduleRowsByDateAndDisplayTime(a = {}, b = {}, options = {}) {
+  const dateFirst = options.dateFirst !== false
+  const descendingDate = options.descendingDate === true
+
+  if (dateFirst) {
+    const aDate = getScheduleSortDateValue(a)
+    const bDate = getScheduleSortDateValue(b)
+    if (aDate !== bDate) return descendingDate ? String(bDate).localeCompare(String(aDate)) : String(aDate).localeCompare(String(bDate))
+  }
+
+  const aMinutes = getScheduleSortStartMinutes(a)
+  const bMinutes = getScheduleSortStartMinutes(b)
+  const aHasTime = aMinutes !== null
+  const bHasTime = bMinutes !== null
+
+  // 同一天內：沒有時間的行程排最前面，有時間再依開始時間排序。
+  if (aHasTime !== bHasTime) return aHasTime ? 1 : -1
+  if (aHasTime && bHasTime && aMinutes !== bMinutes) return aMinutes - bMinutes
+
+  return 0
+}
+
+function sortScheduleRowsForDisplay(rows = [], options = {}) {
+  return [...(rows || [])]
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => {
+      const result = compareScheduleRowsByDateAndDisplayTime(a.row, b.row, options)
+      if (result !== 0) return result
+      return a.index - b.index
+    })
+    .map(item => item.row)
+}
+/* FOR-e V002-1H-stable-1-3bg END - unified schedule display sort */
 
 function renderCardTime(row = {}, className = '') {
   const text = getCardTimeText(row)
@@ -5724,9 +5807,9 @@ function matchesSearchFilters(row) {
 }
 
 function getSearchResults() {
-  return schedules
+  return sortScheduleRowsForDisplay(schedules
     .filter(isSearchableSchedule)
-    .filter(row => matchesSearchFilters(row))
+    .filter(row => matchesSearchFilters(row)), { dateFirst: true })
 }
 
 function buildOptionList(items, selected) {
@@ -6773,14 +6856,14 @@ function isFieldDayReminderSchedule(row = {}) {
 
 
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
-  return uniqueScheduleRows(schedules.filter(row => {
+  return sortScheduleRowsForDisplay(uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!isFieldScheduleRow(row)) return false
     if (isFieldDayReminderSchedule(row)) return false
     if (isLeaveOrReturnSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
-  })).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  })), { dateFirst: false })
 }
 
 function renderFieldScheduleCard(row) {
@@ -6946,12 +7029,7 @@ function getFieldDetailRows() {
 
       return true
     }))
-    .sort((a, b) => {
-      if (String(a.start_date || '') !== String(b.start_date || '')) {
-        return String(b.start_date || '').localeCompare(String(a.start_date || ''))
-      }
-      return String(a.start_time || '').localeCompare(String(b.start_time || ''))
-    })
+    .sort((a, b) => compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true, descendingDate: true }))
 }
 
 function renderFieldDetailPage() {
@@ -7293,12 +7371,12 @@ function getDisplaySubTypeExtra(row = {}) {
 
 
 function getMeetingSchedulesForRoomDate(room, dateKey) {
-  return uniqueScheduleRows(schedules
+  return sortScheduleRowsForDisplay(uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
     .filter(row => isMeetingRoomSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
     .filter(row => row.location_name === room || row.sub_type === room)
-  ).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  ), { dateFirst: false })
 }
 
 
@@ -8502,7 +8580,7 @@ function getIncidentAdministrativeTodoRows(parentRow = {}) {
       const statusA = a.status === '已完成' ? 1 : 0
       const statusB = b.status === '已完成' ? 1 : 0
       if (statusA !== statusB) return statusA - statusB
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     })
 }
 
@@ -8651,7 +8729,7 @@ function getIncidentRows() {
       const activeA = a.status === '已完成' ? 1 : 0
       const activeB = b.status === '已完成' ? 1 : 0
       if (activeA !== activeB) return activeA - activeB
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     })
 }
 
@@ -11812,11 +11890,16 @@ function applyLineNotifyDateFilter(rows = []) {
 }
 
 function sortLineNotifyRows(rows = []) {
-  return [...rows].sort((a, b) => {
-    const dateCompare = String(getLineNotifyRowDate(a) || '').localeCompare(String(getLineNotifyRowDate(b) || ''))
-    if (dateCompare !== 0) return dateCompare
-    return String(formatTime(a) || '').localeCompare(String(formatTime(b) || ''))
-  })
+  return [...(rows || [])]
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => {
+      const dateCompare = String(getLineNotifyRowDate(a.row) || '').localeCompare(String(getLineNotifyRowDate(b.row) || ''))
+      if (dateCompare !== 0) return dateCompare
+      const timeCompare = compareScheduleRowsByDateAndDisplayTime(a.row, b.row, { dateFirst: false })
+      if (timeCompare !== 0) return timeCompare
+      return a.index - b.index
+    })
+    .map(item => item.row)
 }
 
 function getLineNotifyRows() {
@@ -12914,19 +12997,16 @@ function getLoginDailyReminderRows() {
 
   const todoCategories = ['一般記事', '待辦事項', '辦件提醒', '證件交付']
 
-  const todayTodos = activeTodayRows
-    .filter(row => todoCategories.includes(row.category))
-    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+  const todayTodos = sortScheduleRowsForDisplay(activeTodayRows
+    .filter(row => todoCategories.includes(row.category)), { dateFirst: false })
 
-  const reminderRows = activeTodayRows
+  const reminderRows = sortScheduleRowsForDisplay(activeTodayRows
     .filter(row => isReminderSchedule(row))
-    .filter(row => !todayTodos.some(todo => todo.schedule_id === row.schedule_id))
-    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+    .filter(row => !todayTodos.some(todo => todo.schedule_id === row.schedule_id)), { dateFirst: false })
 
-  const todaySchedules = activeTodayRows
+  const todaySchedules = sortScheduleRowsForDisplay(activeTodayRows
     .filter(row => !todoCategories.includes(row.category))
-    .filter(row => !reminderRows.some(reminder => reminder.schedule_id === row.schedule_id))
-    .sort((a, b) => String(formatTime(a)).localeCompare(String(formatTime(b))))
+    .filter(row => !reminderRows.some(reminder => reminder.schedule_id === row.schedule_id)), { dateFirst: false })
 
   return {
     personalBirthday,
@@ -13003,10 +13083,7 @@ function getNewAssignedScheduleRows() {
     .filter(row => !isScheduleTimePassed(row))
     .filter(row => row.creator_staff_id !== currentProfile.staff_id)
     .filter(row => seen[row.schedule_id] !== getAssignedReminderSignature(row))
-    .sort((a, b) => {
-      if (String(a.start_date || '') !== String(b.start_date || '')) return String(a.start_date || '').localeCompare(String(b.start_date || ''))
-      return String(a.start_time || '').localeCompare(String(b.start_time || ''))
-    })
+    .sort((a, b) => compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true }))
     .slice(0, 10)
 }
 
@@ -15092,7 +15169,7 @@ function getAssignedTrackingRows() {
       const bOverdue = isOverdueSchedule(b) && b.status !== '已完成'
       if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
       if ((a.status === '未完成') !== (b.status === '未完成')) return a.status === '未完成' ? -1 : 1
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     })
 }
 
@@ -15337,14 +15414,13 @@ function getScheduleDisplayDateText(row = {}) {
 }
 
 function getPersonalOverdueTaskRows() {
-  return schedules
+  return sortScheduleRowsForDisplay(schedules
     .filter(row => isActivePersonalSchedule(row))
     .filter(row => !isMeetingRoomSchedule(row))
     .filter(row => isPersonalCalendarForMe(row))
     .filter(row => isActionReminderSchedule(row))
     .filter(row => isOverdueSchedule(row))
-    .filter(row => !isReminderSchedule(row))
-    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+    .filter(row => !isReminderSchedule(row)), { dateFirst: true })
 }
 
 function renderPersonalOverdueTaskArea() {
@@ -15670,12 +15746,11 @@ function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
   const cachedRows = getOverviewPerformanceCachedRows('returnTaiwanRowsByStaffDate', staffId, dateKey)
   if (cachedRows) return cachedRows
 
-  return uniqueScheduleRows(schedules
+  return sortScheduleRowsForDisplay(uniqueScheduleRows(schedules
     .filter(isVisibleSchedule)
     .filter(isReturnTaiwanReminderSchedule)
     .filter(row => returnTaiwanReminderMatchesDate(row, dateKey))
-    .filter(row => scheduleBelongsToStaff(row, staffId)))
-    .sort((a, b) => String(getReturnTaiwanReminderDate(a) || '').localeCompare(String(getReturnTaiwanReminderDate(b) || '')))
+    .filter(row => scheduleBelongsToStaff(row, staffId))), { dateFirst: true })
 }
 
 function getReturnTaiwanReminderInfo(row = {}) {
@@ -15742,7 +15817,7 @@ function getStaffAdministrativeReminderRowsForDate(staffId = '', dateKey = '') {
     .filter(isAdministrativeReminderSchedule)
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
     .filter(row => scheduleBelongsToStaff(row, staffId)))
-    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+    .sort((a, b) => compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true }))
 }
 
 function getAdministrativeReminderTitle(row = {}) {
@@ -15987,13 +16062,7 @@ function getDateKeysFromDates(dates = []) {
 }
 
 function sortContinuousScheduleRows(rows = []) {
-  return [...rows].sort((a, b) => {
-    const startCompare = String(a.start_date || '').localeCompare(String(b.start_date || ''))
-    if (startCompare !== 0) return startCompare
-    const timeCompare = String(a.start_time || '').localeCompare(String(b.start_time || ''))
-    if (timeCompare !== 0) return timeCompare
-    return String(a.title || '').localeCompare(String(b.title || ''), 'zh-Hant')
-  })
+  return sortScheduleRowsForDisplay(rows, { dateFirst: true })
 }
 
 function uniqueContinuousRows(rows = []) {
@@ -16015,12 +16084,11 @@ function getStaffFieldBackgroundRowsForDate(staffId = '', dateKey = '') {
   const cachedRows = getOverviewPerformanceCachedRows('fieldBackgroundRowsByStaffDate', staffId, dateKey)
   if (cachedRows) return cachedRows
 
-  return schedules
+  return sortScheduleRowsForDisplay(schedules
     .filter(isVisibleSchedule)
     .filter(row => rowNeedsFullDayBackground(row))
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
-    .filter(row => scheduleBelongsToStaff(row, staffId))
-    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+    .filter(row => scheduleBelongsToStaff(row, staffId)), { dateFirst: true })
 }
 
 
@@ -16051,7 +16119,7 @@ function getStaffLeaveReturnRowsForDate(staffId = '', dateKey = '') {
     .sort((a, b) => {
       const returnCompare = Number(isReturnHomeSchedule(b)) - Number(isReturnHomeSchedule(a))
       if (returnCompare !== 0) return returnCompare
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     })
 }
 
@@ -16061,12 +16129,11 @@ function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
   const cachedRows = getOverviewPerformanceCachedRows('fieldDayRowsByStaffDate', staffId, dateKey)
   if (cachedRows) return cachedRows
 
-  return schedules
+  return sortScheduleRowsForDisplay(schedules
     .filter(isVisibleSchedule)
     .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
-    .filter(row => scheduleBelongsToStaff(row, staffId))
-    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')))
+    .filter(row => scheduleBelongsToStaff(row, staffId)), { dateFirst: true })
 }
 
 
@@ -18471,14 +18538,14 @@ function pushOverviewPerformanceRow(map, staffId = '', dateKey = '', row = {}) {
 function sortOverviewPerformanceRows(map) {
   if (!map) return
   map.forEach((rows, key) => {
-    map.set(key, uniqueScheduleRows(rows).sort((a, b) => String(a.start_time || a.start_date || '').localeCompare(String(b.start_time || b.start_date || ''))))
+    map.set(key, sortScheduleRowsForDisplay(uniqueScheduleRows(rows), { dateFirst: false }))
   })
 }
 
 function sortOverviewPerformanceSimpleRows(map) {
   if (!map) return
   map.forEach((rows, key) => {
-    map.set(key, uniqueScheduleRows(rows).sort((a, b) => String(a.start_date || a.start_time || '').localeCompare(String(b.start_date || b.start_time || ''))))
+    map.set(key, sortScheduleRowsForDisplay(uniqueScheduleRows(rows), { dateFirst: true }))
   })
 }
 
@@ -18609,7 +18676,7 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
     cache.leaveReturnRowsByStaffDate.set(key, uniqueScheduleRows(rows).sort((a, b) => {
       const returnCompare = Number(isReturnHomeSchedule(b)) - Number(isReturnHomeSchedule(a))
       if (returnCompare !== 0) return returnCompare
-      return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+      return compareScheduleRowsByDateAndDisplayTime(a, b, { dateFirst: true })
     }))
   })
 
@@ -18626,14 +18693,14 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
 
 function getSchedulesForStaffDate(staffId, dateKey) {
   const cachedRows = getOverviewPerformanceCachedRows('schedulesByStaffDate', staffId, dateKey)
-  if (cachedRows) return dedupeVerifyReminderRows(cachedRows, dateKey).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  if (cachedRows) return sortScheduleRowsForDisplay(dedupeVerifyReminderRows(cachedRows, dateKey), { dateFirst: false })
 
   const rows = uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaffOnDate(row, staffId, dateKey)
   }))
-  return dedupeVerifyReminderRows(rows, dateKey).sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  return sortScheduleRowsForDisplay(dedupeVerifyReminderRows(rows, dateKey), { dateFirst: false })
 }
 
 
@@ -18903,7 +18970,7 @@ function renderReadStatus() {
 }
 
 function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
-  const displayRows = dedupeVerifyReminderRows(uniqueScheduleRows(rows))
+  const displayRows = sortScheduleRowsForDisplay(dedupeVerifyReminderRows(uniqueScheduleRows(rows)), { dateFirst: true })
   if (!displayRows.length) return `<div class="empty-state">${emptyText}</div>`
 
   return `
@@ -23551,11 +23618,16 @@ function getFieldTrainingHintRows(staffIds = [], dateKeys = [], excludeScheduleI
       })
     })
 
-  return rows.sort((a, b) => {
-    const dateCompare = String(a.dateKey || '').localeCompare(String(b.dateKey || ''))
-    if (dateCompare !== 0) return dateCompare
-    return String(getScheduleCardTitleText(a.row) || '').localeCompare(String(getScheduleCardTitleText(b.row) || ''), 'zh-Hant')
-  })
+  return rows
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const dateCompare = String(a.item.dateKey || '').localeCompare(String(b.item.dateKey || ''))
+      if (dateCompare !== 0) return dateCompare
+      const timeCompare = compareScheduleRowsByDateAndDisplayTime(a.item.row, b.item.row, { dateFirst: false })
+      if (timeCompare !== 0) return timeCompare
+      return a.index - b.index
+    })
+    .map(entry => entry.item)
 }
 
 function getFieldTrainingHintTimeText(item = {}) {
