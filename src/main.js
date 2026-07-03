@@ -3379,7 +3379,12 @@ async function loadProfile(options = {}) {
     return
   }
 
-  currentProfile = mergedProfile
+  currentProfile = {
+    ...mergedProfile,
+    auth_user_id: userData.user.id,
+    user_id: mergedProfile.user_id || userData.user.id,
+    auth_id: mergedProfile.auth_id || userData.user.id
+  }
   loadOverviewFiltersPreference()
   loadFieldScheduleFiltersPreference()
   currentPage = 'personalSchedule'
@@ -3390,9 +3395,58 @@ async function loadProfile(options = {}) {
   maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
 }
 
-async function refreshData() {
-  await Promise.all([loadAppSettings(), loadStaff(), loadUserProfiles(), loadSchedules(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
+/* FOR-e V002-1H-stable-1-3be START - login lazy loading performance */
+let backgroundDataLoadingPromise = null
+let backgroundDataLoaded = false
+
+function shouldRenderAfterBackgroundDataLoad() {
+  return ['users', 'audit', 'serviceRecord', 'recordSubmit', 'health'].includes(currentPage)
 }
+
+function startBackgroundDataLoad() {
+  if (backgroundDataLoadingPromise) return backgroundDataLoadingPromise
+
+  backgroundDataLoadingPromise = Promise.allSettled([
+    loadUserProfiles(),
+    loadAuditLogs(),
+    loadServiceRecords(),
+    loadBirthdayWishes()
+  ]).then(results => {
+    backgroundDataLoaded = true
+    backgroundDataLoadingPromise = null
+    results.forEach(result => {
+      if (result.status === 'rejected') console.warn('背景資料載入失敗', result.reason)
+    })
+    if (currentProfile && shouldRenderAfterBackgroundDataLoad()) renderApp()
+    return results
+  })
+
+  return backgroundDataLoadingPromise
+}
+
+async function ensureBackgroundDataLoaded() {
+  if (backgroundDataLoaded) return
+  await startBackgroundDataLoad()
+}
+
+async function refreshData(options = {}) {
+  const forceFull = options.forceFull === true
+  loadingSchedules = true
+  schedulesError = ''
+
+  // 登入後先載入畫面必要資料，避免手機 / 平板卡在 audit_logs、service_records、birthday_wishes 等非首頁資料。
+  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules()])
+
+  if (forceFull) {
+    await Promise.allSettled([loadUserProfiles(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
+    backgroundDataLoaded = true
+    backgroundDataLoadingPromise = null
+    return
+  }
+
+  startBackgroundDataLoad()
+}
+/* FOR-e V002-1H-stable-1-3be END - login lazy loading performance */
 
 
 async function loadUserProfiles() {
@@ -4241,6 +4295,8 @@ async function loadSchedules() {
     schedules = data || []
   }
 
+  // 1-3be：行程資料更新後清除行程總覽快取，避免顯示舊資料。
+  overviewPerformanceCache = null
   loadingSchedules = false
 }
 
@@ -4374,6 +4430,7 @@ function renderApp() {
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => {
       currentPage = btn.dataset.page
+      if (shouldRenderAfterBackgroundDataLoad() && !backgroundDataLoaded) startBackgroundDataLoad()
       renderApp()
     })
   })
@@ -4391,7 +4448,7 @@ function renderApp() {
   const refreshBtn = document.querySelector('#refreshBtn')
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
-      await refreshData()
+      await refreshData({ forceFull: shouldRenderAfterBackgroundDataLoad() })
       renderApp()
     })
   }
@@ -16553,8 +16610,9 @@ const legacyOverviewCustomGroupStorageKey = 'for-e-overview-custom-group-v002'
 const overviewQuickGroupsDeletedStorageKey = 'for-e-overview-quick-groups-v002-deleted'
 const overviewQuickGroupsPersonalStoragePrefix = 'for-e-overview-quick-groups-v002-owner'
 const overviewQuickGroupsMigrationFlagPrefix = 'for-e-overview-quick-groups-v002-personal-migrated'
-const overviewBuiltInQuickGroupIds = [
-  'all',
+/* FOR-e V002-1H-stable-1-3be START - personal only overview quick groups */
+const overviewBuiltInQuickGroupIds = ['all']
+const overviewFormerFixedQuickGroupIds = new Set([
   'field-workers',
   'dormitory-group',
   'operation-one-translators',
@@ -16562,8 +16620,10 @@ const overviewBuiltInQuickGroupIds = [
   'translator-dormitory-group',
   'cat-group',
   'administrative-group'
-]
-const overviewFixedQuickGroupNames = new Set(['全部', '外務人員', '宿管群', '營一翻譯群', '營二翻譯群', '翻譯+宿管群', '貓群', '行政群'])
+])
+// 1-3be：固定群組取消；只保留「全部」。舊固定名稱不再阻擋使用者自行建立同名個人群組。
+const overviewFixedQuickGroupNames = new Set(['全部'])
+/* FOR-e V002-1H-stable-1-3be END - personal only overview quick groups */
 
 const overviewQuickGroupInvalidNameValues = new Set(['undefined', 'null', '[object object]', '未命名', '未命名群組'])
 
@@ -17187,16 +17247,23 @@ function normalizeOverviewQuickGroupNameText(value = '') {
   return String(value || '').replace(/\s+/g, '').trim().toLowerCase()
 }
 
+function isLegacyFixedOverviewQuickGroup(group = {}) {
+  const id = String(group?.id || group?.group_id || '').trim()
+  if (overviewFormerFixedQuickGroupIds.has(id)) return true
+  if (group?.builtIn === true || group?.fixed === true) return id !== 'all'
+  return false
+}
+
 function getOverviewCustomQuickGroupRows() {
   return mergeOverviewQuickGroupGroups(
     overviewQuickGroups.groups || [],
     ...getOverviewQuickGroupAppSettingSources(),
     ...readOverviewQuickGroupLocalSources()
   )
-    .map(group => withOverviewQuickGroupNameAliases({ ...group, builtIn: false }))
+    .map(group => withOverviewQuickGroupNameAliases({ ...group, builtIn: false, fixed: false }))
     .filter(group => getOverviewQuickGroupDisplayName(group))
+    .filter(group => !isLegacyFixedOverviewQuickGroup(group))
     .filter(group => !isOverviewQuickGroupDeletedByTombstone(group))
-    .filter(group => !overviewFixedQuickGroupNames.has(getOverviewQuickGroupDisplayName(group)))
     .filter(group => !isHiddenOverviewQuickGroup(group))
 }
 
@@ -17383,80 +17450,24 @@ function getOverviewFixedQuickGroupStaffIds(names = [], fallbackMatcher = null) 
 }
 
 function getOverviewBuiltInQuickGroups() {
+  // 1-3be：取消固定快速人員群組，只保留「全部」。其他群組由每位登入者自行建立並只顯示給本人。
   return [
-    { id: 'all', name: '全部', builtIn: true, fixed: true, staffIds: [] },
-    {
-      id: 'field-workers',
-      name: '外務人員',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['外務人員'], staff => isStaffFieldWorker(staff))
-    },
-    {
-      id: 'dormitory-group',
-      name: '宿管群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['宿管群', '宿管'], (staff, text) => text.includes('宿管'))
-    },
-    {
-      id: 'operation-one-translators',
-      name: '營一翻譯群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['營一翻譯群', '一部翻譯群', '營一', '營運一部翻譯群'], (staff, text) => {
-        const dept = String(staff.department_name || '')
-        return (dept.includes('營運一') || dept.includes('一部') || dept.includes('營一') || text.includes('營運一') || text.includes('一部')) && text.includes('翻譯')
-      })
-    },
-    {
-      id: 'operation-two-translators',
-      name: '營二翻譯群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['營二翻譯群', '二部翻譯群', '營二', '營運二部翻譯群'], (staff, text) => {
-        const dept = String(staff.department_name || '')
-        return (dept.includes('營運二') || dept.includes('二部') || dept.includes('營二') || text.includes('營運二') || text.includes('二部')) && text.includes('翻譯')
-      })
-    },
-    {
-      id: 'translator-dormitory-group',
-      name: '翻譯+宿管群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['翻譯+宿管群', '翻譯+宿管', '翻譯宿管群', '翻譯群'], (staff, text) => text.includes('翻譯') || text.includes('宿管'))
-    },
-    {
-      id: 'cat-group',
-      name: '貓群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['貓群', '貓姐群', 'cat-sister-group'], (staff, text) => text.includes('貓'))
-    },
-    {
-      id: 'administrative-group',
-      name: '行政群',
-      builtIn: true,
-      fixed: true,
-      staffIds: getOverviewFixedQuickGroupStaffIds(['行政群', 'admin-staff', '行政'], () => false).length
-        ? getOverviewFixedQuickGroupStaffIds(['行政群', 'admin-staff', '行政'], () => false)
-        : getAdministrativeQuickGroupStaffIds()
-    }
+    { id: 'all', name: '全部', builtIn: true, fixed: true, staffIds: [] }
   ]
 }
 
 function isHiddenOverviewQuickGroup(group = {}) {
   const id = String(group?.id || '').trim()
   const name = getOverviewQuickGroupDisplayName(group)
-  const hiddenNames = new Set(['貓姐群', '營運處', '翻譯群', '一部翻譯群', '二部翻譯群', '營一', '營二', '翻譯+宿管'])
-  if (id === 'cat-sister-group' || name === '貓姐群') return true
-  if (overviewFixedQuickGroupNames.has(name)) return false
-  return hiddenNames.has(name)
+  if (!name) return true
+  if (id === 'all' || name === '全部') return false
+  // 1-3be：不再隱藏營運處 / 翻譯群 / 貓群等名稱；若使用者自行建立，就應顯示在本人行程總覽。
+  return false
 }
 
 function getOverviewQuickGroupRows() {
-  // 1-3au：行程總覽快速人員群組固定為「全員可見固定群組 + 登入者個人自訂群組」。
-  // 不再把 shared overview_quick_groups 直接渲染到畫面，避免新增 / 刪除被舊固定陣列或 shared 快照覆蓋。
+  // 1-3be：快速人員群組只顯示「全部 + 目前登入者自行建立的個人群組」。
+  // 固定群組名單已取消，不再 render 外務人員 / 宿管群 / 翻譯群 / 貓群等預設群組。
   return mergeOverviewQuickGroupGroups(
     getOverviewBuiltInQuickGroups(),
     getOverviewCustomQuickGroupRows()
@@ -17894,9 +17905,9 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
     let targetGroupId = groupId
     let previousGroup = targetGroupId ? groups.find(group => group.id === targetGroupId) : null
 
-    if (overviewFixedQuickGroupNames.has(groupName) || getOverviewBuiltInQuickGroups().some(group => normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(group)) === normalizeOverviewQuickGroupNameText(groupName))) {
-      setOverviewQuickGroupFormStatus(modal, '此名稱是固定群組，請改用其他自訂群組名稱。', 'error')
-      alert('此名稱是固定群組，請改用其他自訂群組名稱。')
+    if (normalizeOverviewQuickGroupNameText(groupName) === normalizeOverviewQuickGroupNameText('全部')) {
+      setOverviewQuickGroupFormStatus(modal, '「全部」為系統保留名稱，請改用其他自訂群組名稱。', 'error')
+      alert('「全部」為系統保留名稱，請改用其他自訂群組名稱。')
       return
     }
 
@@ -18291,6 +18302,51 @@ function sortOverviewPerformanceSimpleRows(map) {
   })
 }
 
+function getScheduleSimpleEndDate(row = {}) {
+  const start = String(row.start_date || '')
+  const end = String(row.end_date || '')
+  return end && end >= start ? end : start
+}
+
+function overviewScheduleMightMatchDateRange(row = {}, dateKeys = [], firstKey = '', lastKey = '') {
+  if (!row?.start_date || !firstKey || !lastKey) return false
+
+  const simpleEnd = getScheduleSimpleEndDate(row)
+  const maybeDateRangeOverlap = !(row.start_date > lastKey || simpleEnd < firstKey)
+
+  // 一般行程可先用日期範圍排除；特殊提醒可能由 sub_type_note 推算日期，交給 scheduleMatchesDateByMode 判斷。
+  if (maybeDateRangeOverlap) return true
+
+  return dateKeys.some(dateKey => {
+    if (scheduleMatchesDateByMode(row, dateKey)) return true
+    if (typeof returnTaiwanReminderMatchesDate === 'function' && returnTaiwanReminderMatchesDate(row, dateKey)) return true
+    return false
+  })
+}
+
+function getOverviewPerformanceCandidateStaffIds(row = {}, staffIds = []) {
+  const wanted = new Set(staffIds)
+  const candidates = new Set()
+
+  getActiveAssigneeIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
+  getScheduleNotificationStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
+  if (row.creator_staff_id) candidates.add(normalizeStaffId(row.creator_staff_id))
+
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
+    getMeetingEffectiveStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
+  }
+
+  if (typeof isVerifyReminderRow === 'function' && isVerifyReminderRow(row)) {
+    getVerificationReminderAllPotentialStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
+  }
+
+  const filteredCandidates = [...candidates].filter(id => id && wanted.has(id))
+  if (filteredCandidates.length) return filteredCandidates
+
+  // 後備：少數舊資料沒有 assignees / creator 時，才回到逐人判斷，避免漏顯。
+  return staffIds.filter(staffId => scheduleBelongsToStaff(row, staffId))
+}
+
 function buildOverviewPerformanceCache(staffRows = [], dates = []) {
   const dateKeys = getDateKeysFromDates(dates).filter(Boolean)
   const staffIds = staffRows.map(staff => staff?.staff_id).filter(Boolean)
@@ -18314,13 +18370,18 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
   const firstKey = dateKeys[0]
   const lastKey = dateKeys[dateKeys.length - 1]
 
-  schedules.forEach(row => {
-    if (!isVisibleSchedule(row)) return
+  const visibleRangeRows = (schedules || [])
+    .filter(isVisibleSchedule)
+    .filter(row => overviewScheduleMightMatchDateRange(row, dateKeys, firstKey, lastKey))
 
-    staffIds.forEach(staffId => {
+  visibleRangeRows.forEach(row => {
+    const candidateStaffIds = getOverviewPerformanceCandidateStaffIds(row, staffIds)
+    if (!candidateStaffIds.length) return
+
+    candidateStaffIds.forEach(staffId => {
       if (!staffId) return
 
-      if (isContinuousDateSchedule(row) && !(row.start_date > lastKey || row.end_date < firstKey) && scheduleBelongsToStaff(row, staffId)) {
+      if (isContinuousDateSchedule(row) && !(row.start_date > lastKey || getScheduleSimpleEndDate(row) < firstKey) && scheduleBelongsToStaff(row, staffId)) {
         if (!cache.continuousRowsByStaff.has(staffId)) cache.continuousRowsByStaff.set(staffId, [])
         cache.continuousRowsByStaff.get(staffId).push(row)
       }
@@ -18378,6 +18439,7 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
 
   return cache
 }
+
 /* FOR-e V002-1H-stable-1-3ba END - overview performance cache */
 
 
