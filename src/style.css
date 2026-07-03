@@ -27055,3 +27055,129 @@ body:has(.modal-backdrop) .week-overview-table .staff-col {
 /* FOR-e V002-1H-stable-1-3bd START - custom favicon app icon */
 /* Website favicon/app icons are generated from the official uploaded FOR-e logo in public/. */
 /* FOR-e V002-1H-stable-1-3bd END - custom favicon app icon */
+
+/* FOR-e V002-1H-stable-1-3bf START - personal today meeting cards */
+.personal-meeting-area {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: #f8fbff;
+  border: 2px solid #dbeafe;
+}
+
+.personal-meeting-area.is-empty {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+
+.personal-meeting-area-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-meeting-area-header strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.personal-meeting-area-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.personal-meeting-area-header em {
+  color: var(--blue);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.personal-meeting-list {
+  display: grid;
+  gap: 8px;
+}
+
+.personal-meeting-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #bfdbfe;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.personal-meeting-card:hover {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+  transform: translateY(-1px);
+}
+
+.personal-meeting-card-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.personal-meeting-card strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 950;
+  word-break: break-word;
+}
+
+.personal-meeting-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.personal-meeting-card em {
+  align-self: start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: var(--blue);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.personal-meeting-empty {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 768px) {
+  .personal-meeting-card {
+    grid-template-columns: 1fr;
+  }
+
+  .personal-meeting-card em {
+    justify-self: start;
+  }
+}
+/* FOR-e V002-1H-stable-1-3bf END - personal today meeting cards */

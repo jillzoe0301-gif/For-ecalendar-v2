@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bd'
-const SYSTEM_VERSION_NOTE = '正式上線圖示更新：使用指定 FOR-e Logo 作為分頁、書籤、桌面捷徑與手機主畫面圖示。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bf'
+const SYSTEM_VERSION_NOTE = '個人行程表今日會議資料來源修正：以會議室預約與人員行務會議細項為主，排除非會議項目。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1290,6 +1290,188 @@ function renderPersonalTodayScheduleNotice(rows = []) {
   `
 }
 
+
+
+/* FOR-e V002-1H-stable-1-3bf START - personal today meeting source fix */
+function normalizePersonalTodayMeetingText(value = '') {
+  const text = String(value ?? '').trim()
+  if (!text || text === 'null' || text === 'undefined' || text === '[object Object]') return ''
+  return text
+}
+
+function isPersonnelAffairsCategoryForMeeting(row = {}) {
+  const values = [row.category, row.schedule_type, row.raw_category]
+  return values.some(value => {
+    const text = normalizePersonalTodayMeetingText(value)
+    const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
+    return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓'
+  })
+}
+
+function isMeetingSubtypeValue(value = '') {
+  const text = normalizePersonalTodayMeetingText(value)
+  const compact = text.replace(/\s+/g, '')
+  return text === '會議' || compact === '會議'
+}
+
+function isPersonnelAffairsMeetingSchedule(row = {}) {
+  if (!row || isMeetingRoomSchedule(row)) return false
+  if (!isPersonnelAffairsCategoryForMeeting(row)) return false
+
+  const subtypeCandidates = [
+    row.sub_type,
+    row.schedule_type,
+    typeof getLeaveMeetingSubtypeFromRow === 'function' ? getLeaveMeetingSubtypeFromRow(row) : '',
+    typeof getNoteValue === 'function' ? getNoteValue(row, '類別細項') : '',
+    typeof getFieldNoteValue === 'function' ? getFieldNoteValue(row, '類別細項') : '',
+    typeof getNoteValue === 'function' ? getNoteValue(row, '項目') : '',
+    typeof getFieldNoteValue === 'function' ? getFieldNoteValue(row, '項目') : ''
+  ]
+
+  return subtypeCandidates.some(isMeetingSubtypeValue)
+}
+
+function isPersonalTodayMeetingSource(row = {}) {
+  return Boolean(isMeetingRoomSchedule(row) || isPersonnelAffairsMeetingSchedule(row))
+}
+
+function personalMeetingBelongsToCurrentUser(row = {}, dateKey = todayString()) {
+  const staffId = String(currentProfile?.staff_id || '').trim()
+  if (!staffId || !row) return false
+
+  if (row.creator_staff_id === staffId) return true
+  if (scheduleBelongsToStaffOnDate(row, staffId, dateKey)) return true
+  if (getActiveAssigneeIds(row).includes(staffId)) return true
+  if (getScheduleNotificationStaffIds(row).includes(staffId)) return true
+
+  if (isMeetingRoomSchedule(row) && typeof meetingScheduleVisibleForStaff === 'function') {
+    return meetingScheduleVisibleForStaff(row, staffId)
+  }
+
+  const currentName = normalizePersonalTodayMeetingText(currentProfile?.name)
+  if (currentName) {
+    const noteText = [row.sub_type_note, row.description]
+      .map(normalizePersonalTodayMeetingText)
+      .filter(Boolean)
+      .join('｜')
+    if (noteText.includes(currentName)) return true
+  }
+
+  return false
+}
+
+function getPersonalTodayMeetingRoomName(row = {}) {
+  if (!isMeetingRoomSchedule(row)) return ''
+  return normalizePersonalTodayMeetingText(row.location_name || row.sub_type || getFieldNoteValue(row, '會議室') || getNoteValue(row, '會議室') || '會議室')
+}
+
+function getPersonalTodayMeetingParticipantsText(row = {}) {
+  if (isMeetingRoomSchedule(row)) {
+    const summary = typeof getMeetingParticipantSummary === 'function' ? normalizePersonalTodayMeetingText(getMeetingParticipantSummary(row)) : ''
+    if (summary) return summary
+    return normalizePersonalTodayMeetingText(getAssigneeNames(row)).replace(/^-$/, '')
+  }
+
+  return normalizePersonalTodayMeetingText(getAssigneeNames(row)).replace(/^-$/, '')
+}
+
+function getPersonalTodayMeetingTitle(row = {}) {
+  const title = normalizePersonalTodayMeetingText(row.title || row.customer_name)
+  if (title) return title
+  return isMeetingRoomSchedule(row) ? '會議室預約' : '會議'
+}
+
+function getPersonalTodayMeetingDedupKey(row = {}) {
+  const id = normalizePersonalTodayMeetingText(row.schedule_id || row.meeting_id || row.id)
+  if (id) return `id:${id}`
+  return [
+    getPersonalTodayMeetingTitle(row),
+    normalizePersonalTodayMeetingText(row.__occurrenceDate || row.start_date),
+    normalizePersonalTodayMeetingText(row.start_time),
+    normalizePersonalTodayMeetingText(row.end_time),
+    getPersonalTodayMeetingRoomName(row)
+  ].join('@@')
+}
+
+function sortPersonalTodayMeetingRows(rows = []) {
+  return [...rows].sort((a, b) => {
+    const aTime = normalizePersonalTodayMeetingText(a.start_time)
+    const bTime = normalizePersonalTodayMeetingText(b.start_time)
+    const aHasTime = Boolean(aTime)
+    const bHasTime = Boolean(bTime)
+    if (aHasTime !== bHasTime) return aHasTime ? -1 : 1
+    if (aTime !== bTime) return aTime.localeCompare(bTime)
+    return getPersonalTodayMeetingTitle(a).localeCompare(getPersonalTodayMeetingTitle(b), 'zh-Hant')
+  })
+}
+
+function uniquePersonalTodayMeetingRows(rows = []) {
+  const seen = new Set()
+  const output = []
+  ;(rows || []).forEach(row => {
+    const key = getPersonalTodayMeetingDedupKey(row)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    output.push(row)
+  })
+  return output
+}
+
+function getPersonalTodayMeetingRows(today = todayString()) {
+  const rows = schedules
+    .filter(row => isVisibleSchedule(row))
+    .filter(row => isPersonalTodayMeetingSource(row))
+    .filter(row => scheduleMatchesDateByMode(row, today))
+    .filter(row => personalMeetingBelongsToCurrentUser(row, today))
+
+  return sortPersonalTodayMeetingRows(uniquePersonalTodayMeetingRows(
+    normalizeRowsForOccurrenceDate(rows, today)
+  ))
+}
+
+function renderPersonalTodayMeetingCard(row = {}) {
+  const timeText = normalizePersonalTodayMeetingText(getCardTimeText(row) || formatTime(row)) || '未指定時間'
+  const title = getPersonalTodayMeetingTitle(row)
+  const room = getPersonalTodayMeetingRoomName(row)
+  const participants = getPersonalTodayMeetingParticipantsText(row)
+  const description = normalizePersonalTodayMeetingText(getFirstTwoLines(row.description || ''))
+  const location = normalizePersonalTodayMeetingText(row.address || (!isMeetingRoomSchedule(row) ? row.location_name : ''))
+  const typeLabel = isMeetingRoomSchedule(row) ? '會議室預約' : '會議'
+  const metaLines = [
+    room ? `會議室：${room}` : '',
+    participants ? `參與人員：${participants}` : '',
+    description ? `內容：${description.replaceAll('\n', ' / ')}` : '',
+    location ? `地點 / 地址：${location}` : ''
+  ].filter(Boolean)
+
+  return `
+    <button type="button" class="personal-meeting-card" data-view-schedule="${escapeHtml(row.schedule_id || '')}"${getScheduleOccurrenceDateAttr(row)}>
+      <div class="personal-meeting-card-main">
+        <strong>${escapeHtml(timeText)}｜${escapeHtml(title)}</strong>
+        ${metaLines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}
+      </div>
+      <em>${escapeHtml(typeLabel)}</em>
+    </button>
+  `
+}
+
+function renderPersonalTodayMeetingArea(rows = [], today = todayString()) {
+  return `
+    <section class="personal-meeting-area ${rows.length ? 'has-meetings' : 'is-empty'}">
+      <div class="personal-meeting-area-header">
+        <div>
+          <strong>今日會議</strong>
+          <span>${escapeHtml(today)}｜會議室預約 + 會議細項</span>
+        </div>
+        <em>${rows.length} 筆</em>
+      </div>
+      <div class="personal-meeting-list">
+        ${rows.length ? rows.map(renderPersonalTodayMeetingCard).join('') : '<div class="personal-meeting-empty">今日無會議</div>'}
+      </div>
+    </section>
+  `
+}
+/* FOR-e V002-1H-stable-1-3bf END - personal today meeting source fix */
 
 let currentProfile = null
 let currentPage = 'personalSchedule'
@@ -15212,15 +15394,13 @@ function renderPersonalSchedule() {
     today
   ), today)
   const overdueRows = getPersonalOverdueTaskRows()
-  const todayMeetingRows = normalizeRowsForOccurrenceDate(
-    myRows.filter(row => isMeetingRoomSchedule(row) && scheduleMatchesDateByMode(row, today)),
-    today
-  )
+  const todayMeetingRows = getPersonalTodayMeetingRows(today)
 
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
     ${renderPersonalTodayScheduleNotice(todayRows)}
+    ${renderPersonalTodayMeetingArea(todayMeetingRows, today)}
     ${renderServiceRecordReminderArea()}
     ${renderPersonalReminderArea()}
     ${renderPersonalOverdueTaskArea()}
