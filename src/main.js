@@ -76,7 +76,7 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bg'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bh'
 const SYSTEM_VERSION_NOTE = '行程顯示排序統一：同一天內無時間行程優先，有時間行程依開始時間由早到晚排序。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
@@ -3159,7 +3159,7 @@ function getCardTimeText(row = {}) {
 
 
 
-/* FOR-e V002-1H-stable-1-3bg START - unified schedule display sort */
+/* FOR-e V002-1H-stable-1-3bh START - unified schedule display sort */
 function normalizeScheduleSortPrimitive(value = '') {
   const text = String(value ?? '').trim()
   if (!text || text === 'null' || text === 'undefined' || text === '[object Object]') return ''
@@ -3170,48 +3170,94 @@ function getScheduleSortDateValue(row = {}) {
   return normalizeScheduleSortPrimitive(row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || row.date || row.schedule_date || '')
 }
 
-function getScheduleSortTimeCandidateValues(row = {}) {
-  return [
-    row.start_time,
-    row.startTime,
-    row.time_start,
-    row.time,
+function getScheduleSortPeriodHint(row = {}) {
+  const text = [
+    row.time_type,
+    row.period,
+    row.time_period,
     row.display_time,
     row.time_text,
-    row.time_type && !['不指定', '未指定'].includes(String(row.time_type).trim()) ? row.time_type : '',
-    typeof formatTime === 'function' ? formatTime(row) : ''
+    row.title,
+    row.description,
+    row.sub_type_note
+  ].map(item => String(item || '')).join('｜')
+
+  if (/下午|晚上|晚間|PM|pm/.test(text)) return 'pm'
+  if (/上午|早上|AM|am/.test(text)) return 'am'
+  return ''
+}
+
+function getScheduleSortTimeCandidateValues(row = {}) {
+  const formatted = typeof formatTime === 'function' ? formatTime(row) : ''
+  const cardTime = typeof getCardTimeText === 'function' ? getCardTimeText(row) : ''
+  const period = normalizeScheduleSortPrimitive(row.time_type && !['不指定', '未指定'].includes(String(row.time_type).trim()) ? row.time_type : '')
+  const start = normalizeScheduleSortPrimitive(row.start_time || row.startTime || row.time_start || '')
+  const end = normalizeScheduleSortPrimitive(row.end_time || row.endTime || row.time_end || '')
+  const periodStart = period && start ? `${period} ${start}${end ? '-' + end : ''}` : ''
+
+  // 顯示用時間要優先於 raw start_time。
+  // 這樣「下午 02:30-03:00」會先被解析成 14:30，不會因 raw 02:30 被排到上午前面。
+  return [
+    formatted,
+    cardTime,
+    periodStart,
+    row.display_time,
+    row.time_text,
+    row.time,
+    start
   ]
 }
 
+function parseScheduleSortTimeText(rawValue = '', periodHint = '') {
+  let text = normalizeScheduleSortPrimitive(rawValue)
+  if (!text) return null
+
+  const noTimePattern = /^(未指定|不指定|無|沒有|全天|日期|僅日期|無時間)$/
+  if (noTimePattern.test(text)) return null
+
+  text = text
+    .replace(/[：]/g, ':')
+    .replace(/[－—–~～至到]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const hasPm = /下午|晚上|晚間|PM|pm/.test(text) || periodHint === 'pm'
+  const hasAm = /上午|早上|AM|am/.test(text) || periodHint === 'am'
+  const match = text.match(/(\d{1,2})\s*:\s*(\d{2})/)
+  if (!match) return null
+
+  let hour = Number(match[1])
+  const minute = Number(match[2])
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null
+
+  // 下午 02:30 → 14:30；下午 14:00 仍維持 14:00，不再加 12。
+  if (hasPm && hour < 12) hour += 12
+  if (hasAm && hour === 12) hour = 0
+
+  return hour * 60 + minute
+}
+
 function getScheduleSortStartMinutes(row = {}) {
-  const noTimePattern = /^(未指定|不指定|無|沒有|全天|日期)$/
+  const periodHint = getScheduleSortPeriodHint(row)
   const candidates = getScheduleSortTimeCandidateValues(row)
 
   for (const candidate of candidates) {
-    let text = normalizeScheduleSortPrimitive(candidate)
-    if (!text || noTimePattern.test(text)) continue
-    text = text
-      .replace(/[：]/g, ':')
-      .replace(/[－—–]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    const hasPm = /下午|晚上|晚間|PM|pm/.test(text)
-    const hasAm = /上午|早上|AM|am/.test(text)
-    const match = text.match(/(\d{1,2})\s*:\s*(\d{2})/)
-    if (!match) continue
-
-    let hour = Number(match[1])
-    const minute = Number(match[2])
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) continue
-
-    if (hasPm && hour < 12) hour += 12
-    if (hasAm && hour === 12) hour = 0
-    return hour * 60 + minute
+    const minutes = parseScheduleSortTimeText(candidate, periodHint)
+    if (minutes !== null) return minutes
   }
 
   return null
+}
+
+function getScheduleStableSortKey(row = {}, fallbackIndex = 0) {
+  return [
+    row.created_at,
+    row.updated_at,
+    row.schedule_id,
+    row.id,
+    fallbackIndex
+  ].map(item => String(item ?? '')).join('::')
 }
 
 function compareScheduleRowsByDateAndDisplayTime(a = {}, b = {}, options = {}) {
@@ -3242,11 +3288,13 @@ function sortScheduleRowsForDisplay(rows = [], options = {}) {
     .sort((a, b) => {
       const result = compareScheduleRowsByDateAndDisplayTime(a.row, b.row, options)
       if (result !== 0) return result
+      const stableCompare = getScheduleStableSortKey(a.row, a.index).localeCompare(getScheduleStableSortKey(b.row, b.index))
+      if (stableCompare !== 0) return stableCompare
       return a.index - b.index
     })
     .map(item => item.row)
 }
-/* FOR-e V002-1H-stable-1-3bg END - unified schedule display sort */
+/* FOR-e V002-1H-stable-1-3bh END - unified schedule display sort */
 
 function renderCardTime(row = {}, className = '') {
   const text = getCardTimeText(row)
@@ -15845,6 +15893,74 @@ function renderAdministrativeReminderDayMarks(rows = [], dateKey = '') {
   `).join('')
 }
 
+
+/* FOR-e V002-1H-stable-1-3bh START - overview unified card sort */
+function createOverviewSortOccurrenceRow(row = {}, dateKey = '') {
+  if (!row) return { __occurrenceDate: dateKey, __occurrence_date: dateKey, __render_date: dateKey }
+  return {
+    ...row,
+    __occurrenceDate: row.__occurrenceDate || row.__occurrence_date || row.__render_date || dateKey,
+    __occurrence_date: row.__occurrence_date || row.__occurrenceDate || row.__render_date || dateKey,
+    __render_date: row.__render_date || row.__occurrenceDate || row.__occurrence_date || dateKey
+  }
+}
+
+function pushOverviewSortedContentItem(items = [], row = {}, html = '', dateKey = '') {
+  const safeHtml = String(html || '').trim()
+  if (!safeHtml) return
+  items.push({
+    row: createOverviewSortOccurrenceRow(row, dateKey),
+    html: safeHtml,
+    index: items.length
+  })
+}
+
+function renderOverviewSortedCellContent({ staffId = '', dateKey = '', dayRows = [], continuationRows = [], dayMark = {}, birthdayCard = '', variant = 'overview' } = {}) {
+  const items = []
+
+  if (birthdayCard) {
+    pushOverviewSortedContentItem(items, {
+      schedule_id: `birthday-${staffId}-${dateKey}`,
+      start_date: dateKey,
+      __occurrenceDate: dateKey
+    }, birthdayCard, dateKey)
+  }
+
+  uniqueScheduleRows(continuationRows || []).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderContinuationDayMarks([row], dateKey, variant), dateKey)
+  })
+
+  uniqueScheduleRows(dayMark?.fieldDayRows || []).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderFieldDayReminderPrompt([row]), dateKey)
+  })
+
+  uniqueScheduleRows(dayMark?.leaveRows || []).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderLeaveReturnDayMark([row], dateKey, variant), dateKey)
+  })
+
+  uniqueScheduleRows(getStaffAdministrativeReminderRowsForDate(staffId, dateKey)).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderAdministrativeReminderDayMarks([row], dateKey), dateKey)
+  })
+
+  uniqueScheduleRows(getStaffReturnTaiwanReminderRowsForDate(staffId, dateKey)).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderReturnTaiwanReminderDayMarks([row], dateKey), dateKey)
+  })
+
+  uniqueScheduleRows(dayRows || []).forEach(row => {
+    pushOverviewSortedContentItem(items, row, renderWeekScheduleCard(row, dateKey), dateKey)
+  })
+
+  return items
+    .sort((a, b) => {
+      const result = compareScheduleRowsByDateAndDisplayTime(a.row, b.row, { dateFirst: false })
+      if (result !== 0) return result
+      return a.index - b.index
+    })
+    .map(item => item.html)
+    .join('')
+}
+/* FOR-e V002-1H-stable-1-3bh END - overview unified card sort */
+
 function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = todayString()) {
   if (!staff || !monthDates.length) return '<div class="empty-state">目前沒有可顯示的個人當月行程。</div>'
 
@@ -15876,6 +15992,15 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
           const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
           const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
           const holiday = isTaiwanHoliday(date)
+          const sortedCellContent = renderOverviewSortedCellContent({
+            staffId: staff.staff_id,
+            dateKey: key,
+            dayRows,
+            continuationRows,
+            dayMark,
+            birthdayCard,
+            variant: 'overview'
+          })
 
           return `
             <div class="week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${holiday ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
@@ -15883,18 +16008,7 @@ function renderOverviewSingleMonthCalendar(staff, monthDates = [], todayKey = to
                 <strong>${Number(key.slice(8, 10))}</strong>
                 ${renderHolidayLabels(key)}
               </div>
-              ${renderContinuationDayMarks(continuousRows, key, 'overview')}
-
-              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-
-              ${birthdayCard}
-
-              ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
-
-              ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
-
-              ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-              ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+              ${sortedCellContent || (dayMark.className ? '' : '<span class="week-empty">—</span>')}
             </div>
           `
         }).join('')}
@@ -15940,19 +16054,17 @@ function renderOverviewMonthSlidingTable(staffRows = [], monthDates = [], todayK
                   const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                   const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                  const sortedCellContent = renderOverviewSortedCellContent({
+                    staffId: staff.staff_id,
+                    dateKey: key,
+                    dayRows,
+                    continuationRows,
+                    dayMark,
+                    birthdayCard,
+                    variant: 'overview'
+                  })
                   return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
-                    ${renderContinuationDayMarks(continuousRows, key, 'overview')}
-
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-
-                    ${birthdayCard}
-
-                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
-
-                    ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
-
-                    ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-                    ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+                    ${sortedCellContent || (dayMark.className ? '' : '<span class="week-empty">—</span>')}
                   </td>`
                 }).join('')}
               </tr>
@@ -16012,19 +16124,17 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
                     const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                     const birthdayCard = renderStaffBirthdayCard(staff, key, 'overview')
                     const isLeaveOrRestDay = hasStaffLeaveOrRestOnDate(staff.staff_id, key)
+                    const sortedCellContent = renderOverviewSortedCellContent({
+                      staffId: staff.staff_id,
+                      dateKey: key,
+                      dayRows,
+                      continuationRows,
+                      dayMark,
+                      birthdayCard,
+                      variant: 'overview'
+                    })
                     return `<td class="week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${isLeaveOrRestDay ? 'is-personal-leave-day' : ''} ${dayMark.className}" data-week-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
-                      ${renderContinuationDayMarks(continuousRows, key, 'overview')}
-
-                      ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
-
-                      ${birthdayCard}
-
-                      ${renderLeaveReturnDayMark(dayMark.leaveRows, key)}
-
-                      ${renderAdministrativeReminderDayMarks(getStaffAdministrativeReminderRowsForDate(staff.staff_id, key), key)}
-
-                      ${renderReturnTaiwanReminderDayMarks(getStaffReturnTaiwanReminderRowsForDate(staff.staff_id, key), key)}
-                      ${dayRows.length ? dayRows.map(row => renderWeekScheduleCard(row, key)).join('') : (birthdayCard || dayMark.className ? '' : '<span class="week-empty">—</span>')}
+                      ${sortedCellContent || (dayMark.className ? '' : '<span class="week-empty">—</span>')}
                     </td>`
                   }).join('')}
                 </tr>
