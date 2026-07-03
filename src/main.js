@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3ba'
-const SYSTEM_VERSION_NOTE = '正式上線效能穩定補強：行程總覽建立單次索引快取，降低大量行程與多裝置瀏覽時的重複計算。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bb'
+const SYSTEM_VERSION_NOTE = '正式上線權限補強：外務 / 宿管人員 / 會計在個人行程表、個人一般待辦與行程總覽新增權限比照行政。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1808,17 +1808,18 @@ const rolePermissionMatrix = {
   },
   '外務 / 宿管人員 / 會計': {
     label: '外務 / 宿管人員 / 會計',
-    manageAllSchedules: false,
-    createServiceSchedule: false,
+    // V002-1H-stable-1-3bb：在個人行程表、個人一般待辦、行程總覽的新增 / 指派 / 修改權限比照「行政 / 海外」。
+    manageAllSchedules: true,
+    createServiceSchedule: true,
     createPersonalSchedule: true,
-    createFieldSchedule: false,
+    createFieldSchedule: true,
     createMeetingRoom: true,
-    createIncident: false,
-    assignAllStaff: false,
+    createIncident: true,
+    assignAllStaff: true,
     manageUsers: false,
     manageOptions: false,
-    manageColor: false,
-    exportData: false,
+    manageColor: true,
+    exportData: true,
     viewStats: false,
     viewServiceRecords: false,
     submitServiceRecord: false,
@@ -20980,7 +20981,7 @@ function minuteOptionsHtml(defaultValue = '00') {
 function getRolePersonalScheduleCategories() {
   const role = getRoleName()
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
-  if (['管理員', '主管', '行政 / 海外'].includes(role)) {
+  if (['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'].includes(role)) {
     if (currentPage === 'personalTodo') return adminManagerTodoCategories
     if (unifiedCreateCategoryPages.includes(currentPage)) return adminManagerPersonalCategories
     return adminManagerPersonalCategories
