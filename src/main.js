@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bh'
-const SYSTEM_VERSION_NOTE = '行程顯示排序統一：同一天內無時間行程優先，有時間行程依開始時間由早到晚排序。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bi'
+const SYSTEM_VERSION_NOTE = '公告顯示穩定：一般公告與行政公告統一資料來源，跨裝置維持最後一次有效公告。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -243,16 +243,53 @@ function getGlobalAnnouncementRawValue() {
   return { remote, local }
 }
 
-function getGlobalAnnouncementText() {
+function getLatestGeneralAnnouncementRecord() {
   const { remote, local } = getGlobalAnnouncementRawValue()
   const remoteText = getAnnouncementText(remote)
+
+  // 1-3bi：一般公告以共用 app_settings 的最後有效內容為第一順位，
+  // 避免不同裝置讀到不同 localStorage 而顯示不一致。
+  if (remoteText) {
+    return normalizeAnnouncementRecord({
+      ...(remote && typeof remote === 'object' ? remote : {}),
+      type: '一般公告',
+      content: remoteText,
+      date: getAnnouncementDate(remote) || getDateStringFromAnyValue(remote?.createdAt || remote?.created_at || '') || todayString(),
+      createdAt: remote?.createdAt || remote?.created_at || new Date().toISOString()
+    }, '一般公告')
+  }
+
+  // 1-3bi：若共用目前值意外為空，改從公告紀錄找最後一筆有效一般公告，
+  // 不因空值、跨日或重整而讓公告消失。
+  const historyRows = (getAnnouncementRecordsSetting()?.records || [])
+    .filter(row => getAnnouncementTypeDisplayName(row.type) === '一般公告' && getAnnouncementText(row))
+    .sort(compareAnnouncementLatestRows)
+  if (historyRows[0]) return historyRows[0]
+
   const localText = getAnnouncementText(local)
-  return cleanAnnouncementPrimitive(remoteText || localText || '本週請留意返台與轉出案件')
+  if (localText) {
+    return normalizeAnnouncementRecord({
+      type: '一般公告',
+      content: localText,
+      date: todayString(),
+      createdAt: ''
+    }, '一般公告')
+  }
+
+  return normalizeAnnouncementRecord({
+    type: '一般公告',
+    content: '本週請留意返台與轉出案件',
+    date: todayString(),
+    createdAt: ''
+  }, '一般公告')
+}
+
+function getGlobalAnnouncementText() {
+  return cleanAnnouncementPrimitive(getLatestGeneralAnnouncementRecord()?.content || '')
 }
 
 function getGlobalAnnouncementDate() {
-  const { remote } = getGlobalAnnouncementRawValue()
-  return getAnnouncementDate(remote) || todayString()
+  return getLatestGeneralAnnouncementRecord()?.date || todayString()
 }
 
 function renderVersionAnnouncementBanner() {
@@ -362,8 +399,14 @@ function normalizeAnnouncementRecords(value = {}) {
     records: source
       .map(row => normalizeAnnouncementRecord(row))
       .filter(row => row.date && row.content)
-      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .sort(compareAnnouncementLatestRows)
   }
+}
+
+function compareAnnouncementLatestRows(a = {}, b = {}) {
+  return String(b.date || '').localeCompare(String(a.date || '')) ||
+    String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
+    String(b.id || '').localeCompare(String(a.id || ''))
 }
 
 function uniqueAnnouncementRecordRows(rows = []) {
@@ -431,12 +474,42 @@ function normalizeAdministrativeAnnouncements(value = {}) {
   }
 }
 
+function uniqueAdministrativeAnnouncementRows(rows = []) {
+  const seen = new Set()
+  return rows.filter(row => {
+    const key = [row.id, row.date, row.content, row.creatorName, row.createdAt].map(value => String(value || '')).join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 function getAdministrativeAnnouncementsSetting() {
-  const remote = hasSharedSetting('administrative_announcements')
-    ? normalizeAdministrativeAnnouncements(appSettings.administrative_announcements)
-    : null
-  if (remote) return remote
-  return normalizeAdministrativeAnnouncements(readLocalJsonSetting(administrativeAnnouncementStorageKey))
+  const mergedRows = []
+
+  // 1-3bi：行政公告不再只依單一來源回傳。
+  // 共用設定、本機後備、公告紀錄三者合併後取最後有效內容，避免手機 / 平板 / 電腦顯示不一致或消失。
+  if (hasSharedSetting('administrative_announcements')) {
+    mergedRows.push(...(normalizeAdministrativeAnnouncements(appSettings.administrative_announcements).records || []))
+  }
+
+  mergedRows.push(...(normalizeAdministrativeAnnouncements(readLocalJsonSetting(administrativeAnnouncementStorageKey)).records || []))
+
+  const historyAdminRows = (getAnnouncementRecordsSetting()?.records || [])
+    .filter(row => getAnnouncementTypeDisplayName(row.type) === '行政公告' && getAnnouncementText(row))
+    .map(row => normalizeAdministrativeAnnouncementRecord({
+      ...row,
+      type: '行政事務公告',
+      content: getAnnouncementText(row),
+      date: row.date || getAnnouncementDate(row) || todayString(),
+      createdAt: row.createdAt || row.created_at || ''
+    }))
+
+  mergedRows.push(...historyAdminRows)
+
+  return normalizeAdministrativeAnnouncements({
+    records: uniqueAdministrativeAnnouncementRows(mergedRows)
+  })
 }
 
 function saveAdministrativeAnnouncementsSetting(nextValue) {
@@ -519,7 +592,7 @@ function renderAdministrativeAnnouncementFrontPanel() {
   if (!canViewAdministrativeAnnouncements()) return ''
   const rows = getAdministrativeAnnouncementFrontRows()
   const latest = rows[0] || null
-  const latestText = latest ? `${latest.date}｜${getAnnouncementText(latest)}` : ''
+  const latestText = latest ? [latest.date, getAnnouncementText(latest)].filter(Boolean).join('｜') : ''
   const canEdit = canCreateAdministrativeAnnouncement()
 
   return `
@@ -1851,7 +1924,9 @@ async function loadAppSettings() {
 }
 
 async function saveAppSetting(settingKey, settingValue) {
-  appSettings[settingKey] = normalizeSettingValue(settingValue)
+  appSettings[settingKey] = settingKey === 'global_announcement'
+    ? (settingValue || {})
+    : normalizeSettingValue(settingValue)
 
   try {
     const { data: userData } = await supabase.auth.getUser()
