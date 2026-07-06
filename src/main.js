@@ -3978,14 +3978,38 @@ async function loadProfile(options = {}) {
     user_id: mergedProfile.user_id || userData.user.id,
     auth_id: mergedProfile.auth_id || userData.user.id
   }
-  loadOverviewFiltersPreference()
+
   loadFieldScheduleFiltersPreference()
-  // V002-1H-stable-1-3bm：登入後預設進入行程總覽的個人當週，避免預設載入全部行程。
   currentPage = 'scheduleOverview'
-  resetOverviewToPersonalWeek({ persist: false })
-  await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions('個人當週') })
-  loadOverviewFiltersPreference()
-  resetOverviewToPersonalWeek({ persist: true })
+
+  if (options.fromLogin === true) {
+    // 1-3bo：使用者明確登出後重新登入，才回到個人當週預設。
+    clearOverviewStatePreference()
+    resetOverviewToPersonalWeek({ persist: false })
+    await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions('個人當週') })
+    loadOverviewQuickGroupsPreference()
+    resetOverviewToPersonalWeek({ persist: false })
+    saveOverviewFiltersPreference()
+    saveOverviewQuickGroupsPreference()
+  } else {
+    // 1-3bo：重新整理頁面不等於重設篩選，先套用登入者個人行程總覽狀態。
+    loadOverviewFiltersPreference()
+    const hadSavedOverviewState = applyOverviewStatePreference({ validateQuickGroup: false })
+    if (!hadSavedOverviewState) resetOverviewToPersonalWeek({ persist: false })
+
+    await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions() })
+    loadOverviewQuickGroupsPreference()
+
+    const restoredOverviewState = hadSavedOverviewState && applyOverviewStatePreference({ validateQuickGroup: true })
+    if (!restoredOverviewState) {
+      clearOverviewStatePreference()
+      resetOverviewToPersonalWeek({ persist: false })
+    }
+
+    saveOverviewFiltersPreference()
+    saveOverviewQuickGroupsPreference()
+  }
+
   loadFieldScheduleFiltersPreference()
   renderApp()
   maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
@@ -5189,6 +5213,7 @@ function renderApp() {
   if (overviewMonthToolbarInput) {
     overviewMonthToolbarInput.addEventListener('change', event => {
       overviewDisplayMonth = normalizeMonthValue(event.target.value || overviewDisplayMonth || getCurrentMonthValue())
+      saveOverviewStatePreference()
       renderApp()
     })
   }
@@ -5211,6 +5236,7 @@ function renderApp() {
       }
       await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
+      saveOverviewStatePreference()
       renderApp()
     })
   }
@@ -5219,6 +5245,7 @@ function renderApp() {
   if (resetOverviewFilterBtn) {
     resetOverviewFilterBtn.addEventListener('click', async () => {
       resetOverviewToPersonalWeek({ persist: false })
+      clearOverviewStatePreference()
       await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
@@ -5253,6 +5280,8 @@ function renderApp() {
       await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
+      if (groupId === 'all') clearOverviewStatePreference()
+      else saveOverviewStatePreference()
       renderApp()
     })
   })
@@ -5268,6 +5297,7 @@ function renderApp() {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), -1)
       else overviewWeekOffset -= 1
       await ensureOverviewSchedulesLoadedForCurrentRange()
+      saveOverviewStatePreference()
       renderApp()
     })
   }
@@ -5278,6 +5308,7 @@ function renderApp() {
       overviewWeekOffset = 0
       overviewDisplayMonth = getCurrentMonthValue()
       await ensureOverviewSchedulesLoadedForCurrentRange()
+      saveOverviewStatePreference()
       renderApp()
     })
   }
@@ -5288,6 +5319,7 @@ function renderApp() {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), 1)
       else overviewWeekOffset += 1
       await ensureOverviewSchedulesLoadedForCurrentRange()
+      saveOverviewStatePreference()
       renderApp()
     })
   }
@@ -15993,9 +16025,215 @@ function resetOverviewToPersonalWeek(options = {}) {
   if (options.persist === true) {
     saveOverviewFiltersPreference()
     saveOverviewQuickGroupsPreference()
+    saveOverviewStatePreference()
   }
   return overviewFilters
 }
+
+/* FOR-e V002-1H-stable-1-3bo START - keep overview state on refresh */
+function getOverviewStateOwnerKeys() {
+  const quickGroupOwnerKeys = typeof getOverviewQuickGroupOwnerKeyCandidates === 'function'
+    ? getOverviewQuickGroupOwnerKeyCandidates()
+    : []
+
+  const fallbackKeys = [
+    currentProfile?.auth_user_id,
+    currentProfile?.auth_id,
+    currentProfile?.user_id,
+    currentProfile?.profile_id,
+    currentProfile?.id,
+    currentProfile?.staff_id,
+    currentProfile?.email,
+    currentProfile?.name
+  ]
+    .map(item => typeof normalizeOverviewQuickGroupOwnerKey === 'function'
+      ? normalizeOverviewQuickGroupOwnerKey(item)
+      : String(item || '').trim().replace(/[^a-zA-Z0-9@._-]/g, '_'))
+    .filter(Boolean)
+
+  return [...new Set([...quickGroupOwnerKeys, ...fallbackKeys])].filter(Boolean)
+}
+
+function getOverviewStateStorageKeys() {
+  return getOverviewStateOwnerKeys().map(ownerKey => `${overviewStateStoragePrefix}:${ownerKey}`)
+}
+
+function getPrimaryOverviewStateStorageKey() {
+  return getOverviewStateStorageKeys()[0] || ''
+}
+
+function getOverviewWeekStartKey(offset = overviewWeekOffset) {
+  const weekDates = getWeekDates(offset)
+  return weekDates.length ? toDateKey(weekDates[0]) : todayString()
+}
+
+function getOverviewWeekOffsetFromWeekStart(weekStart = '') {
+  const targetDate = getDateFromKey(weekStart)
+  if (!targetDate) return 0
+
+  const todayDate = getDateFromKey(todayString()) || new Date()
+  const currentMonday = getMonday(todayDate)
+  const targetMonday = getMonday(targetDate)
+  const diffMs = targetMonday.getTime() - currentMonday.getTime()
+  return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000))
+}
+
+function getOverviewDateRangeMode(viewMode = getOverviewViewMode()) {
+  if (['月份顯示', '個人當月'].includes(viewMode)) return 'month'
+  if (viewMode === '個人當天') return 'day'
+  return 'week'
+}
+
+function getOverviewModeForState() {
+  const group = getOverviewActiveQuickGroup()
+  if (group && group.id && group.id !== 'all') return 'quickGroup'
+  const viewMode = getOverviewViewMode()
+  if (viewMode.startsWith('個人')) return 'personal'
+  return 'all'
+}
+
+function normalizeOverviewSavedState(value = {}) {
+  const source = value && typeof value === 'object' ? value : {}
+  const selectedQuickGroupId = String(source.selectedQuickGroupId || source.quickGroupId || source.activeQuickGroupId || source.activeId || 'all').trim() || 'all'
+  const rawViewMode = String(source.viewMode || source.overviewViewMode || '').trim()
+  const viewMode = overviewViewModeOptions.includes(rawViewMode)
+    ? rawViewMode
+    : (selectedQuickGroupId !== 'all' ? '全部行程' : '個人當週')
+
+  return {
+    version: String(source.version || '').trim(),
+    overviewMode: String(source.overviewMode || source.mode || (selectedQuickGroupId !== 'all' ? 'quickGroup' : '')).trim(),
+    viewMode,
+    selectedQuickGroupId,
+    selectedQuickGroupName: String(source.selectedQuickGroupName || source.quickGroupName || '').trim(),
+    selectedStaffIds: normalizeOverviewFilterList(source.selectedStaffIds || source.quickGroupStaffIds || source.staffIds || []),
+    quickGroupStaffIds: normalizeOverviewFilterList(source.quickGroupStaffIds || source.selectedStaffIds || []),
+    departments: normalizeOverviewFilterList(source.departments || source.department || []),
+    staffIds: normalizeOverviewFilterList(source.staffIds || source.staffId || []),
+    sortBy: ['display_order', 'department', 'name'].includes(source.sortBy) ? source.sortBy : overviewFilters.sortBy || 'display_order',
+    sortDir: source.sortDir === 'desc' ? 'desc' : overviewFilters.sortDir || 'asc',
+    weekStart: /^\d{4}-\d{2}-\d{2}$/.test(String(source.weekStart || source.week_start || '')) ? String(source.weekStart || source.week_start) : '',
+    dateRangeMode: ['week', 'month', 'day'].includes(source.dateRangeMode) ? source.dateRangeMode : getOverviewDateRangeMode(viewMode),
+    overviewDisplayMonth: normalizeMonthValue(source.overviewDisplayMonth || source.displayMonth || source.month || getCurrentMonthValue()),
+    savedAt: String(source.savedAt || source.saved_at || '').trim()
+  }
+}
+
+function buildOverviewStatePayload() {
+  const viewMode = getOverviewViewMode()
+  const activeGroup = getOverviewActiveQuickGroup()
+  const selectedQuickGroupId = activeGroup?.id || overviewQuickGroups.activeId || 'all'
+  const quickGroupStaffIds = selectedQuickGroupId === 'all' ? [] : getOverviewActiveQuickGroupStaffIds()
+
+  return {
+    version: 'v002-1h-stable-1-3bo',
+    savedAt: new Date().toISOString(),
+    overviewMode: getOverviewModeForState(),
+    viewMode,
+    selectedQuickGroupId,
+    selectedQuickGroupName: selectedQuickGroupId === 'all' ? '全部' : getOverviewQuickGroupDisplayName(activeGroup || {}),
+    selectedStaffIds: selectedQuickGroupId === 'all' ? normalizeOverviewFilterList(overviewFilters.staffIds) : quickGroupStaffIds,
+    quickGroupStaffIds,
+    weekStart: getOverviewWeekStartKey(),
+    dateRangeMode: getOverviewDateRangeMode(viewMode),
+    overviewDisplayMonth: getOverviewActiveMonth(),
+    departments: normalizeOverviewFilterList(overviewFilters.departments),
+    staffIds: normalizeOverviewFilterList(overviewFilters.staffIds),
+    sortBy: overviewFilters.sortBy || 'display_order',
+    sortDir: overviewFilters.sortDir || 'asc'
+  }
+}
+
+function saveOverviewStatePreference() {
+  const primaryKey = getPrimaryOverviewStateStorageKey()
+  if (!primaryKey) return null
+
+  const payload = buildOverviewStatePayload()
+  try {
+    localStorage.setItem(primaryKey, JSON.stringify(payload))
+  } catch (err) {
+    console.warn('行程總覽狀態儲存失敗', err)
+  }
+
+  return payload
+}
+
+function readOverviewStatePreference() {
+  for (const key of getOverviewStateStorageKeys()) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      return normalizeOverviewSavedState(JSON.parse(raw))
+    } catch (err) {
+      console.warn('行程總覽狀態讀取失敗', key, err)
+    }
+  }
+
+  return null
+}
+
+function clearOverviewStatePreference() {
+  getOverviewStateStorageKeys().forEach(key => {
+    try {
+      localStorage.removeItem(key)
+    } catch (err) {
+      console.warn('行程總覽狀態清除失敗', key, err)
+    }
+  })
+}
+
+function getOverviewQuickGroupByExactId(groupId = '') {
+  const id = String(groupId || '').trim()
+  if (!id) return null
+  return getOverviewQuickGroupRows().find(group => String(group.id || '') === id) || null
+}
+
+function applyOverviewStatePreference(options = {}) {
+  const state = options.state || readOverviewStatePreference()
+  if (!state) return false
+
+  const requestedGroupId = String(state.selectedQuickGroupId || 'all').trim() || 'all'
+  let activeGroupId = 'all'
+  let isValidQuickGroupState = false
+
+  if (requestedGroupId !== 'all') {
+    if (options.validateQuickGroup === false) {
+      activeGroupId = requestedGroupId
+      isValidQuickGroupState = true
+    } else {
+      const group = getOverviewQuickGroupByExactId(requestedGroupId)
+      const staffIds = group ? getOverviewQuickGroupStaffIdsFromGroup(group) : []
+      isValidQuickGroupState = Boolean(group && staffIds.length)
+      if (!isValidQuickGroupState) return false
+      activeGroupId = requestedGroupId
+    }
+  }
+
+  if (state.dateRangeMode === 'month') {
+    overviewDisplayMonth = normalizeMonthValue(state.overviewDisplayMonth || getCurrentMonthValue())
+  } else if (state.weekStart) {
+    overviewWeekOffset = getOverviewWeekOffsetFromWeekStart(state.weekStart)
+  } else {
+    overviewWeekOffset = Number.isFinite(Number(state.weekOffset)) ? Number(state.weekOffset) : overviewWeekOffset
+  }
+
+  overviewQuickGroups = normalizeOverviewQuickGroups({
+    ...overviewQuickGroups,
+    activeId: activeGroupId
+  })
+
+  overviewFilters = normalizeOverviewFilters({
+    ...overviewFilters,
+    viewMode: isValidQuickGroupState ? '全部行程' : state.viewMode,
+    departments: isValidQuickGroupState ? [] : state.departments,
+    staffIds: isValidQuickGroupState ? [] : state.staffIds,
+    sortBy: state.sortBy,
+    sortDir: state.sortDir
+  })
+
+  return true
+}
+/* FOR-e V002-1H-stable-1-3bo END - keep overview state on refresh */
 
 function getOverviewDateRangeKeys(viewMode = getOverviewViewMode()) {
   const dates = getOverviewCalendarDates(viewMode)
@@ -17258,6 +17496,9 @@ function isAutoClosedLeaveMeetingActivity(row = {}) {
 
 
 const overviewFiltersStorageKey = 'for-e-overview-filters-v002'
+/* FOR-e V002-1H-stable-1-3bo START - personal overview refresh state */
+const overviewStateStoragePrefix = 'for-e-overview-state-v002'
+/* FOR-e V002-1H-stable-1-3bo END - personal overview refresh state */
 
 function normalizeOverviewFilterList(value) {
   if (!value) return []
@@ -18729,7 +18970,18 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
       const selectedGroup = getOverviewQuickGroupById(groupId)
       if (selectedGroup && !selectedGroup.builtIn) ensureOverviewQuickGroupVisibleInState(selectedGroup, groupId)
       overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: groupId })
+      if (groupId && groupId !== 'all') {
+        overviewFilters = normalizeOverviewFilters({
+          ...overviewFilters,
+          viewMode: '全部行程',
+          departments: [],
+          staffIds: []
+        })
+      }
+      saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
+      if (groupId && groupId !== 'all') saveOverviewStatePreference()
+      else clearOverviewStatePreference()
       modal.remove()
       renderApp()
     })
@@ -18760,11 +19012,18 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
         return normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(item)) !== deleteNameKey
       })
 
+      const deletedActiveGroup = overviewQuickGroups.activeId === groupId
       overviewQuickGroups = normalizeOverviewQuickGroups({
-        activeId: overviewQuickGroups.activeId === groupId ? 'all' : overviewQuickGroups.activeId,
+        activeId: deletedActiveGroup ? 'all' : overviewQuickGroups.activeId,
         groups
       })
 
+      if (deletedActiveGroup) {
+        clearOverviewStatePreference()
+        resetOverviewToPersonalWeek({ persist: false })
+      }
+
+      saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference({ verifyRemote: true })
       modal.remove()
       renderApp()
@@ -28154,6 +28413,7 @@ async function initialLoad() {
 
 
 async function logout() {
+  clearOverviewStatePreference()
   await supabase.auth.signOut()
   currentProfile = null
   renderLogin()
