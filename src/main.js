@@ -1588,13 +1588,14 @@ let birthdayWishesError = ''
 let userProfilesError = ''
 let loadingSchedules = false
 let schedulesError = ''
+let schedulesLoadState = { mode: 'full', dateStart: '', dateEnd: '' }
 let saving = false
 let appSettings = {}
 let appSettingsError = ''
 let overviewWeekOffset = 0
 let overviewDisplayMonth = ''
 let overviewFilters = {
-  viewMode: '全部行程',
+  viewMode: '個人當週',
   departments: [],
   staffIds: [],
   sortBy: 'display_order',
@@ -3857,9 +3858,12 @@ async function loadProfile(options = {}) {
   }
   loadOverviewFiltersPreference()
   loadFieldScheduleFiltersPreference()
-  currentPage = 'personalSchedule'
-  await refreshData()
+  // V002-1H-stable-1-3bm：登入後預設進入行程總覽的個人當週，避免預設載入全部行程。
+  currentPage = 'scheduleOverview'
+  resetOverviewToPersonalWeek({ persist: false })
+  await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions('個人當週') })
   loadOverviewFiltersPreference()
+  resetOverviewToPersonalWeek({ persist: true })
   loadFieldScheduleFiltersPreference()
   renderApp()
   maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
@@ -3905,7 +3909,8 @@ async function refreshData(options = {}) {
   schedulesError = ''
 
   // 登入後先載入畫面必要資料，避免手機 / 平板卡在 audit_logs、service_records、birthday_wishes 等非首頁資料。
-  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules()])
+  const scheduleOptions = forceFull ? {} : (options.scheduleOptions || getScheduleLoadOptionsForCurrentPage())
+  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules(scheduleOptions)])
 
   if (forceFull) {
     await Promise.allSettled([loadUserProfiles(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
@@ -4746,14 +4751,28 @@ async function loadStaff() {
   staffList = allStaffList.filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
 }
 
-async function loadSchedules() {
+async function loadSchedules(options = {}) {
   loadingSchedules = true
   schedulesError = ''
 
-  const { data, error } = await supabase
+  const dateStart = String(options.dateStart || '').trim()
+  const dateEnd = String(options.dateEnd || '').trim()
+  const useDateRange = /^\d{4}-\d{2}-\d{2}$/.test(dateStart) && /^\d{4}-\d{2}-\d{2}$/.test(dateEnd)
+
+  let query = supabase
     .from('schedules')
     .select('*, schedule_assignees(*)')
     .is('deleted_at', null)
+
+  // V002-1H-stable-1-3bm：登入 / 行程總覽預設只載入目前畫面日期範圍，
+  // 避免一登入就撈全部歷史行程。跨日行程只要與畫面日期區間重疊就會載入。
+  if (useDateRange) {
+    query = query
+      .lte('start_date', dateEnd)
+      .or(`end_date.gte.${dateStart},end_date.is.null`)
+  }
+
+  const { data, error } = await query
     .order('start_date', { ascending: true })
     .order('start_time', { ascending: true })
 
@@ -4763,6 +4782,9 @@ async function loadSchedules() {
     schedulesError = error.message
   } else {
     schedules = data || []
+    schedulesLoadState = useDateRange
+      ? { mode: options.scope || 'range', dateStart, dateEnd }
+      : { mode: 'full', dateStart: '', dateEnd: '' }
   }
 
   // 1-3be：行程資料更新後清除行程總覽快取，避免顯示舊資料。
@@ -4898,8 +4920,13 @@ function renderApp() {
   initSearchableChoicePanels(document)
 
   document.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       currentPage = btn.dataset.page
+      if (currentPage === 'scheduleOverview') {
+        await ensureOverviewSchedulesLoadedForCurrentRange()
+      } else if (schedulesLoadState.mode !== 'full') {
+        await loadSchedules()
+      }
       if (shouldRenderAfterBackgroundDataLoad() && !backgroundDataLoaded) startBackgroundDataLoad()
       renderApp()
     })
@@ -5046,20 +5073,21 @@ function renderApp() {
 
   const overviewFilterForm = document.querySelector('#overviewFilterForm')
   if (overviewFilterForm) {
-    overviewFilterForm.addEventListener('submit', event => {
+    overviewFilterForm.addEventListener('submit', async event => {
       event.preventDefault()
       const form = new FormData(event.target)
       overviewDisplayMonth = normalizeMonthValue(form.get('overviewMonth') || overviewDisplayMonth || getCurrentMonthValue())
       overviewFilters = normalizeOverviewFilters({
-        viewMode: form.get('viewMode') || '全部行程',
+        viewMode: form.get('viewMode') || '個人當週',
         departments: form.getAll('departments'),
         staffIds: form.getAll('staffIds'),
         sortBy: form.get('sortBy') || 'display_order',
         sortDir: form.get('sortDir') || 'asc'
       })
-      if (overviewFilters.departments.length || overviewFilters.staffIds.length) {
+      if (overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
         overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: 'all' })
       }
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       renderApp()
     })
@@ -5067,14 +5095,9 @@ function renderApp() {
 
   const resetOverviewFilterBtn = document.querySelector('#resetOverviewFilterBtn')
   if (resetOverviewFilterBtn) {
-    resetOverviewFilterBtn.addEventListener('click', () => {
-      overviewFilters = normalizeOverviewFilters()
-      overviewWeekOffset = 0
-      overviewDisplayMonth = getCurrentMonthValue()
-      overviewQuickGroups = normalizeOverviewQuickGroups({
-        ...overviewQuickGroups,
-        activeId: 'all'
-      })
+    resetOverviewFilterBtn.addEventListener('click', async () => {
+      resetOverviewToPersonalWeek({ persist: false })
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
       renderApp()
@@ -5082,7 +5105,7 @@ function renderApp() {
   }
 
   document.querySelectorAll('[data-overview-group-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const groupId = btn.dataset.overviewGroupId || 'all'
       const selectedGroup = getOverviewQuickGroupById(groupId)
 
@@ -5094,12 +5117,18 @@ function renderApp() {
         ...overviewQuickGroups,
         activeId: groupId
       })
-      // 1-3bk：點快速群組時以群組為主；點「全部」時回到所有啟用人員。
-      overviewFilters = normalizeOverviewFilters({
-        ...overviewFilters,
-        departments: [],
-        staffIds: []
-      })
+      // 1-3bm：點快速群組時進入全部行程的目前週，只套用群組人員；點「全部」時回到個人當週。
+      if (groupId === 'all') {
+        resetOverviewToPersonalWeek({ persist: false })
+      } else {
+        overviewFilters = normalizeOverviewFilters({
+          ...overviewFilters,
+          viewMode: '全部行程',
+          departments: [],
+          staffIds: []
+        })
+      }
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
       renderApp()
@@ -5113,27 +5142,30 @@ function renderApp() {
 
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
   if (prevWeekBtn) {
-    prevWeekBtn.addEventListener('click', () => {
+    prevWeekBtn.addEventListener('click', async () => {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), -1)
       else overviewWeekOffset -= 1
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       renderApp()
     })
   }
 
   const thisWeekBtn = document.querySelector('#thisWeekBtn')
   if (thisWeekBtn) {
-    thisWeekBtn.addEventListener('click', () => {
+    thisWeekBtn.addEventListener('click', async () => {
       overviewWeekOffset = 0
       overviewDisplayMonth = getCurrentMonthValue()
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       renderApp()
     })
   }
 
   const nextWeekBtn = document.querySelector('#nextWeekBtn')
   if (nextWeekBtn) {
-    nextWeekBtn.addEventListener('click', () => {
+    nextWeekBtn.addEventListener('click', async () => {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), 1)
       else overviewWeekOffset += 1
+      await ensureOverviewSchedulesLoadedForCurrentRange()
       renderApp()
     })
   }
@@ -15808,7 +15840,7 @@ function getWeekLabel(weekDates) {
 const overviewViewModeOptions = ['全部行程', '月份顯示', '個人當天', '個人當週', '個人當月']
 
 function getOverviewViewMode() {
-  return overviewViewModeOptions.includes(overviewFilters.viewMode) ? overviewFilters.viewMode : '全部行程'
+  return overviewViewModeOptions.includes(overviewFilters.viewMode) ? overviewFilters.viewMode : '個人當週'
 }
 
 function getOverviewViewModeOptionsHtml() {
@@ -15829,6 +15861,76 @@ function getOverviewCalendarDates(viewMode = getOverviewViewMode()) {
   if (viewMode === '個人當週') return getWeekDates(overviewWeekOffset)
   return getWeekDates(overviewWeekOffset)
 }
+
+/* FOR-e V002-1H-stable-1-3bm START - default overview personal week */
+function getDefaultOverviewPersonalWeekFilters(base = overviewFilters) {
+  return normalizeOverviewFilters({
+    ...base,
+    viewMode: '個人當週',
+    departments: [],
+    staffIds: [],
+    sortBy: base?.sortBy || 'display_order',
+    sortDir: base?.sortDir || 'asc'
+  })
+}
+
+function resetOverviewToPersonalWeek(options = {}) {
+  overviewWeekOffset = 0
+  overviewDisplayMonth = getCurrentMonthValue()
+  overviewFilters = getDefaultOverviewPersonalWeekFilters(overviewFilters)
+  overviewQuickGroups = normalizeOverviewQuickGroups({
+    ...overviewQuickGroups,
+    activeId: 'all'
+  })
+  if (options.persist === true) {
+    saveOverviewFiltersPreference()
+    saveOverviewQuickGroupsPreference()
+  }
+  return overviewFilters
+}
+
+function getOverviewDateRangeKeys(viewMode = getOverviewViewMode()) {
+  const dates = getOverviewCalendarDates(viewMode)
+    .map(date => toDateKey(date))
+    .filter(Boolean)
+    .sort()
+  if (!dates.length) {
+    const today = todayString()
+    return { dateStart: today, dateEnd: today }
+  }
+  return { dateStart: dates[0], dateEnd: dates[dates.length - 1] }
+}
+
+function getOverviewScheduleLoadOptions(viewMode = getOverviewViewMode()) {
+  const range = getOverviewDateRangeKeys(viewMode)
+  return {
+    scope: `overview-${viewMode || 'range'}`,
+    dateStart: range.dateStart,
+    dateEnd: range.dateEnd
+  }
+}
+
+function getScheduleLoadOptionsForCurrentPage() {
+  if (currentPage === 'scheduleOverview') return getOverviewScheduleLoadOptions()
+  return {}
+}
+
+function schedulesRangeCovers(dateStart = '', dateEnd = '') {
+  if (schedulesLoadState.mode === 'full') return true
+  return Boolean(
+    schedulesLoadState.dateStart
+    && schedulesLoadState.dateEnd
+    && schedulesLoadState.dateStart <= dateStart
+    && schedulesLoadState.dateEnd >= dateEnd
+  )
+}
+
+async function ensureOverviewSchedulesLoadedForCurrentRange() {
+  const options = getOverviewScheduleLoadOptions()
+  if (schedulesRangeCovers(options.dateStart, options.dateEnd)) return
+  await loadSchedules(options)
+}
+/* FOR-e V002-1H-stable-1-3bm END - default overview personal week */
 
 function getOverviewCalendarLabel(weekDates = [], viewMode = getOverviewViewMode()) {
   if (!weekDates.length) return ''
@@ -17058,7 +17160,7 @@ function normalizeOverviewFilterList(value) {
 function normalizeOverviewFilters(value = {}) {
   const sortBy = ['display_order', 'department', 'name'].includes(value.sortBy) ? value.sortBy : 'display_order'
   const sortDir = value.sortDir === 'desc' ? 'desc' : 'asc'
-  const viewMode = overviewViewModeOptions.includes(value.viewMode) ? value.viewMode : '全部行程'
+  const viewMode = overviewViewModeOptions.includes(value.viewMode) ? value.viewMode : '個人當週'
 
   return {
     viewMode,
