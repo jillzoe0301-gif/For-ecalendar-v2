@@ -27265,3 +27265,9 @@ body:has(.modal-backdrop) .week-overview-table .staff-col {
   }
 }
 /* FOR-e V002-1H-stable-1-3bi END - announcement persistent responsive layout */
+
+/* FOR-e V002-1H-stable-1-3bn START - overview blank cell add touch safety */
+.week-day-cell {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+/* FOR-e V002-1H-stable-1-3bn END - overview blank cell add touch safety */

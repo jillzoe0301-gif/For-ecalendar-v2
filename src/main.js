@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bl'
-const SYSTEM_VERSION_NOTE = '快速人員群組改為嚴格個人專屬：只讀取目前登入者的個人群組，不再讀取 shared 或其他使用者快照。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bn'
+const SYSTEM_VERSION_NOTE = '一般職員可在行程總覽空白格快速新增，新增類型仍受一般職員權限限制。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -922,11 +922,16 @@ function getCanonicalStatsTypeName(value = '') {
 function getCreateFormCategoryDisplayLabel(value = '') {
   const text = String(value || '').trim()
   if (!text) return '-'
-  if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '請假/會議/活動/外訓'
+
+  /* FOR-e V002-1H-stable-1-3bn START - general staff overview create labels */
   if (isGeneralStaffOverviewCreateMode()) {
     if (text === '一般記事') return '個人記事'
+    if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '人員行務'
     if (text === '公務車保養') return '公務車保養'
   }
+  /* FOR-e V002-1H-stable-1-3bn END - general staff overview create labels */
+
+  if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '請假/會議/活動/外訓'
   return getUnifiedScheduleCategoryLabel(text)
 }
 
@@ -2357,6 +2362,123 @@ function canCreateForCurrentPage() {
   if (currentPage === 'meetingRoom') return canCreateMeetingRoomSchedule()
   return false
 }
+
+/* FOR-e V002-1H-stable-1-3bn START - general staff overview blank cell create */
+const overviewBlankCellBlockedSelector = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  'summary',
+  'details',
+  'label',
+  '[data-view-schedule]',
+  '[data-cell-view-schedule]',
+  '[data-edit-field-day-reminder]',
+  '[data-delete-field-day-reminder]',
+  '[data-copy-card-address]',
+  '.week-schedule-card',
+  '.birthday-card',
+  '.leave-return-day-mark',
+  '.continuation-day-mark',
+  '.field-day-reminder-prompt',
+  '.field-day-reminder-stack',
+  '.return-reminder-day-mark',
+  '.administrative-reminder-day-mark',
+  '.copyable-address-line',
+  '.copyable-address-text'
+].join(', ')
+
+const overviewBlankCellGestureState = new WeakMap()
+const overviewBlankCellMoveThreshold = 8
+
+function canCreateFromOverviewBlankCell() {
+  return canCreateServiceSchedule() || (isGeneralStaffRole() && canCreatePersonalSchedule())
+}
+
+function isOverviewBlankCellBlockedTarget(target) {
+  return Boolean(target?.closest?.(overviewBlankCellBlockedSelector))
+}
+
+function getOverviewBlankCellDefaultStaffId(staffId = '') {
+  const requestedStaffId = String(staffId || '').trim()
+  const fallbackStaffId = currentProfile?.staff_id || ''
+  if (!requestedStaffId) return fallbackStaffId
+  if (!isGeneralStaffOverviewCreateMode()) return requestedStaffId
+
+  const allowedStaffIds = new Set(getStaffRowsForDepartmentAssignee('一般行程').map(staff => staff.staff_id).filter(Boolean))
+  return allowedStaffIds.has(requestedStaffId) ? requestedStaffId : fallbackStaffId
+}
+
+function rememberOverviewBlankCellPointerStart(cell, event) {
+  if (!cell) return
+  if (isOverviewBlankCellBlockedTarget(event.target) || (event.pointerType === 'touch' && event.isPrimary === false)) {
+    overviewBlankCellGestureState.set(cell, { pointerId: event.pointerId, moved: true, blocked: true, startedAt: Date.now() })
+    return
+  }
+
+  overviewBlankCellGestureState.set(cell, {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    moved: false,
+    blocked: false,
+    startedAt: Date.now()
+  })
+}
+
+function rememberOverviewBlankCellPointerMove(cell, event) {
+  const state = overviewBlankCellGestureState.get(cell)
+  if (!state || state.pointerId !== event.pointerId) return
+  const dx = Math.abs(event.clientX - state.startX)
+  const dy = Math.abs(event.clientY - state.startY)
+  if (dx > overviewBlankCellMoveThreshold || dy > overviewBlankCellMoveThreshold) state.moved = true
+}
+
+function shouldIgnoreOverviewBlankCellClick(cell, event) {
+  if (isOverviewBlankCellBlockedTarget(event.target)) return true
+  const state = overviewBlankCellGestureState.get(cell)
+  if (!state) return false
+  return Boolean(state.moved || state.blocked)
+}
+
+function openOverviewBlankCellCreateModal(cell) {
+  if (!canCreateFromOverviewBlankCell()) return denyPermission('你的角色不能在行程總覽新增行程。')
+  openScheduleModal({
+    date: cell.dataset.weekDate || todayString(),
+    staffId: getOverviewBlankCellDefaultStaffId(cell.dataset.staffId || currentProfile?.staff_id || '')
+  })
+}
+
+function bindOverviewBlankCellCreateHandlers() {
+  document.querySelectorAll('.week-day-cell').forEach(cell => {
+    cell.addEventListener('pointerdown', event => {
+      rememberOverviewBlankCellPointerStart(cell, event)
+    }, { passive: true })
+
+    cell.addEventListener('pointermove', event => {
+      rememberOverviewBlankCellPointerMove(cell, event)
+    }, { passive: true })
+
+    cell.addEventListener('pointercancel', event => {
+      const state = overviewBlankCellGestureState.get(cell)
+      if (state && state.pointerId === event.pointerId) state.moved = true
+    }, { passive: true })
+
+    cell.addEventListener('click', event => {
+      if (shouldIgnoreOverviewBlankCellClick(cell, event)) {
+        overviewBlankCellGestureState.delete(cell)
+        return
+      }
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      openOverviewBlankCellCreateModal(cell)
+      overviewBlankCellGestureState.delete(cell)
+    })
+  })
+}
+/* FOR-e V002-1H-stable-1-3bn END - general staff overview blank cell create */
 
 function canCreateScheduleCategory(category) {
   const rawCategory = String(category || '').trim()
@@ -5170,21 +5292,7 @@ function renderApp() {
     })
   }
 
-  document.querySelectorAll('.week-day-cell').forEach(cell => {
-    cell.addEventListener('click', event => {
-      if (event.target.closest('button, a, input, select, textarea, summary, details, label, [data-view-schedule], [data-cell-view-schedule], .week-schedule-card, .birthday-card, .leave-return-day-mark, .continuation-day-mark')) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      if (canCreateServiceSchedule()) {
-        openScheduleModal({
-          date: cell.dataset.weekDate || todayString(),
-          staffId: cell.dataset.staffId || currentProfile?.staff_id || ''
-        })
-      } else {
-        denyPermission('你的角色不能在行程總覽新增服務行程，請到個人行程表新增自己的事項。')
-      }
-    })
-  })
+  bindOverviewBlankCellCreateHandlers()
 
 
   const fieldCalendarViewModeSelect = document.querySelector('#fieldCalendarViewModeSelect')
@@ -24475,7 +24583,8 @@ function openScheduleModal(defaults = {}) {
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getCreateFormCategoryDisplayLabel(category))}</option>`).join('')
   const todoOptions = todoItemOptionsHtml()
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
-  const leaveOptions = getManagedLeaveMeetingTypes().map(item => `<option value="${item}">${item}</option>`).join('')
+  const leaveTypeOptions = isGeneralStaffOverviewCreateMode() ? generalStaffOverviewLeaveMeetingTypes : getManagedLeaveMeetingTypes()
+  const leaveOptions = leaveTypeOptions.map(item => `<option value="${item}">${item}</option>`).join('')
   const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const supervisorOptions = supervisorSelectOptionsHtml()
   const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
@@ -27294,7 +27403,13 @@ async function saveSchedule(event, modal) {
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
-    scheduleType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
+    const requestedLeaveMeetingType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
+    if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
+      alert('一般職員的人員行務細項只能新增請假、會議、活動、外訓。')
+      saving = false
+      return
+    }
+    scheduleType = requestedLeaveMeetingType
     subType = scheduleType
     const selectedDepartments = form.getAll('executor_departments').filter(Boolean)
     if (selectedDepartments.length) subTypeNoteParts.push(`指派部門：${selectedDepartments.join('、')}`)
