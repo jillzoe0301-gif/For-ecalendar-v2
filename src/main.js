@@ -76,7 +76,7 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bj'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bk'
 const SYSTEM_VERSION_NOTE = '公告來源統一修正：手機、平板、電腦共用同一份公告 state，行政公告日期預設台灣當天。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
@@ -1888,14 +1888,19 @@ function getPersonalSettingOwnerKey() {
 }
 
 function getOverviewQuickGroupOwnerMeta() {
-  const ownerId = String(currentProfile?.staff_id || currentProfile?.profile_id || currentProfile?.email || currentProfile?.name || '').trim()
+  const authUserId = String(currentProfile?.auth_user_id || currentProfile?.auth_id || currentProfile?.user_id || '').trim()
+  const profileId = String(currentProfile?.profile_id || currentProfile?.id || '').trim()
+  const staffId = String(currentProfile?.staff_id || '').trim()
+  const ownerId = String(authUserId || profileId || staffId || currentProfile?.email || currentProfile?.name || '').trim()
   return {
     ownerId,
     owner_id: ownerId,
-    profile_id: String(currentProfile?.profile_id || currentProfile?.id || '').trim(),
-    user_id: String(currentProfile?.user_id || currentProfile?.auth_user_id || currentProfile?.auth_id || '').trim(),
+    profile_id: profileId,
+    user_id: authUserId || String(currentProfile?.user_id || '').trim(),
+    staff_id: staffId,
     created_by: ownerId,
-    updated_by_profile_id: String(currentProfile?.profile_id || currentProfile?.id || '').trim()
+    updated_by: ownerId,
+    updated_by_profile_id: profileId
   }
 }
 
@@ -5014,6 +5019,9 @@ function renderApp() {
         sortBy: form.get('sortBy') || 'display_order',
         sortDir: form.get('sortDir') || 'asc'
       })
+      if (overviewFilters.departments.length || overviewFilters.staffIds.length) {
+        overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: 'all' })
+      }
       saveOverviewFiltersPreference()
       renderApp()
     })
@@ -5048,6 +5056,13 @@ function renderApp() {
         ...overviewQuickGroups,
         activeId: groupId
       })
+      // 1-3bk：點快速群組時以群組為主；點「全部」時回到所有啟用人員。
+      overviewFilters = normalizeOverviewFilters({
+        ...overviewFilters,
+        departments: [],
+        staffIds: []
+      })
+      saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
       renderApp()
     })
@@ -18505,8 +18520,64 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
 }
 
 
+/* FOR-e V002-1H-stable-1-3bk START - overview department staff + personal quick groups */
+function normalizeOverviewDepartmentText(value = '') {
+  return normalizeDepartmentLabel(String(value || '').trim())
+}
+
+function isOverviewActiveStaffRow(staff = {}) {
+  if (!staff || !staff.staff_id) return false
+  if (staff.deleted_at || staff.deletedAt || staff.is_deleted === true) return false
+  const statusText = String(staff.status || staff.staff_status || '啟用').trim().toLowerCase()
+  if (!statusText) return true
+  return !['停用', '離職', '刪除', '已刪除', 'inactive', 'disabled', 'deleted', 'left'].some(keyword => statusText.includes(keyword))
+}
+
+function mergeOverviewStaffSourceRows(...sources) {
+  const map = new Map()
+  sources.flat().forEach(row => {
+    if (!row) return
+    const staffId = normalizeStaffId(row.staff_id || row.staffId || row.profile_staff_id || row.id || row.email || '')
+    if (!staffId) return
+    const previous = map.get(staffId) || {}
+    map.set(staffId, {
+      ...previous,
+      ...row,
+      staff_id: staffId,
+      name: row.name || row.staff_name || row.full_name || row.display_name || previous.name || row.email || '-',
+      department_id: row.department_id || previous.department_id || '',
+      department_name: normalizeOverviewDepartmentText(row.department_name || row.department || row.dept_name || previous.department_name || ''),
+      position: row.position || row.position_name || row.job_title || previous.position || previous.position_name || '',
+      position_name: row.position_name || row.position || row.job_title || previous.position_name || previous.position || '',
+      display_order: row.display_order ?? previous.display_order ?? 999999,
+      status: row.status || previous.status || '啟用',
+      deleted_at: row.deleted_at ?? previous.deleted_at ?? null
+    })
+  })
+  return [...map.values()].filter(isOverviewActiveStaffRow)
+}
+
+function getOverviewAllActiveStaffRows() {
+  const rows = mergeOverviewStaffSourceRows(
+    Array.isArray(staffList) ? staffList : [],
+    Array.isArray(allStaffList) ? allStaffList : []
+  )
+  return sortStaffRowsByFilter(rows, { sortBy: 'department', sortDir: 'asc' })
+}
+
+function getOverviewSelectedDepartmentSet() {
+  return new Set(normalizeOverviewFilterList(overviewFilters.departments).map(normalizeOverviewDepartmentText).filter(Boolean))
+}
+
+function overviewStaffMatchesSelectedDepartments(staff = {}, selectedDepartmentSet = getOverviewSelectedDepartmentSet()) {
+  if (!selectedDepartmentSet.size) return true
+  return selectedDepartmentSet.has(normalizeOverviewDepartmentText(staff.department_name || ''))
+}
+/* FOR-e V002-1H-stable-1-3bk END - overview department staff + personal quick groups */
+
 function isOverviewDepartmentSelected(name) {
-  return normalizeOverviewFilterList(overviewFilters.departments).includes(name)
+  const selectedSet = getOverviewSelectedDepartmentSet()
+  return selectedSet.has(normalizeOverviewDepartmentText(name))
 }
 
 function isOverviewStaffSelected(staffId) {
@@ -18552,7 +18623,7 @@ function getOverviewFilterSummary() {
   const deptText = departments.length ? departments.join('、') : '全部部門'
   const staffText = staffNames.length ? staffNames.join('、') : '全部人員'
   const group = getOverviewActiveQuickGroup()
-  const groupText = group && group.id !== 'all' ? `｜群組：${getOverviewQuickGroupDisplayName(group)}` : ''
+  const groupText = !departments.length && !staffIds.length && group && group.id !== 'all' ? `｜群組：${getOverviewQuickGroupDisplayName(group)}` : ''
   return `${viewMode}｜${deptText}｜${staffText}${groupText}`
 }
 
@@ -18654,44 +18725,38 @@ function sortStaffRowsByFilter(rows, filters = {}) {
 
 function getOverviewDepartmentCheckboxes() {
   const rows = getOverviewBaseStaffRows()
-  const names = sortDepartmentNamesByFixedOrder(rows.map(staff => staff.department_name).filter(Boolean))
+  const names = sortDepartmentNamesByFixedOrder(rows.map(staff => normalizeOverviewDepartmentText(staff.department_name)).filter(Boolean))
   if (!names.length) return `<div class="compact-check-empty">沒有部門資料</div>`
   return names.map(name => renderCompactCheckOption(name, name, isOverviewDepartmentSelected(name), 'departments')).join('')
 }
 
 function getOverviewStaffCheckboxes() {
   let rows = getOverviewBaseStaffRows()
-  const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
+  const selectedDepartmentSet = getOverviewSelectedDepartmentSet()
 
-  if (selectedDepartments.length) {
-    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
+  if (selectedDepartmentSet.size) {
+    rows = rows.filter(staff => overviewStaffMatchesSelectedDepartments(staff, selectedDepartmentSet))
   }
 
   if (!rows.length) return `<div class="compact-check-empty">沒有可選人員</div>`
   return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds')).join('')
 }
 
-
-
-
-
 function getOverviewStaffRows() {
   let rows = getOverviewBaseStaffRows()
-  const selectedDepartments = normalizeOverviewFilterList(overviewFilters.departments)
+  const selectedDepartmentSet = getOverviewSelectedDepartmentSet()
   const selectedStaffIds = normalizeOverviewFilterList(overviewFilters.staffIds)
   const activeGroup = getOverviewActiveQuickGroup()
   const groupStaffIds = getOverviewActiveQuickGroupStaffIds()
 
-  if (activeGroup && activeGroup.id !== 'all') {
-    rows = rows.filter(staff => groupStaffIds.includes(staff.staff_id))
-  }
-
-  if (selectedDepartments.length) {
-    rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
-  }
-
+  // 1-3bk 篩選優先序：單一人員 > 部門 > 快速群組 > 全部。
+  // 選擇部門時，必須顯示該部門所有啟用人員，不可再被快速群組覆蓋。
   if (selectedStaffIds.length) {
     rows = rows.filter(staff => selectedStaffIds.includes(staff.staff_id))
+  } else if (selectedDepartmentSet.size) {
+    rows = rows.filter(staff => overviewStaffMatchesSelectedDepartments(staff, selectedDepartmentSet))
+  } else if (activeGroup && activeGroup.id !== 'all') {
+    rows = rows.filter(staff => groupStaffIds.includes(staff.staff_id))
   }
 
   return sortStaffRowsByFilter(rows, overviewFilters)
@@ -18700,21 +18765,9 @@ function getOverviewStaffRows() {
 
 
 function getOverviewBaseStaffRows() {
-  const role = currentProfile?.role
-  if (['管理員', '主管', '行政 / 海外'].includes(role)) return staffList
-
-  const visibleStaffIds = new Set()
-  schedules.forEach(row => {
-    if (isPublicGeneralSchedule(row)) return
-    if (isMine(row)) {
-      ;(row.schedule_assignees || []).forEach(item => {
-        if (!item.deleted_at) visibleStaffIds.add(item.staff_id)
-      })
-    }
-  })
-
-  if (currentProfile?.staff_id) visibleStaffIds.add(currentProfile.staff_id)
-  return staffList.filter(staff => visibleStaffIds.has(staff.staff_id))
+  // 1-3bk：行程總覽人員欄位一律由 staff / allStaffList 的啟用人員產生，
+  // 不再從 schedules / schedule_assignees 反推，避免選擇部門時漏掉沒有行程的人員。
+  return getOverviewAllActiveStaffRows()
 }
 
 
