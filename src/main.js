@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bk'
-const SYSTEM_VERSION_NOTE = '公告來源統一修正：手機、平板、電腦共用同一份公告 state，行政公告日期預設台灣當天。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3bl'
+const SYSTEM_VERSION_NOTE = '快速人員群組改為嚴格個人專屬：只讀取目前登入者的個人群組，不再讀取 shared 或其他使用者快照。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1891,28 +1891,66 @@ function getOverviewQuickGroupOwnerMeta() {
   const authUserId = String(currentProfile?.auth_user_id || currentProfile?.auth_id || currentProfile?.user_id || '').trim()
   const profileId = String(currentProfile?.profile_id || currentProfile?.id || '').trim()
   const staffId = String(currentProfile?.staff_id || '').trim()
-  const ownerId = String(authUserId || profileId || staffId || currentProfile?.email || currentProfile?.name || '').trim()
+  const email = String(currentProfile?.email || '').trim()
+  const ownerId = String(authUserId || profileId || staffId || email || '').trim()
   return {
     ownerId,
     owner_id: ownerId,
     profile_id: profileId,
     user_id: authUserId || String(currentProfile?.user_id || '').trim(),
     staff_id: staffId,
+    email,
     created_by: ownerId,
     updated_by: ownerId,
     updated_by_profile_id: profileId
   }
 }
 
+/* FOR-e V002-1H-stable-1-3bl START - strict personal overview quick groups */
+function normalizeOverviewQuickGroupOwnerKey(value = '') {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9@._-]/g, '_')
+}
+
+function getOverviewQuickGroupOwnerKeyCandidates() {
+  const ownerMeta = getOverviewQuickGroupOwnerMeta()
+  return [...new Set([
+    ownerMeta.user_id,
+    currentProfile?.auth_user_id,
+    currentProfile?.auth_id,
+    currentProfile?.user_id,
+    ownerMeta.profile_id,
+    currentProfile?.profile_id,
+    currentProfile?.id,
+    ownerMeta.staff_id,
+    currentProfile?.staff_id,
+    ownerMeta.email,
+    currentProfile?.email
+  ]
+    .map(normalizeOverviewQuickGroupOwnerKey)
+    .filter(Boolean))]
+}
+
+function getOverviewQuickGroupCanonicalOwnerKey() {
+  return getOverviewQuickGroupOwnerKeyCandidates()[0] || ''
+}
+
 function getPersonalOverviewQuickGroupsSettingKey() {
-  const ownerKey = getPersonalSettingOwnerKey()
+  const ownerKey = getOverviewQuickGroupCanonicalOwnerKey()
   return ownerKey ? `overview_quick_groups:${ownerKey}` : ''
 }
 
+function getPersonalOverviewQuickGroupsSettingKeys() {
+  return getOverviewQuickGroupOwnerKeyCandidates()
+    .map(ownerKey => `overview_quick_groups:${ownerKey}`)
+    .filter(Boolean)
+}
+/* FOR-e V002-1H-stable-1-3bl END - strict personal overview quick groups */
+
 function getAppSettingQueryKeys() {
   const keys = [...sharedSettingKeys]
-  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
-  if (personalQuickGroupKey) keys.push(personalQuickGroupKey)
+  getPersonalOverviewQuickGroupsSettingKeys().forEach(key => keys.push(key))
   return [...new Set(keys)]
 }
 
@@ -17414,7 +17452,7 @@ function normalizeOverviewQuickGroups(value = {}) {
 }
 
 function getOverviewQuickGroupOwnerStorageSuffix() {
-  return getPersonalSettingOwnerKey() || 'guest'
+  return getOverviewQuickGroupCanonicalOwnerKey() || getPersonalSettingOwnerKey() || 'guest'
 }
 
 function getOverviewQuickGroupMigrationFlagKey() {
@@ -17422,17 +17460,19 @@ function getOverviewQuickGroupMigrationFlagKey() {
 }
 
 function getOverviewQuickGroupPersonalLocalStorageKeys() {
-  const ownerSuffix = getOverviewQuickGroupOwnerStorageSuffix()
-  const ownerValues = getFilterStorageOwners().filter(owner => owner !== 'shared')
-  const keys = new Set([
-    `${overviewQuickGroupsPersonalStoragePrefix}-${ownerSuffix}`,
-    `${overviewQuickGroupsStorageKey}-${ownerSuffix}`
-  ])
+  const ownerValues = getOverviewQuickGroupOwnerKeyCandidates()
+  const keys = new Set()
 
   ownerValues.forEach(owner => {
     keys.add(`${overviewQuickGroupsPersonalStoragePrefix}-${owner}`)
     keys.add(`${overviewQuickGroupsStorageKey}-${owner}`)
   })
+
+  const ownerSuffix = getOverviewQuickGroupOwnerStorageSuffix()
+  if (ownerSuffix && ownerSuffix !== 'guest') {
+    keys.add(`${overviewQuickGroupsPersonalStoragePrefix}-${ownerSuffix}`)
+    keys.add(`${overviewQuickGroupsStorageKey}-${ownerSuffix}`)
+  }
 
   return [...keys].filter(Boolean)
 }
@@ -17497,6 +17537,38 @@ function isOverviewQuickGroupDeletedByTombstone(group = {}) {
   return Boolean((id && state.ids.includes(id)) || (nameKey && state.names.includes(nameKey)))
 }
 
+function getOverviewQuickGroupOwnerValuesFromGroup(group = {}) {
+  return [
+    group.ownerId,
+    group.owner_id,
+    group.user_id,
+    group.userId,
+    group.profile_id,
+    group.profileId,
+    group.staff_id,
+    group.staffId,
+    group.created_by,
+    group.createdBy,
+    group.updated_by,
+    group.email
+  ]
+    .map(normalizeOverviewQuickGroupOwnerKey)
+    .filter(Boolean)
+}
+
+function isOverviewQuickGroupOwnedByCurrentUser(group = {}) {
+  if (!group || group.builtIn || String(group.id || '') === 'all') return true
+  const ownerKeys = new Set(getOverviewQuickGroupOwnerKeyCandidates())
+  if (!ownerKeys.size) return false
+
+  const groupOwnerValues = getOverviewQuickGroupOwnerValuesFromGroup(group)
+  // 1-3bl：個人 localStorage 舊群組若沒有 owner 欄位，視為目前登入者自己的舊資料；
+  // 但 shared / 其他 owner 來源已不再讀取。
+  if (!groupOwnerValues.length) return true
+
+  return groupOwnerValues.some(ownerValue => ownerKeys.has(ownerValue))
+}
+
 function readOverviewQuickGroupStorageValue(key = '') {
   try {
     const raw = localStorage.getItem(key)
@@ -17535,34 +17607,9 @@ function setOverviewQuickGroupMigrationFlag() {
 }
 
 function readOverviewQuickGroupLegacyMigrationSources() {
-  // 1-3au：只在目前登入者還沒有個人快照、也尚未遷移時，讀取舊版 base / shared 快照。
-  // 一旦儲存過個人快照，就不再讀舊快照，避免刪除後又被舊資料還原。
-  if (hasOverviewQuickGroupPersonalSnapshot() || hasOverviewQuickGroupMigrationFlag()) return []
-
-  const sources = []
-  const keys = new Set([
-    overviewQuickGroupsStorageKey,
-    `${overviewQuickGroupsStorageKey}-shared`,
-    legacyOverviewCustomGroupStorageKey,
-    `${legacyOverviewCustomGroupStorageKey}-shared`
-  ])
-
-  try {
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const key = localStorage.key(i)
-      if (!key) continue
-      if (key.includes(overviewQuickGroupsStorageKey) || key.includes(legacyOverviewCustomGroupStorageKey)) keys.add(key)
-    }
-  } catch (err) {
-    console.warn('快速人員群組 legacy localStorage 掃描失敗', err)
-  }
-
-  keys.forEach(key => {
-    const value = readOverviewQuickGroupStorageValue(key)
-    if (value) sources.push(value)
-  })
-
-  return sources
+  // 1-3bl：快速人員群組改為嚴格個人專屬。
+  // 不再掃描 base / shared / 其他 owner 的舊 localStorage，避免同一台裝置切換帳號時讀到別人的群組。
+  return []
 }
 
 function readOverviewQuickGroupLocalSources() {
@@ -17617,8 +17664,9 @@ function saveOverviewQuickGroupsLocalPreference(value = overviewQuickGroups) {
 
 function getOverviewQuickGroupAppSettingSources() {
   const sources = []
-  const personalQuickGroupKey = getPersonalOverviewQuickGroupsSettingKey()
-  if (personalQuickGroupKey && appSettings[personalQuickGroupKey]) sources.push(appSettings[personalQuickGroupKey])
+  getPersonalOverviewQuickGroupsSettingKeys().forEach(key => {
+    if (key && appSettings[key]) sources.push(appSettings[key])
+  })
   return sources
 }
 
@@ -17629,7 +17677,7 @@ function mergeOverviewQuickGroupStates(sources = [], fallbackActiveId = 'all') {
   sources.forEach(source => {
     const normalized = normalizeOverviewQuickGroups(source)
     if (normalized.activeId && normalized.activeId !== 'all') activeId = normalized.activeId
-    groups.push(...normalized.groups)
+    groups.push(...normalized.groups.filter(group => isOverviewQuickGroupOwnedByCurrentUser(group)))
   })
 
   return normalizeOverviewQuickGroups({
@@ -17650,10 +17698,11 @@ function getSharedOverviewQuickGroupsSetting() {
 function loadOverviewQuickGroupsPreference() {
   cleanupLegacyOverviewCustomGroupStorage()
 
+  // 1-3bl：載入時只使用目前登入者的 personal localStorage / personal app_settings，
+  // 不再把上一個登入者殘留於記憶體的 overviewQuickGroups 併回來。
   const sources = [
     ...readOverviewQuickGroupLocalSources(),
-    ...getOverviewQuickGroupAppSettingSources(),
-    overviewQuickGroups
+    ...getOverviewQuickGroupAppSettingSources()
   ]
 
   overviewQuickGroups = mergeOverviewQuickGroupStates(sources, overviewQuickGroups.activeId || 'all')
@@ -17748,6 +17797,7 @@ function getOverviewCustomQuickGroupRows() {
   )
     .map(group => withOverviewQuickGroupNameAliases({ ...group, builtIn: false, fixed: false }))
     .filter(group => getOverviewQuickGroupDisplayName(group))
+    .filter(group => isOverviewQuickGroupOwnedByCurrentUser(group))
     .filter(group => !isLegacyFixedOverviewQuickGroup(group))
     .filter(group => !isOverviewQuickGroupDeletedByTombstone(group))
     .filter(group => !isHiddenOverviewQuickGroup(group))
