@@ -76,10 +76,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3bu'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bu'
+const APP_VERSION = 'V002-1H-stable-1-3bv'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bv'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '正式穩定整理版：彙整 1-3bm 至 1-3bt 已完成修正，統一版本提示與穩定目前正式功能。'
+const SYSTEM_VERSION_NOTE = '開放所有角色可使用行程搜尋；搜尋結果仍依既有可見行程與私人記事規則顯示。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -91,7 +91,7 @@ const pages = [
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
   { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
   { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
-  { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
+  { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: 'ALL', mobile: true },
   { key: 'stats', label: '統計報表', mobileLabel: '統計', roles: ['管理員', '主管'], mobile: false },
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
@@ -15156,20 +15156,20 @@ function getRoleTestDefinitions() {
     },
     {
       role: '翻譯',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '紀錄單繳交', 'LINE 通知', '顏色設定', '人員 / 帳號'],
-      cannotSee: ['異況追蹤', '外務行程', '外務明細', '會議室預約', '行程搜尋', '統計報表', '服務紀錄單', '選項管理', '異動紀錄', '系統檢查'],
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '行程搜尋', '紀錄單繳交', 'LINE 通知', '顏色設定', '人員 / 帳號'],
+      cannotSee: ['異況追蹤', '外務行程', '外務明細', '會議室預約', '統計報表', '服務紀錄單', '選項管理', '異動紀錄', '系統檢查'],
       actions: ['可查看自己的行程', '可繳交紀錄單', '可修改自己的密碼', '不可看異況追蹤']
     },
     {
       role: '外務 / 宿管人員 / 會計',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', 'LINE 通知', '異動紀錄', '人員 / 帳號'],
-      cannotSee: ['外務明細', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', '紀錄單繳交', '顏色設定', '選項管理', '系統檢查'],
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '行程搜尋', 'LINE 通知', '異動紀錄', '人員 / 帳號'],
+      cannotSee: ['外務明細', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', '顏色設定', '選項管理', '系統檢查'],
       actions: ['可看外務行程表', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
     },
     {
       role: '一般職員',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '會議室預約', '顏色設定', '人員 / 帳號'],
-      cannotSee: ['LINE 通知', '異動紀錄', '外務行程', '外務明細', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', '紀錄單繳交', '選項管理', '系統檢查'],
+      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '會議室預約', '行程搜尋', '顏色設定', '人員 / 帳號'],
+      cannotSee: ['LINE 通知', '異動紀錄', '外務行程', '外務明細', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', '選項管理', '系統檢查'],
       actions: ['可查看自己的行程', '可新增自己的個人待辦', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
     }
   ]
