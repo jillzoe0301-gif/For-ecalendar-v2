@@ -842,6 +842,7 @@ const formCategories = ['服務行程', '一般記事', '辦件提醒', '請假 
 const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '公務車保養']
 const generalStaffOverviewSimpleCategories = ['一般記事']
 const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓']
+const generalStaffPersonnelAffairsDisplayName = '請假/會議/活動/外訓'
 const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
 
 const unifiedCreateCategoryPages = ['personalSchedule', 'assignedTracking', 'scheduleOverview']
@@ -849,6 +850,12 @@ const adminManagerPersonalCategories = ['服務行程', '一般記事', '請假 
 const adminManagerTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓', '辦件提醒', '證件交付']
 const translatorPersonalCategories = ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
 const translatorTodoCategories = ['一般記事', '請假 / 會議 / 活動 / 外訓']
+
+function isPersonnelAffairsDisplayName(value = '') {
+  const text = String(value || '').trim()
+  const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
+  return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓'
+}
 
 function getUnifiedScheduleCategoryLabel(value = '') {
   const text = String(value || '').trim()
@@ -858,6 +865,19 @@ function getUnifiedScheduleCategoryLabel(value = '') {
   if (isAdministrativeReminderCategoryName(text)) return '辦件提醒'
   if (text === '人員行務') return '請假 / 會議 / 活動 / 外訓'
   return text
+}
+
+function getRoleAwareScheduleCategoryLabel(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  if (isGeneralStaffRole() && isPersonnelAffairsDisplayName(text)) return generalStaffPersonnelAffairsDisplayName
+  return getUnifiedScheduleCategoryLabel(text)
+}
+
+function getScheduleFieldDisplayLabel(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  return getRoleAwareScheduleCategoryLabel(text)
 }
 
 function isAdministrativeReminderCategoryName(value = '') {
@@ -926,7 +946,7 @@ function getCreateFormCategoryDisplayLabel(value = '') {
   /* FOR-e V002-1H-stable-1-3bn START - general staff overview create labels */
   if (isGeneralStaffOverviewCreateMode()) {
     if (text === '一般記事') return '個人記事'
-    if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '人員行務'
+    if (isPersonnelAffairsDisplayName(text)) return generalStaffPersonnelAffairsDisplayName
     if (text === '公務車保養') return '公務車保養'
   }
   /* FOR-e V002-1H-stable-1-3bn END - general staff overview create labels */
@@ -1073,7 +1093,14 @@ function isPublicGeneralSchedule(row = {}) {
 }
 
 function getScheduleCategoryDisplayLabel(value = '') {
-  return getUnifiedScheduleCategoryLabel(value)
+  return getRoleAwareScheduleCategoryLabel(value)
+}
+
+function getScheduleRowCategoryDisplayLabel(row = {}, value = null) {
+  const rawValue = value === null ? row?.category : value
+  const text = String(rawValue || '').trim()
+  if (scheduleHasGeneralStaff(row) && text === '一般記事') return '個人記事'
+  return getScheduleCategoryDisplayLabel(text)
 }
 const serviceScheduleTypes = [
   '--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療',
@@ -6433,7 +6460,7 @@ function openAuditDetailModal(index) {
         ${schedule ? `
           <div><span>行程日期</span><strong>${escapeHtml(schedule.start_date || '-')}</strong></div>
           <div><span>行程時間</span><strong>${escapeHtml(formatTime(schedule))}</strong></div>
-          <div><span>行程類型</span><strong>${escapeHtml(schedule.schedule_type || schedule.category || '-')}</strong></div>
+          <div><span>行程類型</span><strong>${escapeHtml(getScheduleFieldDisplayLabel(schedule.schedule_type || schedule.category || '-'))}</strong></div>
           <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(schedule))}</strong></div>
           <div class="span-2"><span>執行者</span><strong>${escapeHtml(getAssigneeNames(schedule) || '-')}</strong></div>
           <div class="span-2"><span>行程內容</span><strong>${escapeHtml(schedule.title || '-')}</strong></div>
@@ -7786,16 +7813,22 @@ function renderMeetingRoomNameLines(roomName = '', className = 'meeting-room-nam
   return `<strong class="${safeClassName} meeting-room-name-locked" aria-label="${escapeHtml([parts.main, parts.number].filter(Boolean).join(' '))}"><span class="meeting-room-name-main">${escapeHtml(parts.main)}</span>${numberHtml}</strong>`
 }
 
+function shouldGrayMeetingRoomCardOnDate(row = {}, dateKey = '') {
+  const targetDate = getDateStringFromAnyValue(dateKey || row?.__occurrence_date || row?.__render_date || row?.start_date)
+  if (!targetDate) return false
+  return (typeof isPastOccurrenceTime === 'function') ? isPastOccurrenceTime(row, targetDate) : false
+}
+
 function renderMeetingRoomCard(row, occurrenceDate = '') {
   const reserverName = getMeetingReserverName(row)
   const roomName = String(row.location_name || row.sub_type || '').trim() || '會議室'
   const titleText = sanitizeRepeatedTypeTitle(roomName, String(row.title || '').trim() || '-')
   const occurrenceAttr = occurrenceDate ? ` data-occurrence-date="${escapeHtml(occurrenceDate)}"` : ''
   const meetingOccurrenceDate = occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date
-  const meetingOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(row, meetingOccurrenceDate)) ? 'is-completed' : ''
+  const meetingOccurrenceCompletedClass = shouldGrayMeetingRoomCardOnDate(row, meetingOccurrenceDate) ? 'is-completed' : ''
 
   return `
-    <button type="button" class="meeting-room-card ${meetingOccurrenceCompletedClass || (getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : '')} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
+    <button type="button" class="meeting-room-card ${meetingOccurrenceCompletedClass} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
       <div class="for-e-card-head-row">
         ${renderCardTime(row, 'meeting-room-time')}
         <span class="for-e-card-type-chip">${escapeHtml(getScheduleDisplayType(row) || '會議')}</span>
@@ -19791,7 +19824,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
               ${isFactoryStationSchedule(row) && getFactoryStationTimeText(row) ? `<div class="schedule-meta factory-station-time">${escapeHtml(getFactoryStationTimeText(row))}</div>` : ''}
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
-              ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(row.category)}</div>`}
+              ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</div>`}
               ${extra ? `<div class="extra-schedule-chip${getScheduleItemChipClass(row)}">${renderScheduleItemLabel(extra)}</div>` : ''}
               ${isMaintenance ? '' : `<div class="schedule-meta">執行者：${escapeHtml(getAssigneeNames(row))}</div>`}
               ${row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim() ? `<div class="schedule-meta">區域 / 客戶：${escapeHtml(row.customer_name)}</div>` : ''}
@@ -21620,7 +21653,7 @@ function openTodoNoteStatusModal(scheduleId = '') {
 
       <div class="detail-grid">
         <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || row.category || '-')}</strong></div>
-        <div><span>類別</span><strong>${escapeHtml(row.category || '-')}</strong></div>
+        <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
         <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
       </div>
 
@@ -21764,8 +21797,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
         <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
         <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
-        <div><span>類別</span><strong>${escapeHtml(scheduleHasGeneralStaff(row) && row.category === '一般記事' ? '個人記事' : getScheduleCategoryDisplayLabel(row.category))}</strong></div>
-        <div><span>行程類型</span><strong>${escapeHtml(row.schedule_type || '-')}</strong></div>
+        <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
+        <div><span>行程類型</span><strong>${escapeHtml(getScheduleFieldDisplayLabel(row.schedule_type || '-'))}</strong></div>
         <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
         <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
         ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
@@ -27664,7 +27697,7 @@ async function saveSchedule(event, modal) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     const requestedLeaveMeetingType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
     if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
-      alert('一般職員的人員行務細項只能新增請假、會議、活動、外訓。')
+      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓。')
       saving = false
       return
     }
