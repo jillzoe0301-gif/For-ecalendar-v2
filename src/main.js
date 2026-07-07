@@ -76,8 +76,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3br'
-const SYSTEM_VERSION_NOTE = '修正一般行程指派別人時不自動顯示於建立者行程，除非有選擇自己。'
+const APP_VERSION = 'V002-1H-stable-1-3bt'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bt'
+const SYSTEM_VERSION = APP_VERSION
+const SYSTEM_VERSION_NOTE = '修正快速人員群組選人列與安卓手機／平板電腦版上下滑動，並統一手機、平板、電腦版本提示。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2762,7 +2764,7 @@ function isScheduleCompletedOnDate(row = {}, dateKey = '') {
   return Boolean(completedAt && completedAt === targetDate)
 }
 
-/* FOR-e V002-1H-stable-1-3br START - meeting room gray by Taipei end time only */
+/* FOR-e V002-1H-stable-1-3bt START - meeting room gray by Taipei end time only */
 function getTaipeiNowMinutes() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Taipei',
@@ -2832,7 +2834,7 @@ function isPastOccurrenceTime(row = {}, dateKey = '') {
   if (endMinutes == null) return false
   return endMinutes <= getTaipeiNowMinutes()
 }
-/* FOR-e V002-1H-stable-1-3br END - meeting room gray by Taipei end time only */
+/* FOR-e V002-1H-stable-1-3bt END - meeting room gray by Taipei end time only */
 
 function isMeetingFixedSchedule(row = {}) {
   const text = [row?.category, row?.schedule_type, row?.sub_type, row?.title, row?.sub_type_note]
@@ -3000,7 +3002,7 @@ function shouldHideFromCreatorCalendar(row = {}, staffId = '') {
   return false
 }
 
-/* FOR-e V002-1H-stable-1-3br START - strict general schedule owner row */
+/* FOR-e V002-1H-stable-1-3bt START - strict general schedule owner row */
 function publicGeneralScheduleVisibleForStaff(row = {}, staffId = '') {
   if (!isPublicGeneralSchedule(row) || !staffId) return false
 
@@ -3030,7 +3032,7 @@ function scheduleBelongsToStaff(row = {}, staffId = '') {
 
   return row.creator_staff_id === staffId
 }
-/* FOR-e V002-1H-stable-1-3br END - strict general schedule owner row */
+/* FOR-e V002-1H-stable-1-3bt END - strict general schedule owner row */
 
 
 function isPersonalCalendarForMe(row = {}) {
