@@ -76,10 +76,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3bt'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bt'
+const APP_VERSION = 'V002-1H-stable-1-3bu'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bu'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正快速人員群組選人列與安卓手機／平板電腦版上下滑動，並統一手機、平板、電腦版本提示。'
+const SYSTEM_VERSION_NOTE = '正式穩定整理版：彙整 1-3bm 至 1-3bt 已完成修正，統一版本提示與穩定目前正式功能。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
