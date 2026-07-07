@@ -77,7 +77,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const SYSTEM_VERSION = 'V002-1H-stable-1-3br'
-const SYSTEM_VERSION_NOTE = '修正一般行程只顯示於實際指派人員，並避免會議室未過期前反灰。'
+const SYSTEM_VERSION_NOTE = '修正一般行程指派別人時不自動顯示於建立者行程，除非有選擇自己。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -22148,15 +22148,18 @@ function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_depa
 }
 
 
-function staffOptionsHtml(defaultStaffId = '', rowsOverride = null) {
+/* FOR-e V002-1H-stable-1-3bs START - explicit self selection for public general schedules */
+function staffOptionsHtml(defaultStaffId = '', rowsOverride = null, options = {}) {
   const rows = sortStaffRowsForSelection(Array.isArray(rowsOverride) ? rowsOverride : (isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : getAssignableStaffRows()))
+  const allowGeneralScheduleAutoDefault = options.allowGeneralScheduleAutoDefault !== false
   return rows.map(staff => `
     <label class="check-row">
-      <input type="checkbox" name="executor" value="${staff.staff_id}" ${staff.staff_id === defaultStaffId ? 'checked' : ''}>
+      <input type="checkbox" name="executor" value="${staff.staff_id}" ${allowGeneralScheduleAutoDefault && staff.staff_id === defaultStaffId ? 'checked' : ''}>
       <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
     </label>
   `).join('')
 }
+/* FOR-e V002-1H-stable-1-3bs END - explicit self selection for public general schedules */
 
 function staffSelectOptionsHtml() {
   return `<option value="">未指定</option>` + sortStaffRowsForSelection(getAssignableStaffRows()).map(staff => `
@@ -24938,7 +24941,8 @@ async function saveFieldSchedule(event, modal) {
 
 function openScheduleModal(defaults = {}) {
   if (!canCreateForCurrentPage()) return denyPermission('你的角色沒有新增此類行程的權限。')
-  const defaultStaffId = defaults.staffId || currentProfile.staff_id || ''
+  const hasExplicitDefaultStaff = Object.prototype.hasOwnProperty.call(defaults || {}, 'staffId') && Boolean(defaults.staffId)
+  const defaultStaffId = hasExplicitDefaultStaff ? String(defaults.staffId || '').trim() : (currentProfile.staff_id || '')
   const defaultDate = defaults.date || todayString()
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getCreateFormCategoryDisplayLabel(category))}</option>`).join('')
@@ -24971,7 +24975,7 @@ function openScheduleModal(defaults = {}) {
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
       </div>
 
-      <form id="scheduleForm" class="form-grid">
+      <form id="scheduleForm" class="form-grid" data-explicit-default-staff="${hasExplicitDefaultStaff ? '1' : '0'}" data-general-schedule-self-touched="0" data-general-schedule-self-default-cleared="0">
         <label class="schedule-status-field">
           執行狀態
           <input value="未完成" disabled>
@@ -25464,6 +25468,30 @@ function openScheduleModal(defaults = {}) {
   const serviceReminderTypeSelect = document.querySelector('#serviceReminderTypeSelect')
   const hasDocumentsSelect = document.querySelector('#hasDocumentsSelect')
 
+  function applyGeneralScheduleExplicitSelfSelectionRule(form, category = '') {
+    if (!form || category !== '一般行程') return
+    if (form.dataset.explicitDefaultStaff === '1') return
+    if (form.dataset.generalScheduleSelfTouched === '1') return
+    if (form.dataset.generalScheduleSelfDefaultCleared === '1') return
+    const selfId = String(currentProfile?.staff_id || '').trim()
+    if (!selfId) return
+    const selfCheckbox = [...form.querySelectorAll('input[name="executor"]')].find(input => String(input.value || '').trim() === selfId)
+    if (!selfCheckbox) return
+
+    // 一般行程若是從新增按鈕開啟，不自動把建立者算成指派人員。
+    // 建立者要顯示在自己的行程上時，必須手動勾選自己。
+    selfCheckbox.checked = false
+    form.dataset.generalScheduleSelfDefaultCleared = '1'
+  }
+
+  const selfAssigneeCheckbox = [...modal.querySelectorAll('input[name="executor"]')].find(input => String(input.value || '').trim() === String(currentProfile?.staff_id || '').trim())
+  if (selfAssigneeCheckbox) {
+    selfAssigneeCheckbox.addEventListener('change', () => {
+      const form = document.querySelector('#scheduleForm')
+      if (form) form.dataset.generalScheduleSelfTouched = '1'
+    })
+  }
+
   function refreshFormSections() {
     const rawCategory = categorySelect.value
     const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
@@ -25527,6 +25555,8 @@ function openScheduleModal(defaults = {}) {
       const leaveSelect = form.querySelector('select[name="leave_meeting_type"]')
       leaveSelect?.closest('label')?.classList.remove('hidden')
     }
+
+    applyGeneralScheduleExplicitSelfSelectionRule(form, category)
 
     const hideGeneralAssignee = isGeneralOverview && rawCategory === '一般記事'
     form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || hideGeneralAssignee)
@@ -27396,19 +27426,18 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editNotifySupervisorName = (category === '公務車保養' || isAdministrativeReminderCategoryName(category)) || (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage)) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
   const editServiceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'edit_service_admin_staff_ids') : []
   const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
+  const selectedEditExecutorIds = getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
   const editExecutorIds = (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && generalStaffOverviewFormCategories.includes(rawCategory))
     ? (rawCategory === '一般記事'
       ? [currentProfile?.staff_id].filter(Boolean)
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
-        : (getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category).length
-          ? getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
-          : [currentProfile?.staff_id].filter(Boolean))))
+        : selectedEditExecutorIds))
     : (isAdministrativeReminderCategoryName(category)
       ? [currentProfile?.staff_id].filter(Boolean)
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
-        : getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)))
+        : selectedEditExecutorIds))
 
   if (!editExecutorIds.length) {
     alert(category === '公務車保養' ? '請選擇通知相關人員或通知主管。' : (isAdministrativeReminderCategoryName(category) ? '目前登入帳號沒有綁定人員，無法修改個人辦件提醒。' : '請至少選擇一位執行者。'))
@@ -27680,19 +27709,18 @@ async function saveSchedule(event, modal) {
     return
   }
 
+  const selectedExecutorIds = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
   const executorIds = isGeneralStaffOverviewCreateMode()
     ? (rawCategory === '一般記事'
       ? [currentProfile?.staff_id].filter(Boolean)
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
-        : (getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category).length
-          ? getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
-          : [currentProfile?.staff_id].filter(Boolean))))
+        : selectedExecutorIds))
     : (isAdministrativeReminderCategoryName(category)
       ? [currentProfile?.staff_id].filter(Boolean)
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
-        : getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)))
+        : selectedExecutorIds))
 
   if (!executorIds.length) {
     alert(isAdministrativeReminderCategoryName(category) ? '目前登入帳號沒有綁定人員，無法建立個人辦件提醒。' : '請至少選擇一位執行者。')
