@@ -18815,9 +18815,9 @@ function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
   const positionName = staff.position || staff.position_name || '-'
 
   return `
-    <label class="check-row overview-group-staff-option" title="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜'))}">
-      <input type="checkbox" name="groupStaffIds" value="${escapeHtml(staffId)}" ${selectedIds.has(staffId) ? 'checked' : ''}>
-      <span>
+    <label class="check-row overview-group-staff-option quick-group-member-row" data-no-drag-scroll="true" title="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜'))}">
+      <input class="quick-group-member-checkbox" type="checkbox" name="groupStaffIds" value="${escapeHtml(staffId)}" ${selectedIds.has(staffId) ? 'checked' : ''}>
+      <span class="overview-group-staff-info quick-group-member-info">
         <strong>${escapeHtml(staff.name || '-')}</strong>
         <em>${escapeHtml(departmentName)}｜${escapeHtml(positionName)}</em>
       </span>

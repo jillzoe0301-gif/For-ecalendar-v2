@@ -27271,3 +27271,216 @@ body:has(.modal-backdrop) .week-overview-table .staff-col {
   touch-action: pan-x pan-y pinch-zoom;
 }
 /* FOR-e V002-1H-stable-1-3bn END - overview blank cell add touch safety */
+
+/* FOR-e V002-1H-stable-1-3bt START - quick group member row and Android desktop pan fix
+   本次只調整快速人員群組選人清單與觸控滑動：
+   1) 快速人員群組選人列固定為 checkbox + 人員資訊同一 row。
+   2) Android 手機 / 平板開電腦版時，垂直滑動交給頁面原生捲動，不再只靠最右側 scrollbar。
+   3) 不變更快速群組儲存、個人化、行程資料、權限與篩選邏輯。 */
+.overview-group-person-dropdown .overview-group-staff-option,
+.overview-group-person-dropdown-panel .overview-group-staff-option,
+.quick-group-member-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 36px !important;
+  padding: 8px 10px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option input[type="checkbox"],
+.overview-group-person-dropdown-panel .overview-group-staff-option input[type="checkbox"],
+.quick-group-member-row input[type="checkbox"],
+.quick-group-member-checkbox {
+  flex: 0 0 16px !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  margin: 2px 0 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  align-self: flex-start !important;
+  transform: none !important;
+  writing-mode: horizontal-tb !important;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option > span,
+.overview-group-person-dropdown-panel .overview-group-staff-option > span,
+.overview-group-person-dropdown .overview-group-staff-info,
+.quick-group-member-info {
+  flex: 1 1 auto !important;
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option strong,
+.quick-group-member-info strong {
+  display: inline !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+}
+
+.overview-group-person-dropdown .overview-group-staff-option em,
+.quick-group-member-info em {
+  display: inline !important;
+  margin-left: 6px !important;
+  color: #64748b !important;
+  font-style: normal !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+.overview-group-person-dropdown .overview-group-person-dropdown-panel,
+.modal-backdrop .overview-group-person-dropdown-panel {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y pinch-zoom !important;
+  overscroll-behavior-y: contain !important;
+}
+
+html,
+body,
+#app,
+.main,
+.app-shell,
+.main-content,
+.page-content,
+.content,
+.content-card,
+.calendar-page,
+.overview-page,
+.schedule-overview-page,
+.personal-schedule-page,
+.field-schedule-page,
+.meeting-room-page {
+  touch-action: pan-x pan-y pinch-zoom !important;
+  overscroll-behavior-y: auto !important;
+}
+
+html,
+body,
+#app,
+.main {
+  overflow-y: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+@media (pointer: coarse) {
+  html,
+  body,
+  #app,
+  .main,
+  .app-shell,
+  .main-content,
+  .page-content,
+  .content,
+  .content-card,
+  .overview-page,
+  .schedule-overview-page,
+  .calendar-page {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  .content-card:has(.week-overview-scroll),
+  .content-card:has(.field-week-scroll),
+  .content-card:has(.meeting-week-scroll),
+  .content-card:has(.overview-calendar-scroll),
+  .content-card:has(.personal-month-calendar),
+  .week-overview-section,
+  .field-week-section,
+  .meeting-week-section,
+  .overview-calendar-section {
+    overflow-y: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .week-overview-scroll,
+  .overview-calendar-scroll:has(.week-overview-table),
+  .field-week-scroll,
+  .meeting-week-scroll,
+  .calendar-scroll,
+  .schedule-calendar-scroll,
+  .month-sliding-scroll,
+  .personal-month-calendar {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    overscroll-behavior-x: contain !important;
+    overscroll-behavior-y: auto !important;
+    scroll-behavior: auto !important;
+  }
+
+  .week-overview-scroll *,
+  .overview-calendar-scroll:has(.week-overview-table) *,
+  .field-week-scroll *,
+  .meeting-week-scroll *,
+  .calendar-scroll *,
+  .schedule-calendar-scroll *,
+  .month-sliding-scroll *,
+  .personal-month-calendar * {
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .week-overview-scroll.is-drag-scroll-ready,
+  .week-overview-scroll.is-drag-scrolling,
+  .field-week-scroll.is-drag-scroll-ready,
+  .field-week-scroll.is-drag-scrolling,
+  .meeting-week-scroll.is-drag-scroll-ready,
+  .meeting-week-scroll.is-drag-scrolling,
+  .calendar-scroll.is-drag-scroll-ready,
+  .calendar-scroll.is-drag-scrolling,
+  .schedule-calendar-scroll.is-drag-scroll-ready,
+  .schedule-calendar-scroll.is-drag-scrolling,
+  .month-sliding-scroll.is-drag-scroll-ready,
+  .month-sliding-scroll.is-drag-scrolling {
+    touch-action: pan-x pan-y pinch-zoom !important;
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3bt END - quick group member row and Android desktop pan fix */
