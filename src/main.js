@@ -76,8 +76,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const SYSTEM_VERSION = 'V002-1H-stable-1-3bn'
-const SYSTEM_VERSION_NOTE = '一般職員可在行程總覽空白格快速新增，新增類型仍受一般職員權限限制。'
+const SYSTEM_VERSION = 'V002-1H-stable-1-3br'
+const SYSTEM_VERSION_NOTE = '修正一般行程只顯示於實際指派人員，並避免會議室未過期前反灰。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -2762,11 +2762,64 @@ function isScheduleCompletedOnDate(row = {}, dateKey = '') {
   return Boolean(completedAt && completedAt === targetDate)
 }
 
+/* FOR-e V002-1H-stable-1-3br START - meeting room gray by Taipei end time only */
+function getTaipeiNowMinutes() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Taipei',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date())
+
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  const hour = Number(values.hour === '24' ? '00' : values.hour)
+  const minute = Number(values.minute || '0')
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    const fallbackNow = new Date()
+    return fallbackNow.getHours() * 60 + fallbackNow.getMinutes()
+  }
+  return hour * 60 + minute
+}
+
+function parseLastTimeMinutesFromText(value = '', periodHint = '') {
+  const text = String(value || '').replace(/[：]/g, ':').trim()
+  if (!text) return null
+  const matches = [...text.matchAll(/(\d{1,2})\s*:\s*(\d{2})/g)]
+  if (!matches.length) return null
+
+  const last = matches[matches.length - 1]
+  let hour = Number(last[1])
+  const minute = Number(last[2])
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null
+
+  const hasPm = /下午|晚上|晚間|PM|pm/.test(text) || periodHint === 'pm'
+  const hasAm = /上午|早上|AM|am/.test(text) || periodHint === 'am'
+
+  if (hasPm && hour < 12) hour += 12
+  // 上午 09:30-12:00 的結束 12:00 是中午，不能轉成 00:00；單一「上午 12:xx」才視為午夜。
+  if (hasAm && hour === 12 && matches.length === 1 && !/[\-－—–~～至到]/.test(text)) hour = 0
+
+  return hour * 60 + minute
+}
+
 function getOccurrenceEndMinutes(row = {}) {
-  const timeText = String(row?.end_time || row?.start_time || '').trim()
-  if (!timeText) return null
-  const minutes = getMeetingTimeMinutes(timeText)
-  return Number.isFinite(minutes) ? minutes : null
+  const periodHint = getScheduleSortPeriodHint(row)
+  const candidates = [
+    row?.end_time,
+    typeof formatTime === 'function' ? formatTime(row) : '',
+    row?.display_time,
+    row?.time_text,
+    row?.time,
+    row?.start_time
+  ]
+
+  for (const candidate of candidates) {
+    const minutes = parseLastTimeMinutesFromText(candidate, periodHint)
+    if (minutes !== null) return minutes
+  }
+
+  return null
 }
 
 function isPastOccurrenceTime(row = {}, dateKey = '') {
@@ -2777,10 +2830,9 @@ function isPastOccurrenceTime(row = {}, dateKey = '') {
   if (targetDate > today) return false
   const endMinutes = getOccurrenceEndMinutes(row)
   if (endMinutes == null) return false
-  const now = new Date()
-  const nowMinutes = now.getHours() * 60 + now.getMinutes()
-  return endMinutes <= nowMinutes
+  return endMinutes <= getTaipeiNowMinutes()
 }
+/* FOR-e V002-1H-stable-1-3br END - meeting room gray by Taipei end time only */
 
 function isMeetingFixedSchedule(row = {}) {
   const text = [row?.category, row?.schedule_type, row?.sub_type, row?.title, row?.sub_type_note]
@@ -2797,8 +2849,12 @@ function isMeetingFixedSchedule(row = {}) {
 
 function shouldGrayScheduleOnDate(row = {}, dateKey = '') {
   const targetDate = getDateStringFromAnyValue(dateKey || row?.__occurrence_date || row?.__render_date || row?.start_date)
+
+  // 會議室預約沒有「完成」操作，反灰只能看該 occurrence 的日期 + 結束時間。
+  // 不可被 status / completed_at / completed_date 等舊欄位提前判定完成。
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return isPastOccurrenceTime(row, targetDate)
+
   if (isScheduleCompletedOnDate(row, targetDate)) return true
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   if (isMeetingFixedSchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   if (typeof isPublicLeaveMeetingActivitySchedule === 'function' && isPublicLeaveMeetingActivitySchedule(row) && isPastOccurrenceTime(row, targetDate)) return true
   return false
@@ -2819,6 +2875,7 @@ function getScheduleStatusLabel(row) {
 
 function isCompletedSchedule(row) {
   if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return false
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return false
   const statusText = String(row?.status || '').trim()
   return Boolean(
     statusText === '已完成' ||
@@ -2943,16 +3000,25 @@ function shouldHideFromCreatorCalendar(row = {}, staffId = '') {
   return false
 }
 
+/* FOR-e V002-1H-stable-1-3br START - strict general schedule owner row */
 function publicGeneralScheduleVisibleForStaff(row = {}, staffId = '') {
   if (!isPublicGeneralSchedule(row) || !staffId) return false
-  if (canManageAllSchedules()) return row.creator_staff_id === staffId
-  return staffId === currentProfile?.staff_id
+
+  const normalizedStaffId = String(staffId || '').trim()
+  const assigneeIds = getActiveAssigneeIds(row).map(id => String(id || '').trim()).filter(Boolean)
+
+  // 一般行程是「所有人可看」，但行程總覽的人員列只能放在實際選取 / 指派的人員底下。
+  // 若有指派人員，以指派人員為準；舊資料沒有 assignees 時才退回建立者。
+  if (assigneeIds.length) return assigneeIds.includes(normalizedStaffId)
+
+  return String(row.creator_staff_id || '').trim() === normalizedStaffId
 }
 
 function scheduleBelongsToStaff(row = {}, staffId = '') {
   if (!row || !staffId) return false
 
-  if (publicGeneralScheduleVisibleForStaff(row, staffId)) return true
+  // 一般行程不可因登入者、通知文字或目前檢視者而跑到沒有被選取的人員列。
+  if (isPublicGeneralSchedule(row)) return publicGeneralScheduleVisibleForStaff(row, staffId)
 
   if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, staffId)
 
@@ -2964,6 +3030,7 @@ function scheduleBelongsToStaff(row = {}, staffId = '') {
 
   return row.creator_staff_id === staffId
 }
+/* FOR-e V002-1H-stable-1-3br END - strict general schedule owner row */
 
 
 function isPersonalCalendarForMe(row = {}) {
@@ -7881,8 +7948,8 @@ function getMeetingTimeValue(form, prefix) {
 }
 
 function getMeetingTimeMinutes(value) {
-  const [hour, minute] = String(value || '00:00:00').split(':').map(Number)
-  return hour * 60 + minute
+  const minutes = parseLastTimeMinutesFromText(value)
+  return minutes === null ? NaN : minutes
 }
 
 
@@ -19684,7 +19751,9 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const safeType = escapeHtml(parts.type || getScheduleDisplayType(rowForOccurrence) || '-')
   const safeTitle = escapeHtml(parts.title || rowForOccurrence.customer_name || '-')
   const weekOccurrenceCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(rowForOccurrence, weekOccurrenceDate)) ? 'is-completed' : ''
-  const staticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
+  const staticCompletedClass = (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(rowForOccurrence))
+    ? ''
+    : (['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : '')
   const postponedClass = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(rowForOccurrence)) ? 'is-postponed' : ''
   const occurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
   return `
