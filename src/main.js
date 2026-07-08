@@ -118,6 +118,15 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cf END - transfer reminder title and handling title only */
 
+/* FOR-e V002-1H-stable-1-3cg START - transfer reminder handling value only */
+/*
+  V002-1H-stable-1-3cg｜轉出提醒辦理內容只顯示欄位值
+  - 轉出提醒卡片保留提醒標題與標題 / 辦理內容欄位 key 入的文字。
+  - 卡片上不再顯示「標題 / 辦理內容：」前綴。
+  - 不影響查看明細、修改表單、提醒產生與 LINE 通知。
+*/
+/* FOR-e V002-1H-stable-1-3cg END - transfer reminder handling value only */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -133,10 +142,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cf'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cf'
+const APP_VERSION = 'V002-1H-stable-1-3cg'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cg'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '轉出提醒卡片只顯示提醒標題與標題 / 辦理內容，不顯示其他補充資訊。'
+const SYSTEM_VERSION_NOTE = '轉出提醒卡片顯示提醒標題與辦理內容欄位值，不顯示「標題 / 辦理內容：」前綴文字。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6378,7 +6387,7 @@ function renderSearchResultList(rows, emptyText) {
               ? getSimpleServiceGeneralCardSummary(row)
               : `${getScheduleDisplayType(row)}｜${row.title || '-'}`
         const resultMeta = transferTitleOnlyCard
-          ? (getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '') ? `標題 / 辦理內容：${getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '')}` : '')
+          ? (getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '') || '')
           : (simpleFieldScheduleCard || simpleServiceGeneralCard)
             ? (row.status || '-')
             : [
@@ -19868,7 +19877,7 @@ function getTransferReminderHandlingTitleText(row = {}, occurrenceDate = '') {
 
 function renderTransferReminderHandlingTitleLine(row = {}, occurrenceDate = '', className = 'week-card-preview transfer-reminder-handling-title') {
   const text = getTransferReminderHandlingTitleText(row, occurrenceDate)
-  return text ? `<span class="${escapeHtml(className)}">標題 / 辦理內容：${escapeHtml(text)}</span>` : ''
+  return text ? `<span class="${escapeHtml(className)}">${escapeHtml(text)}</span>` : ''
 }
 
 function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
