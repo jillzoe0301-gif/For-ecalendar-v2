@@ -61,6 +61,26 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1P-250 END - continuous schedule inline item time */
 
+/* FOR-e V002-1H-stable-1-3bz START - field card icon left row restore */
+/*
+  V002-1H-stable-1-3bz｜外務卡片 LOGO 找回並靠左
+  - 修正外務卡片第一行的『外』圖標顯示。
+  - 外務 LOGO 靠左，並與上午 / 下午 / 完整時間固定同一排。
+  - 套用至外務行程頁面、行程總覽、個人行程表、行程搜尋結果。
+*/
+/* FOR-e V002-1H-stable-1-3bz END - field card icon left row restore */
+
+
+/* FOR-e V002-1H-stable-1-3cb START - original icons with simplified calendar cards */
+/*
+  V002-1H-stable-1-3cb｜原始 ICON + 卡片簡化整理
+  - 從 1-3bu 備份還原原始 FOR-e LOGO、電腦左側選單 ICON、手機 / 平板下方 ICON。
+  - 保留服務行程、一般行程卡片簡化：時間 + 區域 / 客戶名稱 / 標題。
+  - 保留外務行程卡片簡化：外務 LOGO + 時間同一排，第二行地點 / 目的。
+  - 保留手機、平板、電腦行程卡片字級加大 2pt。
+*/
+/* FOR-e V002-1H-stable-1-3cb END - original icons with simplified calendar cards */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -76,10 +96,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3bv'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bv'
+const APP_VERSION = 'V002-1H-stable-1-3cb'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cb'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '開放所有角色可使用行程搜尋；搜尋結果仍依既有可見行程與私人記事規則顯示。'
+const SYSTEM_VERSION_NOTE = '保留原始 FOR-e LOGO 與導覽 ICON，並套用服務/一般/外務行程卡片簡化與字級調整。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6310,27 +6330,42 @@ function renderSearchResultList(rows, emptyText) {
 
   return `
     <div class="search-result-list">
-      ${rows.map(row => `
-        <div class="search-result-row ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
-          <div class="search-result-date">
-            <strong>${escapeHtml(row.start_date || '-')}</strong>
-            <span>${escapeHtml(formatTime(row))}</span>
-          </div>
+      ${rows.map(row => {
+        const simpleFieldScheduleCard = shouldUseSimpleFieldScheduleCard(row)
+        const simpleServiceGeneralCard = shouldUseSimpleServiceGeneralCard(row)
+        const resultTitle = simpleFieldScheduleCard
+          ? `外務｜${getSimpleFieldScheduleCardSummary(row)}`
+          : simpleServiceGeneralCard
+            ? getSimpleServiceGeneralCardSummary(row)
+            : `${getScheduleDisplayType(row)}｜${row.title || '-'}`
+        const resultMeta = (simpleFieldScheduleCard || simpleServiceGeneralCard)
+          ? (row.status || '-')
+          : [
+              row.status || '-',
+              getAssigneeNames(row),
+              row.customer_name || '',
+              row.location_name || '',
+              row.sub_type ? `項目：${row.sub_type}` : ''
+            ].filter(Boolean).join('｜')
 
-          <div class="search-result-main">
-            <div class="search-result-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
-            <div class="search-result-meta">
-              ${escapeHtml(row.status || '-')}｜${escapeHtml(getAssigneeNames(row))}
-              ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
-              ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}${row.sub_type ? '｜項目：' + escapeHtml(row.sub_type) : ''}
+        return `
+          <div class="search-result-row ${simpleFieldScheduleCard ? 'simple-field-schedule-search-row' : ''} ${simpleServiceGeneralCard ? 'simple-service-general-search-row' : ''} ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
+            <div class="search-result-date">
+              <strong>${escapeHtml(row.start_date || '-')}</strong>
+              <span>${escapeHtml(formatTime(row))}</span>
+            </div>
+
+            <div class="search-result-main">
+              <div class="search-result-title">${escapeHtml(resultTitle)}</div>
+              ${resultMeta ? `<div class="search-result-meta">${escapeHtml(resultMeta)}</div>` : ''}
+            </div>
+
+            <div class="search-result-action">
+              <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
             </div>
           </div>
-
-          <div class="search-result-action">
-            <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
-          </div>
-        </div>
-      `).join('')}
+        `
+      }).join('')}
     </div>
   `
 }
@@ -7350,26 +7385,10 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
 }
 
 function renderFieldScheduleCard(row) {
-  const contentPreview = getFirstTwoLines(removeAdministrativeConversationScreenshotText(row.description))
-  const parts = getScheduleTypeTitleParts(row)
-  const safeType = escapeHtml(parts.type || getScheduleDisplayType(row) || '外務行程')
-  const safeTitle = escapeHtml(parts.title || row.location_name || getScheduleCardTitleText(row) || '-')
-  const addressText = getScheduleAddressText(row)
-  const fieldSpecialText = getFieldSpecialNoticeText(row)
-
   return `
-    <button type="button" class="field-week-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
-      <div class="for-e-card-head-row">
-        ${renderCardTime(row, 'field-week-card-time')}
-        <span class="for-e-card-type-chip">${safeType}</span>
-      </div>
-      <strong class="for-e-card-title">${safeTitle}</strong>
-      ${renderFieldSpecialReminderBadges(row)}
-      ${renderFieldResultBadge(row)}
-      ${addressText ? renderCopyableAddressLine(addressText, 'field-week-card-preview', '地址') : ''}
-      ${fieldSpecialText ? `<span class="field-week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
-      ${contentPreview ? `<span class="field-week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
-      ${shouldShowCreatorName(row) ? `<span class="field-week-card-preview for-e-card-secondary-text">指派者：${escapeHtml(row.creator_name || '-')}</span>` : ''}
+    <button type="button" class="field-week-schedule-card simple-field-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
+      ${renderSimpleFieldScheduleHead(row, 'field-week-card-time')}
+      ${renderSimpleFieldScheduleTitle(row, 'for-e-card-title simple-field-schedule-title', 'strong')}
     </button>
   `
 }
@@ -7677,6 +7696,161 @@ function getScheduleCardTitleText(row = {}) {
   }
   return `${getScheduleDisplayType(row)}｜${title}`
 }
+
+/* FOR-e V002-1H-stable-1-3bw START - simplified service/general calendar card display */
+function cleanCalendarSummaryPart(value = '') {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') return ''
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (['null', 'undefined', '[object Object]'].includes(text)) return ''
+  return text
+}
+
+function getCalendarSummaryNoteValue(row = {}, label = '') {
+  if (!label) return ''
+  const fromNote = typeof getNoteValue === 'function' ? getNoteValue(row, label) : ''
+  const fromField = typeof getFieldNoteValue === 'function' ? getFieldNoteValue(row, label) : ''
+  return cleanCalendarSummaryPart(fromNote || fromField)
+}
+
+function getCalendarSummaryAreaText(row = {}) {
+  const candidates = [
+    row.region,
+    row.area,
+    row.area_name,
+    row.region_name,
+    row.district,
+    getCalendarSummaryNoteValue(row, '區域'),
+    getCalendarSummaryNoteValue(row, '地區'),
+    getCalendarSummaryNoteValue(row, '分區')
+  ]
+  return candidates.map(cleanCalendarSummaryPart).find(Boolean) || ''
+}
+
+function isServiceOrGeneralScheduleCard(row = {}) {
+  const category = String(row.category || '').trim()
+  const scheduleType = String(row.schedule_type || '').trim()
+  return category === '服務行程' || scheduleType === '服務行程' || category === '一般行程' || scheduleType === '一般行程'
+}
+
+function shouldUseSimpleServiceGeneralCard(row = {}) {
+  if (!isServiceOrGeneralScheduleCard(row)) return false
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return false
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return false
+  if (typeof isReminderSchedule === 'function' && isReminderSchedule(row) && !isServiceOrGeneralScheduleCard(row)) return false
+  return true
+}
+
+function pushUniqueCalendarSummaryPart(parts, value) {
+  const clean = cleanCalendarSummaryPart(value)
+  if (!clean) return
+  const normalized = clean.replace(/[\s｜|／/]+/g, '').toLowerCase()
+  if (!normalized) return
+  if (parts.some(item => item.replace(/[\s｜|／/]+/g, '').toLowerCase() === normalized)) return
+  parts.push(clean)
+}
+
+function getSimpleServiceGeneralCardSummary(row = {}) {
+  const parts = []
+  const areaText = getCalendarSummaryAreaText(row)
+  const customerText = cleanCalendarSummaryPart(
+    row.customer_name ||
+    getCalendarSummaryNoteValue(row, '客戶名稱') ||
+    getCalendarSummaryNoteValue(row, '客戶') ||
+    getCalendarSummaryNoteValue(row, '區域 / 客戶')
+  )
+  const displayType = getScheduleDisplayType(row)
+  const titleText = cleanCalendarSummaryPart(sanitizeRepeatedTypeTitle(displayType, row.title || ''))
+
+  pushUniqueCalendarSummaryPart(parts, areaText)
+  pushUniqueCalendarSummaryPart(parts, customerText)
+  pushUniqueCalendarSummaryPart(parts, titleText)
+
+  if (!parts.length) {
+    pushUniqueCalendarSummaryPart(parts, row.title || row.customer_name || displayType || '-')
+  }
+
+  return parts.join(' / ') || '-'
+}
+
+function renderSimpleServiceGeneralCardTitle(row = {}, className = 'for-e-card-title', tagName = 'strong') {
+  const safeTag = ['strong', 'div', 'span'].includes(tagName) ? tagName : 'strong'
+  const safeClass = String(className || '').replace(/[^A-Za-z0-9_\-\s]/g, '').trim()
+  const classAttr = safeClass ? ` class="${escapeHtml(safeClass)}"` : ''
+  return `<${safeTag}${classAttr}>${escapeHtml(getSimpleServiceGeneralCardSummary(row))}</${safeTag}>`
+}
+/* FOR-e V002-1H-stable-1-3bw END - simplified service/general calendar card display */
+
+/* FOR-e V002-1H-stable-1-3bx START - simplified field schedule card display */
+function shouldUseSimpleFieldScheduleCard(row = {}) {
+  if (!row) return false
+  if (typeof isFieldScheduleRow === 'function' && !isFieldScheduleRow(row)) return false
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
+  return true
+}
+
+function splitFieldTitleParts(row = {}) {
+  const title = cleanCalendarSummaryPart(row.title)
+  if (!title) return []
+  return title
+    .split(/[｜|]/)
+    .map(item => cleanCalendarSummaryPart(item))
+    .filter(Boolean)
+}
+
+function getSimpleFieldScheduleLocationText(row = {}) {
+  const titleParts = splitFieldTitleParts(row)
+  const titleLocation = titleParts.length > 1 ? titleParts.slice(1).join(' / ') : ''
+  const candidates = [
+    row.location_name,
+    getCalendarSummaryNoteValue(row, '外務地點'),
+    getCalendarSummaryNoteValue(row, '地點'),
+    getCalendarSummaryNoteValue(row, '地點名稱'),
+    titleLocation && titleLocation !== '外務' ? titleLocation : ''
+  ]
+  return candidates.map(cleanCalendarSummaryPart).find(Boolean) || ''
+}
+
+function getSimpleFieldSchedulePurposeText(row = {}) {
+  const titleParts = splitFieldTitleParts(row)
+  const titlePurpose = titleParts.length ? titleParts[0] : ''
+  const displayType = cleanCalendarSummaryPart(getScheduleDisplayType(row))
+  const candidates = [
+    row.sub_type,
+    getCalendarSummaryNoteValue(row, '外務目的'),
+    getCalendarSummaryNoteValue(row, '目的'),
+    titlePurpose && !['外務', '外務行程'].includes(titlePurpose) ? titlePurpose : '',
+    displayType && !['外務', '外務行程'].includes(displayType) ? displayType : ''
+  ]
+  return candidates.map(cleanCalendarSummaryPart).find(Boolean) || ''
+}
+
+function getSimpleFieldScheduleCardSummary(row = {}) {
+  const parts = []
+  pushUniqueCalendarSummaryPart(parts, getSimpleFieldScheduleLocationText(row))
+  pushUniqueCalendarSummaryPart(parts, getSimpleFieldSchedulePurposeText(row))
+  return parts.join(' / ') || '-'
+}
+
+function renderSimpleFieldScheduleHead(row = {}, timeClassName = 'week-card-time') {
+  const timeHtml = renderCardTime(row, timeClassName)
+  return `
+    <div class="for-e-card-head-row simple-field-schedule-head">
+      <span class="field-worker-badge simple-field-schedule-icon" aria-label="外務行程" title="外務">外</span>
+      ${timeHtml}
+    </div>
+  `
+}
+
+function renderSimpleFieldScheduleTitle(row = {}, className = 'for-e-card-title', tagName = 'strong') {
+  const safeTag = ['strong', 'div', 'span'].includes(tagName) ? tagName : 'strong'
+  const safeClass = String(className || '').replace(/[^A-Za-z0-9_\-\s]/g, '').trim()
+  const classAttr = safeClass ? ` class="${escapeHtml(safeClass)}"` : ''
+  return `<${safeTag}${classAttr}>${escapeHtml(getSimpleFieldScheduleCardSummary(row))}</${safeTag}>`
+}
+/* FOR-e V002-1H-stable-1-3bx END - simplified field schedule card display */
+
 
 function sanitizeRepeatedTypeTitle(type = '', title = '') {
   const rawType = String(type || '').trim()
@@ -15752,20 +15926,27 @@ function renderAssignedTrackingList(rows) {
       ${rows.map(row => {
         const assignees = getAssignedTrackingAssignees(row)
         const overdue = isOverdueSchedule(row)
+        const simpleFieldScheduleCard = shouldUseSimpleFieldScheduleCard(row)
+        const simpleServiceGeneralCard = shouldUseSimpleServiceGeneralCard(row)
+        const trackingTitle = simpleFieldScheduleCard
+          ? `外務｜${getSimpleFieldScheduleCardSummary(row)}`
+          : simpleServiceGeneralCard
+            ? getSimpleServiceGeneralCardSummary(row)
+            : `${getScheduleDisplayType(row)}｜${row.title || '-'}`
+        const trackingMeta = (simpleFieldScheduleCard || simpleServiceGeneralCard)
+          ? `被指派人：${assignees.length ? assignees.join('、') : '-'}`
+          : `被指派人：${assignees.length ? assignees.join('、') : '-'}${row.customer_name ? '｜' + row.customer_name : ''}${row.location_name ? '｜' + row.location_name : ''}`
+
         return `
-          <div class="assigned-tracking-row ${row.status === '已完成' ? 'is-completed' : ''} ${overdue ? 'is-overdue' : ''}">
+          <div class="assigned-tracking-row ${simpleFieldScheduleCard ? 'simple-field-schedule-assigned-row' : ''} ${simpleServiceGeneralCard ? 'simple-service-general-assigned-row' : ''} ${row.status === '已完成' ? 'is-completed' : ''} ${overdue ? 'is-overdue' : ''}">
             <div class="assigned-tracking-date">
               <strong>${escapeHtml(row.start_date || '-')}</strong>
               <span>${escapeHtml(formatTime(row))}</span>
             </div>
 
             <div class="assigned-tracking-main">
-              <div class="assigned-tracking-title">${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</div>
-              <div class="assigned-tracking-meta">
-                被指派人：${escapeHtml(assignees.length ? assignees.join('、') : '-')}
-                ${row.customer_name ? '｜' + escapeHtml(row.customer_name) : ''}
-                ${row.location_name ? '｜' + escapeHtml(row.location_name) : ''}
-              </div>
+              <div class="assigned-tracking-title">${escapeHtml(trackingTitle)}</div>
+              <div class="assigned-tracking-meta">${escapeHtml(trackingMeta)}</div>
               ${overdue ? `<div class="assigned-tracking-alert">已逾期，請追蹤!!!</div>` : ''}
             </div>
 
@@ -19738,6 +19919,37 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     ? { ...row, __occurrence_date: weekOccurrenceDate, __render_date: weekOccurrenceDate }
     : row
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(rowForOccurrence)) return renderServiceReminderScheduleCard(rowForOccurrence, weekOccurrenceDate)
+
+  if (shouldUseSimpleFieldScheduleCard(rowForOccurrence)) {
+    const fieldCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(rowForOccurrence, weekOccurrenceDate)) ? 'is-completed' : ''
+    const fieldStaticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
+    const fieldOccurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
+
+    return `
+      <button type="button" class="week-schedule-card simple-field-schedule-card ${fieldCompletedClass} ${fieldStaticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${fieldOccurrenceAttr}>
+        ${renderSimpleFieldScheduleHead(rowForOccurrence, 'week-card-time')}
+        ${renderSimpleFieldScheduleTitle(rowForOccurrence, 'for-e-card-title simple-field-schedule-title', 'strong')}
+      </button>
+    `
+  }
+
+  if (shouldUseSimpleServiceGeneralCard(rowForOccurrence)) {
+    const simpleCompletedClass = (typeof shouldGrayScheduleOnDate === 'function' && shouldGrayScheduleOnDate(rowForOccurrence, weekOccurrenceDate)) ? 'is-completed' : ''
+    const simpleStaticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
+    const simpleOccurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
+    const simpleIsFactoryStation = isFactoryStationSchedule(rowForOccurrence)
+    const simpleTimeHtml = simpleIsFactoryStation
+      ? renderFactoryStationTime(rowForOccurrence, 'week-card-time factory-station-time')
+      : renderCardTime(rowForOccurrence, 'week-card-time')
+
+    return `
+      <button type="button" class="week-schedule-card simple-service-general-week-card ${simpleIsFactoryStation ? 'factory-station-week-card continuous-like-week-card' : ''} ${simpleCompletedClass} ${simpleStaticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${simpleOccurrenceAttr}>
+        ${simpleTimeHtml ? `<div class="for-e-card-head-row">${simpleTimeHtml}</div>` : ''}
+        ${renderSimpleServiceGeneralCardTitle(rowForOccurrence, 'for-e-card-title simple-service-general-title', 'strong')}
+      </button>
+    `
+  }
+
   const postponedDate = typeof getTodoNotePostponedDate === 'function' ? getTodoNotePostponedDate(rowForOccurrence) : ''
   const contentPreview = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(rowForOccurrence))
     ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
@@ -19888,6 +20100,40 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const verifyDisplayType = isVerifyReminderRow(row) ? getVerifyReminderDisplayType(row, occurrenceDate || row.start_date || '') : ''
         const verifyClass = verifyDisplayType ? `is-verify-reminder ${getVerifyReminderCardClass(verifyDisplayType)}` : ''
         const cardStyle = verifyDisplayType ? getScheduleColorInlineStyleByKey(verifyDisplayType, row) : getScheduleColorInlineStyle(row)
+        const simpleFieldScheduleCard = shouldUseSimpleFieldScheduleCard(row)
+        const simpleServiceGeneralCard = shouldUseSimpleServiceGeneralCard(row)
+
+        if (simpleFieldScheduleCard) {
+          return `
+            <div class="schedule-card simple-field-schedule-list-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
+              <div class="schedule-card-main">
+                <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
+                <div class="schedule-title schedule-title-stack"><strong class="simple-field-schedule-list-label">外務</strong>${renderSimpleFieldScheduleTitle(row, 'simple-field-schedule-list-title', 'strong')}</div>
+              </div>
+              <div class="schedule-card-actions">
+                <span class="status-pill ${isNoCompletionControlSchedule(row) ? 'is-calendar-only' : ''}">${escapeHtml(getScheduleStatusLabel(row))}</span>
+                <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
+              </div>
+            </div>
+          `
+        }
+
+        if (simpleServiceGeneralCard) {
+          return `
+            <div class="schedule-card simple-service-general-list-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
+              <div class="schedule-card-main">
+                <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
+                <div class="schedule-title schedule-title-stack">${renderSimpleServiceGeneralCardTitle(row, 'simple-service-general-list-title', 'strong')}</div>
+              </div>
+              <div class="schedule-card-actions">
+                <span class="status-pill ${isNoCompletionControlSchedule(row) ? 'is-calendar-only' : ''}">${escapeHtml(getScheduleStatusLabel(row))}</span>
+                <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
+                ${row.need_service_record ? `<button class="small-record-btn" data-record-schedule="${row.schedule_id}">紀錄單</button>` : ``}
+              </div>
+            </div>
+          `
+        }
+
         return `
           <div class="schedule-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${(typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) ? 'is-postponed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
             <div class="schedule-card-main">
