@@ -33,3 +33,11 @@ cleanup-candidates.txt
 *.tmp
 dist/
 node_modules/
+
+.env
+.env.local
+node_modules
+dist
+*.zip
+tsconfig.tsbuildinfo
+*.tsbuildinfo
