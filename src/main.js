@@ -90,6 +90,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cc END - hide schedule card content previews */
 
+/* FOR-e V002-1H-stable-1-3cd START - mobile detail fullscreen and full card titles */
+/*
+  V002-1H-stable-1-3cd｜手機查看行程滿版與卡片標題完整顯示
+  - 手機版查看行程 Modal 改為滿版，從畫面最上方開始顯示。
+  - 手機版查看行程最上方優先顯示：日期、時間、地址、標題、內容。
+  - 手機版行程卡片標題完整換行顯示，不再省略成 ...。
+  - 不影響電腦版 / 平板版查看行程、新增、修改、完成、取消、資料儲存與權限。
+*/
+/* FOR-e V002-1H-stable-1-3cd END - mobile detail fullscreen and full card titles */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -105,10 +115,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cc'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cc'
+const APP_VERSION = 'V002-1H-stable-1-3cd'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cd'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '所有行程卡片與列表項目不顯示內容預覽，完整內容只保留在查看明細與修改表單。'
+const SYSTEM_VERSION_NOTE = '手機查看行程滿版顯示，最上方優先顯示日期、時間、地址、標題、內容；手機卡片標題完整換行。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -22103,6 +22113,10 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const showCustomerDetail = serviceReminderType !== '電表提醒' && row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
   const showLocationDetail = row.category !== '服務行程' && Boolean(row.location_name)
   const showAddressDetail = Boolean(detailAddressText) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供')
+  const detailDateText = `${row.start_date || '-'}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + row.end_date : ''}`
+  const detailTimeText = formatTime(row) || '不指定'
+  const detailTitleText = String(row.title || getScheduleDisplayType(row) || '-').trim() || '-'
+  const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
   const permissionNote = noCompletionControl
     ? '此類行程只顯示在行事曆，不控管是否已完成。'
     : (canModifySchedule(row)
@@ -22110,42 +22124,54 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
       : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。')
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-view-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel detail-panel">
-      <div class="modal-header">
+    <div class="modal-panel detail-panel schedule-view-modal">
+      <div class="modal-header schedule-view-modal-header">
         <h3>查看行程</h3>
         <button class="icon-btn" id="closeDetailBtn" type="button">×</button>
       </div>
 
-      <div class="detail-grid">
-        <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
-        <div><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
-        <div><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
-        <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
-        <div><span>行程類型</span><strong>${escapeHtml(getScheduleFieldDisplayLabel(row.schedule_type || '-'))}</strong></div>
-        <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
-        <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
-        ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
-        ${shouldShowCreatorName(row) ? `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>` : ''}
-        <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
-        <div class="span-2"><span>標題 / 辦理內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.title)}</strong></div>
-        ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
-        ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
-        ${showAddressDetail ? `<div class="span-2 detail-address-row"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(detailAddressText)}">複製</button></div>` : ''}
-        <div class="span-2"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentText || '-')}</strong></div>
-        <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
-        ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
-        ${isTodoOrNoteSchedule(row) && isPostponedOriginalSchedule(row) ? `<div class="span-2"><span>延期狀態</span><strong class="schedule-detail-text-preserve">延期處理${getTodoNotePostponedDate(row) ? '｜已延期至：' + escapeHtml(getTodoNotePostponedDate(row)) : ''}</strong></div>` : ''}
-        <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
+      <div class="schedule-view-modal-content">
+        <div class="mobile-schedule-detail-priority" aria-label="手機行程重點資訊">
+          <div class="mobile-detail-priority-item"><span>日期</span><strong>${escapeHtml(detailDateText)}</strong></div>
+          <div class="mobile-detail-priority-item"><span>時間</span><strong>${escapeHtml(detailTimeText)}</strong></div>
+          ${showAddressDetail ? `<div class="mobile-detail-priority-item mobile-detail-priority-address"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button></div>` : ''}
+          <div class="mobile-detail-priority-item"><span>標題</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailTitleText)}</strong></div>
+          <div class="mobile-detail-priority-item"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentDisplayText)}</strong></div>
+        </div>
+
+        <div class="mobile-detail-other-info-title">其他資訊</div>
+
+        <div class="detail-grid schedule-detail-grid">
+          <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
+          <div class="mobile-detail-priority-duplicate"><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
+          <div class="mobile-detail-priority-duplicate"><span>時間</span><strong>${escapeHtml(formatTime(row))}</strong></div>
+          <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
+          <div><span>行程類型</span><strong>${escapeHtml(getScheduleFieldDisplayLabel(row.schedule_type || '-'))}</strong></div>
+          <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
+          <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
+          ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
+          ${shouldShowCreatorName(row) ? `<div><span>指派者</span><strong>${escapeHtml(row.creator_name || '-')}</strong></div>` : ''}
+          <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
+          <div class="span-2 mobile-detail-priority-duplicate"><span>標題 / 辦理內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.title)}</strong></div>
+          ${showCustomerDetail ? `<div class="span-2"><span>區域 / 客戶</span><strong>${escapeHtml(row.customer_name || '-')}</strong></div>` : ''}
+          ${showLocationDetail ? `<div class="span-2"><span>地點</span><strong>${escapeHtml(row.location_name || '-')}</strong></div>` : ''}
+          ${showAddressDetail ? `<div class="span-2 detail-address-row mobile-detail-priority-duplicate"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(detailAddressText)}">複製</button></div>` : ''}
+          <div class="span-2 mobile-detail-priority-duplicate"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentText || '-')}</strong></div>
+          <div class="span-2"><span>備註 / 提醒 / 證件</span><strong class="schedule-detail-text-preserve">${escapeHtml(row.sub_type_note || '-')}</strong></div>
+          ${isTodoOrNoteSchedule(row) && getTodoNoteResult(row) ? `<div class="span-2"><span>處理結果</span><strong class="schedule-detail-text-preserve">${escapeHtml(getTodoNoteResult(row))}</strong></div>` : ''}
+          ${isTodoOrNoteSchedule(row) && isPostponedOriginalSchedule(row) ? `<div class="span-2"><span>延期狀態</span><strong class="schedule-detail-text-preserve">延期處理${getTodoNotePostponedDate(row) ? '｜已延期至：' + escapeHtml(getTodoNotePostponedDate(row)) : ''}</strong></div>` : ''}
+          <div class="span-2"><span>服務紀錄單繳交狀況</span><strong>${row.need_service_record ? (isScheduleServiceRecordSubmitted(row) ? '已繳交' + (getScheduleServiceRecordSubmittedDate(row) ? '：' + getScheduleServiceRecordSubmittedDate(row) : '') : '需繳交，尚未完成') : '不需繳交'}</strong></div>
+        </div>
+
+        ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
+        ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
+
+        <div class="notice">${permissionNote}</div>
       </div>
 
-      ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
-      ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
-
-      <div class="notice">${permissionNote}</div>
-
-      <div class="modal-actions">
+      <div class="modal-actions schedule-view-modal-actions">
         <button type="button" class="secondary-btn" id="closeDetailBtn2">關閉</button>
         ${row.schedule_type === '醫療' && isMine(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailMedicalFollowBtn">回診資訊</button>` : ''}
         ${canModifySchedule(row) && row.status !== '取消' ? `<button type="button" class="secondary-btn" id="detailEditBtn">修改行程</button>` : ''}
@@ -23739,9 +23765,9 @@ function openFieldResultModal(scheduleId, result) {
   const label = result === '要補件' ? '補件項目' : '異常項目'
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-view-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel detail-panel">
+    <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header">
         <h3>${escapeHtml(result)}</h3>
         <button class="icon-btn" id="closeFieldResultBtn" type="button">×</button>
@@ -26868,9 +26894,9 @@ function openMedicalFollowModal(scheduleId) {
   const currentStaffText = getNoteValue(row, '下次執行人') || getNoteValue(row, '下次執行者')
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-view-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel detail-panel">
+    <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header">
         <h3>醫療回診資訊</h3>
         <button class="icon-btn" id="closeMedicalFollowBtn" type="button">×</button>
@@ -28307,9 +28333,9 @@ function openCancelModal(scheduleId, occurrenceDate = '') {
   const cancelOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-view-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel detail-panel">
+    <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header">
         <h3>取消 / 刪除行程</h3>
         <button class="icon-btn" id="closeCancelModalBtn" type="button">×</button>
@@ -28557,9 +28583,9 @@ function openServiceRecordModal(scheduleId, staffId = '') {
     : `全部執行者（${targetRecords.length || getServiceRecordScheduleStaffIds(row).length} 人）`
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-view-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel detail-panel">
+    <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header">
         <h3>服務紀錄單繳交狀況</h3>
         <button class="icon-btn" id="closeRecordModalBtn" type="button">×</button>
