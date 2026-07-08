@@ -81,6 +81,15 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cb END - original icons with simplified calendar cards */
 
+/* FOR-e V002-1H-stable-1-3cc START - hide schedule card content previews */
+/*
+  V002-1H-stable-1-3cc｜所有行程項目不顯示內容預覽
+  - 行事曆卡片、列表型行程卡、會議室卡片、今日會議卡與外務明細列表不顯示 description / 內容預覽。
+  - 查看行程明細與修改表單仍保留完整內容欄位。
+  - 提醒項目仍維持原本提醒卡片規則，項目 / 提醒文字不因本次隱藏。
+*/
+/* FOR-e V002-1H-stable-1-3cc END - hide schedule card content previews */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -96,10 +105,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cb'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cb'
+const APP_VERSION = 'V002-1H-stable-1-3cc'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cc'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '保留原始 FOR-e LOGO 與導覽 ICON，並套用服務/一般/外務行程卡片簡化與字級調整。'
+const SYSTEM_VERSION_NOTE = '所有行程卡片與列表項目不顯示內容預覽，完整內容只保留在查看明細與修改表單。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -1592,13 +1601,12 @@ function renderPersonalTodayMeetingCard(row = {}) {
   const title = getPersonalTodayMeetingTitle(row)
   const room = getPersonalTodayMeetingRoomName(row)
   const participants = getPersonalTodayMeetingParticipantsText(row)
-  const description = normalizePersonalTodayMeetingText(getFirstTwoLines(row.description || ''))
+  const description = ''
   const location = normalizePersonalTodayMeetingText(row.address || (!isMeetingRoomSchedule(row) ? row.location_name : ''))
   const typeLabel = isMeetingRoomSchedule(row) ? '會議室預約' : '會議'
   const metaLines = [
     room ? `會議室：${room}` : '',
     participants ? `參與人員：${participants}` : '',
-    description ? `內容：${description.replaceAll('\n', ' / ')}` : '',
     location ? `地點 / 地址：${location}` : ''
   ].filter(Boolean)
 
@@ -7647,7 +7655,7 @@ function renderFieldDetailList(rows) {
                 地點：${escapeHtml(row.location_name || '-')}
                 ${row.address ? '｜地址：<span class="copyable-address-text field-detail-address-copy" data-copy-card-address="' + escapeHtml(row.address) + '" title="點擊複製地址">' + escapeHtml(row.address) + '</span>' : ''}
               </div>
-              ${row.description ? `<div class="field-detail-content"><span>內容：</span>${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', '<br>')}</div>` : ''}
+              
               ${specialReminders.length ? `<div class="field-detail-badges">${specialReminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div>` : ''}
               ${result ? `<div class="field-detail-result">${renderFieldResultReminder(row)}</div>` : ''}
             </div>
@@ -8079,7 +8087,7 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
       ${renderMeetingRoomNameLines(roomName, 'meeting-room-room-line meeting-room-name')}
       <span class="for-e-card-title meeting-room-preview meeting-title">${escapeHtml(titleText)}</span>
       <span class="meeting-room-meta for-e-card-secondary-text">預約人：${escapeHtml(reserverName)}</span>
-      ${row.description ? `<span class="meeting-room-preview">${escapeHtml(getFirstTwoLines(row.description)).replaceAll('\n', ' / ')}</span>` : ''}
+      
     </button>
   `
 }
@@ -19953,7 +19961,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const postponedDate = typeof getTodoNotePostponedDate === 'function' ? getTodoNotePostponedDate(rowForOccurrence) : ''
   const contentPreview = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(rowForOccurrence))
     ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
-    : getFirstTwoLines(removeAdministrativeConversationScreenshotText(rowForOccurrence.description))
+    : ''
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const isFieldOverviewCard = typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence)
@@ -20091,7 +20099,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const postponedDate = typeof getTodoNotePostponedDate === 'function' ? getTodoNotePostponedDate(row) : ''
         const contentPreview = (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row))
           ? (postponedDate ? `已延期至：${postponedDate}` : '延期處理')
-          : getFirstTwoLines(row.description)
+          : ''
         const reminders = getReminderTokens(row)
         const extra = getDisplaySubTypeExtra(row)
         const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || ''
