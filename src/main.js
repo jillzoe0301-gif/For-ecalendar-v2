@@ -70,6 +70,15 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3bz END - field card icon left row restore */
 
+/* FOR-e V002-1H-stable-1-3ca START - restore brand and nav images */
+/*
+  V002-1H-stable-1-3ca｜補回品牌與導覽圖片
+  - 補回 FOR-e LOGO 圖檔。
+  - 補回電腦左側導覽圖示與手機下方導覽圖示。
+  - 導覽圖示統一路徑維持 /icons/nav/...，避免再次遺失。
+*/
+/* FOR-e V002-1H-stable-1-3ca END - restore brand and nav images */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -85,10 +94,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3bz'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bz'
+const APP_VERSION = 'V002-1H-stable-1-3ca'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ca'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正外務卡片圖標顯示，外務 LOGO 靠左，並與時間固定同一排顯示。'
+const SYSTEM_VERSION_NOTE = '補回 FOR-e 品牌 LOGO、左側選單圖示與手機下方圖示，恢復所有導覽圖片顯示。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
