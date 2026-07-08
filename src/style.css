@@ -27936,3 +27936,23 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3cd END - mobile detail fullscreen and full card titles */
+
+
+/* FOR-e V002-1H-stable-1-3ce START - continuation same card and transfer title only */
+.transfer-reminder-title-only-card,
+.transfer-reminder-title-only-list-card {
+  min-height: auto !important;
+}
+
+.transfer-reminder-title-only-card .for-e-card-title,
+.transfer-reminder-title-only-list-card .schedule-title strong {
+  display: block !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+/* FOR-e V002-1H-stable-1-3ce END - continuation same card and transfer title only */
