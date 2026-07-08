@@ -109,6 +109,15 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3ce END - continuation same card and transfer title only */
 
+/* FOR-e V002-1H-stable-1-3cf START - transfer reminder title and handling title only */
+/*
+  V002-1H-stable-1-3cf｜轉出提醒顯示補正
+  - 轉出提醒卡片只顯示提醒標題與「標題 / 辦理內容」。
+  - 不顯示內容、指派者、項目、日期說明、到期日、備註或其他補充文字。
+  - 查看明細與修改表單仍保留完整資料。
+*/
+/* FOR-e V002-1H-stable-1-3cf END - transfer reminder title and handling title only */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -124,10 +133,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ce'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ce'
+const APP_VERSION = 'V002-1H-stable-1-3cf'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cf'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '連續行程每天使用第一天同版型顯示；轉出提醒卡片只顯示標題。'
+const SYSTEM_VERSION_NOTE = '轉出提醒卡片只顯示提醒標題與標題 / 辦理內容，不顯示其他補充資訊。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -6369,7 +6378,7 @@ function renderSearchResultList(rows, emptyText) {
               ? getSimpleServiceGeneralCardSummary(row)
               : `${getScheduleDisplayType(row)}｜${row.title || '-'}`
         const resultMeta = transferTitleOnlyCard
-          ? ''
+          ? (getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '') ? `標題 / 辦理內容：${getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '')}` : '')
           : (simpleFieldScheduleCard || simpleServiceGeneralCard)
             ? (row.status || '-')
             : [
@@ -19842,6 +19851,26 @@ function getTransferReminderTitleOnlyText(row = {}, occurrenceDate = '') {
   return candidates.map(item => String(item || '').trim()).find(item => item && /轉出/.test(item)) || '轉出提醒'
 }
 
+function getTransferReminderHandlingTitleText(row = {}, occurrenceDate = '') {
+  const reminderTitle = getTransferReminderTitleOnlyText(row, occurrenceDate)
+  const candidates = [
+    row.title,
+    row.customer_name,
+    row.worker_name,
+    row.workerName
+  ]
+  const normalizedReminderTitle = String(reminderTitle || '').replace(/\s+/g, '').trim()
+  return candidates
+    .map(item => String(item || '').trim())
+    .filter(item => item && item !== '-' && item !== 'null' && item !== 'undefined' && item !== '[object Object]')
+    .find(item => item.replace(/\s+/g, '').trim() !== normalizedReminderTitle) || ''
+}
+
+function renderTransferReminderHandlingTitleLine(row = {}, occurrenceDate = '', className = 'week-card-preview transfer-reminder-handling-title') {
+  const text = getTransferReminderHandlingTitleText(row, occurrenceDate)
+  return text ? `<span class="${escapeHtml(className)}">標題 / 辦理內容：${escapeHtml(text)}</span>` : ''
+}
+
 function getServiceReminderDisplayLines(row = {}, occurrenceDate = '') {
   const type = getServiceReminderTypeFromRow(row)
   const title = String(row.title || row.customer_name || type || '提醒事項').trim()
@@ -19939,6 +19968,7 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
     return `
       <button type="button" class="week-schedule-card service-reminder-week-card transfer-reminder-title-only-card ${transferClass} ${getAlertItemClass(row)}" style="${reminderStyle}" data-view-schedule="${row.schedule_id}"${occurrenceAttr}>
         <strong class="for-e-card-title">${escapeHtml(getTransferReminderTitleOnlyText(row, occurrenceDateValue))}</strong>
+        ${renderTransferReminderHandlingTitleLine(row, occurrenceDateValue)}
       </button>
     `
   }
@@ -20164,10 +20194,12 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
         const simpleServiceGeneralCard = shouldUseSimpleServiceGeneralCard(row)
 
         if (isTransferReminderTitleOnlySchedule(row)) {
+          const transferOccurrenceDate = occurrenceDate || row.start_date || ''
           return `
             <div class="schedule-card transfer-reminder-title-only-list-card ${verifyClass} ${getScheduleStatusLabel(row) === '已完成' ? 'is-completed' : ''} ${isCancelledSchedule(row) ? 'is-cancelled' : ''}" style="${cardStyle}">
               <div class="schedule-card-main">
-                <div class="schedule-title schedule-title-stack"><strong>${escapeHtml(getTransferReminderTitleOnlyText(row, occurrenceDate || row.start_date || ''))}</strong></div>
+                <div class="schedule-title schedule-title-stack"><strong>${escapeHtml(getTransferReminderTitleOnlyText(row, transferOccurrenceDate))}</strong></div>
+                ${renderTransferReminderHandlingTitleLine(row, transferOccurrenceDate, 'schedule-meta transfer-reminder-handling-title')}
               </div>
               <div class="schedule-card-actions">
                 <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>

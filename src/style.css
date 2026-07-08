@@ -27956,3 +27956,19 @@ body,
   margin: 0 !important;
 }
 /* FOR-e V002-1H-stable-1-3ce END - continuation same card and transfer title only */
+
+
+/* FOR-e V002-1H-stable-1-3cf START - transfer reminder title and handling title only */
+.transfer-reminder-title-only-card .transfer-reminder-handling-title,
+.transfer-reminder-title-only-list-card .transfer-reminder-handling-title,
+.search-result-row .transfer-reminder-handling-title {
+  display: block !important;
+  margin-top: 3px !important;
+  color: var(--muted) !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+/* FOR-e V002-1H-stable-1-3cf END - transfer reminder title and handling title only */
