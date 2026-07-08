@@ -27484,3 +27484,29 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3bt END - quick group member row and Android desktop pan fix */
+
+/* FOR-e V002-1H-stable-1-3bx START - simplified field schedule card display */
+.simple-field-schedule-card .simple-field-schedule-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.simple-field-schedule-card .simple-field-schedule-chip {
+  flex: 0 0 auto;
+}
+
+.simple-field-schedule-card .simple-field-schedule-title,
+.simple-field-schedule-list-title {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.simple-field-schedule-list-label {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 800;
+}
+/* FOR-e V002-1H-stable-1-3bx END - simplified field schedule card display */
