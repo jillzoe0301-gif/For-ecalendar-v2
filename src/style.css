@@ -27510,3 +27510,165 @@ body,
   font-weight: 800;
 }
 /* FOR-e V002-1H-stable-1-3bx END - simplified field schedule card display */
+
+/* FOR-e V002-1H-stable-1-3by START - field icon row and calendar card font +2pt */
+:root {
+  --for-e-card-font-main-plus2pt: calc(15.5px + 2pt);
+  --for-e-card-font-meta-plus2pt: calc(14.5px + 2pt);
+  --for-e-list-card-title-plus2pt: calc(18px + 2pt);
+  --for-e-list-card-meta-plus2pt: calc(15px + 2pt);
+}
+
+.simple-field-schedule-card .simple-field-schedule-head,
+.field-week-schedule-card.simple-field-schedule-card .simple-field-schedule-head,
+.week-schedule-card.simple-field-schedule-card .simple-field-schedule-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 3px !important;
+  white-space: nowrap !important;
+}
+
+.simple-field-schedule-card .simple-field-schedule-icon,
+.field-week-schedule-card.simple-field-schedule-card .simple-field-schedule-icon,
+.week-schedule-card.simple-field-schedule-card .simple-field-schedule-icon {
+  flex: 0 0 22px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #FFAE6E !important;
+  color: #111827 !important;
+  font-size: calc(12px + 2pt) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-align: center !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #FFAE6E 45%, #ffffff) !important;
+}
+
+.simple-field-schedule-card .simple-field-schedule-head .for-e-card-time,
+.simple-field-schedule-card .simple-field-schedule-head .week-card-time,
+.simple-field-schedule-card .simple-field-schedule-head .field-week-card-time {
+  flex: 1 1 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: keep-all !important;
+}
+
+.week-schedule-card,
+.field-week-schedule-card,
+.meeting-room-card {
+  font-size: var(--for-e-card-font-main-plus2pt) !important;
+  line-height: 1.45 !important;
+}
+
+.week-schedule-card strong,
+.field-week-schedule-card strong,
+.meeting-room-card strong,
+.week-schedule-card .for-e-card-title,
+.field-week-schedule-card .for-e-card-title,
+.meeting-room-card .for-e-card-title,
+.week-schedule-card .simple-service-general-title,
+.field-week-schedule-card .simple-field-schedule-title,
+.week-schedule-card .simple-field-schedule-title {
+  font-size: var(--for-e-card-font-main-plus2pt) !important;
+  line-height: 1.38 !important;
+  font-weight: 950 !important;
+}
+
+.week-card-time,
+.field-week-card-time,
+.meeting-room-time,
+.week-card-preview,
+.field-week-card-preview,
+.meeting-room-meta,
+.meeting-room-preview,
+.week-schedule-card .for-e-card-time,
+.field-week-schedule-card .for-e-card-time,
+.meeting-room-card .for-e-card-time {
+  font-size: var(--for-e-card-font-meta-plus2pt) !important;
+  line-height: 1.42 !important;
+}
+
+.week-card-type-line,
+.service-reminder-card-type,
+.schedule-card-type-line,
+.week-schedule-card .week-card-extra,
+.week-schedule-card .week-card-extra.todo-note-item-chip,
+.meeting-room-card .meeting-room-room-line,
+.meeting-room-card strong.meeting-room-room-line {
+  font-size: var(--for-e-card-font-main-plus2pt) !important;
+  line-height: 1.35 !important;
+}
+
+.schedule-card {
+  font-size: var(--for-e-list-card-meta-plus2pt) !important;
+  line-height: 1.45 !important;
+}
+
+.schedule-card .schedule-title,
+.schedule-card .schedule-title strong,
+.schedule-card .schedule-card-list-title,
+.schedule-card strong {
+  font-size: var(--for-e-list-card-title-plus2pt) !important;
+  line-height: 1.38 !important;
+}
+
+.schedule-card .schedule-meta,
+.schedule-card .schedule-date,
+.schedule-card .schedule-content-preview,
+.schedule-card .schedule-card-list-time,
+.schedule-card .extra-schedule-chip,
+.schedule-card .reminder-tags span {
+  font-size: var(--for-e-list-card-meta-plus2pt) !important;
+  line-height: 1.42 !important;
+}
+
+@media (max-width: 1024px) {
+  .week-schedule-card,
+  .field-week-schedule-card,
+  .meeting-room-card {
+    font-size: var(--for-e-card-font-main-plus2pt) !important;
+  }
+
+  .week-schedule-card strong,
+  .field-week-schedule-card strong,
+  .meeting-room-card strong,
+  .week-schedule-card .for-e-card-title,
+  .field-week-schedule-card .for-e-card-title,
+  .meeting-room-card .for-e-card-title {
+    font-size: var(--for-e-card-font-main-plus2pt) !important;
+  }
+
+  .week-card-time,
+  .field-week-card-time,
+  .meeting-room-time,
+  .week-card-preview,
+  .field-week-card-preview,
+  .meeting-room-meta,
+  .meeting-room-preview,
+  .week-schedule-card .for-e-card-time,
+  .field-week-schedule-card .for-e-card-time,
+  .meeting-room-card .for-e-card-time {
+    font-size: var(--for-e-card-font-meta-plus2pt) !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3by END - field icon row and calendar card font +2pt */

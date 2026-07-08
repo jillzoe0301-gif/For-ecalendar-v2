@@ -76,10 +76,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3bx'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3bx'
+const APP_VERSION = 'V002-1H-stable-1-3by'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3by'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '外務行程卡片顯示簡化為外務 / 時間與地點 / 目的。'
+const SYSTEM_VERSION_NOTE = '外務行程卡片第一行改為外務圖標＋時間，行程卡片文字加大 2pt。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -7817,7 +7817,7 @@ function renderSimpleFieldScheduleHead(row = {}, timeClassName = 'week-card-time
   const timeHtml = renderCardTime(row, timeClassName)
   return `
     <div class="for-e-card-head-row simple-field-schedule-head">
-      <span class="for-e-card-type-chip simple-field-schedule-chip">外務</span>
+      <span class="field-worker-badge simple-field-schedule-icon" aria-label="外務行程" title="外務">外</span>
       ${timeHtml}
     </div>
   `
