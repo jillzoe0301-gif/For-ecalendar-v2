@@ -202,8 +202,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cn'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cn'
+const APP_VERSION = 'V002-1H-stable-1-3co'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3co'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
 
@@ -22490,6 +22490,15 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const detailTimeText = formatTime(row) || '不指定'
   const detailTitleText = String(row.title || getScheduleDisplayType(row) || '-').trim() || '-'
   const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
+  const mobileReminderDetailRows = renderMobileReminderDetailPriorityRows(row, detailContentText)
+  const defaultMobileDetailPriorityRows = `
+          <div class="mobile-detail-priority-item"><span>日期</span><strong>${escapeHtml(detailDateText)}</strong></div>
+          <div class="mobile-detail-priority-item"><span>時間</span><strong>${escapeHtml(detailTimeText)}</strong></div>
+          ${showAddressDetail ? `<div class="mobile-detail-priority-item mobile-detail-priority-address"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button></div>` : ''}
+          <div class="mobile-detail-priority-item"><span>標題</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailTitleText)}</strong></div>
+          <div class="mobile-detail-priority-item"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentDisplayText)}</strong></div>
+          ${renderMobileMedicalFollowupPriorityRows(row)}
+        `
   const permissionNote = administrativeReminderCanComplete
     ? '辦件提醒可標記為已完成；備註說明可不填。'
     : (noCompletionControl
@@ -22509,12 +22518,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
 
       <div class="schedule-view-modal-content">
         <div class="mobile-schedule-detail-priority" aria-label="手機行程重點資訊">
-          <div class="mobile-detail-priority-item"><span>日期</span><strong>${escapeHtml(detailDateText)}</strong></div>
-          <div class="mobile-detail-priority-item"><span>時間</span><strong>${escapeHtml(detailTimeText)}</strong></div>
-          ${showAddressDetail ? `<div class="mobile-detail-priority-item mobile-detail-priority-address"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button></div>` : ''}
-          <div class="mobile-detail-priority-item"><span>標題</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailTitleText)}</strong></div>
-          <div class="mobile-detail-priority-item"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentDisplayText)}</strong></div>
-          ${renderMobileMedicalFollowupPriorityRows(row)}
+          ${mobileReminderDetailRows || defaultMobileDetailPriorityRows}
         </div>
 
         <div class="mobile-detail-other-info-title">其他資訊</div>
@@ -27297,6 +27301,108 @@ function renderMobileMedicalFollowupPriorityRows(row = {}) {
     registerNo ? `<div class="mobile-detail-priority-item"><span>掛號號碼</span><strong>${escapeHtml(registerNo)}</strong></div>` : ''
   ].filter(Boolean).join('')
 }
+
+/* FOR-e V002-1H-stable-1-3co START - mobile reminder detail field order */
+function cleanMobileDetailFieldValue(value = '') {
+  return cleanCalendarSummaryPart(value)
+}
+
+function renderMobileDetailPriorityRow(label = '', value = '') {
+  const cleanLabel = cleanMobileDetailFieldValue(label)
+  const cleanValue = cleanMobileDetailFieldValue(value)
+  if (!cleanLabel || !cleanValue) return ''
+  return `<div class="mobile-detail-priority-item"><span>${escapeHtml(cleanLabel)}</span><strong class="schedule-detail-text-preserve">${escapeHtml(cleanValue)}</strong></div>`
+}
+
+function getReminderDetailCaseSummary(row = {}) {
+  const parts = []
+  const displayType = String(getScheduleDisplayType(row) || '').trim()
+  const title = cleanCalendarSummaryPart(sanitizeRepeatedTypeTitle(displayType, row.title || ''))
+  pushUniqueCalendarSummaryPart(parts, getCalendarSummaryAreaText(row))
+  pushUniqueCalendarSummaryPart(parts, row.customer_name || getCalendarSummaryNoteValue(row, '客戶名稱') || getCalendarSummaryNoteValue(row, '客戶') || getCalendarSummaryNoteValue(row, '雇主/宿舍名'))
+  pushUniqueCalendarSummaryPart(parts, title)
+  return parts.join(' / ') || title || cleanCalendarSummaryPart(row.customer_name) || cleanCalendarSummaryPart(displayType) || ''
+}
+
+function getMobileDetailContentForReminder(row = {}, detailContentText = '') {
+  const content = cleanMobileDetailFieldValue(detailContentText)
+  if (!content || content === '-') return ''
+  return content
+}
+
+function getMobileDetailReminderDisplayType(row = {}) {
+  const serviceType = normalizeServiceTypeOption(getServiceReminderTypeFromRow(row))
+  const directText = [row.category, row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .join('｜')
+  if (serviceType) return serviceType
+  if (/住變資訊/.test(directText)) return '住變資訊提供'
+  if (/轉出通知|轉出追蹤|轉出到期/.test(directText)) return '轉出追蹤'
+  if (/逃跑通知|逃跑第一天|逃跑第二天|逃跑第三天/.test(directText)) return '逃跑通知'
+  if (/驗證提醒|驗證日|離境日|結薪日/.test(directText)) return '驗證提醒'
+  if (/返台提醒|返台日|返台班機/.test(directText)) return '返台提醒'
+  if (/電表提醒|提醒更新電表/.test(directText)) return '電表提醒'
+  if (/翻譯文件/.test(directText)) return '翻譯文件'
+  if (typeof isPhoneAssistanceSchedule === 'function' && isPhoneAssistanceSchedule(row)) return '電話協助'
+  return ''
+}
+
+function renderMobileReminderDetailPriorityRows(row = {}, detailContentText = '') {
+  const type = getMobileDetailReminderDisplayType(row)
+  if (!type) return ''
+
+  const caseSummary = getReminderDetailCaseSummary(row)
+  const content = getMobileDetailContentForReminder(row, detailContentText)
+  const rows = []
+  const add = (label, value) => rows.push(renderMobileDetailPriorityRow(label, value))
+
+  if (type === '轉出追蹤' || type === '轉出通知') {
+    const info = parseTransferReminderInfo(row)
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('內容', content)
+    add('聘僱終止日', info.endDate)
+    add('轉出到期日', info.dueDate)
+  } else if (type === '逃跑通知') {
+    const info = parseRunawayReminderInfo(row)
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('內容', content)
+    add('逃跑第一天', info.day1)
+    add('逃跑第二天', info.day2)
+    add('逃跑第三天', info.day3)
+  } else if (type === '住變資訊提供' || type === '住變資訊通知') {
+    const info = parseHousingReminderInfo(row)
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('搬遷日期', info.moveDate)
+    add('地址', info.address)
+  } else if (type === '驗證提醒') {
+    const info = parseVerifyReminderInfo(row)
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('內容', content)
+    add('結薪日', info.salaryDate)
+    add('驗證日', info.verifyDate)
+    add('離境日', info.leaveDate)
+  } else if (type === '返台提醒') {
+    const info = getReturnTaiwanReminderInfo(row)
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('返台日', info.date)
+    add('返台時間', info.time)
+    add('返台班機', info.flight)
+    add('內容', content)
+  } else if (type === '電表提醒') {
+    const info = parseMeterReminderInfo(row)
+    add('雇主/宿舍名', info.place)
+    add('提醒', info.message || '提醒更新電表!!')
+  } else if (type === '翻譯文件' || type === '電話協助') {
+    add('區域 / 客戶名稱 / 標題', caseSummary)
+    add('內容', content)
+  } else {
+    return ''
+  }
+
+  return rows.filter(Boolean).join('')
+}
+/* FOR-e V002-1H-stable-1-3co END - mobile reminder detail field order */
 
 async function enforceMedicalFollowupTitleBySource(sourceRow = {}, registerNo = '') {
   const sourceId = String(sourceRow?.schedule_id || '').trim()
