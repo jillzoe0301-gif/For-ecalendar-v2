@@ -147,6 +147,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 /* FOR-e V002-1H-stable-1-3ci END - vehicle options and phone assist card fix */
 
 
+
+/* FOR-e V002-1H-stable-1-3cm START - reminder form field layout cleanup */
+/*
+  V002-1H-stable-1-3cm｜提醒類表單欄位顯示整理
+  - 返台提醒、逃跑通知、轉出追蹤、驗證提醒、住變資訊提供不顯示共用日期與時間，專用日期欄位移到原日期位置。
+  - 翻譯文件、電話協助隱藏服務紀錄單、繳交日期、公務車與證件欄位。
+  - 電表提醒不顯示帶入對應內容按鈕，電表提醒欄位移到通知主管上方。
+*/
+/* FOR-e V002-1H-stable-1-3cm END - reminder form field layout cleanup */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -182,8 +192,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cl'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cl'
+const APP_VERSION = 'V002-1H-stable-1-3cm'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cm'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
 
@@ -23320,9 +23330,92 @@ function compactTimeSelectHtml(prefix, defaultHour = '09', defaultMinute = '00')
 
 // V002-1H-5-7-5｜特殊行程類型精準欄位控制
 const compactSpecialScheduleTypes = ['逃跑通知', '轉出追蹤', '住變資訊', '住變資訊提供', '驗證提醒', '返台提醒', '電表提醒', '駐廠']
+const noCommonDateTimeReminderTypes = ['返台提醒', '逃跑通知', '轉出追蹤', '驗證提醒', '住變資訊提供']
+const simplifiedServiceFieldTypes = ['翻譯文件', '電話協助']
 
 function isCompactSpecialScheduleType(value) {
   return compactSpecialScheduleTypes.includes(normalizeServiceTypeOption(value))
+}
+
+function isNoCommonDateTimeReminderType(value) {
+  return noCommonDateTimeReminderTypes.includes(normalizeServiceTypeOption(value))
+}
+
+function isSimplifiedServiceFieldType(value) {
+  return simplifiedServiceFieldTypes.includes(normalizeServiceTypeOption(value))
+}
+
+function getVisibleServiceExtraBlock(form, activeType = '') {
+  if (!form) return null
+  const normalized = normalizeServiceTypeOption(activeType)
+  return [...form.querySelectorAll('[data-service-extra]')].find(block => isMatchingServiceExtra(block.dataset.serviceExtra, normalized)) || null
+}
+
+function resetSimplifiedServiceHiddenFields(form) {
+  if (!form) return
+  const needRecord = form.querySelector('input[name="need_service_record"]')
+  if (needRecord) needRecord.checked = false
+  const submitted = form.querySelector('input[name="service_record_submitted_check"]')
+  if (submitted) {
+    submitted.checked = false
+    submitted.disabled = true
+  }
+  const submittedDate = form.querySelector('input[name="service_record_submitted_date"]')
+  if (submittedDate) {
+    submittedDate.value = ''
+    submittedDate.disabled = true
+  }
+  const carNo = form.querySelector('select[name="car_no"]')
+  if (carNo) carNo.value = '不使用'
+  const hasDocuments = form.querySelector('select[name="has_documents"]')
+  if (hasDocuments) hasDocuments.value = '否'
+  form.querySelectorAll('input[name="document_items"]').forEach(input => { input.checked = false })
+  const documentNote = form.querySelector('input[name="document_note"]')
+  if (documentNote) documentNote.value = ''
+}
+
+function applySimplifiedServiceFieldVisibility(form, activeType = '') {
+  if (!form) return
+  const shouldSimplify = isSimplifiedServiceFieldType(activeType)
+  const recordBox = form.querySelector('.service-record-box')
+  const submittedDateLabel = form.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
+  const vehicleDocRow = form.querySelector('.vehicle-doc-row')
+  const carLabel = form.querySelector('select[name="car_no"]')?.closest('label')
+  const hasDocumentsLabel = form.querySelector('select[name="has_documents"]')?.closest('label')
+  ;[recordBox, submittedDateLabel, vehicleDocRow, carLabel, hasDocumentsLabel].filter(Boolean).forEach(node => {
+    setCompactHidden(node, shouldSimplify)
+  })
+  if (shouldSimplify) resetSimplifiedServiceHiddenFields(form)
+}
+
+function positionCreateServiceSpecialFields(form, activeType = '') {
+  if (!form) return
+  const activeBlock = getVisibleServiceExtraBlock(form, activeType)
+  if (!activeBlock) return
+  const dateGroup = form.querySelector('.schedule-date-cycle-group')
+  const notifySupervisor = form.querySelector('.notify-supervisor-field')
+  if (isNoCommonDateTimeReminderType(activeType) && dateGroup) {
+    dateGroup.insertAdjacentElement('afterend', activeBlock)
+    return
+  }
+  if (normalizeServiceTypeOption(activeType) === '電表提醒' && notifySupervisor) {
+    notifySupervisor.insertAdjacentElement('beforebegin', activeBlock)
+  }
+}
+
+function positionEditServiceSpecialFields(form, activeType = '') {
+  if (!form) return
+  const activeBlock = getVisibleServiceExtraBlock(form, activeType)
+  if (!activeBlock) return
+  const modeBox = form.querySelector('.edit-schedule-mode-box')
+  const notifySupervisor = form.querySelector('.edit-notify-supervisor-field')
+  if (isNoCommonDateTimeReminderType(activeType) && modeBox) {
+    modeBox.insertAdjacentElement('afterend', activeBlock)
+    return
+  }
+  if (normalizeServiceTypeOption(activeType) === '電表提醒' && notifySupervisor) {
+    notifySupervisor.insertAdjacentElement('beforebegin', activeBlock)
+  }
 }
 
 function isMatchingServiceExtra(extraKey = '', scheduleType = '') {
@@ -23399,8 +23492,14 @@ function applyCreateCompactSpecialFields() {
   const serviceReminderTypeSelect = form.querySelector('#serviceReminderTypeSelect')
   if (!serviceTypeSelect && !serviceReminderTypeSelect) return
 
-  const activeType = getServiceScheduleTypeFromForm(form)
-  const isCompact = isCompactSpecialScheduleType(activeType)
+  const currentCategory = normalizeCreateScheduleCategory(form.dataset.currentCategory || form.querySelector('#categorySelect')?.value || '').category
+  const isServiceCategory = currentCategory === '服務行程'
+  const activeType = isServiceCategory ? getServiceScheduleTypeFromForm(form) : ''
+  const isCompact = isServiceCategory && isCompactSpecialScheduleType(activeType)
+  const hideCommonDateTime = isServiceCategory && isNoCommonDateTimeReminderType(activeType)
+
+  form.querySelector('.schedule-date-cycle-group')?.classList.toggle('hidden', hideCommonDateTime)
+  form.querySelector('.schedule-time-group')?.classList.toggle('hidden', hideCommonDateTime)
 
   form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
     setCompactHidden(block, isCompact)
@@ -23418,6 +23517,12 @@ function applyCreateCompactSpecialFields() {
   form.querySelectorAll('.service-general-address-field').forEach(block => {
     setCompactHidden(block, isCompact)
   })
+
+  applySimplifiedServiceFieldVisibility(form, activeType)
+  positionCreateServiceSpecialFields(form, activeType)
+
+  const applyScheduleTypeContentBtn = form.querySelector('#applyScheduleTypeContentBtn')
+  if (applyScheduleTypeContentBtn) applyScheduleTypeContentBtn.classList.toggle('hidden', activeType === '電表提醒')
 
   if (activeType === '電表提醒') {
     const locationName = form.querySelector('[name="location_name"]')
@@ -23443,8 +23548,15 @@ function applyEditCompactSpecialFields() {
   const serviceReminderTypeSelect = form.querySelector('select[name="service_reminder_type"]')
   if (!serviceTypeSelect && !serviceReminderTypeSelect) return
 
-  const activeType = getServiceScheduleTypeFromForm(form)
-  const isCompact = isCompactSpecialScheduleType(activeType)
+  const currentCategory = normalizeCreateScheduleCategory(form.dataset.currentCategory || form.querySelector('#editCategorySelect')?.value || '').category
+  const isServiceCategory = currentCategory === '服務行程'
+  const activeType = isServiceCategory ? getServiceScheduleTypeFromForm(form) : ''
+  const isCompact = isServiceCategory && isCompactSpecialScheduleType(activeType)
+  const hideCommonDateTime = isServiceCategory && isNoCommonDateTimeReminderType(activeType)
+
+  form.querySelector('.edit-schedule-mode-box')?.classList.toggle('hidden', hideCommonDateTime)
+  form.querySelector('.edit-time-type-field')?.classList.toggle('hidden', hideCommonDateTime)
+  form.querySelector('#editTimeRangeBlock')?.classList.toggle('hidden', hideCommonDateTime || !['上午', '下午'].includes(form.querySelector('#editTimeTypeSelect')?.value || ''))
 
   form.querySelectorAll('.compact-hide-for-reminder').forEach(block => {
     setCompactHidden(block, isCompact)
@@ -23461,6 +23573,9 @@ function applyEditCompactSpecialFields() {
   form.querySelectorAll('.service-general-address-field').forEach(block => {
     setCompactHidden(block, isCompact)
   })
+
+  applySimplifiedServiceFieldVisibility(form, activeType)
+  positionEditServiceSpecialFields(form, activeType)
 
   if (activeType === '電表提醒') {
     const locationName = form.querySelector('[name="location_name"]')
@@ -28092,8 +28207,9 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
       document.querySelector('#editMonthlyDayBlock')?.classList.add('hidden')
     }
     if (isGeneralPersonalNote && todoBlock) todoBlock.classList.add('hidden')
-    document.querySelector('.edit-time-type-field')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category))
-    document.querySelector('#editTimeRangeBlock')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || !['上午', '下午'].includes(timeTypeSelect.value))
+    const activeEditServiceType = category === '服務行程' ? getServiceScheduleTypeFromForm(document.querySelector('#editScheduleForm')) : ''
+    document.querySelector('.edit-time-type-field')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || isNoCommonDateTimeReminderType(activeEditServiceType))
+    document.querySelector('#editTimeRangeBlock')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || isNoCommonDateTimeReminderType(activeEditServiceType) || !['上午', '下午'].includes(timeTypeSelect.value))
     if (deliveryBlock) deliveryBlock.classList.toggle('hidden', category !== '證件交付')
 
     applyEditCompactSpecialFields()
@@ -28101,7 +28217,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
   function refreshEditTimeBlock() {
     const category = normalizeCreateScheduleCategory(categorySelect?.value || '').category
-    timeBlock.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || !['上午', '下午'].includes(timeTypeSelect.value))
+    const activeType = category === '服務行程' ? getServiceScheduleTypeFromForm(document.querySelector('#editScheduleForm')) : ''
+    timeBlock.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || isNoCommonDateTimeReminderType(activeType) || !['上午', '下午'].includes(timeTypeSelect.value))
   }
 
   function refreshEditExtraScheduleBlock() {
@@ -28235,7 +28352,9 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   const isService = category === '服務行程'
   const isMaintenance = category === '公務車保養'
-  const submitted = isService && form.get('service_record_submitted_check') === 'on'
+  const editEarlyServiceType = isService ? getServiceScheduleTypeFromForm(form) : ''
+  const editSimplifiedServiceType = isService && isSimplifiedServiceFieldType(editEarlyServiceType)
+  const submitted = isService && !editSimplifiedServiceType && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
   const editDeliveryItems = [...document.querySelectorAll('input[name="edit_delivery_items"]:checked')].map(input => input.value)
   const editDeliveryText = editDeliveryItems.join('、')
@@ -28253,7 +28372,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   let payloadCustomerName = isService ? (form.get('customer_name') || null) : null
   let payloadLocationName = null
   let payloadAddress = isService ? (isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? null : (form.get('address') || null)) : null
-  let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
+  let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && !isSimplifiedServiceFieldType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
 
   if (category === '服務行程') {
     editScheduleType = getServiceScheduleTypeFromForm(form)
@@ -28526,8 +28645,9 @@ async function saveSchedule(event, modal) {
     ? [staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || getCurrentProfileStaffRow()].filter(staff => staff?.staff_id)
     : staffList.filter(staff => executorIds.includes(staff.staff_id))
   const firstStaff = selectedStaff[0]
-  const needServiceRecord = category === '服務行程' && form.get('need_service_record') === 'on'
-  const serviceRecordSubmitted = category === '服務行程' && form.get('service_record_submitted_check') === 'on'
+  const isSimplifiedServiceTypeForSave = category === '服務行程' && isSimplifiedServiceFieldType(earlyServiceType)
+  const needServiceRecord = category === '服務行程' && !isSimplifiedServiceTypeForSave && form.get('need_service_record') === 'on'
+  const serviceRecordSubmitted = category === '服務行程' && !isSimplifiedServiceTypeForSave && form.get('service_record_submitted_check') === 'on'
   const submittedDate = serviceRecordSubmitted ? (form.get('service_record_submitted_date') || todayString()) : null
 
   let scheduleType = ''
@@ -28654,13 +28774,13 @@ async function saveSchedule(event, modal) {
       : (rawCustomerNameInput || rawTitleInput || null)
     locationName = null
     address = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('address') || null)
-    carNo = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('car_no') || null)
+    carNo = (isCompactSpecialScheduleType(scheduleType) || isSimplifiedServiceFieldType(scheduleType)) ? null : (form.get('car_no') || null)
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (serviceAdminNames.length) subTypeNoteParts.push(`通知行政：${serviceAdminNames.join('、')}`)
     if (!isCompactSpecialScheduleType(scheduleType)) {
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
-      if (needServiceRecord) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
+      if (needServiceRecord && !isSimplifiedServiceFieldType(scheduleType)) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
     }
   }
 
