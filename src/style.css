@@ -28055,3 +28055,56 @@ body,
   font-weight: 700 !important;
 }
 /* FOR-e V002-1H-stable-1-3cj END - phone assistance return confirm replacement style */
+
+
+/* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
+.return-reminder-day-mark.is-return-confirm > span,
+.week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.month-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 1 auto !important;
+  width: fit-content !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 28px !important;
+  padding: 4px 12px !important;
+  margin: 0 0 5px !important;
+  border-radius: 999px !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+}
+
+.return-reminder-day-mark.is-return-confirm,
+.week-day-cell .return-reminder-day-mark.is-return-confirm,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm,
+.month-day-cell .return-reminder-day-mark.is-return-confirm,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 5px 6px !important;
+  overflow: visible !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > span *,
+.week-day-cell .return-reminder-day-mark.is-return-confirm > span *,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm > span *,
+.month-day-cell .return-reminder-day-mark.is-return-confirm > span *,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm > span * {
+  transform: none !important;
+  line-height: inherit !important;
+}
+/* FOR-e V002-1H-stable-1-3ck END - return confirm label size and pill width */

@@ -173,10 +173,19 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cj'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cj'
+const APP_VERSION = 'V002-1H-stable-1-3ck'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ck'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '電話協助提醒卡片套用服務行程形式，可設定電話協助顏色，返台確認文字不壓縮，代步車文字使用時間色加粗。'
+const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
+
+/* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
+/*
+  V002-1H-stable-1-3ck｜返台確認（今天返台）提示標籤樣式修正
+  - 字體大小、字重、行高與返台提醒一致。
+  - 修正上下被壓縮與固定寬度問題。
+  - 橢圓框依文字自然撐開，手機、平板、電腦一致。
+*/
+/* FOR-e V002-1H-stable-1-3ck END - return confirm label size and pill width */
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
