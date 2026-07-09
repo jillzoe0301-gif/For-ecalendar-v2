@@ -127,6 +127,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cg END - transfer reminder handling value only */
 
+/* FOR-e V002-1H-stable-1-3ch START - service admin followup mobile detail fix */
+/*
+  V002-1H-stable-1-3ch｜服務行程通知行政、下次回診標題與手機查看欄位
+  - 服務行程新增 / 修改時，通知行政勾選會正確建立行政待辦。
+  - 修改服務行程時保留原通知行政，新增行政會新增通知，取消行政會取消該行政待辦。
+  - 自動建立下次回診行程時，標題包含「回診」與掛號號碼。
+  - 手機查看行程時，回診時間與掛號號碼顯示在內容下方。
+*/
+/* FOR-e V002-1H-stable-1-3ch END - service admin followup mobile detail fix */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -142,8 +152,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cg'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cg'
+const APP_VERSION = 'V002-1H-stable-1-3ch'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ch'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '轉出提醒卡片顯示提醒標題與辦理內容欄位值，不顯示「標題 / 辦理內容：」前綴文字。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
@@ -22235,6 +22245,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
           ${showAddressDetail ? `<div class="mobile-detail-priority-item mobile-detail-priority-address"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button></div>` : ''}
           <div class="mobile-detail-priority-item"><span>標題</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailTitleText)}</strong></div>
           <div class="mobile-detail-priority-item"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentDisplayText)}</strong></div>
+          ${renderMobileMedicalFollowupPriorityRows(row)}
         </div>
 
         <div class="mobile-detail-other-info-title">其他資訊</div>
@@ -26477,6 +26488,61 @@ function getSelectedStaffIdsFromForm(form, fieldName = '') {
   return uniqueOptionList((form?.getAll?.(fieldName) || []).map(value => String(value || '').trim()).filter(Boolean))
 }
 
+
+/* FOR-e V002-1H-stable-1-3ch START - service administrative notification helpers */
+function getServiceAdminStaffIdsFromForm(form) {
+  return uniqueOptionList([
+    ...(form?.getAll?.('service_admin_staff_ids') || []),
+    ...(form?.getAll?.('edit_service_admin_staff_ids') || [])
+  ].map(value => String(value || '').trim()).filter(Boolean))
+}
+
+function getServiceAdministrativeTodoRowsForSource(sourceScheduleId = '') {
+  const sourceId = String(sourceScheduleId || '').trim()
+  if (!sourceId) return []
+  return (schedules || [])
+    .filter(row => row && row.status !== '取消')
+    .filter(row => row.category === '待辦事項')
+    .filter(row => {
+      const note = String(row.sub_type_note || '')
+      return note.includes('服務行程通知行政') && note.includes(`來源行程：${sourceId}`)
+    })
+}
+
+async function cancelUnselectedServiceAdministrativeTodos(sourceScheduleId = '', selectedAdminStaffIds = []) {
+  const sourceId = String(sourceScheduleId || '').trim()
+  if (!sourceId) return
+  const selected = new Set((selectedAdminStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  const existingRows = getServiceAdministrativeTodoRowsForSource(sourceId)
+  for (const todoRow of existingRows) {
+    const assignedIds = getActiveAssigneeIds(todoRow)
+    const shouldKeep = assignedIds.some(staffId => selected.has(staffId))
+    if (shouldKeep) continue
+    const { error } = await supabase
+      .from('schedules')
+      .update({ status: '取消' })
+      .eq('schedule_id', todoRow.schedule_id)
+    if (error) throw error
+  }
+}
+
+async function syncServiceAdministrativeTodosForSchedule(sourceRow = {}, scheduleType = '', taskDetail = '', adminStaffIds = [], options = {}) {
+  const sourceId = String(sourceRow?.schedule_id || '').trim()
+  const selectedIds = uniqueOptionList((adminStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  if (sourceId) await cancelUnselectedServiceAdministrativeTodos(sourceId, selectedIds)
+  if (!selectedIds.length) return
+  for (const adminStaffId of selectedIds) {
+    await maybeCreateServiceAdministrativeTodo(
+      sourceRow,
+      scheduleType || sourceRow.schedule_type || '服務行程通知',
+      taskDetail || sourceRow.description || sourceRow.title || '',
+      adminStaffId,
+      { startDate: options.startDate || sourceRow.start_date || todayString() }
+    )
+  }
+}
+/* FOR-e V002-1H-stable-1-3ch END - service administrative notification helpers */
+
 function getStaffNameById(staffId = '') {
   const staff = staffList.find(item => item.staff_id === staffId)
   return staff ? staff.name : ''
@@ -26732,6 +26798,69 @@ function getMedicalFollowupNote(sourceSchedule = {}, form) {
   ].filter(Boolean).join('｜')
 }
 
+
+/* FOR-e V002-1H-stable-1-3ch START - medical followup title and mobile detail */
+function buildMedicalFollowupScheduleTitle(baseTitle = '', registerNo = '') {
+  const cleanBase = cleanCalendarSummaryPart(baseTitle) || '醫療'
+  const cleanRegisterNo = cleanCalendarSummaryPart(registerNo)
+  return `${cleanBase} 回診${cleanRegisterNo ? `（掛號號碼：${cleanRegisterNo}）` : ''}`
+}
+
+function getMedicalFollowupTimeDisplay(row = {}) {
+  const rawNote = getNoteValue(row, '下次回診') || getFieldNoteValue(row, '下次回診') || ''
+  const noteText = cleanCalendarSummaryPart(rawNote)
+  if (noteText) return noteText
+  const rowTypeText = [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
+  if (String(rowTypeText || '').includes('回診')) {
+    return [row.start_date, formatTime(row)].map(cleanCalendarSummaryPart).filter(Boolean).join(' ')
+  }
+  return ''
+}
+
+function getMedicalRegisterNoDisplay(row = {}) {
+  return cleanCalendarSummaryPart(getNoteValue(row, '掛號號碼') || getFieldNoteValue(row, '掛號號碼') || '')
+}
+
+function renderMobileMedicalFollowupPriorityRows(row = {}) {
+  const followupTime = getMedicalFollowupTimeDisplay(row)
+  const registerNo = getMedicalRegisterNoDisplay(row)
+  return [
+    followupTime ? `<div class="mobile-detail-priority-item"><span>回診時間</span><strong>${escapeHtml(followupTime)}</strong></div>` : '',
+    registerNo ? `<div class="mobile-detail-priority-item"><span>掛號號碼</span><strong>${escapeHtml(registerNo)}</strong></div>` : ''
+  ].filter(Boolean).join('')
+}
+
+async function enforceMedicalFollowupTitleBySource(sourceRow = {}, registerNo = '') {
+  const sourceId = String(sourceRow?.schedule_id || '').trim()
+  if (!sourceId) return
+  const title = buildMedicalFollowupScheduleTitle(sourceRow.customer_name || sourceRow.title || '醫療', registerNo)
+  const patterns = [
+    `來源醫療行程：${sourceId}`,
+    `原醫療行程：${sourceId}`,
+    `來源行程：${sourceId}`
+  ]
+  for (const pattern of patterns) {
+    const { data, error } = await supabase
+      .from('schedules')
+      .select('schedule_id')
+      .eq('category', '服務行程')
+      .eq('schedule_type', '醫療')
+      .ilike('sub_type_note', `%${pattern}%`)
+      .limit(10)
+    if (error) {
+      console.warn('查詢下次回診行程標題修正失敗。', error)
+      continue
+    }
+    const ids = (data || []).map(item => item.schedule_id).filter(Boolean)
+    if (!ids.length) continue
+    await supabase
+      .from('schedules')
+      .update({ title, sub_type: '回診' })
+      .in('schedule_id', ids)
+  }
+}
+/* FOR-e V002-1H-stable-1-3ch END - medical followup title and mobile detail */
+
 async function syncMedicalFollowupServiceRecord(scheduleId, payload, staff) {
   if (!scheduleId || !staff) return
 
@@ -26785,6 +26914,7 @@ async function syncMedicalFollowupSchedule(sourceSchedule, form, fallbackStaffId
 
   const timePayload = getCompactFollowupScheduleTime(form, 'medical_next')
   const titleBase = sourceSchedule?.customer_name || sourceSchedule?.title || '醫療'
+  const registerNo = String(form.get('medical_register_no') || '').trim()
   const payload = {
     creator_profile_id: currentProfile.profile_id,
     creator_staff_id: currentProfile.staff_id,
@@ -26795,7 +26925,7 @@ async function syncMedicalFollowupSchedule(sourceSchedule, form, fallbackStaffId
     schedule_type: '醫療',
     sub_type: '回診',
     sub_type_note: getMedicalFollowupNote(sourceSchedule, form),
-    title: `下次回診｜${titleBase}`,
+    title: buildMedicalFollowupScheduleTitle(titleBase, registerNo),
     description: [
       '下次回診',
       sourceSchedule?.title ? `原行程：${sourceSchedule.title}` : '',
@@ -26914,10 +27044,10 @@ async function createMedicalFollowupScheduleFromForm(form, originalSchedule, ori
     sub_type_note: [
       '行程模式：單日',
       `原醫療行程：${originalSchedule.schedule_id}`,
-      `掛號號碼：${registerNo || '未填寫'}`,
+      registerNo ? `掛號號碼：${registerNo}` : '',
       `下次執行人：${nextStaff.name || ''}`
     ].filter(Boolean).join('｜'),
-    title: `回診｜${originalTitle}`,
+    title: buildMedicalFollowupScheduleTitle(originalPayload.customer_name || originalTitle, registerNo),
     description: `由醫療行程自動建立下一次回診。\n原行程：${originalTitle}`,
     start_date: nextDate,
     end_date: nextDate,
@@ -27099,6 +27229,8 @@ function openMedicalFollowModal(scheduleId) {
       return
     }
 
+    await enforceMedicalFollowupTitleBySource(row, registerNo)
+
     modal.remove()
     await refreshData()
     renderApp()
@@ -27223,7 +27355,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
           <div class="edit-service-admin-notify-field">
             <div class="field-title">通知行政（可複選）</div>
-            ${serviceAdminDropdownHtml(editServiceAdminStaffIds, 'service_admin_staff_ids')}
+            ${serviceAdminDropdownHtml(editServiceAdminStaffIds, 'edit_service_admin_staff_ids')}
           </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
@@ -27802,7 +27934,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editScope = getScheduleEditScopeValue(form, originalRow)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(originalRow, form.get('edit_occurrence_date') || originalRow.start_date)
   const editNotifySupervisorName = (category === '公務車保養' || isAdministrativeReminderCategoryName(category)) || (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage)) ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
-  const editServiceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'edit_service_admin_staff_ids') : []
+  const editServiceAdminStaffIds = category === '服務行程' ? getServiceAdminStaffIdsFromForm(form) : []
   const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
   const selectedEditExecutorIds = getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
   const editExecutorIds = (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && generalStaffOverviewFormCategories.includes(rawCategory))
@@ -28003,21 +28135,17 @@ async function saveEditedSchedule(event, modal, originalRow) {
     await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)
     await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)
 
-    if (editServiceAdminStaffIds.length) {
-      try {
-        for (const editServiceAdminStaffId of editServiceAdminStaffIds) {
-          await maybeCreateServiceAdministrativeTodo(
-            { ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId },
-            editScheduleType || '服務行程通知',
-            payloadDescription || payloadTitle || '',
-            editServiceAdminStaffId,
-            { startDate: payloadStartDate || editedSchedulePayload.start_date || originalRow.start_date }
-          )
-        }
-      } catch (serviceAdminError) {
-        console.error(serviceAdminError)
-        alert('行程已修改，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))
-      }
+    try {
+      await syncServiceAdministrativeTodosForSchedule(
+        { ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId },
+        editScheduleType || '服務行程通知',
+        payloadDescription || payloadTitle || '',
+        editServiceAdminStaffIds,
+        { startDate: payloadStartDate || editedSchedulePayload.start_date || originalRow.start_date }
+      )
+    } catch (serviceAdminError) {
+      console.error(serviceAdminError)
+      alert('行程已修改，但通知行政待辦同步失敗：' + (serviceAdminError?.message || serviceAdminError))
     }
   }
 
@@ -28127,7 +28255,7 @@ async function saveSchedule(event, modal) {
   let subType = ''
   let subTypeNoteParts = [buildRepeatNote(form)]
   const notifySupervisorName = (category === '公務車保養' || isAdministrativeReminderCategoryName(category)) || isGeneralStaffOverviewCreateMode() ? '' : getStaffNameFromSelect('notify_supervisor_staff')
-  const serviceAdminStaffIds = category === '服務行程' ? getSelectedStaffIdsFromForm(form, 'service_admin_staff_ids') : []
+  const serviceAdminStaffIds = category === '服務行程' ? getServiceAdminStaffIdsFromForm(form) : []
   const serviceAdminNames = getStaffNamesByIds(serviceAdminStaffIds)
   if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
@@ -28323,20 +28451,18 @@ async function saveSchedule(event, modal) {
   }
 
 
-  if (category === '服務行程' && serviceAdminStaffIds.length) {
+  if (category === '服務行程') {
     try {
-      for (const serviceAdminStaffId of serviceAdminStaffIds) {
-        await maybeCreateServiceAdministrativeTodo(
-          { ...schedulePayload, schedule_id: schedule.schedule_id },
-          scheduleType || '服務行程通知',
-          form.get('description') || schedulePayload.title || '',
-          serviceAdminStaffId,
-          { startDate: schedulePayload.start_date }
-        )
-      }
+      await syncServiceAdministrativeTodosForSchedule(
+        { ...schedulePayload, schedule_id: schedule.schedule_id },
+        scheduleType || '服務行程通知',
+        form.get('description') || schedulePayload.title || '',
+        serviceAdminStaffIds,
+        { startDate: schedulePayload.start_date }
+      )
     } catch (serviceAdminError) {
       console.error(serviceAdminError)
-      alert('服務行程已建立，但通知行政待辦建立失敗：' + (serviceAdminError?.message || serviceAdminError))
+      alert('服務行程已建立，但通知行政待辦同步失敗：' + (serviceAdminError?.message || serviceAdminError))
     }
   }
   if (needServiceRecord) {
