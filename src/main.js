@@ -136,6 +136,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
   - 手機查看行程時，回診時間與掛號號碼顯示在內容下方。
 */
 /* FOR-e V002-1H-stable-1-3ch END - service admin followup mobile detail fix */
+/* FOR-e V002-1H-stable-1-3ci START - vehicle options and phone assist card fix */
+/*
+  V002-1H-stable-1-3ci｜公務車保養、服務公務車選項、選項同步、電話協助卡片
+  - 公務車保養卡片顯示保養期間代步車資訊。
+  - 服務行程修改時，公務車選項可保留原值並重新選擇儲存。
+  - 選項管理儲存後同步最新 state，表單選單立即讀到新增選項。
+  - 電話協助卡片套用服務行程簡化格式。
+*/
+/* FOR-e V002-1H-stable-1-3ci END - vehicle options and phone assist card fix */
+
 
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
@@ -152,10 +162,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ch'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ch'
+const APP_VERSION = 'V002-1H-stable-1-3ci'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ci'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '轉出提醒卡片顯示提醒標題與辦理內容欄位值，不顯示「標題 / 辦理內容：」前綴文字。'
+const SYSTEM_VERSION_NOTE = '公務車保養卡片顯示代步車資訊，服務行程公務車選項可修改，選項管理同步更新，電話協助卡片套用服務行程樣式。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -5818,7 +5828,11 @@ function renderApp() {
         return
       }
 
-      await saveManagedOptions(nextOptions)
+      const saveResult = await saveManagedOptions(nextOptions)
+      if (saveResult?.ok) {
+        await loadAppSettings()
+      }
+      appSettings.managed_options = getManagedOptions()
       alert('選項已儲存。')
       renderApp()
     })
@@ -6389,6 +6403,8 @@ function renderSearchResultList(rows, emptyText) {
         const simpleFieldScheduleCard = shouldUseSimpleFieldScheduleCard(row)
         const simpleServiceGeneralCard = shouldUseSimpleServiceGeneralCard(row)
         const transferTitleOnlyCard = isTransferReminderTitleOnlySchedule(row)
+        const isMaintenanceResult = isVehicleMaintenanceSchedule(row)
+        const maintenanceReplacementText = isMaintenanceResult ? getVehicleMaintenanceReplacementCarText(row) : ''
         const resultTitle = transferTitleOnlyCard
           ? getTransferReminderTitleOnlyText(row, row.__occurrence_date || row.__render_date || row.start_date || '')
           : simpleFieldScheduleCard
@@ -6400,13 +6416,15 @@ function renderSearchResultList(rows, emptyText) {
           ? (getTransferReminderHandlingTitleText(row, row.__occurrence_date || row.__render_date || row.start_date || '') || '')
           : (simpleFieldScheduleCard || simpleServiceGeneralCard)
             ? (row.status || '-')
-            : [
-                row.status || '-',
-                getAssigneeNames(row),
-                row.customer_name || '',
-                row.location_name || '',
-                row.sub_type ? `項目：${row.sub_type}` : ''
-              ].filter(Boolean).join('｜')
+            : isMaintenanceResult
+              ? [row.status || '-', maintenanceReplacementText ? `代步車：${maintenanceReplacementText}` : ''].filter(Boolean).join('｜')
+              : [
+                  row.status || '-',
+                  getAssigneeNames(row),
+                  row.customer_name || '',
+                  row.location_name || '',
+                  row.sub_type ? `項目：${row.sub_type}` : ''
+                ].filter(Boolean).join('｜')
 
         return `
           <div class="search-result-row ${simpleFieldScheduleCard ? 'simple-field-schedule-search-row' : ''} ${simpleServiceGeneralCard ? 'simple-service-general-search-row' : ''} ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
@@ -7788,18 +7806,52 @@ function getCalendarSummaryAreaText(row = {}) {
   return candidates.map(cleanCalendarSummaryPart).find(Boolean) || ''
 }
 
+function isPhoneAssistanceSchedule(row = {}) {
+  const text = [
+    row.category,
+    row.schedule_type,
+    row.sub_type,
+    row.title,
+    row.customer_name,
+    row.description,
+    row.sub_type_note
+  ].filter(Boolean).join('｜')
+  return /電話協助/.test(text)
+}
+
 function isServiceOrGeneralScheduleCard(row = {}) {
   const category = String(row.category || '').trim()
   const scheduleType = String(row.schedule_type || '').trim()
-  return category === '服務行程' || scheduleType === '服務行程' || category === '一般行程' || scheduleType === '一般行程'
+  return category === '服務行程' || scheduleType === '服務行程' || category === '一般行程' || scheduleType === '一般行程' || isPhoneAssistanceSchedule(row)
 }
 
 function shouldUseSimpleServiceGeneralCard(row = {}) {
   if (!isServiceOrGeneralScheduleCard(row)) return false
+  if (isPhoneAssistanceSchedule(row)) return true
   if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return false
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return false
   if (typeof isReminderSchedule === 'function' && isReminderSchedule(row) && !isServiceOrGeneralScheduleCard(row)) return false
   return true
+}
+
+function getVehicleMaintenanceReplacementCarText(row = {}) {
+  if (!isVehicleMaintenanceSchedule(row)) return ''
+  const candidates = [
+    row.maintenance_replacement_car,
+    row.replacement_car,
+    row.substitute_car,
+    getCalendarSummaryNoteValue(row, '保養期間代步車'),
+    getCalendarSummaryNoteValue(row, '代步車資訊'),
+    getCalendarSummaryNoteValue(row, '代步車')
+  ]
+  const text = candidates.map(cleanCalendarSummaryPart).find(Boolean) || ''
+  if (!text || ['-', '無', '不使用'].includes(text)) return ''
+  return text
+}
+
+function renderVehicleMaintenanceReplacementCarLine(row = {}, className = 'week-card-preview') {
+  const text = getVehicleMaintenanceReplacementCarText(row)
+  return text ? `<span class="${escapeHtml(className)} vehicle-maintenance-replacement-line">代步車：${escapeHtml(text)}</span>` : ''
 }
 
 function pushUniqueCalendarSummaryPart(parts, value) {
@@ -11309,18 +11361,32 @@ function renderStatsDashboard() {
 
 const managedOptionsStorageKey = 'for-e-managed-options-v002'
 
+function getManagedOptionsTimestamp(value = {}) {
+  const raw = value?.__updatedAt || value?.updatedAt || value?.updated_at || ''
+  const time = raw ? Date.parse(raw) : 0
+  return Number.isFinite(time) ? time : 0
+}
+
 function getManagedOptions() {
   const remoteOptions = hasSharedSetting('managed_options')
     ? normalizeSettingValue(appSettings.managed_options)
     : null
+  const localOptions = readLocalJsonSetting(managedOptionsStorageKey)
+
+  if (remoteOptions && localOptions && Object.keys(localOptions).length) {
+    const remoteTime = getManagedOptionsTimestamp(remoteOptions)
+    const localTime = getManagedOptionsTimestamp(localOptions)
+    if (localTime && (!remoteTime || localTime >= remoteTime)) return localOptions
+    return remoteOptions
+  }
 
   if (remoteOptions) return remoteOptions
-
-  return readLocalJsonSetting(managedOptionsStorageKey)
+  return localOptions
 }
 
 function saveManagedOptions(value) {
   const nextOptions = normalizeSettingValue(value)
+  nextOptions.__updatedAt = new Date().toISOString()
   appSettings.managed_options = nextOptions
   localStorage.setItem(managedOptionsStorageKey, JSON.stringify(nextOptions))
   return saveAppSetting('managed_options', nextOptions)
@@ -20066,6 +20132,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
   const extra = getDisplaySubTypeExtra(rowForOccurrence)
   const isFactoryStation = isFactoryStationSchedule(rowForOccurrence)
   const isFieldOverviewCard = typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(rowForOccurrence)
+  const maintenanceReplacementLine = isVehicleMaintenanceSchedule(rowForOccurrence) ? renderVehicleMaintenanceReplacementCarLine(rowForOccurrence, 'week-card-preview vehicle-maintenance-replacement-line') : ''
   const addressText = getScheduleAddressText(rowForOccurrence)
   const fieldSpecialBadges = isFieldOverviewCard && typeof renderFieldSpecialReminderBadges === 'function' ? renderFieldSpecialReminderBadges(rowForOccurrence) : ''
   const fieldSpecialText = isFieldOverviewCard ? getFieldSpecialNoticeText(rowForOccurrence) : ''
@@ -20087,6 +20154,7 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
       </div>
       <strong class="for-e-card-title">${safeTitle}</strong>
       ${fieldSpecialBadges}
+      ${maintenanceReplacementLine}
       ${addressText ? renderCopyableAddressLine(addressText, 'week-card-preview', '地址') : ''}
       ${shouldRenderFieldSpecialNoticeLine ? `<span class="week-card-preview field-special-notice-line">特殊提醒：${escapeHtml(fieldSpecialText)}</span>` : ''}
       ${contentPreview ? `<span class="week-card-preview">${escapeHtml(contentPreview).replaceAll('\n', ' / ')}</span>` : ''}
@@ -20263,6 +20331,7 @@ function renderScheduleList(rows, emptyText, hideCategoryMeta = false) {
             <div class="schedule-card-main">
               <div class="schedule-date">${getScheduleDisplayDateText(row)}${timeText ? `｜<span class="schedule-card-list-time">${escapeHtml(timeText)}</span>` : ''}</div>
               <div class="schedule-title schedule-title-stack">${renderScheduleTypeTitleStack(row, 'schedule-card-type-line', 'strong')}</div>
+              ${isMaintenance ? renderVehicleMaintenanceReplacementCarLine(row, 'schedule-meta vehicle-maintenance-replacement-line') : ''}
               ${isFactoryStationSchedule(row) && getFactoryStationTimeText(row) ? `<div class="schedule-meta factory-station-time">${escapeHtml(getFactoryStationTimeText(row))}</div>` : ''}
               ${contentPreview ? `<div class="schedule-content-preview">${escapeHtml(contentPreview).replaceAll('\n', '<br>')}</div>` : ''}
               ${hideCategoryMeta ? '' : `<div class="schedule-meta">${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</div>`}
@@ -22978,6 +23047,31 @@ function optionHtml(items, selectedValue = '', includeEmpty = false) {
   return empty + items.map(item => `<option value="${item}" ${item === selectedValue ? 'selected' : ''}>${escapeHtml(getCreateFormCategoryDisplayLabel(item))}</option>`).join('')
 }
 
+/* FOR-e V002-1H-stable-1-3ci START - shared option select helpers */
+function ensureOptionListIncludesSelected(items = [], selectedValue = '', defaultItems = []) {
+  const selected = cleanCalendarSummaryPart(selectedValue)
+  return uniqueOptionList([
+    ...defaultItems,
+    ...(items || []),
+    selected
+  ].filter(Boolean))
+}
+
+function rawOptionHtml(items = [], selectedValue = '', includeEmpty = false) {
+  const empty = includeEmpty ? `<option value="">無</option>` : ''
+  return empty + (items || []).map(item => {
+    const value = String(item || '').trim()
+    return `<option value="${escapeHtml(value)}" ${value === selectedValue ? 'selected' : ''}>${escapeHtml(value)}</option>`
+  }).join('')
+}
+
+function carOptionSelectOptionsHtml(selectedValue = '不使用') {
+  const selected = cleanCalendarSummaryPart(selectedValue) || '不使用'
+  const options = ensureOptionListIncludesSelected(getManagedListOption('carOptions', carOptions), selected, ['不使用'])
+  return rawOptionHtml(options, selected)
+}
+/* FOR-e V002-1H-stable-1-3ci END - shared option select helpers */
+
 
 /* FOR-e V002-1H-8-1 START - edit form category sync */
 function splitMultiValue(value) {
@@ -25339,7 +25433,7 @@ function openScheduleModal(defaults = {}) {
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
   const leaveTypeOptions = isGeneralStaffOverviewCreateMode() ? generalStaffOverviewLeaveMeetingTypes : getManagedLeaveMeetingTypes()
   const leaveOptions = leaveTypeOptions.map(item => `<option value="${item}">${item}</option>`).join('')
-  const carSelectOptions = getManagedListOption('carOptions', carOptions).map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
+  const carSelectOptions = carOptionSelectOptionsHtml('不使用')
   const supervisorOptions = supervisorSelectOptionsHtml()
   const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
   const weekdayChecks = weekdays.map(([value, label]) => `
@@ -27262,7 +27356,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const serviceReminderOptions = serviceReminderOptionsHtml(editIsReminderType ? normalizedEditServiceType : '--')
   const editServiceExtraItems = splitMultiValue(row.sub_type || '')
   const editServiceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes(), editServiceExtraItems, 'sub_type')
-  const carSelectOptions = optionHtml(getManagedListOption('carOptions', carOptions), row.car_no || '不使用')
+  const carSelectOptions = carOptionSelectOptionsHtml(row.car_no || '不使用')
   const managedTodoItemsForEdit = getManagedTodoItems()
   const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
   const currentAdministrativeReminderValue = isAdministrativeReminderCategoryName(editNormalizedCategory || editRawCategory || row.category || row.schedule_type) ? (row.sub_type || getNoteValue(row, '提醒項目') || '') : ''
@@ -27292,7 +27386,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const editServiceAdminChecks = administrativeStaffCheckboxesHtml(editServiceAdminStaffIds, 'edit_service_admin_staff_ids')
   const isMaintenanceActiveIds = getActiveAssigneeIds(row)
   const maintenanceCarValue = row.car_no || row.customer_name || row.sub_type || '不使用'
-  const maintenanceCarOptions = optionHtml(getManagedListOption('carOptions', carOptions), maintenanceCarValue)
+  const maintenanceCarOptions = carOptionSelectOptionsHtml(maintenanceCarValue)
   const maintenanceStartDate = row.start_date || todayString()
   const maintenanceReturnDate = row.end_date || maintenanceStartDate
   const maintenanceReplacementCar = getLineNoteValue(row, '保養期間代步車')

@@ -27972,3 +27972,20 @@ body,
   word-break: break-word !important;
 }
 /* FOR-e V002-1H-stable-1-3cf END - transfer reminder title and handling title only */
+
+
+/* FOR-e V002-1H-stable-1-3ci START - vehicle maintenance replacement line */
+.vehicle-maintenance-replacement-line {
+  display: block;
+  font-weight: 850;
+  color: #334155;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.week-schedule-card .vehicle-maintenance-replacement-line,
+.schedule-card .vehicle-maintenance-replacement-line {
+  margin-top: 2px;
+}
+/* FOR-e V002-1H-stable-1-3ci END - vehicle maintenance replacement line */
