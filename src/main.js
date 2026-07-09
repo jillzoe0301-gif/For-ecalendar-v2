@@ -170,11 +170,20 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cj END - phone assistance reminder color return confirm replacement style */
 
+
+/* FOR-e V002-1H-stable-1-3cl START - factory station title and admin reminder complete */
+/*
+  V002-1H-stable-1-3cl｜駐廠卡片標題與辦件提醒完成
+  - 駐廠行程卡片標題顯示：駐廠：區域 / 客戶名稱 / 標題。
+  - 辦件提醒查看時可按「已完成」，並可填寫非必填備註說明。
+*/
+/* FOR-e V002-1H-stable-1-3cl END - factory station title and admin reminder complete */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ck'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ck'
+const APP_VERSION = 'V002-1H-stable-1-3cl'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cl'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
 
@@ -2670,6 +2679,115 @@ function canCompleteSchedule(row) {
   return row.creator_staff_id === currentProfile.staff_id || isAssignedToMe(row)
 }
 
+
+/* FOR-e V002-1H-stable-1-3cl START - administrative reminder complete from detail */
+function canCompleteAdministrativeReminderSchedule(row = {}) {
+  if (!currentProfile || !row) return false
+  if (!isAdministrativeReminderSchedule(row)) return false
+  const statusText = String(row.status || '').trim()
+  if (['已完成', '完成', '取消', '已取消', '已刪除', '刪除'].includes(statusText)) return false
+  if (canManageAllSchedules()) return true
+  return String(row.creator_staff_id || '').trim() === String(currentProfile.staff_id || '').trim() || isAssignedToMe(row)
+}
+
+function setAdministrativeReminderCompleteNote(noteText = '', resultText = '') {
+  const cleaned = removeNoteLabels(noteText, ['完成備註', '處理備註', '備註說明'])
+  const result = cleanCalendarSummaryPart(resultText)
+  return [cleaned, result ? `完成備註：${result}` : '']
+    .map(item => String(item || '').trim())
+    .filter(Boolean)
+    .join('｜') || null
+}
+
+async function completeAdministrativeReminderSchedule(scheduleId = '', resultText = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canCompleteAdministrativeReminderSchedule(row)) return denyPermission('你沒有完成此辦件提醒的權限。')
+
+  const nextNote = setAdministrativeReminderCompleteNote(row.sub_type_note, resultText)
+  let rpcError = null
+  const rpcResult = await supabase.rpc('complete_schedule', { target_schedule_id: scheduleId })
+  rpcError = rpcResult?.error || null
+
+  if (rpcError) {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ status: '已完成', sub_type_note: nextNote })
+      .eq('schedule_id', scheduleId)
+    if (error) {
+      alert('完成辦件提醒失敗：' + error.message)
+      return
+    }
+  } else if (nextNote !== row.sub_type_note) {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ sub_type_note: nextNote })
+      .eq('schedule_id', scheduleId)
+    if (error) {
+      console.warn('辦件提醒完成備註更新失敗', error)
+    }
+  }
+
+  await supabase.from('audit_logs').insert({
+    operated_by_profile_id: currentProfile.profile_id,
+    operated_by_staff_id: currentProfile.staff_id,
+    operated_by_name: currentProfile.name || currentProfile.email,
+    action_type: '完成',
+    source_type: 'schedule',
+    source_id: scheduleId,
+    note: `辦件提醒已完成${cleanCalendarSummaryPart(resultText) ? '｜備註：' + cleanCalendarSummaryPart(resultText) : ''}`
+  })
+
+  await refreshData()
+  renderApp()
+}
+
+function openAdministrativeReminderCompleteModal(scheduleId = '') {
+  const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canCompleteAdministrativeReminderSchedule(row)) return denyPermission('你沒有完成此辦件提醒的權限。')
+
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop schedule-view-backdrop'
+  modal.innerHTML = `
+    <div class="modal-panel detail-panel administrative-reminder-complete-panel">
+      <div class="modal-header">
+        <h3>辦件提醒已完成</h3>
+        <button class="icon-btn" id="closeAdminReminderCompleteModalBtn" type="button">×</button>
+      </div>
+      <div class="detail-grid">
+        <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || '辦件提醒')}</strong></div>
+        <div><span>日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
+        <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
+      </div>
+      <form id="adminReminderCompleteForm" class="form-grid">
+        <label class="span-2">
+          備註說明 <small class="muted">可不填</small>
+          <textarea name="complete_note" rows="4" placeholder="可輸入完成備註或處理說明，非必填。"></textarea>
+        </label>
+        <div class="notice span-2">備註說明可不填；按下確認後，此辦件提醒會標記為已完成。</div>
+        <div class="modal-actions span-2">
+          <button type="button" class="secondary-btn" id="cancelAdminReminderCompleteBtn">取消</button>
+          <button type="submit" class="primary-btn">確認已完成</button>
+        </div>
+      </form>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  const close = () => modal.remove()
+  modal.querySelector('#closeAdminReminderCompleteModalBtn')?.addEventListener('click', close)
+  modal.querySelector('#cancelAdminReminderCompleteBtn')?.addEventListener('click', close)
+  modal.querySelector('#adminReminderCompleteForm')?.addEventListener('submit', async event => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const note = String(form.get('complete_note') || '').trim()
+    close()
+    await completeAdministrativeReminderSchedule(scheduleId, note)
+  })
+}
+/* FOR-e V002-1H-stable-1-3cl END - administrative reminder complete from detail */
+
 function canCancelSchedule(row) {
   if (!currentProfile || !row) return false
   if (row.status === '取消') return false
@@ -3264,6 +3382,7 @@ function getContinuationDisplayLabel(row = {}) {
 }
 
 function getFactoryStationContinuationTitle(row = {}) {
+  if (typeof getFactoryStationSimpleCardTitleText === 'function') return getFactoryStationSimpleCardTitleText(row)
   const typeLabel = '駐廠'
   const candidates = [
     row.title,
@@ -3279,7 +3398,7 @@ function getFactoryStationContinuationTitle(row = {}) {
       break
     }
   }
-  return title ? `${typeLabel}｜${title}` : typeLabel
+  return title ? `${typeLabel}：${title}` : typeLabel
 }
 
 function getContinuationDisplayTitle(row = {}) {
@@ -7883,7 +8002,34 @@ function pushUniqueCalendarSummaryPart(parts, value) {
   parts.push(clean)
 }
 
+function getFactoryStationSimpleCardTitleText(row = {}) {
+  const parts = []
+  const areaText = getCalendarSummaryAreaText(row)
+  const customerText = cleanCalendarSummaryPart(
+    row.customer_name ||
+    getCalendarSummaryNoteValue(row, '客戶名稱') ||
+    getCalendarSummaryNoteValue(row, '客戶') ||
+    getCalendarSummaryNoteValue(row, '區域 / 客戶')
+  )
+  const titleText = cleanCalendarSummaryPart(
+    sanitizeRepeatedTypeTitle('駐廠', sanitizeRepeatedTypeTitle(getScheduleDisplayType(row), row.title || ''))
+  )
+
+  pushUniqueCalendarSummaryPart(parts, areaText)
+  pushUniqueCalendarSummaryPart(parts, customerText)
+  pushUniqueCalendarSummaryPart(parts, titleText)
+
+  if (!parts.length) {
+    pushUniqueCalendarSummaryPart(parts, row.title || row.customer_name || getScheduleDisplayType(row) || '')
+  }
+
+  const summary = parts.join(' / ')
+  return summary ? `駐廠：${summary}` : '駐廠'
+}
+
 function getSimpleServiceGeneralCardSummary(row = {}) {
+  if (isFactoryStationSchedule(row)) return getFactoryStationSimpleCardTitleText(row)
+
   const parts = []
   const areaText = getCalendarSummaryAreaText(row)
   const customerText = cleanCalendarSummaryPart(
@@ -20073,8 +20219,8 @@ function renderServiceReminderScheduleCard(row = {}, occurrenceDate = '') {
   const occurrenceAttr = occurrenceDateValue ? ` data-occurrence-date="${escapeHtml(occurrenceDateValue)}"` : ''
   const hideReminderTime = shouldHideScheduleTimeForOccurrence(row, occurrenceDateValue)
   const isTransferTitleOnly = isTransferReminderTitleOnlySchedule(row)
-  const safeTitle = escapeHtml(sanitizeRepeatedTypeTitle(type, lines[0] || type) || type)
-  const previewLines = isTransferTitleOnly ? [] : lines.slice(1).filter(line => !String(line || '').includes('駐廠時間'))
+  const safeTitle = escapeHtml(isFactoryStation ? getFactoryStationSimpleCardTitleText(row) : (sanitizeRepeatedTypeTitle(type, lines[0] || type) || type))
+  const previewLines = isTransferTitleOnly || isFactoryStation ? [] : lines.slice(1).filter(line => !String(line || '').includes('駐廠時間'))
 
   if (isTransferTitleOnly) {
     return `
@@ -22308,7 +22454,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
-  const noCompletionControl = isNoCompletionControlSchedule(row)
+  const administrativeReminderCanComplete = canCompleteAdministrativeReminderSchedule(row)
+  const noCompletionControl = isNoCompletionControlSchedule(row) && !administrativeReminderCanComplete
   const serviceReminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
   const detailAddressText = getScheduleDetailAddressText(row)
   const detailContentText = getScheduleDetailContentText(row, detailAddressText)
@@ -22319,11 +22466,13 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const detailTimeText = formatTime(row) || '不指定'
   const detailTitleText = String(row.title || getScheduleDisplayType(row) || '-').trim() || '-'
   const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
-  const permissionNote = noCompletionControl
-    ? '此類行程只顯示在行事曆，不控管是否已完成。'
-    : (canModifySchedule(row)
-      ? '您可以管理此行程，包含修改內容與執行者。'
-      : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。')
+  const permissionNote = administrativeReminderCanComplete
+    ? '辦件提醒可標記為已完成；備註說明可不填。'
+    : (noCompletionControl
+      ? '此類行程只顯示在行事曆，不控管是否已完成。'
+      : (canModifySchedule(row)
+        ? '您可以管理此行程，包含修改內容與執行者。'
+        : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。'))
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop schedule-view-backdrop'
@@ -22381,6 +22530,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${canManageTodoNoteStatus(row) ? `<button type="button" class="primary-btn" id="detailTodoStatusBtn">修改狀態</button>` : ''}
         ${canPostponeTodoNoteSchedule(row) ? `<button type="button" class="secondary-btn" id="detailTodoPostponeBtn">延期</button>` : ''}
         ${isIncidentSchedule(row) && row.status !== '取消' && canManageIncidentAction(row) ? `<button type="button" class="primary-btn" id="detailIncidentNextFollowBtn">新增下次追蹤</button>` : ''}
+        ${administrativeReminderCanComplete ? `<button type="button" class="primary-btn" id="detailAdminReminderCompleteBtn">已完成</button>` : ''}
         ${!isTodoOrNoteSchedule(row) && canCompleteSchedule(row) ? `<button type="button" class="primary-btn" id="detailCompleteBtn">${isFieldScheduleRow(row) ? '已送件（完成）' : '已完成'}</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailNeedSupplementBtn">要補件</button>` : ''}
         ${isFieldScheduleRow(row) && row.status !== '取消' && canManageFieldResult(row) ? `<button type="button" class="secondary-btn field-result-btn" id="detailFieldAbnormalBtn">送件異常</button>` : ''}
@@ -22443,6 +22593,14 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
     incidentNextFollowBtn.addEventListener('click', () => {
       modal.remove()
       openIncidentNextTrackingModal(scheduleId)
+    })
+  }
+
+  const adminReminderCompleteBtn = document.querySelector('#detailAdminReminderCompleteBtn')
+  if (adminReminderCompleteBtn) {
+    adminReminderCompleteBtn.addEventListener('click', () => {
+      modal.remove()
+      openAdministrativeReminderCompleteModal(scheduleId)
     })
   }
 
