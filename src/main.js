@@ -157,6 +157,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cm END - reminder form field layout cleanup */
 
+/* FOR-e V002-1H-stable-1-3cn START - reminder form order and hidden fields refinement */
+/*
+  V002-1H-stable-1-3cn｜提醒類表單欄位順序與隱藏欄位補強
+  - 住變資訊提供 / 逃跑通知 / 轉出追蹤 / 驗證提醒 / 返台提醒：區域 / 客戶名稱 / 標題移到專用提醒欄位上方。
+  - 上述提醒類新增與修改不顯示公務車、是否有證件、服務紀錄單、服務紀錄單繳交日期。
+  - 電表提醒不顯示帶入內容說明與按鈕，也不顯示公務車 / 是否有證件。
+  - 翻譯文件、電話協助新增 / 修改 / 查看不顯示地址欄位。
+*/
+/* FOR-e V002-1H-stable-1-3cn END - reminder form order and hidden fields refinement */
+
 /* FOR-e V002-1P-181 START - meeting room assignee type guard */
 /* V002-1P-181：會議室與會人員同步遇到 schedule_assignees_type_check 時，不中斷會議室修改；顯示改以會議室與會設定為準。 */
 /* FOR-e V002-1P-181 END - meeting room assignee type guard */
@@ -192,8 +202,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cm'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cm'
+const APP_VERSION = 'V002-1H-stable-1-3cn'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cn'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
 
@@ -1238,6 +1248,8 @@ const serviceReminderTypes = [
 ]
 const legacyServiceReminderAliases = {
   '住變資訊': '住變資訊提供',
+  '住變資訊通知': '住變資訊提供',
+  '轉出通知': '轉出追蹤',
   '收': '收/簽收文件',
   '簽收文件': '收/簽收文件',
   '收送簽文件': '收/簽收文件'
@@ -22469,9 +22481,11 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const serviceReminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
   const detailAddressText = getScheduleDetailAddressText(row)
   const detailContentText = getScheduleDetailContentText(row, detailAddressText)
+  const detailServiceType = normalizeServiceTypeOption(row.schedule_type || row.sub_type || serviceReminderType || '')
+  const hideAddressForSimplifiedService = row.category === '服務行程' && isSimplifiedServiceFieldType(detailServiceType)
   const showCustomerDetail = serviceReminderType !== '電表提醒' && row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
   const showLocationDetail = row.category !== '服務行程' && Boolean(row.location_name)
-  const showAddressDetail = Boolean(detailAddressText) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供')
+  const showAddressDetail = Boolean(detailAddressText) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供') && !hideAddressForSimplifiedService
   const detailDateText = `${row.start_date || '-'}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + row.end_date : ''}`
   const detailTimeText = formatTime(row) || '不指定'
   const detailTitleText = String(row.title || getScheduleDisplayType(row) || '-').trim() || '-'
@@ -23345,6 +23359,59 @@ function isSimplifiedServiceFieldType(value) {
   return simplifiedServiceFieldTypes.includes(normalizeServiceTypeOption(value))
 }
 
+function getServiceFormActiveType(form, fallbackType = '') {
+  if (!form) return normalizeServiceTypeOption(fallbackType)
+  try {
+    return normalizeServiceTypeOption(getServiceScheduleTypeFromForm(form) || fallbackType)
+  } catch (error) {
+    return normalizeServiceTypeOption(fallbackType)
+  }
+}
+
+function shouldHideServiceAddressForType(value = '') {
+  return isSimplifiedServiceFieldType(value)
+}
+
+function shouldHideServiceExtraFieldsForType(value = '') {
+  const normalized = normalizeServiceTypeOption(value)
+  return isCompactSpecialScheduleType(normalized) || isSimplifiedServiceFieldType(normalized)
+}
+
+function setFormNodeHiddenForServiceLayout(node, hidden) {
+  if (!node) return
+  setCompactHidden(node, hidden)
+  node.classList.toggle('hidden', hidden)
+}
+
+function applyServiceFieldVisibilityRefinements(form, activeType = '') {
+  if (!form) return
+  const currentCategory = normalizeCreateScheduleCategory(form.dataset.currentCategory || form.querySelector('#categorySelect')?.value || form.querySelector('#editCategorySelect')?.value || '').category
+  if (currentCategory !== '服務行程') return
+  const normalized = getServiceFormActiveType(form, activeType)
+  const hideExtra = shouldHideServiceExtraFieldsForType(normalized)
+  const hideAddress = shouldHideServiceAddressForType(normalized) || isCompactSpecialScheduleType(normalized)
+  const hideMeterTemplate = normalized === '電表提醒'
+
+  const recordBox = form.querySelector('.service-record-box')
+  const submittedDateLabel = form.querySelector('input[name="service_record_submitted_date"]')?.closest('label')
+  const vehicleDocRow = form.querySelector('.vehicle-doc-row')
+  const carLabel = form.querySelector('select[name="car_no"]')?.closest('label')
+  const hasDocumentsLabel = form.querySelector('select[name="has_documents"]')?.closest('label')
+  ;[recordBox, submittedDateLabel, vehicleDocRow, carLabel, hasDocumentsLabel].filter(Boolean).forEach(node => {
+    setFormNodeHiddenForServiceLayout(node, hideExtra)
+  })
+
+  form.querySelectorAll('.service-general-address-field').forEach(block => {
+    setFormNodeHiddenForServiceLayout(block, hideAddress)
+  })
+
+  form.querySelectorAll('.schedule-template-row').forEach(block => {
+    if (block.querySelector('#applyScheduleTypeContentBtn')) setFormNodeHiddenForServiceLayout(block, hideMeterTemplate)
+  })
+  const applyScheduleTypeContentBtn = form.querySelector('#applyScheduleTypeContentBtn')
+  if (applyScheduleTypeContentBtn) applyScheduleTypeContentBtn.classList.toggle('hidden', hideMeterTemplate)
+}
+
 function getVisibleServiceExtraBlock(form, activeType = '') {
   if (!form) return null
   const normalized = normalizeServiceTypeOption(activeType)
@@ -23382,8 +23449,9 @@ function applySimplifiedServiceFieldVisibility(form, activeType = '') {
   const vehicleDocRow = form.querySelector('.vehicle-doc-row')
   const carLabel = form.querySelector('select[name="car_no"]')?.closest('label')
   const hasDocumentsLabel = form.querySelector('select[name="has_documents"]')?.closest('label')
-  ;[recordBox, submittedDateLabel, vehicleDocRow, carLabel, hasDocumentsLabel].filter(Boolean).forEach(node => {
-    setCompactHidden(node, shouldSimplify)
+  const addressLabel = form.querySelector('.service-general-address-field')
+  ;[recordBox, submittedDateLabel, vehicleDocRow, carLabel, hasDocumentsLabel, addressLabel].filter(Boolean).forEach(node => {
+    setFormNodeHiddenForServiceLayout(node, shouldSimplify)
   })
   if (shouldSimplify) resetSimplifiedServiceHiddenFields(form)
 }
@@ -23393,9 +23461,11 @@ function positionCreateServiceSpecialFields(form, activeType = '') {
   const activeBlock = getVisibleServiceExtraBlock(form, activeType)
   if (!activeBlock) return
   const dateGroup = form.querySelector('.schedule-date-cycle-group')
+  const serviceLocation = form.querySelector('[data-section="service-location"]')
   const notifySupervisor = form.querySelector('.notify-supervisor-field')
-  if (isNoCommonDateTimeReminderType(activeType) && dateGroup) {
-    dateGroup.insertAdjacentElement('afterend', activeBlock)
+  if (isNoCommonDateTimeReminderType(activeType)) {
+    const anchor = serviceLocation || dateGroup
+    if (anchor) anchor.insertAdjacentElement('afterend', activeBlock)
     return
   }
   if (normalizeServiceTypeOption(activeType) === '電表提醒' && notifySupervisor) {
@@ -23408,9 +23478,11 @@ function positionEditServiceSpecialFields(form, activeType = '') {
   const activeBlock = getVisibleServiceExtraBlock(form, activeType)
   if (!activeBlock) return
   const modeBox = form.querySelector('.edit-schedule-mode-box')
+  const serviceLocation = form.querySelector('#editServiceLocationBlock')
   const notifySupervisor = form.querySelector('.edit-notify-supervisor-field')
-  if (isNoCommonDateTimeReminderType(activeType) && modeBox) {
-    modeBox.insertAdjacentElement('afterend', activeBlock)
+  if (isNoCommonDateTimeReminderType(activeType)) {
+    const anchor = serviceLocation || modeBox
+    if (anchor) anchor.insertAdjacentElement('afterend', activeBlock)
     return
   }
   if (normalizeServiceTypeOption(activeType) === '電表提醒' && notifySupervisor) {
@@ -23520,6 +23592,7 @@ function applyCreateCompactSpecialFields() {
 
   applySimplifiedServiceFieldVisibility(form, activeType)
   positionCreateServiceSpecialFields(form, activeType)
+  applyServiceFieldVisibilityRefinements(form, activeType)
 
   const applyScheduleTypeContentBtn = form.querySelector('#applyScheduleTypeContentBtn')
   if (applyScheduleTypeContentBtn) applyScheduleTypeContentBtn.classList.toggle('hidden', activeType === '電表提醒')
@@ -23576,6 +23649,7 @@ function applyEditCompactSpecialFields() {
 
   applySimplifiedServiceFieldVisibility(form, activeType)
   positionEditServiceSpecialFields(form, activeType)
+  applyServiceFieldVisibilityRefinements(form, activeType)
 
   if (activeType === '電表提醒') {
     const locationName = form.querySelector('[name="location_name"]')
