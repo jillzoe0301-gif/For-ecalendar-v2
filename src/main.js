@@ -159,13 +159,24 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 /* Repair: restore valid src/main.js top-level syntax after failed Vercel build. */
 /* FOR-e V002-1K-1-3 END - build repair */
 
+
+/* FOR-e V002-1H-stable-1-3cj START - phone assistance reminder color return confirm replacement style */
+/*
+  V002-1H-stable-1-3cj｜電話協助提醒卡、顏色設定、返台確認、代步車樣式
+  - 電話協助提醒卡片統一為服務行程簡化格式，主標題加上「電話協助：」。
+  - 顏色設定新增「電話協助」，電話協助卡片可套用個人化顏色。
+  - 返台確認（今天返台）提示文字可自然顯示，不再壓縮或裁切。
+  - 公務車保養代步車資訊使用時間色 #4274D9 並加粗。
+*/
+/* FOR-e V002-1H-stable-1-3cj END - phone assistance reminder color return confirm replacement style */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ci'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ci'
+const APP_VERSION = 'V002-1H-stable-1-3cj'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cj'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '公務車保養卡片顯示代步車資訊，服務行程公務車選項可修改，選項管理同步更新，電話協助卡片套用服務行程樣式。'
+const SYSTEM_VERSION_NOTE = '電話協助提醒卡片套用服務行程形式，可設定電話協助顏色，返台確認文字不壓縮，代步車文字使用時間色加粗。'
 /* V002-1P-251：清理行事曆標籤膠囊背景；連續行程只讓項目保留橢圓背景，標題與時間純文字同排顯示。 */
 
 const pages = [
@@ -7883,7 +7894,11 @@ function getSimpleServiceGeneralCardSummary(row = {}) {
     pushUniqueCalendarSummaryPart(parts, row.title || row.customer_name || displayType || '-')
   }
 
-  return parts.join(' / ') || '-'
+  const summary = parts.join(' / ') || '-'
+  if (!isPhoneAssistanceSchedule(row)) return summary
+  const cleanedSummary = cleanCalendarSummaryPart(summary) || cleanCalendarSummaryPart(row.title) || '電話協助'
+  if (/^電話協助\s*[：:]/.test(cleanedSummary)) return cleanedSummary
+  return `電話協助：${cleanedSummary}`
 }
 
 function renderSimpleServiceGeneralCardTitle(row = {}, className = 'for-e-card-title', tagName = 'strong') {
@@ -11963,6 +11978,7 @@ function getScheduleColorDefinitions() {
     { group: '一般行程類', key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
 
     { group: '服務與外務類', key: '服務行程', label: '服務行程', defaultColor: '#4E71FF' },
+    { group: '服務與外務類', key: '電話協助', label: '電話協助', defaultColor: '#4E71FF' },
     { group: '服務與外務類', key: '駐廠', label: '駐廠', defaultColor: '#C7C8CC' },
     { group: '服務與外務類', key: '外務行程', label: '外務行程', defaultColor: '#FFCF95' },
     { group: '服務與外務類', key: '外務明細', label: '外務明細', defaultColor: '#FFCF95' },
@@ -12079,6 +12095,7 @@ function getScheduleColorSettings() {
     if (String(saved['辦件提醒']).toUpperCase() === '#8CA9FF') saved['辦件提醒'] = '#C5D89D'
     if (!saved['返台提醒'] || String(saved['返台提醒']).toUpperCase() === '#F7DD7D') saved['返台提醒'] = '#67C090'
     if (!saved['駐廠']) saved['駐廠'] = '#C7C8CC'
+    if (!saved['電話協助']) saved['電話協助'] = saved['服務行程'] || '#4E71FF'
 
     const serviceReminderColorDefaults = {
       '逃跑通知': '#FF8080',
@@ -12169,6 +12186,7 @@ function getScheduleColorKey(row) {
   if (String(row?.category || '') === '公務車保養' || String(row?.schedule_type || '') === '公務車保養') return '公務車保養'
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
+  if (typeof isPhoneAssistanceSchedule === 'function' && isPhoneAssistanceSchedule(row)) return '電話協助'
   if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '辦件提醒'
   if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
   if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return '駐廠'

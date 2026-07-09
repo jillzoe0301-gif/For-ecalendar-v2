@@ -27989,3 +27989,69 @@ body,
   margin-top: 2px;
 }
 /* FOR-e V002-1H-stable-1-3ci END - vehicle maintenance replacement line */
+
+
+/* FOR-e V002-1H-stable-1-3cj START - phone assistance return confirm replacement style */
+.simple-service-general-week-card .simple-service-general-title,
+.simple-service-general-list-card .simple-service-general-list-title,
+.simple-service-general-search-row .search-result-title,
+.simple-service-general-assigned-row .assigned-tracking-title {
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+.return-reminder-day-mark.is-return-confirm,
+.week-day-cell .return-reminder-day-mark.is-return-confirm,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm,
+.month-day-cell .return-reminder-day-mark.is-return-confirm,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 5px 6px !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > span,
+.week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.month-day-cell .return-reminder-day-mark.is-return-confirm > span,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm > span {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 26px !important;
+  padding: 4px 9px !important;
+  line-height: 1.28 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  transform: none !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
+}
+
+.return-reminder-day-mark.is-return-confirm > strong,
+.week-day-cell .return-reminder-day-mark.is-return-confirm > strong,
+.field-week-day-cell .return-reminder-day-mark.is-return-confirm > strong,
+.month-day-cell .return-reminder-day-mark.is-return-confirm > strong,
+.meeting-week-day-cell .return-reminder-day-mark.is-return-confirm > strong {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.vehicle-maintenance-replacement-line,
+.week-schedule-card .vehicle-maintenance-replacement-line,
+.schedule-card .vehicle-maintenance-replacement-line,
+.search-result-meta .vehicle-maintenance-replacement-line {
+  color: #4274D9 !important;
+  font-weight: 700 !important;
+}
+/* FOR-e V002-1H-stable-1-3cj END - phone assistance return confirm replacement style */
