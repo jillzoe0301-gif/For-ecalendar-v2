@@ -28108,3 +28108,52 @@ body,
   line-height: inherit !important;
 }
 /* FOR-e V002-1H-stable-1-3ck END - return confirm label size and pill width */
+
+
+/* FOR-e V002-1H-stable-1-3cp START - page switch performance stable */
+.page-switch-loading-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 120px;
+  padding: 22px;
+  border: 1px solid rgba(66, 116, 217, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(66, 116, 217, 0.08), rgba(255, 255, 255, 0.94));
+  color: #1f2a44;
+}
+
+.page-switch-loading-card strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.page-switch-loading-card span {
+  display: block;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.page-switch-loading-spinner {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid rgba(66, 116, 217, 0.18);
+  border-top-color: #4274D9;
+  animation: for-e-page-loading-spin 0.85s linear infinite;
+}
+
+@keyframes for-e-page-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .page-switch-loading-card {
+    min-height: 96px;
+    padding: 18px;
+  }
+}
+/* FOR-e V002-1H-stable-1-3cp END - page switch performance stable */

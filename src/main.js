@@ -179,6 +179,16 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 /* Repair: restore valid src/main.js top-level syntax after failed Vercel build. */
 /* FOR-e V002-1K-1-3 END - build repair */
 
+/* FOR-e V002-1H-stable-1-3cp START - page switch performance stable */
+/*
+  V002-1H-stable-1-3cp｜分頁切換效能穩定版
+  - 點選分頁先立即切換畫面，不等待 schedules / background API 完成。
+  - 依目前分頁日期範圍懶載入行程，避免切頁時強制撈全部歷史資料。
+  - staff / departments / options / 顏色與公告等共用設定做短期快取，避免每次切頁重抓。
+  - 防止快速連點造成舊查詢覆蓋新畫面。
+*/
+/* FOR-e V002-1H-stable-1-3cp END - page switch performance stable */
+
 
 /* FOR-e V002-1H-stable-1-3cj START - phone assistance reminder color return confirm replacement style */
 /*
@@ -202,8 +212,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3co'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3co'
+const APP_VERSION = 'V002-1H-stable-1-3cp-performance-stable'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cp'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
 
@@ -1759,6 +1769,13 @@ let userProfilesError = ''
 let loadingSchedules = false
 let schedulesError = ''
 let schedulesLoadState = { mode: 'full', dateStart: '', dateEnd: '' }
+let scheduleLoadRequestSeq = 0
+let pageDataLoadingKey = ''
+let pageDataLoadingMessage = ''
+let pageDataLoadingToken = 0
+let coreSharedDataLoadedAt = 0
+let coreSharedDataLoadingPromise = null
+const CORE_SHARED_DATA_CACHE_MS = 5 * 60 * 1000
 let saving = false
 let appSettings = {}
 let appSettingsError = ''
@@ -4361,8 +4378,12 @@ async function loadProfile(options = {}) {
 let backgroundDataLoadingPromise = null
 let backgroundDataLoaded = false
 
+function shouldRenderAfterBackgroundDataLoadForPage(pageKey = currentPage) {
+  return ['users', 'audit', 'serviceRecord', 'recordSubmit', 'health'].includes(pageKey)
+}
+
 function shouldRenderAfterBackgroundDataLoad() {
-  return ['users', 'audit', 'serviceRecord', 'recordSubmit', 'health'].includes(currentPage)
+  return shouldRenderAfterBackgroundDataLoadForPage(currentPage)
 }
 
 function startBackgroundDataLoad() {
@@ -4391,6 +4412,174 @@ async function ensureBackgroundDataLoaded() {
   await startBackgroundDataLoad()
 }
 
+
+function getDateKeyWithOffset(baseDateKey = todayString(), deltaDays = 0) {
+  const baseDate = getDateFromKey(baseDateKey) || new Date()
+  baseDate.setDate(baseDate.getDate() + Number(deltaDays || 0))
+  return toDateKey(baseDate)
+}
+
+function getRangeOptionsFromDates(dates = [], scope = 'range') {
+  const keys = (dates || []).map(date => toDateKey(date)).filter(Boolean).sort()
+  if (!keys.length) {
+    const today = todayString()
+    return { scope, dateStart: today, dateEnd: today }
+  }
+  return { scope, dateStart: keys[0], dateEnd: keys[keys.length - 1] }
+}
+
+function getPersonalPageScheduleLoadOptions(pageKey = currentPage) {
+  const today = todayString()
+  return {
+    scope: `${pageKey || 'personal'}-active-range`,
+    dateStart: getDateKeyWithOffset(today, -31),
+    dateEnd: getDateKeyWithOffset(today, 120)
+  }
+}
+
+function getFieldScheduleLoadOptions() {
+  return getRangeOptionsFromDates(getFieldCalendarDates(), `field-${fieldCalendarViewMode || 'calendar'}`)
+}
+
+function getMeetingScheduleLoadOptions() {
+  return getRangeOptionsFromDates(getMeetingCalendarDates(), `meeting-${meetingCalendarViewMode || 'calendar'}`)
+}
+
+function getSearchScheduleLoadOptions() {
+  const startDate = String(searchFilters.startDate || '').trim()
+  const endDate = String(searchFilters.endDate || '').trim()
+  const isStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate)
+  const isEnd = /^\d{4}-\d{2}-\d{2}$/.test(endDate)
+  if (isStart && isEnd) return { scope: 'search-date-range', dateStart: startDate, dateEnd: endDate }
+  if (isStart) return { scope: 'search-date-range', dateStart: startDate, dateEnd: getDateKeyWithOffset(startDate, 120) }
+  if (isEnd) return { scope: 'search-date-range', dateStart: getDateKeyWithOffset(endDate, -120), dateEnd }
+  return getPersonalPageScheduleLoadOptions('search')
+}
+
+function getStatsScheduleLoadOptions() {
+  const today = todayString()
+  if (statsFilters.period === '當月') {
+    const month = today.slice(0, 7)
+    const dates = getDatesByMonthValue(month)
+    return getRangeOptionsFromDates(dates, 'stats-month')
+  }
+  if (statsFilters.period === '當年') {
+    const year = today.slice(0, 4)
+    return { scope: 'stats-year', dateStart: `${year}-01-01`, dateEnd: `${year}-12-31` }
+  }
+  if (statsFilters.startDate || statsFilters.endDate) {
+    const dateStart = statsFilters.startDate || getDateKeyWithOffset(statsFilters.endDate || today, -365)
+    const dateEnd = statsFilters.endDate || getDateKeyWithOffset(statsFilters.startDate || today, 365)
+    return { scope: 'stats-custom', dateStart, dateEnd }
+  }
+  return getPersonalPageScheduleLoadOptions('stats')
+}
+
+function getScheduleLoadOptionsForPage(pageKey = currentPage) {
+  if (pageKey === 'scheduleOverview') return getOverviewScheduleLoadOptions()
+  if (pageKey === 'fieldSchedule' || pageKey === 'fieldDetail') return getFieldScheduleLoadOptions()
+  if (pageKey === 'meetingRoom') return getMeetingScheduleLoadOptions()
+  if (pageKey === 'personalSchedule' || pageKey === 'personalTodo' || pageKey === 'assignedTracking') return getPersonalPageScheduleLoadOptions(pageKey)
+  if (pageKey === 'search') return getSearchScheduleLoadOptions()
+  if (pageKey === 'stats') return getStatsScheduleLoadOptions()
+  return null
+}
+
+function getScheduleLoadOptionsForCurrentPage() {
+  return getScheduleLoadOptionsForPage(currentPage)
+}
+
+function shouldLoadSchedulesForOptions(options = null) {
+  if (!options) return false
+  const dateStart = String(options.dateStart || '').trim()
+  const dateEnd = String(options.dateEnd || '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStart) && /^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
+    return !schedulesRangeCovers(dateStart, dateEnd)
+  }
+  return schedulesLoadState.mode !== 'full'
+}
+
+function getPageDataLoadingMessage(pageKey = currentPage) {
+  const page = pages.find(item => item.key === pageKey)
+  return `${page?.label || '此頁'}載入中...`
+}
+
+function isCurrentPageDataLoading() {
+  return Boolean(pageDataLoadingKey && pageDataLoadingKey === currentPage)
+}
+
+function renderPageDataLoading() {
+  return `
+    <div class="page-switch-loading-card">
+      <div class="page-switch-loading-spinner" aria-hidden="true"></div>
+      <div>
+        <strong>${escapeHtml(pageDataLoadingMessage || getPageDataLoadingMessage(currentPage))}</strong>
+        <span>已先切換分頁，正在載入此頁需要的資料。</span>
+      </div>
+    </div>
+  `
+}
+
+function setPageDataLoading(pageKey = currentPage, message = '') {
+  pageDataLoadingKey = pageKey
+  pageDataLoadingMessage = message || getPageDataLoadingMessage(pageKey)
+}
+
+function clearPageDataLoading(pageKey = currentPage, token = pageDataLoadingToken) {
+  if (token !== pageDataLoadingToken) return
+  if (pageDataLoadingKey && pageDataLoadingKey !== pageKey) return
+  pageDataLoadingKey = ''
+  pageDataLoadingMessage = ''
+}
+
+async function loadCoreSharedData(options = {}) {
+  const force = options.force === true
+  const isFresh = coreSharedDataLoadedAt && (Date.now() - coreSharedDataLoadedAt < CORE_SHARED_DATA_CACHE_MS)
+  if (!force && isFresh && staffList.length) return
+  if (coreSharedDataLoadingPromise) return coreSharedDataLoadingPromise
+
+  coreSharedDataLoadingPromise = Promise.all([loadAppSettings(), loadStaff()])
+    .then(result => {
+      coreSharedDataLoadedAt = Date.now()
+      return result
+    })
+    .finally(() => {
+      coreSharedDataLoadingPromise = null
+    })
+
+  return coreSharedDataLoadingPromise
+}
+
+async function ensurePageDataLoaded(pageKey = currentPage, token = pageDataLoadingToken) {
+  const scheduleOptions = getScheduleLoadOptionsForPage(pageKey)
+  try {
+    const tasks = []
+    if (shouldLoadSchedulesForOptions(scheduleOptions)) tasks.push(loadSchedules(scheduleOptions))
+    if (shouldRenderAfterBackgroundDataLoadForPage(pageKey) && !backgroundDataLoaded) tasks.push(ensureBackgroundDataLoaded())
+    if (tasks.length) await Promise.allSettled(tasks)
+  } finally {
+    if (token === pageDataLoadingToken && currentPage === pageKey) {
+      clearPageDataLoading(pageKey, token)
+      renderApp()
+    }
+  }
+}
+
+function renderAppAndEnsurePageData(pageKey = currentPage) {
+  const token = ++pageDataLoadingToken
+  const scheduleOptions = getScheduleLoadOptionsForPage(pageKey)
+  const needsSchedules = shouldLoadSchedulesForOptions(scheduleOptions)
+  const needsBackground = shouldRenderAfterBackgroundDataLoadForPage(pageKey) && !backgroundDataLoaded
+
+  if (needsSchedules || needsBackground) setPageDataLoading(pageKey)
+  else clearPageDataLoading(pageKey, token)
+
+  renderApp()
+
+  if (needsSchedules || needsBackground) ensurePageDataLoaded(pageKey, token)
+  else if (shouldRenderAfterBackgroundDataLoadForPage(pageKey) && !backgroundDataLoaded) startBackgroundDataLoad()
+}
+
 async function refreshData(options = {}) {
   const forceFull = options.forceFull === true
   loadingSchedules = true
@@ -4398,7 +4587,7 @@ async function refreshData(options = {}) {
 
   // 登入後先載入畫面必要資料，避免手機 / 平板卡在 audit_logs、service_records、birthday_wishes 等非首頁資料。
   const scheduleOptions = forceFull ? {} : (options.scheduleOptions || getScheduleLoadOptionsForCurrentPage())
-  await Promise.all([loadAppSettings(), loadStaff(), loadSchedules(scheduleOptions)])
+  await Promise.all([loadCoreSharedData({ force: forceFull || options.forceCore === true }), loadSchedules(scheduleOptions)])
 
   if (forceFull) {
     await Promise.allSettled([loadUserProfiles(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
@@ -5240,6 +5429,7 @@ async function loadStaff() {
 }
 
 async function loadSchedules(options = {}) {
+  const requestSeq = ++scheduleLoadRequestSeq
   loadingSchedules = true
   schedulesError = ''
 
@@ -5263,6 +5453,10 @@ async function loadSchedules(options = {}) {
   const { data, error } = await query
     .order('start_date', { ascending: true })
     .order('start_time', { ascending: true })
+
+  if (requestSeq !== scheduleLoadRequestSeq) {
+    return
+  }
 
   if (error) {
     console.error(error)
@@ -5408,15 +5602,11 @@ function renderApp() {
   initSearchableChoicePanels(document)
 
   document.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      currentPage = btn.dataset.page
-      if (currentPage === 'scheduleOverview') {
-        await ensureOverviewSchedulesLoadedForCurrentRange()
-      } else if (schedulesLoadState.mode !== 'full') {
-        await loadSchedules()
-      }
-      if (shouldRenderAfterBackgroundDataLoad() && !backgroundDataLoaded) startBackgroundDataLoad()
-      renderApp()
+    btn.addEventListener('click', () => {
+      const nextPage = btn.dataset.page
+      if (!nextPage || nextPage === currentPage) return
+      currentPage = nextPage
+      renderAppAndEnsurePageData(nextPage)
     })
   })
 
@@ -5466,7 +5656,7 @@ function renderApp() {
         startDate: form.get('startDate') || '',
         endDate: form.get('endDate') || ''
       }
-      renderApp()
+      renderAppAndEnsurePageData('search')
     })
   }
 
@@ -5556,13 +5746,13 @@ function renderApp() {
     overviewMonthToolbarInput.addEventListener('change', event => {
       overviewDisplayMonth = normalizeMonthValue(event.target.value || overviewDisplayMonth || getCurrentMonthValue())
       saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
   const overviewFilterForm = document.querySelector('#overviewFilterForm')
   if (overviewFilterForm) {
-    overviewFilterForm.addEventListener('submit', async event => {
+    overviewFilterForm.addEventListener('submit', event => {
       event.preventDefault()
       const form = new FormData(event.target)
       overviewDisplayMonth = normalizeMonthValue(form.get('overviewMonth') || overviewDisplayMonth || getCurrentMonthValue())
@@ -5576,10 +5766,9 @@ function renderApp() {
       if (overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
         overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: 'all' })
       }
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5588,10 +5777,9 @@ function renderApp() {
     resetOverviewFilterBtn.addEventListener('click', async () => {
       resetOverviewToPersonalWeek({ persist: false })
       clearOverviewStatePreference()
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5619,12 +5807,11 @@ function renderApp() {
           staffIds: []
         })
       }
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
       if (groupId === 'all') clearOverviewStatePreference()
       else saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   })
 
@@ -5635,34 +5822,31 @@ function renderApp() {
 
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
   if (prevWeekBtn) {
-    prevWeekBtn.addEventListener('click', async () => {
+    prevWeekBtn.addEventListener('click', () => {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), -1)
       else overviewWeekOffset -= 1
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
   const thisWeekBtn = document.querySelector('#thisWeekBtn')
   if (thisWeekBtn) {
-    thisWeekBtn.addEventListener('click', async () => {
+    thisWeekBtn.addEventListener('click', () => {
       overviewWeekOffset = 0
       overviewDisplayMonth = getCurrentMonthValue()
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
   const nextWeekBtn = document.querySelector('#nextWeekBtn')
   if (nextWeekBtn) {
-    nextWeekBtn.addEventListener('click', async () => {
+    nextWeekBtn.addEventListener('click', () => {
       if (['月份顯示', '個人當月'].includes(getOverviewViewMode())) overviewDisplayMonth = shiftMonthValue(getOverviewActiveMonth(), 1)
       else overviewWeekOffset += 1
-      await ensureOverviewSchedulesLoadedForCurrentRange()
       saveOverviewStatePreference()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5673,7 +5857,7 @@ function renderApp() {
   if (fieldCalendarViewModeSelect) {
     fieldCalendarViewModeSelect.addEventListener('change', event => {
       fieldCalendarViewMode = event.target.value || '週檢視'
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5681,7 +5865,7 @@ function renderApp() {
   if (fieldMonthToolbarInput) {
     fieldMonthToolbarInput.addEventListener('change', event => {
       fieldDisplayMonth = normalizeMonthValue(event.target.value || fieldDisplayMonth || getCurrentMonthValue())
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5718,7 +5902,7 @@ function renderApp() {
     fieldPrevWeekBtn.addEventListener('click', () => {
       if (fieldCalendarViewMode === '月份顯示') fieldDisplayMonth = shiftMonthValue(getFieldActiveMonth(), -1)
       else fieldWeekOffset -= 1
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5727,7 +5911,7 @@ function renderApp() {
     fieldThisWeekBtn.addEventListener('click', () => {
       fieldWeekOffset = 0
       fieldDisplayMonth = getCurrentMonthValue()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5736,7 +5920,7 @@ function renderApp() {
     fieldNextWeekBtn.addEventListener('click', () => {
       if (fieldCalendarViewMode === '月份顯示') fieldDisplayMonth = shiftMonthValue(getFieldActiveMonth(), 1)
       else fieldWeekOffset += 1
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5758,7 +5942,7 @@ function renderApp() {
   if (meetingCalendarViewModeSelect) {
     meetingCalendarViewModeSelect.addEventListener('change', event => {
       meetingCalendarViewMode = event.target.value || '週檢視'
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5766,7 +5950,7 @@ function renderApp() {
   if (meetingMonthToolbarInput) {
     meetingMonthToolbarInput.addEventListener('change', event => {
       meetingDisplayMonth = normalizeMonthValue(event.target.value || meetingDisplayMonth || getCurrentMonthValue())
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5775,7 +5959,7 @@ function renderApp() {
     meetingPrevWeekBtn.addEventListener('click', () => {
       if (meetingCalendarViewMode === '月份顯示') meetingDisplayMonth = shiftMonthValue(getMeetingActiveMonth(), -1)
       else meetingWeekOffset -= 1
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5784,7 +5968,7 @@ function renderApp() {
     meetingThisWeekBtn.addEventListener('click', () => {
       meetingWeekOffset = 0
       meetingDisplayMonth = getCurrentMonthValue()
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -5793,7 +5977,7 @@ function renderApp() {
     meetingNextWeekBtn.addEventListener('click', () => {
       if (meetingCalendarViewMode === '月份顯示') meetingDisplayMonth = shiftMonthValue(getMeetingActiveMonth(), 1)
       else meetingWeekOffset += 1
-      renderApp()
+      renderAppAndEnsurePageData()
     })
   }
 
@@ -16071,6 +16255,7 @@ function renderSystemHealthPage() {
 
 
 function renderPageContent() {
+  if (isCurrentPageDataLoading()) return renderPageDataLoading()
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
   if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
@@ -16858,11 +17043,6 @@ function getOverviewScheduleLoadOptions(viewMode = getOverviewViewMode()) {
     dateStart: range.dateStart,
     dateEnd: range.dateEnd
   }
-}
-
-function getScheduleLoadOptionsForCurrentPage() {
-  if (currentPage === 'scheduleOverview') return getOverviewScheduleLoadOptions()
-  return {}
 }
 
 function schedulesRangeCovers(dateStart = '', dateEnd = '') {
