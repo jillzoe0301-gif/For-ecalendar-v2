@@ -212,8 +212,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cr'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cr'
+const APP_VERSION = 'V002-1H-stable-1-3cs'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cs'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '提醒事項新增與修改後，只依各提醒類型的預設提醒日期顯示，不再出現在建立當日。'
 
@@ -7354,6 +7354,10 @@ function isScheduleSeriesLike(row = {}) {
 
 function getScheduleOccurrenceDates(row = {}) {
   if (!row?.start_date) return []
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    const reminderDates = getServiceReminderOccurrenceDatesFromRow(row)
+    return reminderDates.length ? reminderDates : []
+  }
   const endDate = row.end_date && row.end_date >= row.start_date ? row.end_date : row.start_date
   return getDateKeysBetween(row.start_date, endDate)
     .filter(dateKey => scheduleMatchesDateByMode(row, dateKey))
@@ -23516,6 +23520,15 @@ function getServiceReminderDateRangeFromForm(form, type = '', fallbackDate = '')
 }
 /* FOR-e V002-1H-stable-1-3cr END - reminder display dates only */
 
+/* FOR-e V002-1H-stable-1-3cs START - strict reminder occurrence dates */
+/*
+  V002-1H-stable-1-3cs｜提醒事項只依預設提醒日期顯示補強
+  - 服務提醒類 occurrence dates 不再受 start_date/end_date 範圍限制。
+  - 轉出追蹤、住變、驗證、返台等舊資料即使 start_date 是建立日，也只顯示在預設提醒日期。
+  - 若提醒類沒有可解析的預設日期，不再退回建立當日顯示。
+*/
+/* FOR-e V002-1H-stable-1-3cs END - strict reminder occurrence dates */
+
 function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
   const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
   if (occurrenceDates.length) return occurrenceDates[0]
@@ -23532,11 +23545,7 @@ function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
   if (!type || !dateKey) return false
   const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
   if (occurrenceDates.length) return occurrenceDates.includes(dateKey)
-  if (type === '逃跑通知') return dateKey === row.start_date
-  if (type === '轉出追蹤') return dateKey === row.start_date
-  if (type === '住變資訊提供') return false
-  if (type === '驗證提醒') return dateKey === row.start_date
-  if (type === '返台提醒') return returnTaiwanReminderMatchesDate(row, dateKey)
+  if (['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒'].includes(type)) return false
   return dateKey === (row.start_date || '')
 }
 
