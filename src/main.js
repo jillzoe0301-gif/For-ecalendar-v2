@@ -212,10 +212,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cp-performance-stable'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cp'
+const APP_VERSION = 'V002-1H-stable-1-3cr'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cr'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '返台確認（今天返台）提示標籤字級與返台提醒一致，橢圓框依文字自然撐開。'
+const SYSTEM_VERSION_NOTE = '提醒事項新增與修改後，只依各提醒類型的預設提醒日期顯示，不再出現在建立當日。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -23205,7 +23205,7 @@ function getTransferReminderStatusForDate(row = {}, dateKey = '') {
   const reminderDate = getTransferDueReminderDate(row, 10)
   if (reminderDate && dateKey === reminderDate) return 'due-reminder'
   if (isReminderSettingEnabled('transferLastDay') && info.dueDate && dateKey === info.dueDate) return 'due-date'
-  if (row.start_date && dateKey === row.start_date) return 'tracking-start'
+  if (!reminderDate && !info.dueDate && row.start_date && dateKey === row.start_date) return 'tracking-start'
   return ''
 }
 
@@ -23387,7 +23387,138 @@ function getServiceReminderDueDateForTimeCheck(row = {}) {
   return row.end_date || row.start_date || ''
 }
 
+
+/* FOR-e V002-1H-stable-1-3cr START - reminder display dates only */
+function uniqueStrictReminderDateList(values = []) {
+  const seen = new Set()
+  return (values || [])
+    .map(value => String(value || '').trim())
+    .filter(value => value && typeof isStrictDateKey === 'function' && isStrictDateKey(value))
+    .filter(value => {
+      if (seen.has(value)) return false
+      seen.add(value)
+      return true
+    })
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function getOffsetReminderDateValue(date = '', offsetDays = 0) {
+  const cleanDate = String(date || '').trim()
+  if (!cleanDate || typeof isStrictDateKey !== 'function' || !isStrictDateKey(cleanDate)) return ''
+  if (typeof getDateKeyOffset !== 'function') return cleanDate
+  return getDateKeyOffset(cleanDate, Number(offsetDays) || 0) || cleanDate
+}
+
+function getServiceReminderOccurrenceDatesFromForm(form, type = '', fallbackDate = '') {
+  if (!form) return []
+  const normalized = normalizeServiceTypeOption(type)
+  const read = name => String(form.get(name) || '').trim()
+
+  if (normalized === '逃跑通知') {
+    const day1 = read('runaway_day1') || fallbackDate || ''
+    const day2 = read('runaway_day2') || (day1 ? getOffsetReminderDateValue(day1, 1) : '')
+    const day3 = read('runaway_day3') || (day1 ? getOffsetReminderDateValue(day1, 2) : '')
+    return uniqueStrictReminderDateList([day1, day2, day3])
+  }
+
+  if (normalized === '轉出追蹤') {
+    const dueDate = read('transfer_due_date')
+    const reminderDate = dueDate && isReminderSettingEnabled('transferDueBefore')
+      ? getOffsetReminderDateValue(dueDate, -getReminderSettingDays('transferDueBefore', 10))
+      : ''
+    const lastDay = dueDate && isReminderSettingEnabled('transferLastDay') ? dueDate : ''
+    return uniqueStrictReminderDateList([reminderDate, lastDay])
+  }
+
+  if (normalized === '住變資訊提供') {
+    const moveDate = read('housing_move_date')
+    const reminderDate = moveDate && isReminderSettingEnabled('housingInfoAfterMove')
+      ? getOffsetReminderDateValue(moveDate, getReminderSettingDays('housingInfoAfterMove', 6))
+      : ''
+    return uniqueStrictReminderDateList([reminderDate])
+  }
+
+  if (normalized === '驗證提醒') {
+    const salaryDate = read('verify_last_work_date')
+    const verifyDate = read('verify_date')
+    const leaveDate = read('verify_leave_date')
+    const salaryReminderDate = salaryDate && isReminderSettingEnabled('salaryDateReminder')
+      ? getOffsetReminderDateValue(salaryDate, -getReminderSettingDays('salaryDateReminder', 0))
+      : ''
+    const verifyReminderDate = verifyDate && isReminderSettingEnabled('verifyDateReminder')
+      ? getOffsetReminderDateValue(verifyDate, -getReminderSettingDays('verifyDateReminder', 0))
+      : ''
+    const departureReminderDate = leaveDate && isReminderSettingEnabled('departureDateNotice')
+      ? getOffsetReminderDateValue(leaveDate, -getReminderSettingDays('departureDateNotice', 0))
+      : ''
+    return uniqueStrictReminderDateList([salaryReminderDate, verifyReminderDate, departureReminderDate])
+  }
+
+  if (normalized === '返台提醒') {
+    const returnDate = read('return_date')
+    const reminderDate = returnDate && isReminderSettingEnabled('returnReminder')
+      ? getOffsetReminderDateValue(returnDate, -getReminderSettingDays('returnReminder', 3))
+      : ''
+    const confirmDate = returnDate && isReminderSettingEnabled('returnConfirm')
+      ? getOffsetReminderDateValue(returnDate, -getReminderSettingDays('returnConfirm', 0))
+      : ''
+    return uniqueStrictReminderDateList([reminderDate, confirmDate])
+  }
+
+  return []
+}
+
+function getServiceReminderOccurrenceDatesFromRow(row = {}, type = getServiceReminderTypeFromRow(row)) {
+  const normalized = normalizeServiceTypeOption(type)
+
+  if (normalized === '逃跑通知') {
+    const info = parseRunawayReminderInfo(row)
+    return uniqueStrictReminderDateList([info.day1, info.day2, info.day3])
+  }
+
+  if (normalized === '轉出追蹤') {
+    const info = parseTransferReminderInfo(row)
+    const reminderDate = getTransferDueReminderDate(row, 10)
+    const lastDay = isReminderSettingEnabled('transferLastDay') ? info.dueDate : ''
+    return uniqueStrictReminderDateList([reminderDate, lastDay])
+  }
+
+  if (normalized === '住變資訊提供') {
+    return uniqueStrictReminderDateList([getHousingInfoReminderDate(row)])
+  }
+
+  if (normalized === '驗證提醒') {
+    return uniqueStrictReminderDateList([getSalaryReminderDate(row), getVerifyReminderDate(row), getDepartureNoticeDate(row)])
+  }
+
+  if (normalized === '返台提醒') {
+    const returnDate = parseReturnTaiwanReminderInfo(row).date
+    const reminderDate = returnDate && isReminderSettingEnabled('returnReminder')
+      ? getOffsetReminderDateValue(returnDate, -getReminderSettingDays('returnReminder', 3))
+      : ''
+    const confirmDate = returnDate && isReminderSettingEnabled('returnConfirm')
+      ? getOffsetReminderDateValue(returnDate, -getReminderSettingDays('returnConfirm', 0))
+      : ''
+    return uniqueStrictReminderDateList([reminderDate, confirmDate])
+  }
+
+  return []
+}
+
+function getServiceReminderDateRangeFromDates(dates = []) {
+  const list = uniqueStrictReminderDateList(dates)
+  if (!list.length) return null
+  return { startDate: list[0], endDate: list[list.length - 1], dates: list }
+}
+
+function getServiceReminderDateRangeFromForm(form, type = '', fallbackDate = '') {
+  return getServiceReminderDateRangeFromDates(getServiceReminderOccurrenceDatesFromForm(form, type, fallbackDate))
+}
+/* FOR-e V002-1H-stable-1-3cr END - reminder display dates only */
+
 function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
+  const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
+  if (occurrenceDates.length) return occurrenceDates[0]
   if (type === '返台提醒') return parseReturnTaiwanReminderInfo(row).date || row.start_date || ''
   if (type === '住變資訊提供') return getHousingInfoReminderDate(row) || row.start_date || ''
   if (type === '轉出追蹤') return parseTransferReminderInfo(row).dueDate || row.start_date || ''
@@ -23399,25 +23530,12 @@ function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFr
 function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
   const type = getServiceReminderTypeFromRow(row)
   if (!type || !dateKey) return false
-  if (type === '逃跑通知') {
-    const info = parseRunawayReminderInfo(row)
-    const dates = [info.day1, info.day2, info.day3].filter(Boolean)
-    return dates.length ? dates.includes(dateKey) : dateKey === row.start_date
-  }
-  if (type === '轉出追蹤') {
-    const info = parseTransferReminderInfo(row)
-    const reminderDate = getTransferDueReminderDate(row, 10)
-    const dates = [row.start_date, reminderDate, isReminderSettingEnabled('transferLastDay') ? info.dueDate : ''].filter(Boolean)
-    return dates.includes(dateKey)
-  }
-  if (type === '住變資訊提供') {
-    const reminderDate = getHousingInfoReminderDate(row)
-    return Boolean(reminderDate && reminderDate === dateKey)
-  }
-  if (type === '驗證提醒') {
-    const dates = [getVerifyReminderDate(row), getDepartureNoticeDate(row), getSalaryReminderDate(row)].filter(Boolean)
-    return dates.length ? dates.includes(dateKey) : dateKey === row.start_date
-  }
+  const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
+  if (occurrenceDates.length) return occurrenceDates.includes(dateKey)
+  if (type === '逃跑通知') return dateKey === row.start_date
+  if (type === '轉出追蹤') return dateKey === row.start_date
+  if (type === '住變資訊提供') return false
+  if (type === '驗證提醒') return dateKey === row.start_date
   if (type === '返台提醒') return returnTaiwanReminderMatchesDate(row, dateKey)
   return dateKey === (row.start_date || '')
 }
@@ -27584,6 +27702,15 @@ function renderMobileReminderDetailPriorityRows(row = {}, detailContentText = ''
 }
 /* FOR-e V002-1H-stable-1-3co END - mobile reminder detail field order */
 
+/* FOR-e V002-1H-stable-1-3cr START - reminder default date display only */
+/*
+  V002-1H-stable-1-3cr｜提醒事項顯示日期修正
+  - 逃跑通知、轉出追蹤、住變資訊提供、驗證提醒、返台提醒新增 / 修改時，start_date / end_date 改依預設提醒日期範圍儲存。
+  - 行事曆顯示時只比對各提醒的預設提醒日期，不再因建立當日或原共用日期顯示在當天行程表。
+  - 不影響電表提醒、翻譯文件、電話協助等需依原日期顯示的類型。
+*/
+/* FOR-e V002-1H-stable-1-3cr END - reminder default date display only */
+
 async function enforceMedicalFollowupTitleBySource(sourceRow = {}, registerNo = '') {
   const sourceId = String(sourceRow?.schedule_id || '').trim()
   if (!sourceId) return
@@ -28742,6 +28869,14 @@ async function saveEditedSchedule(event, modal, originalRow) {
       : (form.get('customer_name') || form.get('title') || null)
     payloadTitle = payloadCustomerName || form.get('title') || editScheduleType || '服務行程'
     payloadLocationName = null
+    const editServiceReminderDateRange = getServiceReminderDateRangeFromForm(form, editScheduleType, payloadStartDate)
+    if (editServiceReminderDateRange) {
+      payloadStartDate = editServiceReminderDateRange.startDate
+      payloadEndDate = editServiceReminderDateRange.endDate
+      payloadTimeType = '不指定'
+      payloadStartTime = null
+      payloadEndTime = null
+    }
     if (editScheduleType === '電表提醒') {
       payloadAddress = null
       payloadDescription = null
@@ -29135,6 +29270,12 @@ async function saveSchedule(event, modal) {
     locationName = null
     address = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('address') || null)
     carNo = (isCompactSpecialScheduleType(scheduleType) || isSimplifiedServiceFieldType(scheduleType)) ? null : (form.get('car_no') || null)
+    const serviceReminderDateRange = getServiceReminderDateRangeFromForm(form, scheduleType, startDateValue)
+    if (serviceReminderDateRange) {
+      startDateValue = serviceReminderDateRange.startDate
+      endDate = serviceReminderDateRange.endDate
+      form.set('time_type', '不指定')
+    }
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (serviceAdminNames.length) subTypeNoteParts.push(`通知行政：${serviceAdminNames.join('、')}`)
