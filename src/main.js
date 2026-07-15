@@ -219,11 +219,21 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3ct END - account last login visibility */
 
+
+/* FOR-e V002-1H-stable-1-3cu START - user last login per account fix */
+/*
+  V002-1H-stable-1-3cu｜最後登入依帳號個別顯示修正
+  - 最後登入紀錄只依 staff_id / email / auth_user_id 對應。
+  - 不再用目前登入者或共用時間回填所有人員。
+  - 已綁定但無個別紀錄者顯示「尚未紀錄」。
+*/
+/* FOR-e V002-1H-stable-1-3cu END - user last login per account fix */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ct'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ct'
+const APP_VERSION = 'V002-1H-stable-1-3cu'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cu'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '提醒事項新增與修改後，只依各提醒類型的預設提醒日期顯示，不再出現在建立當日。'
 
@@ -4688,11 +4698,19 @@ function getProfileUserId(profile = {}) {
   return String(profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || '').trim()
 }
 
+function getStaffAccountIdentity(staff = {}, profile = {}) {
+  return {
+    staffId: normalizeStaffId(staff?.staff_id || getProfileStaffId(profile) || profile?.staff_id || ''),
+    email: String(profile?.email || staff?.email || '').trim().toLowerCase(),
+    authId: String(profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || '').trim()
+  }
+}
+
 function buildAccountLastLoginLookupKeys({ staff = null, profile = null, authUser = null } = {}) {
   const keys = []
-  const staffId = normalizeStaffId(staff?.staff_id || getProfileStaffId(profile) || profile?.staff_id || currentProfile?.staff_id || '')
-  const email = String(profile?.email || staff?.email || authUser?.email || currentProfile?.email || '').trim().toLowerCase()
-  const authId = String(authUser?.id || profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || currentProfile?.auth_user_id || currentProfile?.user_id || '').trim()
+  const staffId = normalizeStaffId(staff?.staff_id || getProfileStaffId(profile) || profile?.staff_id || '')
+  const email = String(profile?.email || staff?.email || authUser?.email || '').trim().toLowerCase()
+  const authId = String(authUser?.id || profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || '').trim()
 
   if (staffId) keys.push(`staff:${staffId}`)
   if (email) keys.push(`email:${email}`)
@@ -4700,34 +4718,31 @@ function buildAccountLastLoginLookupKeys({ staff = null, profile = null, authUse
   return [...new Set(keys)]
 }
 
+function accountLastLoginRecordMatchesIdentity(record = {}, identity = {}) {
+  if (!record || typeof record !== 'object') return false
+  const recordStaffId = normalizeStaffId(record.staff_id || record.staffId || '')
+  const recordEmail = String(record.email || '').trim().toLowerCase()
+  const recordAuthId = String(record.auth_user_id || record.authUserId || record.auth_id || record.user_id || '').trim()
+
+  if (identity.staffId && recordStaffId && identity.staffId === recordStaffId) return true
+  if (identity.email && recordEmail && identity.email === recordEmail) return true
+  if (identity.authId && recordAuthId && identity.authId === recordAuthId) return true
+  return false
+}
+
 function getProfileLastLoginValue(profile = {}) {
-  return profile?.last_login_at
-    || profile?.lastLoginAt
-    || profile?.last_sign_in_at
-    || profile?.lastSignInAt
-    || profile?.last_login
-    || profile?.lastLogin
-    || ''
+  return ''
 }
 
 function getStaffLastLoginRecord(staff = {}) {
   const profile = getStaffProfile(staff)
   const records = getAccountLastLoginRecords()
+  const identity = getStaffAccountIdentity(staff, profile || {})
   const keys = buildAccountLastLoginLookupKeys({ staff, profile })
 
   for (const key of keys) {
     const found = records[key]
-    if (found && typeof found === 'object') return found
-  }
-
-  const profileLastLogin = getProfileLastLoginValue(profile)
-  if (profileLastLogin) {
-    return {
-      last_login_at: profileLastLogin,
-      email: profile?.email || getStaffLoginEmail(staff),
-      staff_id: staff?.staff_id || getProfileStaffId(profile) || '',
-      source: 'profiles'
-    }
+    if (found && typeof found === 'object' && accountLastLoginRecordMatchesIdentity(found, identity)) return found
   }
 
   return null
@@ -4768,13 +4783,13 @@ function renderStaffLastLoginStatus(staff = {}) {
 async function recordCurrentAccountLastLogin(authUser = null, profile = null) {
   try {
     const activeProfile = profile || currentProfile || {}
-    const staffId = normalizeStaffId(activeProfile.staff_id || '')
+    const staffId = normalizeStaffId(activeProfile.staff_id || getProfileStaffId(activeProfile) || '')
     const email = String(authUser?.email || activeProfile.email || '').trim().toLowerCase()
     const authId = String(authUser?.id || activeProfile.auth_user_id || activeProfile.auth_id || activeProfile.user_id || '').trim()
     if (!staffId && !email && !authId) return
 
-    const lastLoginAt = authUser?.last_sign_in_at || new Date().toISOString()
     const nowIso = new Date().toISOString()
+    const lastLoginAt = nowIso
     const record = {
       staff_id: staffId,
       email,
@@ -4784,19 +4799,19 @@ async function recordCurrentAccountLastLogin(authUser = null, profile = null) {
       position: activeProfile.position_name || activeProfile.position || '',
       last_login_at: lastLoginAt,
       recorded_at: nowIso,
-      source: 'supabase_auth_last_sign_in_at'
+      source: 'for_e_login_success'
     }
 
     const records = { ...getAccountLastLoginRecords() }
     const keys = buildAccountLastLoginLookupKeys({
       staff: { staff_id: staffId, email },
-      profile: activeProfile,
+      profile: { ...activeProfile, email, auth_user_id: authId },
       authUser
     })
     keys.forEach(key => { records[key] = record })
 
     await saveAppSetting(accountLastLoginSettingKey, {
-      version: 1,
+      version: 2,
       updated_at: nowIso,
       records
     })
