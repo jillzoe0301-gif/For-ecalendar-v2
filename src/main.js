@@ -232,10 +232,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cu'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cu'
+const APP_VERSION = 'V002-1H-stable-1-3cv'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cv'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '提醒事項新增與修改後，只依各提醒類型的預設提醒日期顯示，不再出現在建立當日。'
+const SYSTEM_VERSION_NOTE = '住變資訊提供提醒增加搬遷當天顯示，並保留搬遷後第 6 天提醒。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -13188,9 +13188,12 @@ function getSpecialReminderLineRows(rows = [], type = '') {
       if (date && (!hasDateFilter || dateKeys.includes(date))) result.push(cloneLineNotifyRow(row, date, suffix))
     }
 
-    if (type === '住變資訊提供' && reminderType === '住變資訊提供' && isReminderSettingEnabled('housingInfoAfterMove')) {
-      const reminderDate = getHousingInfoReminderDate(row)
-      if (reminderDate && (!hasDateFilter || dateKeys.includes(reminderDate))) result.push(cloneLineNotifyRow(row, reminderDate, 'housing-info'))
+    if (type === '住變資訊提供' && reminderType === '住變資訊提供') {
+      const housingDates = getServiceReminderOccurrenceDatesFromRow(row, '住變資訊提供')
+      housingDates.forEach((reminderDate, index) => {
+        const suffix = index === 0 ? 'housing-info-move-day' : 'housing-info-after-move'
+        if (reminderDate && (!hasDateFilter || dateKeys.includes(reminderDate))) result.push(cloneLineNotifyRow(row, reminderDate, suffix))
+      })
     }
 
 
@@ -23607,10 +23610,11 @@ function getServiceReminderOccurrenceDatesFromForm(form, type = '', fallbackDate
 
   if (normalized === '住變資訊提供') {
     const moveDate = read('housing_move_date')
-    const reminderDate = moveDate && isReminderSettingEnabled('housingInfoAfterMove')
+    const moveDayReminder = moveDate && isStrictDateKey(moveDate) ? moveDate : ''
+    const afterMoveReminder = moveDate && isReminderSettingEnabled('housingInfoAfterMove')
       ? getOffsetReminderDateValue(moveDate, getReminderSettingDays('housingInfoAfterMove', 6))
       : ''
-    return uniqueStrictReminderDateList([reminderDate])
+    return uniqueStrictReminderDateList([moveDayReminder, afterMoveReminder])
   }
 
   if (normalized === '驗證提醒') {
@@ -23659,7 +23663,9 @@ function getServiceReminderOccurrenceDatesFromRow(row = {}, type = getServiceRem
   }
 
   if (normalized === '住變資訊提供') {
-    return uniqueStrictReminderDateList([getHousingInfoReminderDate(row)])
+    const moveDate = parseHousingReminderInfo(row).moveDate
+    const moveDayReminder = isStrictDateKey(moveDate) ? moveDate : ''
+    return uniqueStrictReminderDateList([moveDayReminder, getHousingInfoReminderDate(row)])
   }
 
   if (normalized === '驗證提醒') {
@@ -23699,6 +23705,15 @@ function getServiceReminderDateRangeFromForm(form, type = '', fallbackDate = '')
   - 若提醒類沒有可解析的預設日期，不再退回建立當日顯示。
 */
 /* FOR-e V002-1H-stable-1-3cs END - strict reminder occurrence dates */
+
+/* FOR-e V002-1H-stable-1-3cv START - housing info move-day reminder */
+/*
+  V002-1H-stable-1-3cv｜住變資訊提供提醒增加搬遷當天
+  - 住變資訊提供除搬遷後第 6 天外，搬遷當天也要顯示提醒。
+  - 新增與修改後 start/end 顯示範圍納入搬遷日與第 6 天。
+  - 行事曆、個人行程、行程總覽與 LINE 提醒列都以這兩個提醒日為準。
+*/
+/* FOR-e V002-1H-stable-1-3cv END - housing info move-day reminder */
 
 function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFromRow(row)) {
   const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
