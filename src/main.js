@@ -209,11 +209,21 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cl END - factory station title and admin reminder complete */
 
+
+/* FOR-e V002-1H-stable-1-3ct START - account last login visibility */
+/*
+  V002-1H-stable-1-3ct｜人員 / 帳號最後登入狀況
+  - 管理員在人員 / 帳號頁可看到每個登入帳號最後一次登入時間。
+  - 登入成功後會把目前帳號的 last_sign_in_at 寫入 app_settings.account_last_login_records。
+  - 過去未紀錄的帳號顯示「尚未紀錄」，不影響登入與權限。
+*/
+/* FOR-e V002-1H-stable-1-3ct END - account last login visibility */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cs'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cs'
+const APP_VERSION = 'V002-1H-stable-1-3ct'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ct'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '提醒事項新增與修改後，只依各提醒類型的預設提醒日期顯示，不再出現在建立當日。'
 
@@ -2037,7 +2047,7 @@ function todoItemOptionsHtml(selectedValue = '') {
   - SQL 未執行時仍保留 localStorage 後備，不中斷系統
 */
 
-const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements', 'announcement_records', 'overview_quick_groups', 'quick_staff_groups', 'overview_staff_groups', 'user_staff_groups', 'staff_groups']
+const sharedSettingKeys = ['field_staff_settings', 'managed_options', 'global_announcement', 'administrative_announcements', 'announcement_records', 'overview_quick_groups', 'quick_staff_groups', 'overview_staff_groups', 'user_staff_groups', 'staff_groups', 'account_last_login_records']
 
 function readLocalJsonSetting(key) {
   try {
@@ -4370,6 +4380,7 @@ async function loadProfile(options = {}) {
   }
 
   loadFieldScheduleFiltersPreference()
+  await recordCurrentAccountLastLogin(userData.user, currentProfile)
   renderApp()
   maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
 }
@@ -4648,6 +4659,150 @@ function getStaffProfile(staff) {
 function getStaffLoginEmail(staff) {
   const profile = getStaffProfile(staff)
   return profile?.email || staff?.email || ''
+}
+
+
+const accountLastLoginSettingKey = 'account_last_login_records'
+
+function canViewAccountLastLoginStatus() {
+  return currentProfile?.role === '管理員'
+}
+
+function normalizeAccountLastLoginRecords(value = {}) {
+  const source = normalizeSettingValue(value || {})
+  if (source && typeof source === 'object' && source.records && typeof source.records === 'object') {
+    return source.records
+  }
+  return (source && typeof source === 'object') ? source : {}
+}
+
+function getAccountLastLoginRecords() {
+  return normalizeAccountLastLoginRecords(appSettings?.[accountLastLoginSettingKey] || {})
+}
+
+function getProfileEmail(profile = {}) {
+  return String(profile?.email || '').trim().toLowerCase()
+}
+
+function getProfileUserId(profile = {}) {
+  return String(profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || '').trim()
+}
+
+function buildAccountLastLoginLookupKeys({ staff = null, profile = null, authUser = null } = {}) {
+  const keys = []
+  const staffId = normalizeStaffId(staff?.staff_id || getProfileStaffId(profile) || profile?.staff_id || currentProfile?.staff_id || '')
+  const email = String(profile?.email || staff?.email || authUser?.email || currentProfile?.email || '').trim().toLowerCase()
+  const authId = String(authUser?.id || profile?.auth_user_id || profile?.auth_id || profile?.user_id || profile?.id || currentProfile?.auth_user_id || currentProfile?.user_id || '').trim()
+
+  if (staffId) keys.push(`staff:${staffId}`)
+  if (email) keys.push(`email:${email}`)
+  if (authId) keys.push(`auth:${authId}`)
+  return [...new Set(keys)]
+}
+
+function getProfileLastLoginValue(profile = {}) {
+  return profile?.last_login_at
+    || profile?.lastLoginAt
+    || profile?.last_sign_in_at
+    || profile?.lastSignInAt
+    || profile?.last_login
+    || profile?.lastLogin
+    || ''
+}
+
+function getStaffLastLoginRecord(staff = {}) {
+  const profile = getStaffProfile(staff)
+  const records = getAccountLastLoginRecords()
+  const keys = buildAccountLastLoginLookupKeys({ staff, profile })
+
+  for (const key of keys) {
+    const found = records[key]
+    if (found && typeof found === 'object') return found
+  }
+
+  const profileLastLogin = getProfileLastLoginValue(profile)
+  if (profileLastLogin) {
+    return {
+      last_login_at: profileLastLogin,
+      email: profile?.email || getStaffLoginEmail(staff),
+      staff_id: staff?.staff_id || getProfileStaffId(profile) || '',
+      source: 'profiles'
+    }
+  }
+
+  return null
+}
+
+function formatLastLoginDateTime(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return raw
+  return date.toLocaleString('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+function renderStaffLastLoginStatus(staff = {}) {
+  if (!canViewAccountLastLoginStatus()) return ''
+  const loginEmail = getStaffLoginEmail(staff)
+  if (!loginEmail) {
+    return `<small class="last-login-status is-unbound">最後登入：未綁定帳號</small>`
+  }
+
+  const record = getStaffLastLoginRecord(staff)
+  const value = record?.last_login_at || record?.lastLoginAt || record?.last_sign_in_at || ''
+  const text = formatLastLoginDateTime(value)
+  if (!text) {
+    return `<small class="last-login-status is-empty">最後登入：尚未紀錄</small>`
+  }
+  return `<small class="last-login-status is-recorded">最後登入：${escapeHtml(text)}</small>`
+}
+
+async function recordCurrentAccountLastLogin(authUser = null, profile = null) {
+  try {
+    const activeProfile = profile || currentProfile || {}
+    const staffId = normalizeStaffId(activeProfile.staff_id || '')
+    const email = String(authUser?.email || activeProfile.email || '').trim().toLowerCase()
+    const authId = String(authUser?.id || activeProfile.auth_user_id || activeProfile.auth_id || activeProfile.user_id || '').trim()
+    if (!staffId && !email && !authId) return
+
+    const lastLoginAt = authUser?.last_sign_in_at || new Date().toISOString()
+    const nowIso = new Date().toISOString()
+    const record = {
+      staff_id: staffId,
+      email,
+      auth_user_id: authId,
+      name: activeProfile.name || authUser?.user_metadata?.name || '',
+      department_name: activeProfile.department_name || '',
+      position: activeProfile.position_name || activeProfile.position || '',
+      last_login_at: lastLoginAt,
+      recorded_at: nowIso,
+      source: 'supabase_auth_last_sign_in_at'
+    }
+
+    const records = { ...getAccountLastLoginRecords() }
+    const keys = buildAccountLastLoginLookupKeys({
+      staff: { staff_id: staffId, email },
+      profile: activeProfile,
+      authUser
+    })
+    keys.forEach(key => { records[key] = record })
+
+    await saveAppSetting(accountLastLoginSettingKey, {
+      version: 1,
+      updated_at: nowIso,
+      records
+    })
+  } catch (err) {
+    console.warn('最後登入狀況紀錄失敗，不影響登入。', err)
+  }
 }
 
 function getStaffLoginStatus(staff) {
@@ -21797,6 +21952,7 @@ function renderUsersList(rows) {
               <div class="login-account-cell">
                 <span class="login-status-pill ${getStaffLoginStatusClass(staff)}">${getStaffLoginStatus(staff)}</span>
                 ${loginEmail ? `<small>${escapeHtml(loginEmail)}</small>` : `<small>尚未建立登入帳號</small>`}
+                ${renderStaffLastLoginStatus(staff)}
               </div>
               <label class="field-staff-toggle compact-field-toggle" title="是否為外務人員：${isStaffFieldWorker(staff) ? '是' : '否'}">
                 <input type="checkbox" data-field-staff-toggle="${staff.staff_id}" ${isStaffFieldWorker(staff) ? 'checked' : ''} ${canToggleFieldStaff ? '' : 'disabled'}>
@@ -21835,7 +21991,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「刪除」會永久移除人員且不再顯示在人員名單；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
+      人員 / 帳號檢視權限：管理員可全部管理，並可查看每個帳號最後一次登入狀況；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「刪除」會永久移除人員且不再顯示在人員名單；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
     </div>
     ${renderAppSettingSyncNotice()}
 

@@ -28157,3 +28157,29 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3cp END - page switch performance stable */
+
+
+/* FOR-e V002-1H-stable-1-3ct START - account last login visibility */
+.login-account-cell .last-login-status {
+  display: block;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.login-account-cell .last-login-status.is-empty {
+  color: #947100;
+}
+
+.login-account-cell .last-login-status.is-unbound {
+  color: #94a3b8;
+}
+
+.login-account-cell .last-login-status.is-recorded {
+  color: #2563eb;
+}
+/* FOR-e V002-1H-stable-1-3ct END - account last login visibility */
