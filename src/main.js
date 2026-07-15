@@ -232,8 +232,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cv'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cv'
+const APP_VERSION = 'V002-1H-stable-1-3cw'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cw'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '住變資訊提供提醒增加搬遷當天顯示，並保留搬遷後第 6 天提醒。'
 
@@ -4731,7 +4731,16 @@ function accountLastLoginRecordMatchesIdentity(record = {}, identity = {}) {
 }
 
 function getProfileLastLoginValue(profile = {}) {
-  return ''
+  if (!profile || typeof profile !== 'object') return ''
+  return String(
+    profile.last_login_at
+    || profile.lastLoginAt
+    || profile.last_sign_in_at
+    || profile.lastSignInAt
+    || profile.last_seen_at
+    || profile.lastSeenAt
+    || ''
+  ).trim()
 }
 
 function getStaffLastLoginRecord(staff = {}) {
@@ -4771,8 +4780,11 @@ function renderStaffLastLoginStatus(staff = {}) {
     return `<small class="last-login-status is-unbound">最後登入：未綁定帳號</small>`
   }
 
+  const profile = getStaffProfile(staff) || {}
   const record = getStaffLastLoginRecord(staff)
-  const value = record?.last_login_at || record?.lastLoginAt || record?.last_sign_in_at || ''
+  const recordValue = record?.last_login_at || record?.lastLoginAt || record?.last_sign_in_at || ''
+  const profileValue = getProfileLastLoginValue(profile)
+  const value = String(profileValue || recordValue || '').trim()
   const text = formatLastLoginDateTime(value)
   if (!text) {
     return `<small class="last-login-status is-empty">最後登入：尚未紀錄</small>`
@@ -4815,6 +4827,43 @@ async function recordCurrentAccountLastLogin(authUser = null, profile = null) {
       updated_at: nowIso,
       records
     })
+
+    const profileUpdatePayload = {}
+    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_login_at')) profileUpdatePayload.last_login_at = lastLoginAt
+    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_sign_in_at')) profileUpdatePayload.last_sign_in_at = lastLoginAt
+    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_seen_at')) profileUpdatePayload.last_seen_at = lastLoginAt
+
+    if (Object.keys(profileUpdatePayload).length) {
+      let profileUpdateError = null
+
+      if (email) {
+        const response = await supabase
+          .from('profiles')
+          .update(profileUpdatePayload)
+          .eq('email', email)
+        profileUpdateError = response.error || null
+      }
+
+      if (profileUpdateError && staffId) {
+        const response = await supabase
+          .from('profiles')
+          .update(profileUpdatePayload)
+          .eq('staff_id', staffId)
+        profileUpdateError = response.error || null
+      }
+
+      if (profileUpdateError) {
+        console.warn('profiles 最後登入欄位更新失敗，改以 app_settings 紀錄為主。', profileUpdateError.message || profileUpdateError)
+      } else {
+        userProfileList = (userProfileList || []).map(item => {
+          const itemEmail = String(item?.email || '').trim().toLowerCase()
+          const itemStaffId = normalizeStaffId(getProfileStaffId(item) || item?.staff_id || '')
+          const sameEmail = email && itemEmail && itemEmail === email
+          const sameStaff = staffId && itemStaffId && itemStaffId === staffId
+          return (sameEmail || sameStaff) ? { ...item, ...profileUpdatePayload } : item
+        })
+      }
+    }
   } catch (err) {
     console.warn('最後登入狀況紀錄失敗，不影響登入。', err)
   }
@@ -21865,6 +21914,7 @@ function getUsersDepartmentSummary(rows) {
 }
 
 function renderUsersSummary(rows) {
+  const totalCount = rows.length
   const activeCount = rows.filter(staff => !isStaffDeleted(staff) && (staff.status || '啟用') === '啟用').length
   const disabledCount = rows.filter(staff => !isStaffDeleted(staff) && staff.status === '停用').length
   const fieldStaffCount = rows.filter(isStaffFieldWorker).length
@@ -21872,35 +21922,53 @@ function renderUsersSummary(rows) {
   const departmentStats = getUsersDepartmentSummary(rows)
 
   return `
-    <div class="summary-grid users-summary-grid users-department-summary-grid">
-      <div class="summary-card users-summary-total">
-        <strong>${rows.length}</strong>
-        <span>人員總數</span>
-      </div>
-      <div class="summary-card">
-        <strong>${activeCount}</strong>
-        <span>啟用人員</span>
-      </div>
-      <div class="summary-card">
-        <strong>${disabledCount}</strong>
-        <span>停用人員</span>
-      </div>
-      <div class="summary-card">
-        <strong>${fieldStaffCount}</strong>
-        <span>外務人員</span>
-      </div>
-      <div class="summary-card">
-        <strong>${boundAccountCount}</strong>
-        <span>已綁定帳號</span>
+    <section class="users-summary-block">
+      <div class="users-summary-header">
+        <div>
+          <h3>人員統計</h3>
+          <p>先看整體，再看各部門人數。</p>
+        </div>
       </div>
 
-      ${departmentStats.map(item => `
-        <div class="summary-card users-dept-card">
-          <strong>${item.count}</strong>
-          <span>${escapeHtml(item.department)}</span>
+      <div class="summary-grid users-summary-grid users-summary-core-grid">
+        <div class="summary-card users-summary-total users-summary-core-card">
+          <small>總人數</small>
+          <strong>${totalCount}</strong>
+          <span>目前建立的人員資料</span>
         </div>
-      `).join('')}
-    </div>
+        <div class="summary-card users-summary-core-card">
+          <small>啟用中</small>
+          <strong>${activeCount}</strong>
+          <span>目前可正常使用</span>
+        </div>
+        <div class="summary-card users-summary-core-card">
+          <small>停用中</small>
+          <strong>${disabledCount}</strong>
+          <span>已停用 / 不顯示</span>
+        </div>
+        <div class="summary-card users-summary-core-card">
+          <small>外務人員</small>
+          <strong>${fieldStaffCount}</strong>
+          <span>已開啟外務身分</span>
+        </div>
+        <div class="summary-card users-summary-core-card users-summary-bound-card">
+          <small>已綁定帳號</small>
+          <strong>${boundAccountCount}</strong>
+          <span>可登入帳號數</span>
+        </div>
+      </div>
+
+      <div class="users-summary-subtitle">各部門人數</div>
+      <div class="summary-grid users-department-summary-grid">
+        ${departmentStats.map(item => `
+          <div class="summary-card users-dept-card">
+            <small>部門</small>
+            <strong>${item.count}</strong>
+            <span>${escapeHtml(item.department)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </section>
   `
 }
 

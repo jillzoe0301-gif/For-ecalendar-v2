@@ -28183,3 +28183,121 @@ body,
   color: #2563eb;
 }
 /* FOR-e V002-1H-stable-1-3ct END - account last login visibility */
+
+
+/* FOR-e V002-1H-stable-1-3cw START - users summary cleanup */
+.users-summary-block {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.users-summary-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.users-summary-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #111827;
+}
+
+.users-summary-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.users-summary-core-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.users-summary-core-card {
+  min-height: 98px;
+  display: grid;
+  align-content: space-between;
+  gap: 4px;
+  background: #ffffff;
+}
+
+.users-summary-core-card small,
+.users-dept-card small {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.users-summary-core-card strong,
+.users-dept-card strong {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.users-summary-core-card span,
+.users-dept-card span {
+  color: #334155;
+  font-weight: 800;
+}
+
+.users-summary-bound-card {
+  border-color: #c7d2fe !important;
+  background: #f8faff !important;
+}
+
+.users-summary-subtitle {
+  font-size: 14px;
+  font-weight: 900;
+  color: #334155;
+  margin-top: 2px;
+}
+
+.users-department-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)) !important;
+}
+
+.users-dept-card {
+  min-height: 92px;
+  display: grid;
+  align-content: space-between;
+  gap: 4px;
+}
+
+.users-dept-card span {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
+@media (max-width: 1024px) {
+  .users-summary-core-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .users-summary-header {
+    align-items: flex-start;
+  }
+
+  .users-summary-core-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .users-summary-core-card strong,
+  .users-dept-card strong {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 520px) {
+  .users-summary-core-grid,
+  .users-department-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3cw END - users summary cleanup */
