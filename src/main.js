@@ -229,13 +229,22 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3cu END - user last login per account fix */
 
+/* FOR-e V002-1H-stable-1-3cx START - last login profile persistence fix */
+/*
+  V002-1H-stable-1-3cx｜最後登入時間寫入 profiles 修正
+  - 登入成功後同時寫入 profiles.last_login_at。
+  - 管理員人員 / 帳號頁優先讀取每個帳號自己的 profiles 最後登入時間。
+  - 需要搭配 1-3cx SQL 建立 profiles last_login 欄位與本人更新權限。
+*/
+/* FOR-e V002-1H-stable-1-3cx END - last login profile persistence fix */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cw'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cw'
+const APP_VERSION = 'V002-1H-stable-1-3cx'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cx'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '住變資訊提供提醒增加搬遷當天顯示，並保留搬遷後第 6 天提醒。'
+const SYSTEM_VERSION_NOTE = '修正最後登入時間紀錄，改寫入 profiles 個人欄位並依帳號各自顯示。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -4822,47 +4831,57 @@ async function recordCurrentAccountLastLogin(authUser = null, profile = null) {
     })
     keys.forEach(key => { records[key] = record })
 
-    await saveAppSetting(accountLastLoginSettingKey, {
-      version: 2,
+    // app_settings 作為全域後備紀錄；若 app_settings RLS 不允許一般使用者寫入，仍不影響 profiles 主紀錄。
+    const settingResult = await saveAppSetting(accountLastLoginSettingKey, {
+      version: 3,
       updated_at: nowIso,
       records
     })
+    if (!settingResult?.ok) {
+      console.warn('最後登入 app_settings 後備紀錄未寫入，改以 profiles 最後登入欄位為主。', settingResult?.error || '')
+    }
 
-    const profileUpdatePayload = {}
-    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_login_at')) profileUpdatePayload.last_login_at = lastLoginAt
-    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_sign_in_at')) profileUpdatePayload.last_sign_in_at = lastLoginAt
-    if (Object.prototype.hasOwnProperty.call(activeProfile, 'last_seen_at')) profileUpdatePayload.last_seen_at = lastLoginAt
+    const profileUpdatePayload = {
+      last_login_at: lastLoginAt,
+      last_login_recorded_at: nowIso,
+      last_login_source: 'for_e_login_success'
+    }
 
-    if (Object.keys(profileUpdatePayload).length) {
-      let profileUpdateError = null
+    let profileUpdateOk = false
+    let profileUpdateError = null
 
-      if (email) {
-        const response = await supabase
-          .from('profiles')
-          .update(profileUpdatePayload)
-          .eq('email', email)
-        profileUpdateError = response.error || null
-      }
+    if (email) {
+      const response = await supabase
+        .from('profiles')
+        .update(profileUpdatePayload)
+        .eq('email', email)
+      profileUpdateOk = !response.error
+      profileUpdateError = response.error || null
+    }
 
-      if (profileUpdateError && staffId) {
-        const response = await supabase
-          .from('profiles')
-          .update(profileUpdatePayload)
-          .eq('staff_id', staffId)
-        profileUpdateError = response.error || null
-      }
+    if (!profileUpdateOk && staffId) {
+      const response = await supabase
+        .from('profiles')
+        .update(profileUpdatePayload)
+        .eq('staff_id', staffId)
+      profileUpdateOk = !response.error
+      profileUpdateError = response.error || null
+    }
 
-      if (profileUpdateError) {
-        console.warn('profiles 最後登入欄位更新失敗，改以 app_settings 紀錄為主。', profileUpdateError.message || profileUpdateError)
-      } else {
-        userProfileList = (userProfileList || []).map(item => {
-          const itemEmail = String(item?.email || '').trim().toLowerCase()
-          const itemStaffId = normalizeStaffId(getProfileStaffId(item) || item?.staff_id || '')
-          const sameEmail = email && itemEmail && itemEmail === email
-          const sameStaff = staffId && itemStaffId && itemStaffId === staffId
-          return (sameEmail || sameStaff) ? { ...item, ...profileUpdatePayload } : item
-        })
-      }
+    if (!profileUpdateOk && profileUpdateError) {
+      console.warn('profiles 最後登入欄位更新失敗，請確認已執行 1-3cx SQL。', profileUpdateError.message || profileUpdateError)
+    }
+
+    if (profileUpdateOk) {
+      const patch = { ...profileUpdatePayload }
+      currentProfile = currentProfile ? { ...currentProfile, ...patch } : currentProfile
+      userProfileList = (userProfileList || []).map(item => {
+        const itemEmail = String(item?.email || '').trim().toLowerCase()
+        const itemStaffId = normalizeStaffId(getProfileStaffId(item) || item?.staff_id || '')
+        const sameEmail = email && itemEmail && itemEmail === email
+        const sameStaff = staffId && itemStaffId && itemStaffId === staffId
+        return (sameEmail || sameStaff) ? { ...item, ...patch } : item
+      })
     }
   } catch (err) {
     console.warn('最後登入狀況紀錄失敗，不影響登入。', err)
