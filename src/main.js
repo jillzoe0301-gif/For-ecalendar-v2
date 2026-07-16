@@ -241,10 +241,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cz'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cz'
+const APP_VERSION = 'V002-1H-stable-1-3da'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3da'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正最後登入時間紀錄，改寫入 profiles 個人欄位並依帳號各自顯示。'
+const SYSTEM_VERSION_NOTE = '修正快速人員群組選人搜尋重複、搜尋無反應與群組修改後總覽未即時更新。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -19328,10 +19328,11 @@ function isLegacyFixedOverviewQuickGroup(group = {}) {
 }
 
 function getOverviewCustomQuickGroupRows() {
+  // 1-3da：目前畫面 state 要最後合併，避免舊 localStorage / app_settings 覆蓋剛修改完成的群組人員。
   return mergeOverviewQuickGroupGroups(
-    overviewQuickGroups.groups || [],
     ...getOverviewQuickGroupAppSettingSources(),
-    ...readOverviewQuickGroupLocalSources()
+    ...readOverviewQuickGroupLocalSources(),
+    overviewQuickGroups.groups || []
   )
     .map(group => withOverviewQuickGroupNameAliases({ ...group, builtIn: false, fixed: false }))
     .filter(group => getOverviewQuickGroupDisplayName(group))
@@ -19823,10 +19824,10 @@ function renderOverviewGroupStaffDropdown(rows = [], selectedIds = new Set()) {
   return `
     <details class="compact-multi-select overview-group-person-dropdown">
       <summary><span id="overviewGroupStaffSummaryText">${escapeHtml(getOverviewGroupStaffDropdownSummary(rows, selectedIds))}</span></summary>
-      <div class="compact-check-panel overview-group-person-dropdown-panel">
+      <div class="compact-check-panel overview-group-person-dropdown-panel" data-search-ready="1" data-skip-generic-choice-search="1">
         ${rows.length ? `
           <div class="overview-group-dropdown-tools">
-            <input type="search" id="overviewGroupStaffSearchInput" class="choice-search-input overview-group-staff-search-input" placeholder="搜尋人員 / 部門 / 職務" autocomplete="off">
+            <input type="search" id="overviewGroupStaffSearchInput" class="choice-search-input overview-group-staff-search-input" placeholder="搜尋人員 / 部門 / 職務" autocomplete="off" data-no-drag-scroll="true">
             <div class="overview-group-dropdown-actions">
               <button type="button" class="small-secondary-btn" id="selectAllOverviewGroupStaffBtn">全選</button>
               <button type="button" class="small-secondary-btn" id="clearOverviewGroupStaffBtn">清除</button>
@@ -19880,7 +19881,16 @@ function bindOverviewGroupStaffSearch(modal) {
   const runFilter = () => filterOverviewGroupStaffOptions(modal, searchInput.value)
 
   searchInput.addEventListener('click', event => event.stopPropagation())
-  searchInput.addEventListener('keydown', event => event.stopPropagation())
+  searchInput.addEventListener('pointerdown', event => event.stopPropagation())
+  searchInput.addEventListener('touchstart', event => event.stopPropagation(), { passive: true })
+  searchInput.addEventListener('keydown', event => {
+    event.stopPropagation()
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      isComposing = false
+      runFilter()
+    }
+  })
   searchInput.addEventListener('compositionstart', () => { isComposing = true })
   searchInput.addEventListener('compositionend', () => {
     isComposing = false
@@ -19890,8 +19900,16 @@ function bindOverviewGroupStaffSearch(modal) {
     if (isComposing) return
     runFilter()
   })
+  searchInput.addEventListener('keyup', () => {
+    if (isComposing) return
+    runFilter()
+  })
   searchInput.addEventListener('paste', () => setTimeout(runFilter, 0))
   searchInput.addEventListener('search', runFilter)
+  searchInput.addEventListener('blur', () => {
+    isComposing = false
+    runFilter()
+  })
 
   runFilter()
 }
@@ -20098,6 +20116,10 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
     alert(successMessage)
 
     modal.remove()
+    // 1-3da：儲存後用最新群組人員重新整理畫面，避免舊快取讓取消勾選的人員仍留在行程總覽。
+    overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: nextGroup.id, groups })
+    saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
+    if (getPersonalOverviewQuickGroupsSettingKey()) appSettings[getPersonalOverviewQuickGroupsSettingKey()] = overviewQuickGroups
     renderApp()
 
     refreshOverviewQuickGroupsAfterSave(nextGroup.id, nextGroup).then(() => {
@@ -20310,7 +20332,7 @@ function initSearchableChoicePanels(root = document) {
   ]
 
   root.querySelectorAll(panelSelectors.join(',')).forEach(panel => {
-    if (panel.dataset.searchReady === '1') return
+    if (panel.dataset.searchReady === '1' || panel.dataset.skipGenericChoiceSearch === '1') return
 
     const items = [...panel.querySelectorAll('label, .check-row, .compact-check-option, .department-assignee-row, .field-staff-check-row')]
       .filter(item => !item.classList.contains('choice-search-input'))

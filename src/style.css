@@ -28343,3 +28343,36 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3cz END - quick group edit search refresh */
+
+/* FOR-e V002-1H-stable-1-3da START - quick group search single field */
+.overview-group-person-dropdown-panel > .choice-search-input:not(.overview-group-staff-search-input) {
+  display: none !important;
+}
+
+.overview-group-dropdown-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.overview-group-staff-option.is-filter-hidden,
+.quick-group-member-row.is-filter-hidden {
+  display: none !important;
+}
+
+.overview-group-staff-no-results.is-hidden {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .overview-group-dropdown-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-group-dropdown-actions {
+    justify-content: flex-start;
+  }
+}
+/* FOR-e V002-1H-stable-1-3da END - quick group search single field */
