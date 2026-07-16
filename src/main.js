@@ -241,10 +241,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3db'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3db'
+const APP_VERSION = 'V002-1H-stable-1-3dc'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dc'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正快速人員群組不會自動加入未勾選的目前登入者，並修復群組選人搜尋與儲存後即時更新。'
+const SYSTEM_VERSION_NOTE = '取消 1-3cy 外務日自動補標籤，外務日僅依明確外務日資料顯示，保留快速群組修正。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -18058,7 +18058,9 @@ function isAutoFieldDayPromptSource(row = {}) {
 }
 
 function shouldRenderAutoFieldDayPrompt(rows = [], hasTrainingPrompt = false) {
-  return Boolean(hasTrainingPrompt || uniqueScheduleRows(rows).some(isAutoFieldDayPromptSource))
+  // FOR-e V002-1H-stable-1-3dc：取消 1-3cy 自動補外務日標籤。
+  // 外務日只能依明確的外務日提醒資料顯示，避免非外務日或一般外務人員被誤標。
+  return false
 }
 
 function getAutoFieldDayPromptRow(rows = [], dateKey = '') {
