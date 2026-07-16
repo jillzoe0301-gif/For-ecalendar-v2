@@ -28301,3 +28301,45 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3cw END - users summary cleanup */
+
+/* FOR-e V002-1H-stable-1-3cz START - quick group edit search refresh */
+.overview-group-dropdown-tools {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.overview-group-dropdown-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.overview-group-staff-search-input.choice-search-input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.overview-group-staff-options {
+  display: grid;
+  gap: 4px;
+}
+
+.overview-group-staff-no-results.is-hidden {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .overview-group-dropdown-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-group-dropdown-actions {
+    justify-content: flex-start;
+  }
+}
+/* FOR-e V002-1H-stable-1-3cz END - quick group edit search refresh */

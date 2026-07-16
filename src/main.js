@@ -241,8 +241,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3cx'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cx'
+const APP_VERSION = 'V002-1H-stable-1-3cz'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3cz'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '修正最後登入時間紀錄，改寫入 profiles 個人欄位並依帳號各自顯示。'
 
@@ -17574,9 +17574,15 @@ function renderOverviewSortedCellContent({ staffId = '', dateKey = '', dayRows =
     pushOverviewSortedContentItem(items, row, renderContinuationDayMarks([row], dateKey, variant), dateKey)
   })
 
-  uniqueScheduleRows(dayMark?.fieldDayRows || []).forEach(row => {
-    pushOverviewSortedContentItem(items, row, renderFieldDayReminderPrompt([row]), dateKey)
-  })
+  const explicitFieldDayRows = uniqueScheduleRows(dayMark?.fieldDayRows || [])
+  if (explicitFieldDayRows.length) {
+    explicitFieldDayRows.forEach(row => {
+      pushOverviewSortedContentItem(items, row, renderFieldDayReminderPrompt([row]), dateKey)
+    })
+  } else if (shouldRenderAutoFieldDayPrompt(dayRows || [], false)) {
+    const autoFieldDayRow = getAutoFieldDayPromptRow(dayRows || [], dateKey)
+    pushOverviewSortedContentItem(items, autoFieldDayRow, renderFieldDayReminderPrompt([], { auto: true }), dateKey)
+  }
 
   uniqueScheduleRows(dayMark?.leaveRows || []).forEach(row => {
     pushOverviewSortedContentItem(items, row, renderLeaveReturnDayMark([row], dateKey, variant), dateKey)
@@ -18039,9 +18045,55 @@ function getFieldDayReminderPromptText(row = {}) {
   return '外務日｜請勿安排其他行程'
 }
 
-function renderFieldDayReminderPrompt(rows = []) {
+function isAutoFieldDayPromptSource(row = {}) {
+  if (!row) return false
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
+  if (typeof isLeaveOrReturnSchedule === 'function' && isLeaveOrReturnSchedule(row)) return false
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return false
+  if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return true
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.description, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+  return /外務|外訓|上線|教育訓練/.test(text)
+}
+
+function shouldRenderAutoFieldDayPrompt(rows = [], hasTrainingPrompt = false) {
+  return Boolean(hasTrainingPrompt || uniqueScheduleRows(rows).some(isAutoFieldDayPromptSource))
+}
+
+function getAutoFieldDayPromptRow(rows = [], dateKey = '') {
+  const source = uniqueScheduleRows(rows).find(isAutoFieldDayPromptSource) || {}
+  return {
+    ...source,
+    schedule_id: source.schedule_id || `auto-field-day-${dateKey || 'date'}`,
+    start_date: source.start_date || dateKey,
+    __occurrence_date: dateKey || source.__occurrence_date || source.start_date,
+    __render_date: dateKey || source.__render_date || source.start_date,
+    title: source.title || '外務日',
+    schedule_type: source.schedule_type || '外務日',
+    sub_type: source.sub_type || '請勿安排其他行程'
+  }
+}
+
+function renderAutoFieldDayReminderPrompt() {
+  const promptParts = splitPromptTypeTitle('外務日｜請勿安排其他行程')
+  return `
+    <div class="field-day-reminder-stack" aria-label="外務日提醒">
+      <div class="field-day-reminder-prompt is-auto-field-day" ${getFieldDayPromptColorStyleAttr()} title="外務日｜請勿安排其他行程">
+        <span class="field-day-reminder-badge">${escapeHtml(promptParts.type || '外務日')}</span>
+        <strong>
+          ${promptParts.title ? `<span class="prompt-title-line">${escapeHtml(promptParts.title)}</span>` : ''}
+        </strong>
+      </div>
+    </div>
+  `
+}
+
+function renderFieldDayReminderPrompt(rows = [], options = {}) {
   const reminderRows = uniqueScheduleRows(rows).filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
-  if (!reminderRows.length) return ''
+  if (!reminderRows.length) {
+    return options.auto === true ? renderAutoFieldDayReminderPrompt() : ''
+  }
 
   return `
     <div class="field-day-reminder-stack" aria-label="外務日提醒">
@@ -18211,6 +18263,8 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
           const continuationRows = getContinuationRowsForDate(continuousRows, key)
           const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
           const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+          const trainingPrompt = renderFieldTrainingCalendarPrompt(staff.staff_id, key)
+          const autoFieldDayPrompt = !(dayMark.fieldDayRows || []).length && shouldRenderAutoFieldDayPrompt(dayRows, Boolean(trainingPrompt))
 
           return `
             <div class="field-week-day-cell month-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
@@ -18220,9 +18274,9 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
               </div>
               ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
 
-              ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
+              ${trainingPrompt}
 
               ${birthdayCard}
 
@@ -18272,12 +18326,14 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                   const continuationRows = getContinuationRowsForDate(continuousRows, key)
                   const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+                  const trainingPrompt = renderFieldTrainingCalendarPrompt(staff.staff_id, key)
+                  const autoFieldDayPrompt = !(dayMark.fieldDayRows || []).length && shouldRenderAutoFieldDayPrompt(dayRows, Boolean(trainingPrompt))
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
 
-                    ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
+                    ${trainingPrompt}
 
                     ${birthdayCard}
 
@@ -18333,12 +18389,14 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                   const continuationRows = getContinuationRowsForDate(continuousRows, key)
                   const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
                   const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+                  const trainingPrompt = renderFieldTrainingCalendarPrompt(staff.staff_id, key)
+                  const autoFieldDayPrompt = !(dayMark.fieldDayRows || []).length && shouldRenderAutoFieldDayPrompt(dayRows, Boolean(trainingPrompt))
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows)}
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
 
-                    ${renderFieldTrainingCalendarPrompt(staff.staff_id, key)}
+                    ${trainingPrompt}
 
                     ${birthdayCard}
 
@@ -18889,7 +18947,9 @@ function mergeOverviewQuickGroupGroups(...collections) {
 
     if (existingIndex !== undefined) {
       const previous = merged[existingIndex]
-      const staffIds = normalizeOverviewFilterList([...(previous.staffIds || []), ...(group.staffIds || [])])
+      // 1-3cz：修改群組時必須以最新儲存的人員清單為準。
+      // 舊版使用 previous + group 的聯集，會讓已取消勾選的人員又被合併回來。
+      const staffIds = normalizeOverviewFilterList(group.staffIds || group.staff_ids || [])
       const nextGroup = withOverviewQuickGroupNameAliases({
         ...previous,
         ...group,
@@ -19742,7 +19802,7 @@ function renderOverviewGroupStaffOption(staff = {}, selectedIds = new Set()) {
   const positionName = staff.position || staff.position_name || '-'
 
   return `
-    <label class="check-row overview-group-staff-option quick-group-member-row" data-no-drag-scroll="true" title="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜'))}">
+    <label class="check-row overview-group-staff-option quick-group-member-row" data-overview-group-staff-id="${escapeHtml(staffId)}" data-search-text="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜').toLowerCase())}" data-no-drag-scroll="true" title="${escapeHtml([staff.name, departmentName, positionName].filter(Boolean).join('｜'))}">
       <input class="quick-group-member-checkbox" type="checkbox" name="groupStaffIds" value="${escapeHtml(staffId)}" ${selectedIds.has(staffId) ? 'checked' : ''}>
       <span class="overview-group-staff-info quick-group-member-info">
         <strong>${escapeHtml(staff.name || '-')}</strong>
@@ -19766,10 +19826,16 @@ function renderOverviewGroupStaffDropdown(rows = [], selectedIds = new Set()) {
       <div class="compact-check-panel overview-group-person-dropdown-panel">
         ${rows.length ? `
           <div class="overview-group-dropdown-tools">
-            <button type="button" class="small-secondary-btn" id="selectAllOverviewGroupStaffBtn">全選</button>
-            <button type="button" class="small-secondary-btn" id="clearOverviewGroupStaffBtn">清除</button>
+            <input type="search" id="overviewGroupStaffSearchInput" class="choice-search-input overview-group-staff-search-input" placeholder="搜尋人員 / 部門 / 職務" autocomplete="off">
+            <div class="overview-group-dropdown-actions">
+              <button type="button" class="small-secondary-btn" id="selectAllOverviewGroupStaffBtn">全選</button>
+              <button type="button" class="small-secondary-btn" id="clearOverviewGroupStaffBtn">清除</button>
+            </div>
           </div>
-          ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('')}
+          <div class="overview-group-staff-options" id="overviewGroupStaffOptions">
+            ${rows.map(staff => renderOverviewGroupStaffOption(staff, selectedIds)).join('')}
+          </div>
+          <div class="compact-check-empty overview-group-staff-no-results is-hidden" id="overviewGroupStaffNoResults">查無符合人員</div>
         ` : renderOverviewGroupStaffEmptyState()}
       </div>
     </details>
@@ -19787,6 +19853,47 @@ function updateOverviewGroupStaffDropdownSummary(modal, rows = []) {
   )
 
   summary.textContent = getOverviewGroupStaffDropdownSummary(rows, selectedIds)
+}
+
+function filterOverviewGroupStaffOptions(modal, keyword = '') {
+  if (!modal) return
+  const normalizedKeyword = String(keyword || '').trim().toLowerCase()
+  const options = Array.from(modal.querySelectorAll('.overview-group-staff-option'))
+  let visibleCount = 0
+
+  options.forEach(option => {
+    const searchText = String(option.dataset.searchText || option.textContent || '').toLowerCase()
+    const matched = !normalizedKeyword || searchText.includes(normalizedKeyword)
+    option.classList.toggle('is-filter-hidden', !matched)
+    if (matched) visibleCount += 1
+  })
+
+  const noResults = modal.querySelector('#overviewGroupStaffNoResults')
+  if (noResults) noResults.classList.toggle('is-hidden', visibleCount > 0)
+}
+
+function bindOverviewGroupStaffSearch(modal) {
+  const searchInput = modal?.querySelector?.('#overviewGroupStaffSearchInput')
+  if (!searchInput) return
+
+  let isComposing = false
+  const runFilter = () => filterOverviewGroupStaffOptions(modal, searchInput.value)
+
+  searchInput.addEventListener('click', event => event.stopPropagation())
+  searchInput.addEventListener('keydown', event => event.stopPropagation())
+  searchInput.addEventListener('compositionstart', () => { isComposing = true })
+  searchInput.addEventListener('compositionend', () => {
+    isComposing = false
+    runFilter()
+  })
+  searchInput.addEventListener('input', () => {
+    if (isComposing) return
+    runFilter()
+  })
+  searchInput.addEventListener('paste', () => setTimeout(runFilter, 0))
+  searchInput.addEventListener('search', runFilter)
+
+  runFilter()
 }
 
 async function openOverviewQuickGroupManagerModal(editGroupId = '') {
@@ -19850,6 +19957,7 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
 
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
+  bindOverviewGroupStaffSearch(modal)
   updateOverviewGroupStaffDropdownSummary(modal, rows)
 
   const groupStaffInputs = Array.from(modal.querySelectorAll('input[name="groupStaffIds"]'))
@@ -19966,6 +20074,16 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
       activeId: nextGroup.id,
       groups
     })
+
+    // 1-3cz：儲存後立即套用此群組，並清除會覆蓋快速群組的手動部門 / 人員篩選。
+    overviewFilters = normalizeOverviewFilters({
+      ...overviewFilters,
+      viewMode: '全部行程',
+      departments: [],
+      staffIds: []
+    })
+    saveOverviewFiltersPreference()
+    saveOverviewStatePreference()
 
     formEl.querySelectorAll('input, button').forEach(input => { input.disabled = true })
     if (submitBtn) submitBtn.textContent = '儲存中...'
