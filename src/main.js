@@ -241,10 +241,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3da'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3da'
+const APP_VERSION = 'V002-1H-stable-1-3db'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3db'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正快速人員群組選人搜尋重複、搜尋無反應與群組修改後總覽未即時更新。'
+const SYSTEM_VERSION_NOTE = '修正快速人員群組不會自動加入未勾選的目前登入者，並修復群組選人搜尋與儲存後即時更新。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -18834,11 +18834,12 @@ function collectOverviewQuickGroupStaffNameValues(value, names = []) {
 }
 
 function getOverviewQuickGroupStaffIdsFromGroup(group = {}) {
-  const idValues = [
+  // 1-3db：群組人員必須以最新儲存的明確欄位為準。
+  // 舊資料可能同時殘留 staffIds / staff_ids / members / rows，
+  // 不能再全部合併，否則取消勾選的人員會被舊別名加回來。
+  const priorityIdValues = [
     group.staffIds,
     group.staff_ids,
-    group.staffId,
-    group.staff_id,
     group.selectedStaffIds,
     group.selected_staff_ids,
     group.memberIds,
@@ -18857,6 +18858,18 @@ function getOverviewQuickGroupStaffIdsFromGroup(group = {}) {
     group.rows
   ]
 
+  for (const value of priorityIdValues) {
+    if (value === undefined || value === null || value === '') continue
+    const ids = []
+    const names = []
+    collectOverviewQuickGroupStaffValues(value, ids, names)
+    const normalizedIds = normalizeOverviewFilterList(ids)
+    if (normalizedIds.length) return normalizedIds
+
+    const matchedByName = getOverviewQuickGroupStaffIdsByNames(names)
+    if (matchedByName.length) return matchedByName
+  }
+
   const nameValues = [
     group.staffNames,
     group.staff_names,
@@ -18867,15 +18880,8 @@ function getOverviewQuickGroupStaffIdsFromGroup(group = {}) {
     group.names
   ]
 
-  const ids = []
   const names = []
-
-  idValues.forEach(value => collectOverviewQuickGroupStaffValues(value, ids, names))
   nameValues.forEach(value => collectOverviewQuickGroupStaffNameValues(value, names))
-
-  const normalizedIds = normalizeOverviewFilterList(ids)
-  if (normalizedIds.length) return normalizedIds
-
   return getOverviewQuickGroupStaffIdsByNames(names)
 }
 
@@ -19452,6 +19458,37 @@ function getOverviewQuickGroupStaffIdsByNames(names = []) {
     .filter(Boolean)
 }
 
+function buildOverviewQuickGroupExplicitMemberAliases(staffIds = []) {
+  const normalizedStaffIds = normalizeOverviewFilterList(staffIds)
+  return {
+    staffIds: normalizedStaffIds,
+    staff_ids: normalizedStaffIds,
+    selectedStaffIds: normalizedStaffIds,
+    selected_staff_ids: normalizedStaffIds,
+    memberIds: normalizedStaffIds,
+    member_ids: normalizedStaffIds,
+    personIds: normalizedStaffIds,
+    person_ids: normalizedStaffIds,
+    userIds: normalizedStaffIds,
+    user_ids: normalizedStaffIds,
+    assigneeIds: normalizedStaffIds,
+    assignee_ids: normalizedStaffIds,
+    staff: normalizedStaffIds,
+    members: normalizedStaffIds,
+    people: normalizedStaffIds,
+    persons: normalizedStaffIds,
+    assignees: normalizedStaffIds,
+    rows: normalizedStaffIds,
+    staffNames: [],
+    staff_names: [],
+    memberNames: [],
+    member_names: [],
+    peopleNames: [],
+    people_names: [],
+    names: []
+  }
+}
+
 function getAdministrativeQuickGroupStaffIds() {
   return getOverviewQuickGroupStaffPool()
     .filter(staff => {
@@ -19863,9 +19900,13 @@ function filterOverviewGroupStaffOptions(modal, keyword = '') {
   let visibleCount = 0
 
   options.forEach(option => {
-    const searchText = String(option.dataset.searchText || option.textContent || '').toLowerCase()
-    const matched = !normalizedKeyword || searchText.includes(normalizedKeyword)
+    const searchText = String(option.dataset.searchText || option.textContent || '')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+    const compactKeyword = normalizedKeyword.replace(/\s+/g, '')
+    const matched = !compactKeyword || searchText.includes(compactKeyword)
     option.classList.toggle('is-filter-hidden', !matched)
+    option.hidden = !matched
     if (matched) visibleCount += 1
   })
 
@@ -19874,6 +19915,13 @@ function filterOverviewGroupStaffOptions(modal, keyword = '') {
 }
 
 function bindOverviewGroupStaffSearch(modal) {
+  const panel = modal?.querySelector?.('.overview-group-person-dropdown-panel')
+  if (panel) {
+    panel.dataset.searchReady = '1'
+    panel.dataset.skipGenericChoiceSearch = '1'
+    panel.querySelectorAll('input.choice-search-input:not(#overviewGroupStaffSearchInput)').forEach(input => input.remove())
+  }
+
   const searchInput = modal?.querySelector?.('#overviewGroupStaffSearchInput')
   if (!searchInput) return
 
@@ -20072,7 +20120,7 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
       groupName,
       title: groupName,
       label: groupName,
-      staffIds,
+      ...buildOverviewQuickGroupExplicitMemberAliases(staffIds),
       enabled: true,
       is_enabled: true,
       createdAt: previousGroup?.createdAt || previousGroup?.created_at || now,
@@ -20120,10 +20168,12 @@ async function openOverviewQuickGroupManagerModal(editGroupId = '') {
     overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: nextGroup.id, groups })
     saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
     if (getPersonalOverviewQuickGroupsSettingKey()) appSettings[getPersonalOverviewQuickGroupsSettingKey()] = overviewQuickGroups
-    renderApp()
+    if (typeof overviewPerformanceCache !== 'undefined') overviewPerformanceCache = null
+    renderAppAndEnsurePageData()
 
     refreshOverviewQuickGroupsAfterSave(nextGroup.id, nextGroup).then(() => {
-      renderApp()
+      if (typeof overviewPerformanceCache !== 'undefined') overviewPerformanceCache = null
+      renderAppAndEnsurePageData()
     }).catch(err => {
       console.warn('快速人員群組新增後重新整理失敗，已保留目前畫面狀態。', err)
     })
