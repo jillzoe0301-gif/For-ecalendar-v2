@@ -28376,3 +28376,54 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3da END - quick group search single field */
+
+/* FOR-e V002-1H-stable-1-3dd START - mobile meeting edit scope layout */
+@media (max-width: 768px) {
+  #meetingRoomEditForm .edit-series-scope-box,
+  .meeting-room-edit-form .edit-series-scope-box {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  #meetingRoomEditForm .edit-series-scope-options,
+  .meeting-room-edit-form .edit-series-scope-options {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #meetingRoomEditForm .edit-series-scope-options .inline-check,
+  .meeting-room-edit-form .edit-series-scope-options .inline-check {
+    display: grid !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    padding: 10px 12px !important;
+    border-radius: 999px !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    overflow-wrap: anywhere !important;
+    word-break: keep-all !important;
+    text-align: left !important;
+  }
+
+  #meetingRoomEditForm .edit-series-scope-options .inline-check input[type="radio"],
+  .meeting-room-edit-form .edit-series-scope-options .inline-check input[type="radio"] {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    margin: 0 !important;
+    grid-column: 1 !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3dd END - mobile meeting edit scope layout */

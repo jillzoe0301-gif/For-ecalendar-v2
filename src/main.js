@@ -241,10 +241,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dc'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dc'
+const APP_VERSION = 'V002-1H-stable-1-3dd'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dd'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '取消 1-3cy 外務日自動補標籤，外務日僅依明確外務日資料顯示，保留快速群組修正。'
+const SYSTEM_VERSION_NOTE = '修正手機會議室修改範圍版面、行程卡片排序、證件交付卡片與手機查看欄位。'
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -3928,6 +3928,64 @@ function getScheduleStableSortKey(row = {}, fallbackIndex = 0) {
   ].map(item => String(item ?? '')).join('::')
 }
 
+
+function isCertificateDeliverySchedule(row = {}) {
+  const text = [
+    row?.category,
+    row?.schedule_type,
+    row?.sub_type,
+    typeof getScheduleDisplayType === 'function' ? getScheduleDisplayType(row) : ''
+  ].filter(Boolean).join('｜')
+  return text.includes('證件交付')
+}
+
+function isLeaveScheduleForCalendarSort(row = {}) {
+  const text = [
+    row?.category,
+    row?.schedule_type,
+    row?.sub_type,
+    row?.title,
+    typeof getScheduleDisplayType === 'function' ? getScheduleDisplayType(row) : ''
+  ].filter(Boolean).join('｜')
+  return text.includes('請假')
+}
+
+function getCalendarDisplayGroupPriority(row = {}) {
+  if (isLeaveScheduleForCalendarSort(row)) return 0
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return 1
+  if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return 2
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return 2
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return 2
+  if (typeof isReminderSchedule === 'function' && isReminderSchedule(row)) return 2
+  return 3
+}
+
+function compareCalendarDisplayGroupPriority(a = {}, b = {}) {
+  const aPriority = getCalendarDisplayGroupPriority(a)
+  const bPriority = getCalendarDisplayGroupPriority(b)
+  if (aPriority !== bPriority) return aPriority - bPriority
+  return 0
+}
+
+function renderMobileCertificateDeliveryPriorityRows(row = {}, detailContentText = '', detailAddressText = '') {
+  if (!isCertificateDeliverySchedule(row)) return ''
+  const detailDateText = `${row.start_date || '-'}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + row.end_date : ''}`
+  const detailTimeText = formatTime(row) || '不指定'
+  const itemText = cleanCalendarSummaryPart(row.sub_type || getScheduleDisplayType(row) || '證件交付')
+  const titleText = cleanCalendarSummaryPart(row.title || '-')
+  const contentText = cleanCalendarSummaryPart(detailContentText || '')
+  const addressText = cleanCalendarSummaryPart(detailAddressText || '')
+  const rows = []
+  rows.push(renderMobileDetailPriorityRow('日期', detailDateText))
+  rows.push(renderMobileDetailPriorityRow('時間', detailTimeText))
+  if (addressText) rows.push(renderMobileDetailPriorityRow('地址', addressText))
+  rows.push(renderMobileDetailPriorityRow('項目', itemText || '證件交付'))
+  rows.push(renderMobileDetailPriorityRow('標題', titleText || '-'))
+  if (contentText) rows.push(renderMobileDetailPriorityRow('內容', contentText))
+  return rows.filter(Boolean).join('')
+}
+/* FOR-e V002-1H-stable-1-3dd END - calendar sort helpers and certificate detail */
+
 function compareScheduleRowsByDateAndDisplayTime(a = {}, b = {}, options = {}) {
   const dateFirst = options.dateFirst !== false
   const descendingDate = options.descendingDate === true
@@ -3943,9 +4001,19 @@ function compareScheduleRowsByDateAndDisplayTime(a = {}, b = {}, options = {}) {
   const aHasTime = aMinutes !== null
   const bHasTime = bMinutes !== null
 
-  // 同一天內：沒有時間的行程排最前面，有時間再依開始時間排序。
+  // 1-3dd：有時段的行程先依時段排序；同時段再依類型排序。
+  if (aHasTime && bHasTime) {
+    if (aMinutes !== bMinutes) return aMinutes - bMinutes
+    const groupResult = compareCalendarDisplayGroupPriority(a, b)
+    if (groupResult !== 0) return groupResult
+    return 0
+  }
+
+  // 無時間行程仍排在有時間行程前；無時間行程依：請假 → 外務日 → 提醒事項 → 一般行程。
   if (aHasTime !== bHasTime) return aHasTime ? 1 : -1
-  if (aHasTime && bHasTime && aMinutes !== bMinutes) return aMinutes - bMinutes
+
+  const groupResult = compareCalendarDisplayGroupPriority(a, b)
+  if (groupResult !== 0) return groupResult
 
   return 0
 }
@@ -22733,6 +22801,7 @@ function isOwnTodoOrNoteForCurrentUser(row = {}) {
 
 function shouldShowCreatorName(row = {}) {
   if (isNoCompletionControlSchedule(row)) return false
+  if (typeof isCertificateDeliverySchedule === 'function' && isCertificateDeliverySchedule(row)) return false
   if (isOwnTodoOrNoteForCurrentUser(row)) return false
   return true
 }
@@ -23127,7 +23196,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const detailTimeText = formatTime(row) || '不指定'
   const detailTitleText = String(row.title || getScheduleDisplayType(row) || '-').trim() || '-'
   const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
-  const mobileReminderDetailRows = renderMobileReminderDetailPriorityRows(row, detailContentText)
+  const mobileCertificateDetailRows = renderMobileCertificateDeliveryPriorityRows(row, detailContentText, detailAddressText)
+  const mobileReminderDetailRows = mobileCertificateDetailRows || renderMobileReminderDetailPriorityRows(row, detailContentText)
   const defaultMobileDetailPriorityRows = `
           <div class="mobile-detail-priority-item"><span>日期</span><strong>${escapeHtml(detailDateText)}</strong></div>
           <div class="mobile-detail-priority-item"><span>時間</span><strong>${escapeHtml(detailTimeText)}</strong></div>
