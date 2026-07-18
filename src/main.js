@@ -241,8 +241,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dd'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dd'
+const APP_VERSION = 'V002-1H-stable-1-3de'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3de'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '修正手機會議室修改範圍版面、行程卡片排序、證件交付卡片與手機查看欄位。'
 
@@ -1788,6 +1788,42 @@ function renderPersonalTodayMeetingArea(rows = [], today = todayString()) {
 
 let currentProfile = null
 let currentPage = 'personalSchedule'
+
+
+/* FOR-e V002-1H-stable-1-3de START - manual desktop view mode */
+const desktopViewModeStorageKey = 'for-e:manual-desktop-view'
+
+function isManualDesktopViewEnabled() {
+  try {
+    return localStorage.getItem(desktopViewModeStorageKey) === '1'
+  } catch (err) {
+    return false
+  }
+}
+
+function setManualDesktopViewEnabled(enabled) {
+  try {
+    if (enabled) localStorage.setItem(desktopViewModeStorageKey, '1')
+    else localStorage.removeItem(desktopViewModeStorageKey)
+  } catch (err) {
+    console.warn('電腦版檢視設定儲存失敗，不影響系統功能。', err)
+  }
+}
+
+function applyManualDesktopViewBodyClass() {
+  const enabled = isManualDesktopViewEnabled()
+  document.body.classList.toggle('force-desktop-mode', enabled)
+  document.documentElement.classList.toggle('force-desktop-mode', enabled)
+  return enabled
+}
+
+function renderDesktopViewToggleButton(extraClass = '') {
+  const enabled = isManualDesktopViewEnabled()
+  const label = enabled ? '切回手機版' : '電腦版檢視'
+  const safeClass = String(extraClass || '').trim()
+  return `<button type="button" class="view-mode-toggle-btn ${safeClass}" id="desktopViewToggleBtn">${escapeHtml(label)}</button>`
+}
+/* FOR-e V002-1H-stable-1-3de END - manual desktop view mode */
 let schedules = []
 let staffList = []
 let allStaffList = []
@@ -5846,13 +5882,14 @@ async function loadServiceRecords() {
 
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
-  const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
+  const forceDesktopView = applyManualDesktopViewBodyClass()
+  const isMobileViewport = !forceDesktopView && window.matchMedia('(max-width: 768px)').matches
   if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
   if (isMobileViewport && visiblePages.some(page => page.key === currentPage && page.mobile === false)) currentPage = 'personalSchedule'
   const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
 
   document.querySelector('#app').innerHTML = `
-    <section class="layout">
+    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''}">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
@@ -5872,6 +5909,7 @@ function renderApp() {
       <main class="main">
         <header class="mobile-header">
           ${renderBrandLogo('horizontal')}
+          ${renderDesktopViewToggleButton('mobile-view-toggle-btn')}
         </header>
 
         <header class="topbar">
@@ -5884,7 +5922,10 @@ function renderApp() {
               ｜${currentProfile.position_name || currentProfile.position || '-'}
             </p>
           </div>
-          <button class="logout-btn" id="logoutBtn">登出</button>
+          <div class="topbar-actions">
+            ${renderDesktopViewToggleButton()}
+            <button class="logout-btn" id="logoutBtn">登出</button>
+          </div>
         </header>
 
         ${currentPage === 'personalSchedule' ? renderVersionAnnouncementBanner() : ''}
@@ -5913,6 +5954,13 @@ function renderApp() {
       if (!nextPage || nextPage === currentPage) return
       currentPage = nextPage
       renderAppAndEnsurePageData(nextPage)
+    })
+  })
+
+  document.querySelectorAll('#desktopViewToggleBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setManualDesktopViewEnabled(!isManualDesktopViewEnabled())
+      renderAppAndEnsurePageData(currentPage)
     })
   })
 

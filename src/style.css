@@ -28427,3 +28427,119 @@ body,
   }
 }
 /* FOR-e V002-1H-stable-1-3dd END - mobile meeting edit scope layout */
+
+/* FOR-e V002-1H-stable-1-3de START - manual desktop view mode */
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-mode-toggle-btn {
+  border: 1px solid #bfdbfe;
+  background: #eef5ff;
+  color: #3155d4;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.view-mode-toggle-btn:hover {
+  background: #dbeafe;
+}
+
+.mobile-header .view-mode-toggle-btn {
+  margin-left: auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+html.force-desktop-mode,
+body.force-desktop-mode {
+  min-width: 1180px;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.force-desktop-mode .layout,
+body.force-desktop-mode .layout-force-desktop {
+  min-width: 1180px;
+}
+
+body.force-desktop-mode .sidebar {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 auto 0 0 !important;
+  width: 250px !important;
+}
+
+body.force-desktop-mode .main {
+  margin-left: 250px !important;
+  padding: 24px !important;
+  padding-bottom: 90px !important;
+  min-width: 930px !important;
+}
+
+body.force-desktop-mode .mobile-header,
+body.force-desktop-mode .mobile-nav {
+  display: none !important;
+}
+
+body.force-desktop-mode .topbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+body.force-desktop-mode .page-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+body.force-desktop-mode .toolbar-actions {
+  margin-top: 0 !important;
+}
+
+body.force-desktop-mode .content-card,
+body.force-desktop-mode .week-overview-wrap,
+body.force-desktop-mode .field-week-wrapper,
+body.force-desktop-mode .meeting-week-wrapper,
+body.force-desktop-mode .field-week-scroll,
+body.force-desktop-mode .meeting-week-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+body.force-desktop-mode .week-overview-table,
+body.force-desktop-mode .field-week-table,
+body.force-desktop-mode .meeting-week-table {
+  min-width: 980px !important;
+}
+
+@media (max-width: 768px) {
+  .topbar-actions {
+    justify-content: flex-start;
+    margin-top: 12px;
+  }
+
+  body.force-desktop-mode .topbar-actions {
+    margin-top: 0 !important;
+    justify-content: flex-end !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3de END - manual desktop view mode */
+
+@media (max-width: 768px) {
+  body:not(.force-desktop-mode) .topbar-actions .view-mode-toggle-btn {
+    display: none !important;
+  }
+}
