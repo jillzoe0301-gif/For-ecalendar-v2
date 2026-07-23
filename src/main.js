@@ -61,6 +61,14 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1P-250 END - continuous schedule inline item time */
 
+/* FOR-e V002-1H-stable-1-3dh START - schedule date range load pagination fix */
+/*
+  V002-1H-stable-1-3dh｜修正 7/22 後行程漏載
+  - 行程日期範圍查詢不再把所有 end_date 空白的舊單日行程全部撈入。
+  - 使用分頁載入，避免 Supabase 預設 1000 筆限制造成後面日期行程消失。
+*/
+/* FOR-e V002-1H-stable-1-3dh END - schedule date range load pagination fix */
+
 /* FOR-e V002-1H-stable-1-3bz START - field card icon left row restore */
 /*
   V002-1H-stable-1-3bz｜外務卡片 LOGO 找回並靠左
@@ -241,8 +249,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dg'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dg'
+const APP_VERSION = 'V002-1H-stable-1-3dh'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dh'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '修正待辦 / 一般記事標註其他人後，對方個人行事曆與待辦頁可同步顯示。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
@@ -5777,6 +5785,28 @@ async function loadStaff() {
   staffList = allStaffList.filter(staff => !staff.deleted_at && (staff.status || '啟用') === '啟用')
 }
 
+async function fetchScheduleRowsPaged(buildQuery, requestSeq) {
+  const pageSize = 1000
+  const maxRows = 20000
+  const rows = []
+
+  for (let from = 0; from < maxRows; from += pageSize) {
+    if (requestSeq !== scheduleLoadRequestSeq) return null
+
+    const to = from + pageSize - 1
+    const { data, error } = await buildQuery(from, to)
+
+    if (error) throw error
+
+    const pageRows = data || []
+    rows.push(...pageRows)
+
+    if (pageRows.length < pageSize) break
+  }
+
+  return rows
+}
+
 async function loadSchedules(options = {}) {
   const requestSeq = ++scheduleLoadRequestSeq
   loadingSchedules = true
@@ -5786,36 +5816,46 @@ async function loadSchedules(options = {}) {
   const dateEnd = String(options.dateEnd || '').trim()
   const useDateRange = /^\d{4}-\d{2}-\d{2}$/.test(dateStart) && /^\d{4}-\d{2}-\d{2}$/.test(dateEnd)
 
-  let query = supabase
-    .from('schedules')
-    .select('*, schedule_assignees(*)')
-    .is('deleted_at', null)
+  const buildQuery = (from, to) => {
+    let query = supabase
+      .from('schedules')
+      .select('*, schedule_assignees(*)')
+      .is('deleted_at', null)
 
-  // V002-1H-stable-1-3bm：登入 / 行程總覽預設只載入目前畫面日期範圍，
-  // 避免一登入就撈全部歷史行程。跨日行程只要與畫面日期區間重疊就會載入。
-  if (useDateRange) {
-    query = query
-      .lte('start_date', dateEnd)
-      .or(`end_date.gte.${dateStart},end_date.is.null`)
+    // V002-1H-stable-1-3dh：修正 7/22 後行程漏載。
+    // 之前 end_date is null 會把所有舊單日行程一起撈出，容易先被 Supabase 1000 筆限制截斷，
+    // 導致後面日期的行程沒有進入前端。
+    // 正確規則：
+    // 1. 有 end_date 的行程：只要與目前日期範圍重疊就載入。
+    // 2. end_date 為空的單日行程：只載入 start_date 落在目前範圍內的行程。
+    if (useDateRange) {
+      query = query
+        .lte('start_date', dateEnd)
+        .or(`end_date.gte.${dateStart},and(end_date.is.null,start_date.gte.${dateStart})`)
+    }
+
+    return query
+      .order('start_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .range(from, to)
   }
 
-  const { data, error } = await query
-    .order('start_date', { ascending: true })
-    .order('start_time', { ascending: true })
+  try {
+    const data = await fetchScheduleRowsPaged(buildQuery, requestSeq)
 
-  if (requestSeq !== scheduleLoadRequestSeq) {
-    return
-  }
+    if (requestSeq !== scheduleLoadRequestSeq || data === null) {
+      return
+    }
 
-  if (error) {
-    console.error(error)
-    schedules = []
-    schedulesError = error.message
-  } else {
     schedules = data || []
     schedulesLoadState = useDateRange
       ? { mode: options.scope || 'range', dateStart, dateEnd }
       : { mode: 'full', dateStart: '', dateEnd: '' }
+  } catch (error) {
+    if (requestSeq !== scheduleLoadRequestSeq) return
+    console.error(error)
+    schedules = []
+    schedulesError = error.message
   }
 
   // 1-3be：行程資料更新後清除行程總覽快取，避免顯示舊資料。
