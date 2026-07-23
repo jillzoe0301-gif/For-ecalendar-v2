@@ -241,8 +241,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3df'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3df'
+const APP_VERSION = 'V002-1H-stable-1-3dg'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dg'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '修正待辦 / 一般記事標註其他人後，對方個人行事曆與待辦頁可同步顯示。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
@@ -17393,7 +17393,11 @@ function applyOverviewStatePreference(options = {}) {
 /* FOR-e V002-1H-stable-1-3bo END - keep overview state on refresh */
 
 function getOverviewDateRangeKeys(viewMode = getOverviewViewMode()) {
-  const dates = getOverviewCalendarDates(viewMode)
+  const calendarDates = getOverviewCalendarDates(viewMode)
+  const effectiveDates = ['個人當月', '月份顯示'].includes(viewMode)
+    ? getMonthCalendarGridDates(calendarDates)
+    : calendarDates
+  const dates = effectiveDates
     .map(date => toDateKey(date))
     .filter(Boolean)
     .sort()
@@ -17439,18 +17443,59 @@ function getOverviewCalendarLabel(weekDates = [], viewMode = getOverviewViewMode
   return getWeekLabel(weekDates)
 }
 
-function getCurrentProfileStaffRow() {
-  return staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || {
-    staff_id: currentProfile?.staff_id || '',
+
+/* FOR-e V002-1H-stable-1-3dg START - overview personal month resolved staff */
+function getCurrentProfileResolvedStaffId() {
+  const directStaffId = normalizeStaffId(currentProfile?.staff_id || getProfileStaffId(currentProfile || {}) || '')
+  if (directStaffId) return directStaffId
+
+  const profileEmail = String(currentProfile?.email || '').trim().toLowerCase()
+  if (profileEmail) {
+    const matchedProfile = (userProfileList || []).find(profile => String(profile?.email || '').trim().toLowerCase() === profileEmail)
+    const profileStaffId = normalizeStaffId(getProfileStaffId(matchedProfile || {}) || matchedProfile?.staff_id || '')
+    if (profileStaffId) return profileStaffId
+  }
+
+  const profileName = String(currentProfile?.name || '').trim()
+  const profileDepartment = String(currentProfile?.department_name || currentProfile?.department || '').trim()
+  if (profileName) {
+    const rows = (allStaffList && allStaffList.length ? allStaffList : staffList) || []
+    const sameNameRows = rows.filter(staff => String(staff?.name || '').trim() === profileName)
+    const sameDeptRow = sameNameRows.find(staff => !profileDepartment || String(staff?.department_name || '').trim() === profileDepartment)
+    const matchedStaff = sameDeptRow || sameNameRows[0]
+    const staffId = normalizeStaffId(matchedStaff?.staff_id || '')
+    if (staffId) return staffId
+  }
+
+  return ''
+}
+
+function getCurrentProfileResolvedStaffRow() {
+  const staffId = getCurrentProfileResolvedStaffId()
+  const matchedStaff = staffId
+    ? ((staffList || []).find(staff => normalizeStaffId(staff?.staff_id || '') === staffId)
+      || (allStaffList || []).find(staff => normalizeStaffId(staff?.staff_id || '') === staffId))
+    : null
+
+  if (matchedStaff) return matchedStaff
+
+  return {
+    staff_id: staffId,
     name: currentProfile?.name || currentProfile?.email || '目前登入者',
-    department_name: currentProfile?.department_name || '',
+    department_name: currentProfile?.department_name || currentProfile?.department || '',
     position: currentProfile?.position_name || currentProfile?.position || ''
   }
+}
+/* FOR-e V002-1H-stable-1-3dg END - overview personal month resolved staff */
+
+function getCurrentProfileStaffRow() {
+  return getCurrentProfileResolvedStaffRow()
 }
 
 function getOverviewCalendarStaffRows(viewMode = getOverviewViewMode()) {
   if (viewMode.startsWith('個人')) {
-    return currentProfile?.staff_id ? [getCurrentProfileStaffRow()] : []
+    const staffId = getCurrentProfileResolvedStaffId()
+    return staffId ? [{ ...getCurrentProfileStaffRow(), staff_id: staffId }] : []
   }
 
   return getOverviewStaffRows()
