@@ -241,10 +241,17 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3de'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3de'
+const APP_VERSION = 'V002-1H-stable-1-3df'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3df'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正手機會議室修改範圍版面、行程卡片排序、證件交付卡片與手機查看欄位。'
+const SYSTEM_VERSION_NOTE = '修正待辦 / 一般記事標註其他人後，對方個人行事曆與待辦頁可同步顯示。'
+/* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
+/*
+  待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
+  被標註 / 被指派的人員可在個人行程表與個人一般待辦看到該筆資料。
+  未勾選他人時，仍保留建立者本人為預設人員，避免沒有執行者。
+*/
+/* FOR-e V002-1H-stable-1-3df END - shared todo note assignee visibility */
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -2577,7 +2584,7 @@ function getActiveStaffRows() {
 function shouldAllowFullStaffSelectionForGeneralStaff(category = '') {
   if (!isGeneralStaffRole()) return false
   const normalized = normalizeCreateScheduleCategory(category).category || String(category || '').trim()
-  return ['一般行程', '請假 / 會議 / 活動 / 外訓'].includes(normalized)
+  return ['一般行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(normalized)
 }
 
 function shouldAllowFullStaffSelectionForGeneralStaffRow(row = {}) {
@@ -27309,7 +27316,7 @@ function openScheduleModal(defaults = {}) {
 
     applyGeneralScheduleExplicitSelfSelectionRule(form, category)
 
-    const hideGeneralAssignee = isGeneralOverview && rawCategory === '一般記事'
+    const hideGeneralAssignee = false
     form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || hideGeneralAssignee)
     form.querySelector('.notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralNormalSchedule || isGeneralPersonalNote)
     form.querySelector('.schedule-time-group')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category))
@@ -29412,9 +29419,10 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editServiceAdminStaffIds = category === '服務行程' ? getServiceAdminStaffIdsFromForm(form) : []
   const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
   const selectedEditExecutorIds = getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
+  const editTodoNoteTaggedExecutorIds = selectedEditExecutorIds.length ? selectedEditExecutorIds : [currentProfile?.staff_id].filter(Boolean)
   const editExecutorIds = (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && generalStaffOverviewFormCategories.includes(rawCategory))
-    ? (rawCategory === '一般記事'
-      ? [currentProfile?.staff_id].filter(Boolean)
+    ? (rawCategory === '一般記事' || rawCategory === '待辦事項'
+      ? editTodoNoteTaggedExecutorIds
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
         : selectedEditExecutorIds))
@@ -29701,9 +29709,10 @@ async function saveSchedule(event, modal) {
   }
 
   const selectedExecutorIds = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
+  const todoNoteTaggedExecutorIds = selectedExecutorIds.length ? selectedExecutorIds : [currentProfile?.staff_id].filter(Boolean)
   const executorIds = isGeneralStaffOverviewCreateMode()
-    ? (rawCategory === '一般記事'
-      ? [currentProfile?.staff_id].filter(Boolean)
+    ? (rawCategory === '一般記事' || rawCategory === '待辦事項'
+      ? todoNoteTaggedExecutorIds
       : (category === '公務車保養'
         ? getVehicleMaintenanceNotifyStaffIds(form)
         : selectedExecutorIds))
