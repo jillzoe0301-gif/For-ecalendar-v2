@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dk'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dk'
+const APP_VERSION = 'V002-1H-stable-1-3dl'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dl'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第一階段讀取邏輯修正：排除建立者誤顯示與外務日提醒重複，不寫入舊資料。'
+const SYSTEM_VERSION_NOTE = '第二階段統一行程顯示日期：所有行事曆以同一套 read-only 日期規則判斷，不寫入舊資料。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3003,7 +3003,8 @@ function isVisibleSchedule(row) {
 
 
 /* FOR-e V002-1H-stable-1-3dj START - core read logic phase 1 */
-const CORE_READ_LOGIC_VERSION = '1-3dk'
+const CORE_READ_LOGIC_VERSION = '1-3dl'
+const CORE_DISPLAY_DATE_LOGIC_VERSION = '1-3dl'
 
 function normalizeReadDateKey(value = '') {
   const text = String(value || '').trim()
@@ -3095,29 +3096,14 @@ function getReadScheduleBaseDateKeys(row = {}, options = {}) {
   return getReadRangeDateKeys(startDate, startDate, options)
 }
 
-function getScheduleDisplayDateKeys(row = {}, options = {}) {
-  if (!row) return []
+function isStrictServiceReminderDisplayType(type = '') {
+  const normalized = typeof normalizeServiceTypeOption === 'function'
+    ? normalizeServiceTypeOption(type)
+    : String(type || '').trim()
+  return ['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒'].includes(normalized)
+}
 
-  let dates = []
-
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    const startDate = normalizeReadDateKey(row.start_date)
-    const endDate = typeof getAdministrativeReminderEndDate === 'function'
-      ? normalizeReadDateKey(getAdministrativeReminderEndDate(row))
-      : normalizeReadDateKey(row.end_date || row.start_date)
-    dates = endDate && endDate !== startDate ? [startDate, endDate] : [startDate]
-  } else if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    dates = typeof getServiceReminderOccurrenceDatesFromRow === 'function'
-      ? getServiceReminderOccurrenceDatesFromRow(row)
-      : []
-    const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
-    if (!dates.length && !['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒'].includes(reminderType)) {
-      dates = [row.start_date]
-    }
-  } else {
-    dates = getReadScheduleBaseDateKeys(row, options)
-  }
-
+function normalizeScheduleDisplayDateKeys(dates = [], options = {}) {
   const limitStart = normalizeReadDateKey(options.limitStart || options.dateStart || '')
   const limitEnd = normalizeReadDateKey(options.limitEnd || options.dateEnd || '')
 
@@ -3128,6 +3114,60 @@ function getScheduleDisplayDateKeys(row = {}, options = {}) {
     .sort((a, b) => a.localeCompare(b))
 }
 
+function getScheduleDisplayDateSource(row = {}) {
+  if (!row) return ''
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return 'administrative-reminder'
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) return 'service-reminder'
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return 'meeting-room'
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return 'field-day-reminder'
+  if (typeof isTodoOrNoteSchedule === 'function' && isTodoOrNoteSchedule(row)) return 'todo-note'
+  if (typeof isPublicGeneralSchedule === 'function' && isPublicGeneralSchedule(row)) return 'general-schedule'
+  return 'base-schedule'
+}
+
+function getAdministrativeReminderDisplayDateKeys(row = {}, options = {}) {
+  const startDate = normalizeReadDateKey(row?.start_date)
+  const endDate = typeof getAdministrativeReminderEndDate === 'function'
+    ? normalizeReadDateKey(getAdministrativeReminderEndDate(row))
+    : normalizeReadDateKey(row?.end_date || row?.start_date)
+  const dates = endDate && startDate && endDate !== startDate ? [startDate, endDate] : [startDate]
+  return normalizeScheduleDisplayDateKeys(dates, options)
+}
+
+function getServiceReminderDisplayDateKeys(row = {}, options = {}) {
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function'
+    ? getServiceReminderTypeFromRow(row)
+    : String(row?.schedule_type || row?.sub_type || '').trim()
+
+  const occurrenceDates = typeof getServiceReminderOccurrenceDatesFromRow === 'function'
+    ? getServiceReminderOccurrenceDatesFromRow(row, reminderType)
+    : []
+
+  // 1-3dl：返台、逃跑、轉出、住變、驗證等提醒，必須只依專用提醒日期顯示。
+  // 若舊資料解析不到專用日期，不退回建立日，避免 created/start date 誤顯示。
+  if (isStrictServiceReminderDisplayType(reminderType)) {
+    return normalizeScheduleDisplayDateKeys(occurrenceDates, options)
+  }
+
+  // 電表提醒、翻譯文件、電話協助、證件交付等非嚴格提醒，仍以該筆實際日期顯示。
+  if (occurrenceDates.length) return normalizeScheduleDisplayDateKeys(occurrenceDates, options)
+  return normalizeScheduleDisplayDateKeys(getReadScheduleBaseDateKeys(row, options), options)
+}
+
+function getBaseScheduleDisplayDateKeys(row = {}, options = {}) {
+  return normalizeScheduleDisplayDateKeys(getReadScheduleBaseDateKeys(row, options), options)
+}
+
+function getScheduleDisplayDateKeys(row = {}, options = {}) {
+  if (!row) return []
+
+  const source = getScheduleDisplayDateSource(row)
+
+  if (source === 'administrative-reminder') return getAdministrativeReminderDisplayDateKeys(row, options)
+  if (source === 'service-reminder') return getServiceReminderDisplayDateKeys(row, options)
+
+  return getBaseScheduleDisplayDateKeys(row, options)
+}
 function scheduleMatchesDisplayDate(row = {}, dateKey = '') {
   const targetDate = normalizeReadDateKey(dateKey)
   if (!targetDate) return false
@@ -3136,10 +3176,16 @@ function scheduleMatchesDisplayDate(row = {}, dateKey = '') {
 
 function getScheduleReadRange(row = {}) {
   const dates = getScheduleDisplayDateKeys(row)
-  if (dates.length) return { startDate: dates[0], endDate: dates[dates.length - 1], dates }
+  if (dates.length) return { startDate: dates[0], endDate: dates[dates.length - 1], dates, source: getScheduleDisplayDateSource(row) }
+
+  const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row) && isStrictServiceReminderDisplayType(reminderType)) {
+    return { startDate: '', endDate: '', dates: [], source: getScheduleDisplayDateSource(row) }
+  }
+
   const startDate = normalizeReadDateKey(row?.start_date)
   const endDate = normalizeReadDateKey(row?.end_date || row?.start_date)
-  return { startDate, endDate: endDate && endDate >= startDate ? endDate : startDate, dates: startDate ? [startDate] : [] }
+  return { startDate, endDate: endDate && endDate >= startDate ? endDate : startDate, dates: startDate ? [startDate] : [], source: getScheduleDisplayDateSource(row) }
 }
 
 function getScheduleDisplayStaffIds(row = {}) {
@@ -3206,6 +3252,8 @@ function normalizeScheduleReadRow(row = {}) {
   return {
     ...row,
     __core_read_logic_version: CORE_READ_LOGIC_VERSION,
+    __display_date_logic_version: CORE_DISPLAY_DATE_LOGIC_VERSION,
+    __display_date_source: readRange.source || getScheduleDisplayDateSource(row),
     __display_start_date: readRange.startDate || row.start_date || '',
     __display_end_date: readRange.endDate || row.end_date || row.start_date || '',
     __display_date_keys: readRange.dates || [],
@@ -6164,7 +6212,7 @@ async function loadSchedules(options = {}) {
       return
     }
 
-    // FOR-e V002-1H-stable-1-3dj：第一階段只整理讀取結果，不寫回 Supabase。
+    // FOR-e V002-1H-stable-1-3dl：第二階段只補上 read-only 顯示日期 metadata，不寫回 Supabase。
     schedules = normalizeScheduleReadRows(data || [])
     schedulesLoadState = useDateRange
       ? { mode: options.scope || 'range', dateStart, dateEnd }
@@ -7961,8 +8009,8 @@ function getRepeatWeekdayValuesFromNote(row) {
 }
 
 function scheduleMatchesDateByMode(row, dateKey) {
-  // FOR-e V002-1H-stable-1-3dj：統一讀取層判斷要顯示在哪一天。
-  // 此函式只讀資料、不改寫舊行程，避免各頁面用不同日期邏輯造成漏顯或誤顯。
+  // FOR-e V002-1H-stable-1-3dl：第二階段統一行程顯示日期。
+  // 所有頁面只透過 scheduleMatchesDisplayDate 判斷，不用各自的日期規則。
   return scheduleMatchesDisplayDate(row, dateKey)
 }
 
@@ -7975,11 +8023,9 @@ function getAdministrativeReminderEndDate(row = {}) {
 }
 
 function isAdministrativeReminderCalendarDate(row = {}, dateKey = '') {
-  if (!isAdministrativeReminderSchedule(row) || !row.start_date || !dateKey) return false
-  const startDate = String(row.start_date || '').trim()
-  const endDate = getAdministrativeReminderEndDate(row)
-  if (endDate && endDate !== startDate) return dateKey === startDate || dateKey === endDate
-  return dateKey === startDate
+  if (!isAdministrativeReminderSchedule(row) || !dateKey) return false
+  // 1-3dl：辦件提醒在行事曆上的顯示日走統一顯示日期層。
+  return scheduleMatchesDisplayDate(row, dateKey)
 }
 
 function isAdministrativeReminderDueReminderDate(row = {}, dateKey = '') {
@@ -8039,7 +8085,7 @@ function isScheduleSeriesLike(row = {}) {
 }
 
 function getScheduleOccurrenceDates(row = {}) {
-  // FOR-e V002-1H-stable-1-3dj：所有行程 occurrence dates 走同一個讀取層。
+  // FOR-e V002-1H-stable-1-3dl：所有行程 occurrence dates 走統一顯示日期層。
   return getScheduleDisplayDateKeys(row)
 }
 
@@ -21059,13 +21105,11 @@ function getScheduleSimpleEndDate(row = {}) {
 }
 
 function overviewScheduleMightMatchDateRange(row = {}, dateKeys = [], firstKey = '', lastKey = '') {
-  if (!row?.start_date || !firstKey || !lastKey) return false
+  if (!row || !firstKey || !lastKey) return false
 
-  const simpleEnd = getScheduleSimpleEndDate(row)
-  const maybeDateRangeOverlap = !(row.start_date > lastKey || simpleEnd < firstKey)
-
-  // 一般行程可先用日期範圍排除；特殊提醒可能由 sub_type_note 推算日期，交給 scheduleMatchesDateByMode 判斷。
-  if (maybeDateRangeOverlap) return true
+  // 1-3dl：行程總覽候選資料也改看統一顯示日期範圍，避免各模式用不同日期邏輯。
+  const readRange = getScheduleReadRange(row)
+  if (readRange.startDate && readRange.endDate && !(readRange.startDate > lastKey || readRange.endDate < firstKey)) return true
 
   return dateKeys.some(dateKey => {
     if (scheduleMatchesDateByMode(row, dateKey)) return true
@@ -24500,12 +24544,9 @@ function getServiceReminderPrimaryDate(row = {}, type = getServiceReminderTypeFr
 }
 
 function serviceReminderMatchesCalendarDate(row = {}, dateKey = '') {
-  const type = getServiceReminderTypeFromRow(row)
-  if (!type || !dateKey) return false
-  const occurrenceDates = getServiceReminderOccurrenceDatesFromRow(row, type)
-  if (occurrenceDates.length) return occurrenceDates.includes(dateKey)
-  if (['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒'].includes(type)) return false
-  return dateKey === (row.start_date || '')
+  if (!getServiceReminderTypeFromRow(row) || !dateKey) return false
+  // 1-3dl：服務提醒在行事曆上的顯示日走統一顯示日期層。
+  return scheduleMatchesDisplayDate(row, dateKey)
 }
 
 function serviceReminderMatchesActionReminderDate(row = {}, dateKey = '') {
