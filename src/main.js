@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dl'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dl'
+const APP_VERSION = 'V002-1H-stable-1-3dm'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dm'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第二階段統一行程顯示日期：所有行事曆以同一套 read-only 日期規則判斷，不寫入舊資料。'
+const SYSTEM_VERSION_NOTE = '外務日提醒去重修正：同一人同一天只顯示一筆外務日請勿安排其他行程，保留第二階段日期顯示邏輯。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3003,8 +3003,8 @@ function isVisibleSchedule(row) {
 
 
 /* FOR-e V002-1H-stable-1-3dj START - core read logic phase 1 */
-const CORE_READ_LOGIC_VERSION = '1-3dl'
-const CORE_DISPLAY_DATE_LOGIC_VERSION = '1-3dl'
+const CORE_READ_LOGIC_VERSION = '1-3dm'
+const CORE_DISPLAY_DATE_LOGIC_VERSION = '1-3dm'
 
 function normalizeReadDateKey(value = '') {
   const text = String(value || '').trim()
@@ -18108,10 +18108,10 @@ function renderOverviewSortedCellContent({ staffId = '', dateKey = '', dayRows =
     pushOverviewSortedContentItem(items, row, renderContinuationDayMarks([row], dateKey, variant), dateKey)
   })
 
-  const explicitFieldDayRows = uniqueScheduleRows(dayMark?.fieldDayRows || [])
+  const explicitFieldDayRows = dedupeFieldDayReminderRows(dayMark?.fieldDayRows || [], { dateKey })
   if (explicitFieldDayRows.length) {
     explicitFieldDayRows.forEach(row => {
-      pushOverviewSortedContentItem(items, row, renderFieldDayReminderPrompt([row]), dateKey)
+      pushOverviewSortedContentItem(items, row, renderFieldDayReminderPrompt([row], { dateKey }), dateKey)
     })
   } else if (shouldRenderAutoFieldDayPrompt(dayRows || [], false)) {
     const autoFieldDayRow = getAutoFieldDayPromptRow(dayRows || [], dateKey)
@@ -18423,11 +18423,11 @@ function getStaffFieldDayRowsForDate(staffId = '', dateKey = '') {
   const cachedRows = getOverviewPerformanceCachedRows('fieldDayRowsByStaffDate', staffId, dateKey)
   if (cachedRows) return cachedRows
 
-  return sortScheduleRowsForDisplay(schedules
+  return dedupeFieldDayReminderRows(schedules
     .filter(isVisibleSchedule)
     .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
     .filter(row => scheduleMatchesDateByMode(row, dateKey))
-    .filter(row => scheduleBelongsToStaff(row, staffId)), { dateFirst: true })
+    .filter(row => scheduleBelongsToStaff(row, staffId)), { dateKey })
 }
 
 
@@ -18579,6 +18579,59 @@ function getFieldDayReminderPromptText(row = {}) {
   return '外務日｜請勿安排其他行程'
 }
 
+function getFieldDayReminderDedupeDateKey(row = {}, fallbackDateKey = '') {
+  return normalizeReadDateKey(
+    fallbackDateKey
+    || row.__occurrence_date
+    || row.__render_date
+    || row.__occurrenceDate
+    || row.start_date
+    || row.date
+    || row.reminder_date
+    || ''
+  )
+}
+
+function getFieldDayReminderDedupeKey(row = {}, fallbackDateKey = '') {
+  const dateKey = getFieldDayReminderDedupeDateKey(row, fallbackDateKey) || 'same-date'
+  // FOR-e V002-1H-stable-1-3dm：外務日提醒是「當天不可安排其他外務」的狀態提示，
+  // 同一人同一天不應因舊資料有多筆相同提醒而重複顯示三條以上。
+  // 因此不以 schedule_id 去重，而以日期 + 標準提示語去重。
+  const promptText = (typeof getFieldDayReminderPromptText === 'function'
+    ? getFieldDayReminderPromptText(row)
+    : '外務日｜請勿安排其他行程')
+    .replace(/\s+/g, '')
+    .replace(/[|｜]+/g, '｜')
+  const normalizedPrompt = /外務日|請勿安排|勿安排其他行程/.test(promptText)
+    ? '外務日｜請勿安排其他行程'
+    : (promptText || '外務日｜請勿安排其他行程')
+  return `${dateKey}@@${normalizedPrompt}`
+}
+
+function pickPreferredFieldDayReminderRow(existing = null, candidate = null) {
+  if (!existing) return candidate
+  if (!candidate) return existing
+  const existingEditable = typeof canModifySchedule === 'function' && canModifySchedule(existing) && existing.status !== '取消'
+  const candidateEditable = typeof canModifySchedule === 'function' && canModifySchedule(candidate) && candidate.status !== '取消'
+  if (!existingEditable && candidateEditable) return candidate
+  const existingUpdated = String(existing.updated_at || existing.created_at || '')
+  const candidateUpdated = String(candidate.updated_at || candidate.created_at || '')
+  if (candidateUpdated && existingUpdated && candidateUpdated > existingUpdated) return candidate
+  return existing
+}
+
+function dedupeFieldDayReminderRows(rows = [], options = {}) {
+  const fallbackDateKey = normalizeReadDateKey(options.dateKey || '')
+  const map = new Map()
+  uniqueScheduleRows(rows || [])
+    .filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+    .forEach(row => {
+      const key = getFieldDayReminderDedupeKey(row, fallbackDateKey)
+      map.set(key, pickPreferredFieldDayReminderRow(map.get(key), row))
+    })
+  return sortScheduleRowsForDisplay([...map.values()].filter(Boolean), { dateFirst: true })
+}
+
 function isAutoFieldDayPromptSource(row = {}) {
   if (!row) return false
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return false
@@ -18626,7 +18679,7 @@ function renderAutoFieldDayReminderPrompt() {
 }
 
 function renderFieldDayReminderPrompt(rows = [], options = {}) {
-  const reminderRows = uniqueScheduleRows(rows).filter(row => typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+  const reminderRows = dedupeFieldDayReminderRows(rows, { dateKey: options.dateKey || '' })
   if (!reminderRows.length) {
     return options.auto === true ? renderAutoFieldDayReminderPrompt() : ''
   }
@@ -18810,7 +18863,7 @@ function renderFieldSingleMonthCalendar(staff, monthDates = [], todayKey = today
               </div>
               ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
+              ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt, dateKey: key })}
 
               ${trainingPrompt}
 
@@ -18867,7 +18920,7 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt, dateKey: key })}
 
                     ${trainingPrompt}
 
@@ -18930,7 +18983,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
                   return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
                     ${renderContinuationDayMarks(continuousRows, key, 'field')}
 
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt })}
+                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt, dateKey: key })}
 
                     ${trainingPrompt}
 
@@ -21091,10 +21144,14 @@ function sortOverviewPerformanceRows(map) {
   })
 }
 
-function sortOverviewPerformanceSimpleRows(map) {
+function sortOverviewPerformanceSimpleRows(map, options = {}) {
   if (!map) return
   map.forEach((rows, key) => {
-    map.set(key, sortScheduleRowsForDisplay(uniqueScheduleRows(rows), { dateFirst: true }))
+    const dateKey = String(key || '').split('@@')[1] || ''
+    const normalizedRows = options.dedupeFieldDayReminders === true
+      ? dedupeFieldDayReminderRows(rows, { dateKey })
+      : uniqueScheduleRows(rows)
+    map.set(key, sortScheduleRowsForDisplay(normalizedRows, { dateFirst: true }))
   })
 }
 
@@ -21215,7 +21272,7 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
   sortOverviewPerformanceRows(cache.schedulesByStaffDate)
   sortOverviewPerformanceSimpleRows(cache.leaveRestRowsByStaffDate)
   sortOverviewPerformanceSimpleRows(cache.fieldBackgroundRowsByStaffDate)
-  sortOverviewPerformanceSimpleRows(cache.fieldDayRowsByStaffDate)
+  sortOverviewPerformanceSimpleRows(cache.fieldDayRowsByStaffDate, { dedupeFieldDayReminders: true })
   sortOverviewPerformanceSimpleRows(cache.administrativeRowsByStaffDate)
   sortOverviewPerformanceSimpleRows(cache.returnTaiwanRowsByStaffDate)
 
