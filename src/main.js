@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dh'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dh'
+const APP_VERSION = 'V002-1H-stable-1-3di'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3di'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正待辦 / 一般記事標註其他人後，對方個人行事曆與待辦頁可同步顯示。'
+const SYSTEM_VERSION_NOTE = '修正人員停用與刪除：改為保守停用 / 封存刪除，並強制刷新人員快取。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -260,6 +260,16 @@ const SYSTEM_VERSION_NOTE = '修正待辦 / 一般記事標註其他人後，對
   未勾選他人時，仍保留建立者本人為預設人員，避免沒有執行者。
 */
 /* FOR-e V002-1H-stable-1-3df END - shared todo note assignee visibility */
+
+/* FOR-e V002-1H-stable-1-3di START - staff deactivate soft delete cache fix */
+/*
+  V002-1H-stable-1-3di｜人員停用 / 刪除穩定修正
+  - 人員停用新增獨立操作按鈕，不必進入修改表單。
+  - 刪除改為封存刪除：更新 staff.status='停用' 與 deleted_at，不做硬刪除，避免歷史行程 / 紀錄 / 異動紀錄 FK 擋住。
+  - 停用、刪除、啟用、修改人員後強制刷新 staff / profiles 快取，避免畫面仍顯示舊狀態。
+*/
+/* FOR-e V002-1H-stable-1-3di END - staff deactivate soft delete cache fix */
+
 
 /* FOR-e V002-1H-stable-1-3ck START - return confirm label size and pill width */
 /*
@@ -2568,6 +2578,10 @@ function canActivateUserProfile(staff) {
   return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && getStaffDisplayStatus(staff) === '停用'
 }
 
+function canDeactivateUserProfile(staff) {
+  return canManageUsers() && staff?.staff_id && staff.staff_id !== currentProfile?.staff_id && !isStaffDeleted(staff) && getStaffDisplayStatus(staff) !== '停用'
+}
+
 
 function canManageOptions() {
   return hasRolePermission('manageOptions')
@@ -4681,6 +4695,19 @@ function clearPageDataLoading(pageKey = currentPage, token = pageDataLoadingToke
   pageDataLoadingMessage = ''
 }
 
+function invalidateCoreSharedDataCache() {
+  coreSharedDataLoadedAt = 0
+  coreSharedDataLoadingPromise = null
+}
+
+async function refreshStaffAndProfileDataAfterMutation() {
+  invalidateCoreSharedDataCache()
+  await Promise.allSettled([
+    loadCoreSharedData({ force: true }),
+    loadUserProfiles()
+  ])
+}
+
 async function loadCoreSharedData(options = {}) {
   const force = options.force === true
   const isFresh = coreSharedDataLoadedAt && (Date.now() - coreSharedDataLoadedAt < CORE_SHARED_DATA_CACHE_MS)
@@ -5233,32 +5260,58 @@ async function resetLoginPasswordDirectly(event, modal, email) {
 }
 
 
-async function updateProfilesBeforeStaffDelete(staffId = '') {
+async function updateLinkedProfilesForStaffStatus(staffId = '', status = '停用', options = {}) {
   const normalizedStaffId = normalizeStaffId(staffId)
   if (!normalizedStaffId) return
 
-  const primaryPayload = {
-    staff_id: null,
-    status: '停用'
+  const shouldUnbind = options.unbind === true
+  const payload = { status: status || '停用' }
+  if (shouldUnbind) payload.staff_id = null
+
+  const linkedProfiles = (userProfileList || []).filter(profile => normalizeStaffId(getProfileStaffId(profile)) === normalizedStaffId)
+  const targetEmails = linkedProfiles
+    .map(profile => String(profile.email || '').trim())
+    .filter(Boolean)
+
+  const updateByStaffId = async updatePayload => {
+    const { error } = await supabase
+      .from('profiles')
+      .update(updatePayload)
+      .eq('staff_id', normalizedStaffId)
+    return error
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update(primaryPayload)
-    .eq('staff_id', normalizedStaffId)
+  let firstError = await updateByStaffId(payload)
 
-  if (!error) return
+  if (firstError && Object.prototype.hasOwnProperty.call(payload, 'status')) {
+    const fallbackPayload = { ...payload }
+    delete fallbackPayload.status
+    if (Object.keys(fallbackPayload).length) {
+      console.warn('profiles 狀態同步失敗，改用可用欄位重試。', firstError)
+      firstError = await updateByStaffId(fallbackPayload)
+    }
+  }
 
-  console.warn('profiles 解除 staff_id / 停用失敗，改用僅解除 staff_id 重試。', error)
+  for (const email of targetEmails) {
+    const { error } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('email', email)
 
-  const { error: staffOnlyError } = await supabase
-    .from('profiles')
-    .update({ staff_id: null })
-    .eq('staff_id', normalizedStaffId)
+    if (error && Object.prototype.hasOwnProperty.call(payload, 'status')) {
+      const fallbackPayload = { ...payload }
+      delete fallbackPayload.status
+      if (Object.keys(fallbackPayload).length) {
+        await supabase
+          .from('profiles')
+          .update(fallbackPayload)
+          .eq('email', email)
+      }
+    }
+  }
 
-  if (staffOnlyError) {
-    console.error(staffOnlyError)
-    throw new Error('解除登入帳號與人員綁定失敗：' + staffOnlyError.message)
+  if (firstError && !targetEmails.length) {
+    console.warn('profiles 狀態同步未完成。若 profiles 沒有 status 欄位，仍會以 staff 狀態判斷停用。', firstError)
   }
 }
 
@@ -5267,6 +5320,57 @@ function isForeignKeyStaffDeleteError(error) {
   return message.includes('foreign key constraint') || message.includes('violates foreign key') || message.includes('profiles_staff_id_fkey')
 }
 
+async function deactivateStaffUser(staffId = '', staffName = '') {
+  if (!canManageUsers()) {
+    alert('只有管理員可以停用人員。')
+    return
+  }
+
+  const normalizedStaffId = normalizeStaffId(staffId)
+  if (!normalizedStaffId) {
+    alert('找不到人員資料。')
+    return
+  }
+
+  if (normalizedStaffId === normalizeStaffId(currentProfile?.staff_id)) {
+    alert('不能停用目前登入中的自己。')
+    return
+  }
+
+  const staff = getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId)
+  const name = staffName || staff?.name || '此人員'
+
+  if (!confirm(`確定要停用「${name}」嗎？\n\n停用後：\n1. 不會出現在新增行程的人員選單。\n2. 若有登入帳號，該帳號會同步停用。\n3. 歷史行程與紀錄會保留。`)) return
+
+  if (saving) return
+  saving = true
+
+  try {
+    const { error } = await supabase
+      .from('staff')
+      .update({
+        status: '停用',
+        deleted_at: null
+      })
+      .eq('staff_id', normalizedStaffId)
+
+    if (error) {
+      console.error(error)
+      alert('停用人員失敗：' + error.message)
+      return
+    }
+
+    await updateLinkedProfilesForStaffStatus(normalizedStaffId, '停用', { unbind: false })
+    await refreshStaffAndProfileDataAfterMutation()
+    renderApp()
+    alert('人員已停用。')
+  } catch (err) {
+    console.error(err)
+    alert(err.message || '停用人員失敗。')
+  } finally {
+    saving = false
+  }
+}
 
 async function deleteStaffUser(staffId = '', staffName = '') {
   if (!canManageUsers()) {
@@ -5274,26 +5378,29 @@ async function deleteStaffUser(staffId = '', staffName = '') {
     return
   }
 
-  if (!staffId) {
+  const normalizedStaffId = normalizeStaffId(staffId)
+  if (!normalizedStaffId) {
     alert('找不到人員資料。')
     return
   }
 
-  if (staffId === currentProfile?.staff_id) {
+  if (normalizedStaffId === normalizeStaffId(currentProfile?.staff_id)) {
     alert('不能刪除目前登入中的自己。')
     return
   }
 
-  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const staff = getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId)
   const loginEmail = getStaffLoginEmail(staff)
   const name = staffName || staff?.name || '此人員'
 
   const confirmed = confirm(
-    `確定要永久刪除「${name}」嗎？\n\n` +
-    `刪除前系統會先解除此人員與登入帳號的綁定，避免 profiles_staff_id_fkey 擋住刪除。\n` +
-    `刪除後此人員不會再出現在人員 / 帳號頁。\n\n` +
-    `如果只是暫時不用，請按「修改」把狀態改為「停用」，停用人員會繼續留在人員名單上。` +
-    `${loginEmail ? '\n\n原綁定帳號會保留，但會解除人員綁定並停用。' : ''}`
+    `確定要刪除「${name}」嗎？\n\n` +
+    `本系統會採用「封存刪除」，不會硬刪資料庫資料，所以不會因為歷史行程、服務紀錄單或異動紀錄而刪除失敗。\n\n` +
+    `刪除後：\n` +
+    `1. 此人員不會再出現在人員 / 帳號頁與新增行程選單。\n` +
+    `2. 歷史行程、服務紀錄單、異動紀錄仍會保留。\n` +
+    `3. 綁定帳號會同步停用並解除人員綁定。` +
+    `${loginEmail ? '\n\n原綁定帳號：' + loginEmail : ''}`
   )
   if (!confirmed) return
 
@@ -5301,44 +5408,43 @@ async function deleteStaffUser(staffId = '', staffName = '') {
   saving = true
 
   try {
-    await updateProfilesBeforeStaffDelete(staffId)
+    await updateLinkedProfilesForStaffStatus(normalizedStaffId, '停用', { unbind: true })
 
     const settings = getFieldStaffSettings()
-    if (Object.prototype.hasOwnProperty.call(settings, staffId)) {
-      delete settings[staffId]
+    if (Object.prototype.hasOwnProperty.call(settings, normalizedStaffId)) {
+      delete settings[normalizedStaffId]
       await saveFieldStaffSettings(settings)
     }
 
     const { error } = await supabase
       .from('staff')
-      .delete()
-      .eq('staff_id', staffId)
+      .update({
+        status: '停用',
+        deleted_at: new Date().toISOString()
+      })
+      .eq('staff_id', normalizedStaffId)
 
     if (error) {
       console.error(error)
 
       if (isForeignKeyStaffDeleteError(error)) {
         alert(
-          '永久刪除人員失敗：此人員仍被其他資料表引用。\n\n' +
-          '目前已先解除 profiles.staff_id 綁定，但還可能有行程、紀錄單或異動紀錄引用此人員。\n' +
-          '如果這位人員已有歷史資料，建議改用「停用」。\n\n' +
+          '刪除人員失敗：資料庫仍回報關聯限制。\n\n' +
+          '這版已改為封存刪除，理論上不應再被歷史資料擋住。請先確認 staff 表是否有 status 與 deleted_at 欄位。\n\n' +
           '原始錯誤：' + error.message
         )
       } else {
-        alert(
-          '永久刪除人員失敗：' + error.message +
-          '\n\n若此人員已有歷史資料導致資料庫不允許刪除，請改用「修改」把狀態設為「停用」。'
-        )
+        alert('刪除人員失敗：' + error.message)
       }
       return
     }
 
-    await refreshData()
+    await refreshStaffAndProfileDataAfterMutation()
     renderApp()
-    alert('人員已永久刪除，不會再出現在人員名單。原登入帳號已解除人員綁定。')
+    alert('人員已刪除並封存，歷史行程與紀錄仍保留。')
   } catch (err) {
     console.error(err)
-    alert(err.message || '永久刪除人員失敗。')
+    alert(err.message || '刪除人員失敗。')
   } finally {
     saving = false
   }
@@ -5350,12 +5456,13 @@ async function activateStaffUser(staffId = '', staffName = '') {
     return
   }
 
-  if (!staffId) {
+  const normalizedStaffId = normalizeStaffId(staffId)
+  if (!normalizedStaffId) {
     alert('找不到人員資料。')
     return
   }
 
-  const staff = getUserManageRows().find(item => item.staff_id === staffId)
+  const staff = getUserManageRows().find(item => normalizeStaffId(item.staff_id) === normalizedStaffId)
   const loginEmail = getStaffLoginEmail(staff)
   const name = staffName || staff?.name || '此人員'
 
@@ -5371,7 +5478,7 @@ async function activateStaffUser(staffId = '', staffName = '') {
         status: '啟用',
         deleted_at: null
       })
-      .eq('staff_id', staffId)
+      .eq('staff_id', normalizedStaffId)
 
     if (error) {
       console.error(error)
@@ -5386,9 +5493,13 @@ async function activateStaffUser(staffId = '', staffName = '') {
         .eq('email', loginEmail)
     }
 
-    await refreshData()
+    await updateLinkedProfilesForStaffStatus(normalizedStaffId, '啟用', { unbind: false })
+    await refreshStaffAndProfileDataAfterMutation()
     renderApp()
     alert('人員已啟用。')
+  } catch (err) {
+    console.error(err)
+    alert(err.message || '啟用人員失敗。')
   } finally {
     saving = false
   }
@@ -5532,7 +5643,7 @@ async function createLoginAccountForStaff(event, modal, staffId) {
     }
 
     modal.remove()
-    await refreshData()
+    await refreshStaffAndProfileDataAfterMutation()
     renderApp()
     alert('登入帳號已建立。')
   } catch (err) {
@@ -5717,7 +5828,7 @@ async function rebindLoginAccountForStaff(event, modal, staffId = '', oldEmail =
     }
 
     modal.remove()
-    await refreshData()
+    await refreshStaffAndProfileDataAfterMutation()
     renderApp()
     alert('登入帳號已重新綁定。')
   } finally {
@@ -6812,6 +6923,10 @@ function renderApp() {
 
   document.querySelectorAll('[data-delete-user]').forEach(btn => {
     btn.addEventListener('click', () => deleteStaffUser(btn.dataset.deleteUser, btn.dataset.deleteUserName || ''))
+  })
+
+  document.querySelectorAll('[data-disable-user]').forEach(btn => {
+    btn.addEventListener('click', () => deactivateStaffUser(btn.dataset.disableUser, btn.dataset.disableUserName || ''))
   })
 
   document.querySelectorAll('[data-activate-user]').forEach(btn => {
@@ -22437,6 +22552,10 @@ function renderUsersList(rows) {
                   ? `<button type="button" class="user-action-btn is-create" data-create-login-staff="${staff.staff_id}">綁定</button>`
                   : ''
                 }
+                ${canDeactivateUserProfile(staff)
+                  ? `<button type="button" class="user-action-btn is-disable" data-disable-user="${staff.staff_id}" data-disable-user-name="${escapeHtml(staff.name || '')}">停用</button>`
+                  : ''
+                }
                 ${canActivateUserProfile(staff)
                   ? `<button type="button" class="user-action-btn is-activate" data-activate-user="${staff.staff_id}" data-activate-user-name="${escapeHtml(staff.name || '')}">啟用</button>`
                   : ''
@@ -22496,7 +22615,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理，並可查看每個帳號最後一次登入狀況；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「刪除」會永久移除人員且不再顯示在人員名單；若只是不使用，請修改狀態為「停用」，停用人員會留在人員名單上。
+      人員 / 帳號檢視權限：管理員可全部管理，並可查看每個帳號最後一次登入狀況；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「停用」會保留人員資料但停用帳號；按「刪除」會採封存刪除，不硬刪歷史資料，避免行程、服務紀錄單或異動紀錄被破壞。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -22919,7 +23038,7 @@ async function saveUserAccount(event, modal, staffId = '') {
     }
 
     modal.remove()
-    await refreshData()
+    await refreshStaffAndProfileDataAfterMutation()
     renderApp()
   } finally {
     saving = false
