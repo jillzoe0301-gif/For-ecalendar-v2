@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dj'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dj'
+const APP_VERSION = 'V002-1H-stable-1-3dk'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dk'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '核心邏輯第一階段加強：只整理讀取與顯示判斷，不寫入舊資料。'
+const SYSTEM_VERSION_NOTE = '第一階段讀取邏輯修正：排除建立者誤顯示與外務日提醒重複，不寫入舊資料。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3003,7 +3003,7 @@ function isVisibleSchedule(row) {
 
 
 /* FOR-e V002-1H-stable-1-3dj START - core read logic phase 1 */
-const CORE_READ_LOGIC_VERSION = '1-3dj'
+const CORE_READ_LOGIC_VERSION = '1-3dk'
 
 function normalizeReadDateKey(value = '') {
   const text = String(value || '').trim()
@@ -3145,25 +3145,50 @@ function getScheduleReadRange(row = {}) {
 function getScheduleDisplayStaffIds(row = {}) {
   if (!row) return []
 
+  const assigneeIds = uniqueReadList(getActiveAssigneeIds(row))
+  const notificationIds = uniqueReadList(getScheduleNotificationStaffIds(row))
+  const creatorId = String(row.creator_staff_id || '').trim()
+
+  // 1-3dk：顯示在哪個人的行事曆，以「實際指派 / 通知」為主。
+  // 建立者只是建立資料的人，不可因為 creator_staff_id 就自動出現在建立者自己的個人行程表。
   if (typeof isPublicGeneralSchedule === 'function' && isPublicGeneralSchedule(row)) {
-    const assigneeIds = getActiveAssigneeIds(row)
-    return assigneeIds.length ? uniqueReadList(assigneeIds) : uniqueReadList([row.creator_staff_id])
+    return assigneeIds.length ? assigneeIds : uniqueReadList([creatorId])
   }
 
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) {
     if (typeof getMeetingEffectiveStaffIds === 'function') {
-      const meetingIds = getMeetingEffectiveStaffIds(row)
-      if (meetingIds.length) return uniqueReadList(meetingIds)
+      const meetingIds = uniqueReadList(getMeetingEffectiveStaffIds(row))
+      if (meetingIds.length) return meetingIds
     }
+    return assigneeIds.length ? assigneeIds : uniqueReadList([creatorId])
   }
 
-  const ids = [
-    ...getActiveAssigneeIds(row),
-    ...getScheduleNotificationStaffIds(row),
-    row.creator_staff_id
-  ]
+  if (typeof isVerifyReminderRow === 'function' && isVerifyReminderRow(row)) {
+    const verifyIds = typeof getVerificationReminderAllPotentialStaffIds === 'function'
+      ? uniqueReadList(getVerificationReminderAllPotentialStaffIds(row))
+      : uniqueReadList([...notificationIds, ...assigneeIds])
+    return verifyIds.length ? verifyIds : uniqueReadList([creatorId])
+  }
 
-  return uniqueReadList(ids)
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
+    const reminderIds = uniqueReadList([...notificationIds, ...assigneeIds])
+    return reminderIds.length ? reminderIds : uniqueReadList([creatorId])
+  }
+
+  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    const reminderIds = uniqueReadList([...notificationIds, ...assigneeIds])
+    return reminderIds.length ? reminderIds : uniqueReadList([creatorId])
+  }
+
+  // 外務日提醒若有指派人員，只顯示在該外務人員身上；避免建立者那邊又多一筆提醒。
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) {
+    const fieldDayIds = uniqueReadList([...assigneeIds, ...notificationIds])
+    return fieldDayIds.length ? fieldDayIds : uniqueReadList([creatorId])
+  }
+
+  if (assigneeIds.length) return assigneeIds
+  if (notificationIds.length) return notificationIds
+  return uniqueReadList([creatorId])
 }
 
 function scheduleVisibleForStaffByReadLogic(row = {}, staffId = '') {
@@ -8467,6 +8492,7 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
 }
 
 function renderFieldScheduleCard(row) {
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
   return `
     <button type="button" class="field-week-schedule-card simple-field-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderSimpleFieldScheduleHead(row, 'field-week-card-time')}
@@ -21052,9 +21078,9 @@ function getOverviewPerformanceCandidateStaffIds(row = {}, staffIds = []) {
   const wanted = new Set(staffIds)
   const candidates = new Set()
 
-  getActiveAssigneeIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
-  getScheduleNotificationStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
-  if (row.creator_staff_id) candidates.add(normalizeStaffId(row.creator_staff_id))
+  // 1-3dk：候選人員同樣走統一顯示人員邏輯，不再直接把 creator 加進候選名單。
+  // 避免「我幫別人建立的行程」出現在我自己的行事曆，也避免外務日提醒多顯示一筆。
+  getScheduleDisplayStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
 
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
     getMeetingEffectiveStaffIds(row).forEach(id => candidates.add(normalizeStaffId(id)))
