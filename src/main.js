@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3di'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3di'
+const APP_VERSION = 'V002-1H-stable-1-3dj'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dj'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '修正人員停用與刪除：改為保守停用 / 封存刪除，並強制刷新人員快取。'
+const SYSTEM_VERSION_NOTE = '核心邏輯第一階段加強：只整理讀取與顯示判斷，不寫入舊資料。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3001,6 +3001,198 @@ function isVisibleSchedule(row) {
   return row && !isDeletedSchedule(row) && !isCancelledSchedule(row) && canSeePersonalPrivateSchedule(row)
 }
 
+
+/* FOR-e V002-1H-stable-1-3dj START - core read logic phase 1 */
+const CORE_READ_LOGIC_VERSION = '1-3dj'
+
+function normalizeReadDateKey(value = '') {
+  const text = String(value || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return ''
+  if (typeof getDateFromKey === 'function' && typeof toDateKey === 'function') {
+    const date = getDateFromKey(text)
+    if (!date || toDateKey(date) !== text) return ''
+  }
+  return text
+}
+
+function uniqueReadList(values = []) {
+  const seen = new Set()
+  return (values || [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .filter(value => {
+      if (seen.has(value)) return false
+      seen.add(value)
+      return true
+    })
+}
+
+function getReadRangeDateKeys(startDate = '', endDate = '', options = {}) {
+  const start = normalizeReadDateKey(startDate)
+  const end = normalizeReadDateKey(endDate || startDate)
+  if (!start || !end || end < start) return start ? [start] : []
+
+  const limitStart = normalizeReadDateKey(options.limitStart || options.dateStart || '')
+  const limitEnd = normalizeReadDateKey(options.limitEnd || options.dateEnd || '')
+  const effectiveStart = limitStart && limitStart > start ? limitStart : start
+  const effectiveEnd = limitEnd && limitEnd < end ? limitEnd : end
+  if (effectiveEnd < effectiveStart) return []
+
+  if (typeof getDateKeysBetween === 'function') {
+    return getDateKeysBetween(effectiveStart, effectiveEnd).filter(Boolean)
+  }
+
+  const dates = []
+  const startObj = new Date(`${effectiveStart}T00:00:00`)
+  const endObj = new Date(`${effectiveEnd}T00:00:00`)
+  if (Number.isNaN(startObj.getTime()) || Number.isNaN(endObj.getTime())) return []
+  const cursor = new Date(startObj)
+  let guard = 0
+  while (cursor <= endObj && guard < 3660) {
+    dates.push(cursor.toISOString().slice(0, 10))
+    cursor.setDate(cursor.getDate() + 1)
+    guard += 1
+  }
+  return dates
+}
+
+function getReadScheduleMode(row = {}) {
+  const mode = typeof getScheduleModeFromNote === 'function' ? getScheduleModeFromNote(row) : ''
+  return mode || '單日'
+}
+
+function getReadScheduleBaseDateKeys(row = {}, options = {}) {
+  const startDate = normalizeReadDateKey(row?.start_date)
+  if (!startDate) return []
+
+  const mode = getReadScheduleMode(row)
+  const rawEndDate = normalizeReadDateKey(row?.end_date)
+  const endDate = mode === '單日' ? startDate : ((rawEndDate && rawEndDate >= startDate) ? rawEndDate : startDate)
+
+  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) {
+    return getReadRangeDateKeys(startDate, rawEndDate && rawEndDate >= startDate ? rawEndDate : startDate, options)
+  }
+
+  if (mode === '連續日期') return getReadRangeDateKeys(startDate, endDate, options)
+
+  if (mode === '每週重複') {
+    const repeatWeekdays = typeof getRepeatWeekdayValuesFromNote === 'function'
+      ? getRepeatWeekdayValuesFromNote(row)
+      : []
+    return getReadRangeDateKeys(startDate, endDate, options).filter(dateKey => {
+      const weekdayValue = typeof getWeekdayValueFromDateKey === 'function' ? getWeekdayValueFromDateKey(dateKey) : ''
+      return repeatWeekdays.includes(weekdayValue)
+    })
+  }
+
+  if (mode === '每月重複') {
+    const note = String(row?.sub_type_note || '')
+    const match = note.match(/每月\s*(\d{1,2})\s*號/)
+    const monthlyDay = match ? Number(match[1]) : Number(startDate.slice(8, 10))
+    return getReadRangeDateKeys(startDate, endDate, options).filter(dateKey => Number(dateKey.slice(8, 10)) === monthlyDay)
+  }
+
+  return getReadRangeDateKeys(startDate, startDate, options)
+}
+
+function getScheduleDisplayDateKeys(row = {}, options = {}) {
+  if (!row) return []
+
+  let dates = []
+
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
+    const startDate = normalizeReadDateKey(row.start_date)
+    const endDate = typeof getAdministrativeReminderEndDate === 'function'
+      ? normalizeReadDateKey(getAdministrativeReminderEndDate(row))
+      : normalizeReadDateKey(row.end_date || row.start_date)
+    dates = endDate && endDate !== startDate ? [startDate, endDate] : [startDate]
+  } else if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
+    dates = typeof getServiceReminderOccurrenceDatesFromRow === 'function'
+      ? getServiceReminderOccurrenceDatesFromRow(row)
+      : []
+    const reminderType = typeof getServiceReminderTypeFromRow === 'function' ? getServiceReminderTypeFromRow(row) : ''
+    if (!dates.length && !['逃跑通知', '轉出追蹤', '住變資訊提供', '驗證提醒', '返台提醒'].includes(reminderType)) {
+      dates = [row.start_date]
+    }
+  } else {
+    dates = getReadScheduleBaseDateKeys(row, options)
+  }
+
+  const limitStart = normalizeReadDateKey(options.limitStart || options.dateStart || '')
+  const limitEnd = normalizeReadDateKey(options.limitEnd || options.dateEnd || '')
+
+  return uniqueReadList(dates)
+    .map(normalizeReadDateKey)
+    .filter(Boolean)
+    .filter(dateKey => (!limitStart || dateKey >= limitStart) && (!limitEnd || dateKey <= limitEnd))
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function scheduleMatchesDisplayDate(row = {}, dateKey = '') {
+  const targetDate = normalizeReadDateKey(dateKey)
+  if (!targetDate) return false
+  return getScheduleDisplayDateKeys(row, { limitStart: targetDate, limitEnd: targetDate }).includes(targetDate)
+}
+
+function getScheduleReadRange(row = {}) {
+  const dates = getScheduleDisplayDateKeys(row)
+  if (dates.length) return { startDate: dates[0], endDate: dates[dates.length - 1], dates }
+  const startDate = normalizeReadDateKey(row?.start_date)
+  const endDate = normalizeReadDateKey(row?.end_date || row?.start_date)
+  return { startDate, endDate: endDate && endDate >= startDate ? endDate : startDate, dates: startDate ? [startDate] : [] }
+}
+
+function getScheduleDisplayStaffIds(row = {}) {
+  if (!row) return []
+
+  if (typeof isPublicGeneralSchedule === 'function' && isPublicGeneralSchedule(row)) {
+    const assigneeIds = getActiveAssigneeIds(row)
+    return assigneeIds.length ? uniqueReadList(assigneeIds) : uniqueReadList([row.creator_staff_id])
+  }
+
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) {
+    if (typeof getMeetingEffectiveStaffIds === 'function') {
+      const meetingIds = getMeetingEffectiveStaffIds(row)
+      if (meetingIds.length) return uniqueReadList(meetingIds)
+    }
+  }
+
+  const ids = [
+    ...getActiveAssigneeIds(row),
+    ...getScheduleNotificationStaffIds(row),
+    row.creator_staff_id
+  ]
+
+  return uniqueReadList(ids)
+}
+
+function scheduleVisibleForStaffByReadLogic(row = {}, staffId = '') {
+  const id = String(staffId || '').trim()
+  if (!row || !id) return false
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof meetingScheduleVisibleForStaff === 'function') {
+    return meetingScheduleVisibleForStaff(row, id)
+  }
+  return getScheduleDisplayStaffIds(row).includes(id)
+}
+
+function normalizeScheduleReadRow(row = {}) {
+  if (!row || typeof row !== 'object') return row
+  const readRange = getScheduleReadRange(row)
+  return {
+    ...row,
+    __core_read_logic_version: CORE_READ_LOGIC_VERSION,
+    __display_start_date: readRange.startDate || row.start_date || '',
+    __display_end_date: readRange.endDate || row.end_date || row.start_date || '',
+    __display_date_keys: readRange.dates || [],
+    __display_staff_ids: getScheduleDisplayStaffIds(row)
+  }
+}
+
+function normalizeScheduleReadRows(rows = []) {
+  return (rows || []).map(row => normalizeScheduleReadRow(row))
+}
+/* FOR-e V002-1H-stable-1-3dj END - core read logic phase 1 */
+
 function isPromptOnlySchedule(row = {}) {
   if (!row) return false
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return true
@@ -3373,20 +3565,9 @@ function publicGeneralScheduleVisibleForStaff(row = {}, staffId = '') {
 }
 
 function scheduleBelongsToStaff(row = {}, staffId = '') {
-  if (!row || !staffId) return false
-
-  // 一般行程不可因登入者、通知文字或目前檢視者而跑到沒有被選取的人員列。
-  if (isPublicGeneralSchedule(row)) return publicGeneralScheduleVisibleForStaff(row, staffId)
-
-  if (isMeetingRoomSchedule(row)) return meetingScheduleVisibleForStaff(row, staffId)
-
-  if (getScheduleNotificationStaffIds(row).includes(staffId)) return true
-
-  if (hasActiveAssignees(row)) {
-    return getActiveAssigneeIds(row).includes(staffId)
-  }
-
-  return row.creator_staff_id === staffId
+  // FOR-e V002-1H-stable-1-3dj：統一人員讀取判斷。
+  // creator / assignees / notify targets 分開整理，只決定顯示，不寫回資料。
+  return scheduleVisibleForStaffByReadLogic(row, staffId)
 }
 /* FOR-e V002-1H-stable-1-3bt END - strict general schedule owner row */
 
@@ -5958,7 +6139,8 @@ async function loadSchedules(options = {}) {
       return
     }
 
-    schedules = data || []
+    // FOR-e V002-1H-stable-1-3dj：第一階段只整理讀取結果，不寫回 Supabase。
+    schedules = normalizeScheduleReadRows(data || [])
     schedulesLoadState = useDateRange
       ? { mode: options.scope || 'range', dateStart, dateEnd }
       : { mode: 'full', dateStart: '', dateEnd: '' }
@@ -7754,46 +7936,9 @@ function getRepeatWeekdayValuesFromNote(row) {
 }
 
 function scheduleMatchesDateByMode(row, dateKey) {
-  if (!row?.start_date || !dateKey) return false
-
-  const startDate = row.start_date
-
-  if (typeof isVehicleMaintenanceSchedule === 'function' && isVehicleMaintenanceSchedule(row)) {
-    const maintenanceEndDate = (row.end_date && row.end_date >= startDate) ? row.end_date : startDate
-    return dateKey >= startDate && dateKey <= maintenanceEndDate
-  }
-
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    return isAdministrativeReminderCalendarDate(row, dateKey)
-  }
-
-  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    return serviceReminderMatchesCalendarDate(row, dateKey)
-  }
-
-  const mode = getScheduleModeFromNote(row)
-  const endDate = mode === '單日'
-    ? startDate
-    : ((row.end_date && row.end_date >= startDate) ? row.end_date : startDate)
-
-  if (dateKey < startDate || dateKey > endDate) return false
-
-  if (mode === '連續日期') return true
-
-  if (mode === '每週重複') {
-    const repeatWeekdays = getRepeatWeekdayValuesFromNote(row)
-    const weekdayValue = getWeekdayValueFromDateKey(dateKey)
-    return repeatWeekdays.includes(weekdayValue)
-  }
-
-  if (mode === '每月重複') {
-    const note = String(row.sub_type_note || '')
-    const match = note.match(/每月\s*(\d{1,2})\s*號/)
-    const monthlyDay = match ? Number(match[1]) : Number(startDate.slice(8, 10))
-    return Number(dateKey.slice(8, 10)) === monthlyDay
-  }
-
-  return dateKey === startDate
+  // FOR-e V002-1H-stable-1-3dj：統一讀取層判斷要顯示在哪一天。
+  // 此函式只讀資料、不改寫舊行程，避免各頁面用不同日期邏輯造成漏顯或誤顯。
+  return scheduleMatchesDisplayDate(row, dateKey)
 }
 
 
@@ -7869,14 +8014,8 @@ function isScheduleSeriesLike(row = {}) {
 }
 
 function getScheduleOccurrenceDates(row = {}) {
-  if (!row?.start_date) return []
-  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    const reminderDates = getServiceReminderOccurrenceDatesFromRow(row)
-    return reminderDates.length ? reminderDates : []
-  }
-  const endDate = row.end_date && row.end_date >= row.start_date ? row.end_date : row.start_date
-  return getDateKeysBetween(row.start_date, endDate)
-    .filter(dateKey => scheduleMatchesDateByMode(row, dateKey))
+  // FOR-e V002-1H-stable-1-3dj：所有行程 occurrence dates 走同一個讀取層。
+  return getScheduleDisplayDateKeys(row)
 }
 
 function normalizeOccurrenceDateForSchedule(row = {}, occurrenceDate = '') {
