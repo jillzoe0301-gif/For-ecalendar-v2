@@ -259,23 +259,34 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3do END - core card display phase 3 */
 
-/* FOR-e V002-1H-stable-1-3dp START - core schedule type phase 4 */
+/* FOR-e V002-1H-stable-1-3dp START - public duty display supplement */
 /*
-  V002-1H-stable-1-3dp｜第四階段第一步：統一行程類型辨識
+  V002-1H-stable-1-3dp｜第三階段後補充修正：公差外出顯示
   - 修正「請假 / 會議 / 活動 / 外訓」新增「公差外出」後，選項或行程未完整顯示的問題。
   - 將公差外出納入一般職員可新增細項、選項管理、卡片類型、顏色、連續行程提示與自動結案判斷。
   - 新增共用類型辨識函式，讓此大分類後續新增的自訂細項可依大分類正常顯示，不再只依固定四種文字判斷。
-  - 本階段只整理前端類型辨識與顯示，不改 Supabase、資料寫入格式、日期、權限、新增 / 修改 / 刪除流程。
+  - 本版是第三階段完成後的補充修正，不列為正式第四階段。
 */
-/* FOR-e V002-1H-stable-1-3dp END - core schedule type phase 4 */
+/* FOR-e V002-1H-stable-1-3dp END - public duty display supplement */
+
+/* FOR-e V002-1H-stable-1-3dq START - people display assignment phase 4 */
+/*
+  V002-1H-stable-1-3dq｜第四階段：統一人員顯示與指派邏輯
+  - 新增 getSchedulePeopleDisplayConfig(schedule, context, viewerStaffId)，集中整理建立者、執行者、通知對象與實際顯示人員。
+  - 個人行程表、行程總覽、快速群組、搜尋與手機查看共用同一套顯示人員判斷。
+  - 建立者不再因 creator_staff_id 自動顯示在本人行事曆；有執行者或通知對象時，以實際執行 / 通知人員為準，舊資料無人員時才退回建立者。
+  - 通知主管、通知行政可正常看到行程，但不會被誤標示成執行者；直接執行者與通知對象維持分開。
+  - 證件交付與自己建立的待辦 / 一般記事維持不顯示指派者；不改資料寫入、權限、日期、Supabase 或 schedule_assignees。
+*/
+/* FOR-e V002-1H-stable-1-3dq END - people display assignment phase 4 */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dp'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dp'
+const APP_VERSION = 'V002-1H-stable-1-3dq'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dq'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段第一步統一行程類型辨識：修正公差外出顯示，讓請假／會議／活動／外訓自訂細項依大分類正常顯示。'
+const SYSTEM_VERSION_NOTE = '第四階段統一人員顯示與指派邏輯：建立者、執行者、通知主管與通知行政分開判斷，所有行程頁面共用同一套顯示人員規則。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3250,80 +3261,193 @@ function getScheduleReadRange(row = {}) {
   return { startDate, endDate: endDate && endDate >= startDate ? endDate : startDate, dates: startDate ? [startDate] : [], source: getScheduleDisplayDateSource(row) }
 }
 
-function getScheduleDisplayStaffIds(row = {}) {
-  if (!row) return []
+const CORE_PEOPLE_DISPLAY_LOGIC_VERSION = '1-3dq'
 
-  const assigneeIds = uniqueReadList(getActiveAssigneeIds(row))
-  const notificationIds = uniqueReadList(getScheduleNotificationStaffIds(row))
+function normalizeSchedulePeopleIds(values = []) {
+  return [...new Set((values || [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean))]
+}
+
+function getScheduleStaffNameById(staffId = '', row = {}) {
+  const id = String(staffId || '').trim()
+  if (!id) return ''
+
+  const assigneeRow = (row.schedule_assignees || []).find(item => !item.deleted_at && String(item.staff_id || '').trim() === id)
+  const assigneeName = String(assigneeRow?.staff_name || '').trim()
+  if (assigneeName) return assigneeName
+
+  const staff = (staffList || []).find(item => String(item?.staff_id || '').trim() === id)
+  const staffName = String(staff?.name || '').trim()
+  if (staffName) return staffName
+
+  if (String(row.creator_staff_id || '').trim() === id) return String(row.creator_name || '').trim()
+  return ''
+}
+
+function getScheduleDirectAssigneeDisplayData(row = {}) {
+  const ids = normalizeSchedulePeopleIds(getActiveAssigneeIds(row))
+  const names = [...new Set(ids
+    .map(id => getScheduleStaffNameById(id, row))
+    .filter(Boolean))]
+
+  return {
+    ids,
+    names,
+    text: names.length ? names.join('、') : '-'
+  }
+}
+
+function isOwnTodoOrNoteForStaff(row = {}, staffId = '') {
+  if (!isTodoOrNoteSchedule(row)) return false
+  const id = String(staffId || '').trim()
+  if (!id) return false
+  return String(row.creator_staff_id || '').trim() === id
+}
+
+function getScheduleBaseVisibleStaffIds(row = {}, assigneeIds = [], notificationIds = []) {
   const creatorId = String(row.creator_staff_id || '').trim()
 
-  // 1-3dk：顯示在哪個人的行事曆，以「實際指派 / 通知」為主。
-  // 建立者只是建立資料的人，不可因為 creator_staff_id 就自動出現在建立者自己的個人行程表。
-  // 1-3dn：若有選擇通知主管 / 通知行政，該主管或行政也要看到行程；但仍不把 creator 自動加入。
+  // 公開一般行程仍要放到實際指派 / 通知人員的行程列；只有舊資料完全沒有任何人員時才退回建立者。
   if (typeof isPublicGeneralSchedule === 'function' && isPublicGeneralSchedule(row)) {
-    const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
-    return displayIds.length ? displayIds : uniqueReadList([creatorId])
+    const displayIds = normalizeSchedulePeopleIds([...assigneeIds, ...notificationIds])
+    return displayIds.length ? displayIds : normalizeSchedulePeopleIds([creatorId])
   }
 
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) {
-    if (typeof getMeetingEffectiveStaffIds === 'function') {
-      const meetingIds = uniqueReadList([...getMeetingEffectiveStaffIds(row), ...notificationIds])
-      if (meetingIds.length) return meetingIds
-    }
-    const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
-    return displayIds.length ? displayIds : uniqueReadList([creatorId])
+    const meetingIds = typeof getMeetingEffectiveStaffIds === 'function'
+      ? normalizeSchedulePeopleIds(getMeetingEffectiveStaffIds(row))
+      : []
+    const displayIds = normalizeSchedulePeopleIds([...meetingIds, ...assigneeIds, ...notificationIds])
+    return displayIds.length ? displayIds : normalizeSchedulePeopleIds([creatorId])
   }
 
   if (typeof isVerifyReminderRow === 'function' && isVerifyReminderRow(row)) {
     const verifyIds = typeof getVerificationReminderAllPotentialStaffIds === 'function'
-      ? uniqueReadList(getVerificationReminderAllPotentialStaffIds(row))
-      : uniqueReadList([...notificationIds, ...assigneeIds])
-    return verifyIds.length ? verifyIds : uniqueReadList([creatorId])
+      ? normalizeSchedulePeopleIds(getVerificationReminderAllPotentialStaffIds(row))
+      : normalizeSchedulePeopleIds([...notificationIds, ...assigneeIds])
+    return verifyIds.length ? verifyIds : normalizeSchedulePeopleIds([creatorId])
   }
 
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) {
-    const reminderIds = uniqueReadList([...notificationIds, ...assigneeIds])
-    return reminderIds.length ? reminderIds : uniqueReadList([creatorId])
+  if (
+    (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) ||
+    (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) ||
+    (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row))
+  ) {
+    const reminderIds = normalizeSchedulePeopleIds([...assigneeIds, ...notificationIds])
+    return reminderIds.length ? reminderIds : normalizeSchedulePeopleIds([creatorId])
   }
 
-  if (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(row)) {
-    const reminderIds = uniqueReadList([...notificationIds, ...assigneeIds])
-    return reminderIds.length ? reminderIds : uniqueReadList([creatorId])
-  }
-
-  // 外務日提醒若有指派人員，只顯示在該外務人員身上；避免建立者那邊又多一筆提醒。
-  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) {
-    const fieldDayIds = uniqueReadList([...assigneeIds, ...notificationIds])
-    return fieldDayIds.length ? fieldDayIds : uniqueReadList([creatorId])
-  }
-
-  const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
-  if (displayIds.length) return displayIds
-  return uniqueReadList([creatorId])
+  const displayIds = normalizeSchedulePeopleIds([...assigneeIds, ...notificationIds])
+  return displayIds.length ? displayIds : normalizeSchedulePeopleIds([creatorId])
 }
 
-function scheduleVisibleForStaffByReadLogic(row = {}, staffId = '') {
+function getSchedulePeopleDisplayConfig(schedule = {}, context = 'default', viewerStaffId = '') {
+  const row = schedule || {}
+  const assigneeData = getScheduleDirectAssigneeDisplayData(row)
+  const notificationIds = normalizeSchedulePeopleIds(getScheduleNotificationStaffIds(row))
+  const creatorId = String(row.creator_staff_id || '').trim()
+  const viewerId = String(viewerStaffId || currentProfile?.staff_id || '').trim()
+  const visibleStaffIds = getScheduleBaseVisibleStaffIds(row, assigneeData.ids, notificationIds)
+  const notificationNames = [...new Set(notificationIds
+    .map(id => getScheduleStaffNameById(id, row))
+    .filter(Boolean))]
+  const visibleStaffNames = [...new Set(visibleStaffIds
+    .map(id => getScheduleStaffNameById(id, row))
+    .filter(Boolean))]
+  const creatorText = String(row.creator_name || getScheduleStaffNameById(creatorId, row) || '').trim()
+  const hideCreator = Boolean(
+    !creatorText ||
+    isNoCompletionControlSchedule(row) ||
+    (typeof isCertificateDeliverySchedule === 'function' && isCertificateDeliverySchedule(row)) ||
+    isOwnTodoOrNoteForStaff(row, viewerId)
+  )
+
+  return {
+    logicVersion: CORE_PEOPLE_DISPLAY_LOGIC_VERSION,
+    context: String(context || 'default'),
+    viewerStaffId: viewerId,
+    creatorId,
+    creatorText,
+    assigneeIds: assigneeData.ids,
+    assigneeNames: assigneeData.names,
+    assigneeText: assigneeData.text,
+    notificationIds,
+    notificationNames,
+    notificationText: notificationNames.length ? notificationNames.join('、') : '',
+    visibleStaffIds,
+    visibleStaffNames,
+    visibleStaffText: visibleStaffNames.length ? visibleStaffNames.join('、') : '',
+    showCreator: !hideCreator,
+    showAssignee: assigneeData.ids.length > 0 || assigneeData.names.length > 0,
+    viewerIsCreator: Boolean(viewerId && creatorId === viewerId),
+    viewerIsAssignee: Boolean(viewerId && assigneeData.ids.includes(viewerId)),
+    viewerIsNotificationTarget: Boolean(viewerId && notificationIds.includes(viewerId)),
+    viewerCanSee: Boolean(viewerId && visibleStaffIds.includes(viewerId)),
+    creatorIsAssignee: Boolean(creatorId && assigneeData.ids.includes(creatorId)),
+    creatorIsNotificationTarget: Boolean(creatorId && notificationIds.includes(creatorId))
+  }
+}
+
+function getScheduleVisibleUserIds(schedule = {}) {
+  return getSchedulePeopleDisplayConfig(schedule, 'visibility').visibleStaffIds
+}
+
+function getScheduleVisibleUserIdsForDate(schedule = {}, dateKey = '') {
+  const row = schedule || {}
+  const targetDate = String(dateKey || '').trim()
+  if (targetDate && typeof isVerifyReminderRow === 'function' && isVerifyReminderRow(row)) {
+    const displayType = getVerifyReminderDisplayType(row, targetDate)
+    const dateIds = normalizeSchedulePeopleIds(getVerificationReminderNotifyStaffIds(row, displayType))
+    if (dateIds.length) return dateIds
+  }
+  return getScheduleVisibleUserIds(row)
+}
+
+function getScheduleDisplayAssignees(schedule = {}, context = 'default') {
+  const config = getSchedulePeopleDisplayConfig(schedule, context)
+  return {
+    ids: config.assigneeIds,
+    names: config.assigneeNames,
+    text: config.assigneeText
+  }
+}
+
+function shouldShowScheduleCreator(schedule = {}, context = 'default', viewerStaffId = '') {
+  return getSchedulePeopleDisplayConfig(schedule, context, viewerStaffId).showCreator
+}
+
+function shouldShowScheduleAssignee(schedule = {}, context = 'default') {
+  return getSchedulePeopleDisplayConfig(schedule, context).showAssignee
+}
+
+function getScheduleDisplayStaffIds(row = {}) {
+  return getScheduleVisibleUserIds(row)
+}
+
+function scheduleVisibleForStaffByReadLogic(row = {}, staffId = '', dateKey = '') {
   const id = String(staffId || '').trim()
   if (!row || !id) return false
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof meetingScheduleVisibleForStaff === 'function') {
-    return meetingScheduleVisibleForStaff(row, id) || getScheduleDisplayStaffIds(row).includes(id)
-  }
-  return getScheduleDisplayStaffIds(row).includes(id)
+  return getScheduleVisibleUserIdsForDate(row, dateKey).includes(id)
 }
 
 function normalizeScheduleReadRow(row = {}) {
   if (!row || typeof row !== 'object') return row
   const readRange = getScheduleReadRange(row)
+  const peopleConfig = getSchedulePeopleDisplayConfig(row, 'read-normalize')
   return {
     ...row,
     __core_read_logic_version: CORE_READ_LOGIC_VERSION,
     __core_schedule_type_logic_version: CORE_SCHEDULE_TYPE_LOGIC_VERSION,
+    __people_display_logic_version: CORE_PEOPLE_DISPLAY_LOGIC_VERSION,
     __display_date_logic_version: CORE_DISPLAY_DATE_LOGIC_VERSION,
     __display_date_source: readRange.source || getScheduleDisplayDateSource(row),
     __display_start_date: readRange.startDate || row.start_date || '',
     __display_end_date: readRange.endDate || row.end_date || row.start_date || '',
     __display_date_keys: readRange.dates || [],
-    __display_staff_ids: getScheduleDisplayStaffIds(row)
+    __display_staff_ids: peopleConfig.visibleStaffIds,
+    __assignee_staff_ids: peopleConfig.assigneeIds,
+    __notification_staff_ids: peopleConfig.notificationIds
   }
 }
 
@@ -3587,7 +3711,7 @@ function isMine(row) {
 
 
 function isAssignedToCurrentUser(row = {}) {
-  return scheduleBelongsToStaff(row, currentProfile?.staff_id)
+  return getSchedulePeopleDisplayConfig(row, 'assignment-check', currentProfile?.staff_id).viewerIsAssignee
 }
 
 function getActiveAssigneeIds(row = {}) {
@@ -3673,8 +3797,7 @@ function verifyReminderBelongsToStaffOnDate(row = {}, staffId = '', dateKey = ''
 
 function scheduleBelongsToStaffOnDate(row = {}, staffId = '', dateKey = '') {
   if (!row || !staffId) return false
-  if (isVerifyReminderRow(row) && dateKey) return verifyReminderBelongsToStaffOnDate(row, staffId, dateKey)
-  return scheduleBelongsToStaff(row, staffId)
+  return scheduleVisibleForStaffByReadLogic(row, staffId, dateKey)
 }
 
 function hasOtherActiveAssignee(row = {}, staffId = '') {
@@ -3697,15 +3820,7 @@ function shouldHideFromCreatorCalendar(row = {}, staffId = '') {
 /* FOR-e V002-1H-stable-1-3bt START - strict general schedule owner row */
 function publicGeneralScheduleVisibleForStaff(row = {}, staffId = '') {
   if (!isPublicGeneralSchedule(row) || !staffId) return false
-
-  const normalizedStaffId = String(staffId || '').trim()
-  const assigneeIds = getActiveAssigneeIds(row).map(id => String(id || '').trim()).filter(Boolean)
-
-  // 一般行程是「所有人可看」，但行程總覽的人員列只能放在實際選取 / 指派的人員底下。
-  // 若有指派人員，以指派人員為準；舊資料沒有 assignees 時才退回建立者。
-  if (assigneeIds.length) return assigneeIds.includes(normalizedStaffId)
-
-  return String(row.creator_staff_id || '').trim() === normalizedStaffId
+  return getSchedulePeopleDisplayConfig(row, 'public-general', staffId).viewerCanSee
 }
 
 function scheduleBelongsToStaff(row = {}, staffId = '') {
@@ -3899,9 +4014,9 @@ function getContinuationDisplayTimeText(row = {}) {
 
 
 function isAssignedToMe(row) {
-  const myStaffId = currentProfile?.staff_id
+  const myStaffId = String(currentProfile?.staff_id || '').trim()
   if (!myStaffId) return false
-  return (row.schedule_assignees || []).some(item => item.staff_id === myStaffId && !item.deleted_at)
+  return getSchedulePeopleDisplayConfig(row, 'direct-assignment', myStaffId).viewerIsAssignee
 }
 
 
@@ -4475,29 +4590,11 @@ function getScheduleMetaParts(parts = []) {
 
 
 function getAssigneeIds(row) {
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
-    return getMeetingEffectiveStaffIds(row)
-  }
-
-  return (row.schedule_assignees || [])
-    .filter(item => !item.deleted_at)
-    .map(item => item.staff_id)
+  return getScheduleDisplayAssignees(row, 'assignee-ids').ids
 }
 
 function getAssigneeNames(row) {
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof getMeetingEffectiveStaffIds === 'function') {
-    const idSet = new Set(getMeetingEffectiveStaffIds(row))
-    const names = staffList
-      .filter(staff => idSet.has(staff.staff_id))
-      .map(staff => staff.name)
-      .filter(Boolean)
-    if (names.length) return names.join('、')
-  }
-
-  const names = (row.schedule_assignees || [])
-    .filter(item => !item.deleted_at)
-    .map(item => item.staff_name)
-  return names.length ? names.join('、') : '-'
+  return getScheduleDisplayAssignees(row, 'assignee-names').text
 }
 
 function escapeHtml(value) {
@@ -7539,10 +7636,7 @@ function matchesSearchFilters(row) {
   if (status !== '全部' && row.status !== status) return false
   if (category !== '全部' && row.category !== category) return false
 
-  if (staffId !== '全部') {
-    const assigned = (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
-    if (!assigned) return false
-  }
+  if (staffId !== '全部' && !scheduleBelongsToStaff(row, staffId)) return false
 
   if (startDate && row.start_date < startDate) return false
   if (endDate && row.start_date > endDate) return false
@@ -8857,6 +8951,7 @@ function renderFieldDetailList(rows) {
     <div class="field-detail-list">
       ${rows.map(row => {
         const result = getFieldResultFromRow(row)
+        const peopleConfig = getSchedulePeopleDisplayConfig(row, 'field-detail')
         const specialReminders = getFieldSpecialRemindersFromRow(row)
         const fieldItemText = row.sub_type || row.schedule_type || '外務'
         const fieldTitleText = sanitizeRepeatedTypeTitle(fieldItemText, row.title || '-')
@@ -8870,8 +8965,8 @@ function renderFieldDetailList(rows) {
             <div class="field-detail-main">
               <div class="field-detail-title">${escapeHtml(fieldItemText)}｜${escapeHtml(fieldTitleText || '-')}</div>
               <div class="field-detail-meta">
-                外務人員：${escapeHtml(getAssigneeNames(row))}
-                ｜指派者：${escapeHtml(row.creator_name || '-')}
+                外務人員：${escapeHtml(peopleConfig.assigneeText)}
+                ${peopleConfig.showCreator && peopleConfig.creatorText ? `｜指派者：${escapeHtml(peopleConfig.creatorText)}` : ''}
               </div>
               <div class="field-detail-meta">
                 地點：${escapeHtml(row.location_name || '-')}
@@ -9223,10 +9318,11 @@ function getScheduleTypeTitleParts(row = {}) {
 }
 
 
-const CORE_CARD_DISPLAY_LOGIC_VERSION = '1-3dp'
+const CORE_CARD_DISPLAY_LOGIC_VERSION = '1-3dq'
 
 function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
   const row = schedule || {}
+  const peopleConfig = getSchedulePeopleDisplayConfig(row, context)
   const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || ''
   const typeTitleParts = getScheduleTypeTitleParts(row)
   const isMeeting = isMeetingRoomSchedule(row)
@@ -9248,6 +9344,7 @@ function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
     : cleanCalendarSummaryPart(row.sub_type || '')
   const config = {
     logicVersion: CORE_CARD_DISPLAY_LOGIC_VERSION,
+    peopleLogicVersion: peopleConfig.logicVersion,
     context: String(context || 'week'),
     variant: 'standard',
     occurrenceDate,
@@ -9258,8 +9355,8 @@ function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
     itemText: cleanCalendarSummaryPart(itemText),
     timeText: hiddenTime ? '' : cleanCalendarSummaryPart(getCardTimeText(row) || formatTime(row)),
     statusText: cleanCalendarSummaryPart(statusText),
-    assigneeText: cleanCalendarSummaryPart(getAssigneeNames(row)),
-    creatorText: cleanCalendarSummaryPart(row.creator_name || ''),
+    assigneeText: cleanCalendarSummaryPart(peopleConfig.assigneeText),
+    creatorText: cleanCalendarSummaryPart(peopleConfig.creatorText),
     customerText: cleanCalendarSummaryPart(row.customer_name || ''),
     locationText: cleanCalendarSummaryPart(row.location_name || ''),
     addressText: cleanCalendarSummaryPart(getScheduleAddressText(row)),
@@ -9267,8 +9364,8 @@ function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
     showType: true,
     showTitle: true,
     showStatus: true,
-    showAssignee: true,
-    showCreator: typeof shouldShowCreatorName === 'function' ? shouldShowCreatorName(row) : Boolean(row.creator_name),
+    showAssignee: peopleConfig.showAssignee,
+    showCreator: peopleConfig.showCreator,
     showItem: Boolean(itemText),
     showCustomer: Boolean(row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()),
     showLocation: Boolean(row.location_name),
@@ -10934,6 +11031,7 @@ function renderIncidentList(rows) {
     <div class="incident-list">
       ${rows.map(row => {
         const isOverdue = row.status !== '已完成' && row.start_date && row.start_date < todayString()
+        const peopleConfig = getSchedulePeopleDisplayConfig(row, 'incident-list')
         return `
           <div class="incident-row ${row.status === '已完成' ? 'is-completed' : ''} ${isOverdue ? 'is-overdue' : ''}">
             <div class="incident-date">
@@ -10945,8 +11043,8 @@ function renderIncidentList(rows) {
             <div class="incident-main">
               <div class="incident-title">${escapeHtml(getIncidentListTitleText(row))} ${renderIncidentUrgencyBadge(row)}</div>
               <div class="incident-meta">
-                負責 / 協助：${escapeHtml(getAssigneeNames(row))}
-                ｜建立者：${escapeHtml(row.creator_name || '-')}
+                負責 / 協助：${escapeHtml(peopleConfig.assigneeText)}
+                ${peopleConfig.showCreator && peopleConfig.creatorText ? `｜建立者：${escapeHtml(peopleConfig.creatorText)}` : ''}
               </div>
               <div class="incident-meta">
                 客戶 / 工人：${escapeHtml(row.customer_name || '-')}
@@ -14759,8 +14857,8 @@ function getScheduleCsvColumns() {
     { header: '區域 / 客戶', value: row => row.customer_name || '' },
     { header: '地點', value: row => row.location_name || '' },
     { header: '地址', value: row => row.address || '' },
-    { header: '執行者', value: row => getAssigneeNames(row) },
-    { header: '指派者', value: row => row.creator_name || '' },
+    { header: '執行者', value: row => getSchedulePeopleDisplayConfig(row, 'csv').assigneeText },
+    { header: '指派者', value: row => getSchedulePeopleDisplayConfig(row, 'csv').creatorText },
     { header: '狀態', value: row => getScheduleStatusLabel(row) },
     { header: '服務紀錄單', value: row => row.need_service_record ? (row.service_record_submitted_date ? `已繳交 ${row.service_record_submitted_date}` : '未繳交') : '不需繳交' },
     { header: '備註 / 提醒', value: row => row.sub_type_note || '' }
@@ -15224,11 +15322,12 @@ function markAssignedReminderRowsSeen(rows = []) {
 }
 
 function renderAssignedReminderItem(row) {
+  const peopleConfig = getSchedulePeopleDisplayConfig(row, 'assigned-reminder')
   return `
     <button type="button" class="login-reminder-item assigned-reminder-item ${getAlertItemClass(row)}" data-assigned-view-schedule="${row.schedule_id}">
       <div>
         <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), `指派者：${row.creator_name || '-'}`]))}</span>
+        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), peopleConfig.creatorText ? `指派者：${peopleConfig.creatorText}` : '']))}</span>
         ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
       </div>
       <em>查看</em>
@@ -23602,11 +23701,8 @@ function isOwnTodoOrNoteForCurrentUser(row = {}) {
   return String(row.creator_staff_id || '').trim() === myStaffId
 }
 
-function shouldShowCreatorName(row = {}) {
-  if (isNoCompletionControlSchedule(row)) return false
-  if (typeof isCertificateDeliverySchedule === 'function' && isCertificateDeliverySchedule(row)) return false
-  if (isOwnTodoOrNoteForCurrentUser(row)) return false
-  return true
+function shouldShowCreatorName(row = {}, context = 'default') {
+  return shouldShowScheduleCreator(row, context, currentProfile?.staff_id)
 }
 
 function getScheduleItemChipClass(row = {}) {
@@ -23998,6 +24094,10 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const detailDateText = `${row.start_date || '-'}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + row.end_date : ''}`
   const detailTimeText = formatTime(row) || '不指定'
   const detailCardDisplayConfig = getScheduleCardDisplayConfig(row, 'mobile-detail')
+  const detailPeopleDisplayConfig = getSchedulePeopleDisplayConfig(row, 'mobile-detail')
+  const detailAssigneeText = isMeetingRoomSchedule(row)
+    ? (getMeetingReserverName(row) || detailPeopleDisplayConfig.assigneeText)
+    : detailPeopleDisplayConfig.assigneeText
   const detailTitleText = String(row.title || detailCardDisplayConfig.titleText || getScheduleDisplayType(row) || '-').trim() || '-'
   const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
   const mobileCertificateDetailRows = renderMobileCertificateDeliveryPriorityRows(row, detailContentText, detailAddressText)
@@ -24041,7 +24141,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
           <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
           <div><span>行程類型</span><strong>${escapeHtml(getScheduleFieldDisplayLabel(row.schedule_type || '-'))}</strong></div>
           <div><span>項目</span><strong>${escapeHtml(row.sub_type || '-')}</strong></div>
-          <div><span>執行者</span><strong>${escapeHtml(isMeetingRoomSchedule(row) ? getMeetingReserverName(row) : getAssigneeNames(row))}</strong></div>
+          ${detailPeopleDisplayConfig.showAssignee || isMeetingRoomSchedule(row) ? `<div><span>執行者</span><strong>${escapeHtml(detailAssigneeText || '-')}</strong></div>` : ''}
           ${isMeetingRoomSchedule(row) ? `<div><span>參與部門 / 人員</span><strong>${escapeHtml(getMeetingParticipantSummary(row) || '-')}</strong></div>` : ''}
           ${detailCardDisplayConfig.showCreator && detailCardDisplayConfig.creatorText ? `<div><span>指派者</span><strong>${escapeHtml(detailCardDisplayConfig.creatorText)}</strong></div>` : ''}
           <div><span>公務車</span><strong>${escapeHtml(row.car_no || '-')}</strong></div>
