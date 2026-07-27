@@ -259,13 +259,23 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3do END - core card display phase 3 */
 
+/* FOR-e V002-1H-stable-1-3dp START - core schedule type phase 4 */
+/*
+  V002-1H-stable-1-3dp｜第四階段第一步：統一行程類型辨識
+  - 修正「請假 / 會議 / 活動 / 外訓」新增「公差外出」後，選項或行程未完整顯示的問題。
+  - 將公差外出納入一般職員可新增細項、選項管理、卡片類型、顏色、連續行程提示與自動結案判斷。
+  - 新增共用類型辨識函式，讓此大分類後續新增的自訂細項可依大分類正常顯示，不再只依固定四種文字判斷。
+  - 本階段只整理前端類型辨識與顯示，不改 Supabase、資料寫入格式、日期、權限、新增 / 修改 / 刪除流程。
+*/
+/* FOR-e V002-1H-stable-1-3dp END - core schedule type phase 4 */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3do'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3do'
+const APP_VERSION = 'V002-1H-stable-1-3dp'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dp'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第三階段統一卡片顯示格式：共用顯示設定、會議室簡化、提醒與指派者顯示收斂。'
+const SYSTEM_VERSION_NOTE = '第四階段第一步統一行程類型辨識：修正公差外出顯示，讓請假／會議／活動／外訓自訂細項依大分類正常顯示。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -1055,9 +1065,58 @@ function renderAdministrativeAnnouncementPage() {
 const formCategories = ['服務行程', '一般記事', '辦件提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
 const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '公務車保養']
 const generalStaffOverviewSimpleCategories = ['一般記事']
-const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓']
+const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓', '公差外出']
 const generalStaffPersonnelAffairsDisplayName = '請假/會議/活動/外訓'
 const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
+
+const CORE_SCHEDULE_TYPE_LOGIC_VERSION = '1-3dp'
+const publicDutyLeaveMeetingType = '公差外出'
+
+function normalizeCoreScheduleTypeText(value = '') {
+  return String(value || '').trim().replace(/\s+/g, '').replace(/[／/]/g, '/')
+}
+
+function getCoreLeaveMeetingTypeOptions() {
+  const managed = typeof getManagedLeaveMeetingTypes === 'function' ? getManagedLeaveMeetingTypes() : []
+  return [...new Set([
+    ...generalStaffOverviewLeaveMeetingTypes,
+    ...managed,
+    publicDutyLeaveMeetingType
+  ].map(item => String(item || '').trim()).filter(Boolean))]
+}
+
+function isCoreLeaveMeetingCategory(value = '') {
+  const text = String(value || '').trim()
+  const compact = normalizeCoreScheduleTypeText(text)
+  return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓'
+}
+
+function isCoreLeaveMeetingSubtype(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return false
+  return getCoreLeaveMeetingTypeOptions().includes(text)
+}
+
+function getCoreLeaveMeetingSubtypeFromRow(row = {}) {
+  const candidates = [row?.sub_type, row?.schedule_type]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+  const exact = candidates.find(isCoreLeaveMeetingSubtype)
+  if (exact) return exact
+
+  const joined = candidates.join('｜')
+  return getCoreLeaveMeetingTypeOptions()
+    .sort((a, b) => b.length - a.length)
+    .find(type => joined.includes(type)) || ''
+}
+
+function isCoreLeaveMeetingSchedule(row = {}) {
+  if (!row) return false
+  const category = String(row.category || '').trim()
+  if (isCoreLeaveMeetingCategory(category)) return true
+  if (isCoreLeaveMeetingSubtype(category)) return true
+  return !category && Boolean(getCoreLeaveMeetingSubtypeFromRow(row))
+}
 
 const unifiedCreateCategoryPages = ['personalSchedule', 'assignedTracking', 'scheduleOverview']
 const adminManagerPersonalCategories = ['服務行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '辦件提醒', '證件交付', '公務車保養']
@@ -1268,21 +1327,11 @@ function getGeneralStaffRawCategoryFromRow(row = {}) {
 }
 
 function getLeaveMeetingSubtypeFromRow(row = {}) {
-  const managed = typeof getManagedLeaveMeetingTypes === 'function' ? getManagedLeaveMeetingTypes() : generalStaffOverviewLeaveMeetingTypes
-  const candidates = [row?.sub_type, row?.schedule_type, row?.category]
-    .map(value => String(value || '').trim())
-    .filter(Boolean)
-  const exact = candidates.find(value => managed.includes(value) || generalStaffOverviewLeaveMeetingTypes.includes(value))
-  if (exact) return exact
-  const text = candidates.join('｜')
-  const keyword = generalStaffOverviewLeaveMeetingTypes.find(type => text.includes(type))
-  return keyword || ''
+  return getCoreLeaveMeetingSubtypeFromRow(row)
 }
 
 function isLeaveMeetingCategoryLike(value = '') {
-  const text = String(value || '').trim()
-  const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
-  return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓' || generalStaffOverviewLeaveMeetingTypes.includes(text)
+  return isCoreLeaveMeetingCategory(value) || isCoreLeaveMeetingSubtype(value)
 }
 
 function getEditScheduleRawCategoryFromRow(row = {}) {
@@ -1354,7 +1403,7 @@ const scheduleContentTemplates = [
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
 const administrativeReminderItems = ['--', '求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
-const leaveMeetingTypes = ['請假', '返鄉', '會議', '活動', '外訓', '部門活動', '公司活動', 'TalkTalk']
+const leaveMeetingTypes = ['請假', '返鄉', '會議', '活動', '外訓', '公差外出', '部門活動', '公司活動', 'TalkTalk']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = [
   '不使用',
@@ -1385,7 +1434,7 @@ const serviceRecordStatusOptions = ['未繳交', '已繳交', '超過14天未繳
 const housingInfoReminderOptions = ['住變資訊提供']
 const scheduleCategoryOptionDefaults = ['服務行程', '一般行程', '公務車保養', '待辦事項', '一般記事', '辦件提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '外務行程', '外務明細', '會議室預約', '異況追蹤']
 const scheduleStatusOptionDefaults = ['未完成', '已完成', '已取消', '取消', '延期處理', '已結案', '已結束案件', '行事曆顯示']
-const scheduleSubtypeOptionDefaults = ['--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療', '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '請假', '返鄉', '會議', '活動', '外訓', '公司活動', '部門活動', '延期處理', '其他']
+const scheduleSubtypeOptionDefaults = ['--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療', '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '請假', '返鄉', '會議', '活動', '外訓', '公差外出', '公司活動', '部門活動', '延期處理', '其他']
 const notifyTargetOptionDefaults = ['通知行政', '通知主管', '通知相關人員', '翻譯', '主管', '行政', '外務人員', '建立者', '執行者']
 const reminderDisplayOptionDefaults = ['提醒事項', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '逃跑第一天通知', '逃跑第二天通知', '逃跑第三天通知', '驗證提醒', '離境通知', '結薪日提醒', '住變資訊提供', '服務紀錄單未繳交', '超過14天未繳交', '延期處理']
 const vehicleRelatedOptionDefaults = ['公務車保養', '代步車', '保養期間代步車', '通知相關人員']
@@ -3268,6 +3317,7 @@ function normalizeScheduleReadRow(row = {}) {
   return {
     ...row,
     __core_read_logic_version: CORE_READ_LOGIC_VERSION,
+    __core_schedule_type_logic_version: CORE_SCHEDULE_TYPE_LOGIC_VERSION,
     __display_date_logic_version: CORE_DISPLAY_DATE_LOGIC_VERSION,
     __display_date_source: readRange.source || getScheduleDisplayDateSource(row),
     __display_start_date: readRange.startDate || row.start_date || '',
@@ -3323,6 +3373,7 @@ function isNoCompletionControlSchedule(row) {
     '返鄉',
     '會議',
     '外訓',
+    '公差外出',
     '活動',
     '駐廠',
     '部門活動',
@@ -3695,6 +3746,7 @@ function getContinuationInitial(row = {}) {
     '會議': '會',
     '活動': '活',
     '外訓': '訓',
+    '公差外出': '差',
     '證件交付': '證',
     '外務行程': '外',
     '異況追蹤': '異',
@@ -4106,9 +4158,8 @@ async function saveBirthdayWish(staffId = '', dateKey = todayString(), message =
 }
 
 function isPublicLeaveMeetingActivitySchedule(row = {}) {
-  if (row.category !== '請假 / 會議 / 活動 / 外訓') return false
-  const text = [row.schedule_type, row.sub_type, row.title].filter(Boolean).join('｜')
-  return ['請假', '休假', '會議', '活動', '外訓', '公司活動', '部門活動'].some(keyword => text.includes(keyword))
+  // 1-3dp：此大分類本身就是公開行事曆類型；不得再用固定文字清單排除公差外出或日後自訂細項。
+  return isCoreLeaveMeetingSchedule(row)
 }
 
 
@@ -9172,7 +9223,7 @@ function getScheduleTypeTitleParts(row = {}) {
 }
 
 
-const CORE_CARD_DISPLAY_LOGIC_VERSION = '1-3do'
+const CORE_CARD_DISPLAY_LOGIC_VERSION = '1-3dp'
 
 function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
   const row = schedule || {}
@@ -13232,6 +13283,7 @@ function getScheduleColorDefinitions() {
     { group: '一般行程類', key: '會議', label: '會議', defaultColor: '#5E7AC4' },
     { group: '一般行程類', key: '活動', label: '活動', defaultColor: '#FF937E' },
     { group: '一般行程類', key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
+    { group: '一般行程類', key: '公差外出', label: '公差外出', defaultColor: '#9FC5C0' },
     { group: '一般行程類', key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { group: '一般行程類', key: '公司活動', label: '公司活動', defaultColor: '#FFB3A7' },
     { group: '一般行程類', key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
@@ -13482,6 +13534,10 @@ function getScheduleColorKey(row) {
   if (leaveKeywords.some(keyword => subtypeText.includes(keyword))) return '請假'
   if (meetingKeywords.some(keyword => subtypeText.includes(keyword))) return '會議'
   if (activityKeywords.some(keyword => subtypeText.includes(keyword))) return '活動'
+  if (subtypeText.includes(publicDutyLeaveMeetingType)) return publicDutyLeaveMeetingType
+
+  const managedLeaveMeetingSubtype = getCoreLeaveMeetingSubtypeFromRow(row)
+  if (managedLeaveMeetingSubtype) return managedLeaveMeetingSubtype
 
   const note = String(row.sub_type_note || '')
   if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
@@ -13494,7 +13550,10 @@ function getScheduleColorKey(row) {
 function getScheduleColor(row) {
   const settings = getScheduleColorSettings()
   const key = getScheduleColorKey(row)
-  return settings[key] || '#ffffff'
+  if (settings[key]) return settings[key]
+  // 1-3dp：請假／會議／活動／外訓的新自訂細項沒有獨立色碼時，沿用大分類底色，避免白底看起來像未顯示。
+  if (isCoreLeaveMeetingSchedule(row)) return settings['請假 / 會議 / 活動 / 外訓'] || '#BFDDF0'
+  return '#ffffff'
 }
 
 function getReadableTextColor(backgroundColor) {
@@ -27830,7 +27889,7 @@ function openScheduleModal(defaults = {}) {
         <div class="span-2 department-assignee-box hidden" id="meetingDepartmentAssigneeBlock">
           <div class="field-title">選擇部門</div>
           <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('executor_departments', [], isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null)}</div>
-          <p class="field-hint">適用會議 / 活動 / 外訓，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+          <p class="field-hint">適用會議 / 活動 / 外訓 / 公差外出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
@@ -29836,7 +29895,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         <div class="span-2 department-assignee-box hidden" id="editMeetingDepartmentAssigneeBlock">
           <div class="field-title">選擇部門</div>
           <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('edit_executor_departments', getScheduleExecutorDepartments(row), shouldAllowFullStaffSelectionForGeneralStaffRow(row) ? getActiveStaffRows() : null)}</div>
-          <p class="field-hint">適用會議 / 活動 / 外訓，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+          <p class="field-hint">適用會議 / 活動 / 外訓 / 公差外出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
         </div>
 
         <div class="span-2 edit-assignee-box">
@@ -30498,7 +30557,7 @@ async function saveSchedule(event, modal) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     const requestedLeaveMeetingType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
     if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
-      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓。')
+      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓、公差外出。')
       saving = false
       return
     }
