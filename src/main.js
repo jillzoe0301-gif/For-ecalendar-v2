@@ -249,10 +249,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dm'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dm'
+const APP_VERSION = 'V002-1H-stable-1-3dn'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dn'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '外務日提醒去重修正：同一人同一天只顯示一筆外務日請勿安排其他行程，保留第二階段日期顯示邏輯。'
+const SYSTEM_VERSION_NOTE = '通知主管 / 行政顯示補強、外務特殊提醒卡片顯示與外務頁效能加強。'
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -3197,16 +3197,19 @@ function getScheduleDisplayStaffIds(row = {}) {
 
   // 1-3dk：顯示在哪個人的行事曆，以「實際指派 / 通知」為主。
   // 建立者只是建立資料的人，不可因為 creator_staff_id 就自動出現在建立者自己的個人行程表。
+  // 1-3dn：若有選擇通知主管 / 通知行政，該主管或行政也要看到行程；但仍不把 creator 自動加入。
   if (typeof isPublicGeneralSchedule === 'function' && isPublicGeneralSchedule(row)) {
-    return assigneeIds.length ? assigneeIds : uniqueReadList([creatorId])
+    const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
+    return displayIds.length ? displayIds : uniqueReadList([creatorId])
   }
 
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) {
     if (typeof getMeetingEffectiveStaffIds === 'function') {
-      const meetingIds = uniqueReadList(getMeetingEffectiveStaffIds(row))
+      const meetingIds = uniqueReadList([...getMeetingEffectiveStaffIds(row), ...notificationIds])
       if (meetingIds.length) return meetingIds
     }
-    return assigneeIds.length ? assigneeIds : uniqueReadList([creatorId])
+    const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
+    return displayIds.length ? displayIds : uniqueReadList([creatorId])
   }
 
   if (typeof isVerifyReminderRow === 'function' && isVerifyReminderRow(row)) {
@@ -3232,8 +3235,8 @@ function getScheduleDisplayStaffIds(row = {}) {
     return fieldDayIds.length ? fieldDayIds : uniqueReadList([creatorId])
   }
 
-  if (assigneeIds.length) return assigneeIds
-  if (notificationIds.length) return notificationIds
+  const displayIds = uniqueReadList([...assigneeIds, ...notificationIds])
+  if (displayIds.length) return displayIds
   return uniqueReadList([creatorId])
 }
 
@@ -3241,7 +3244,7 @@ function scheduleVisibleForStaffByReadLogic(row = {}, staffId = '') {
   const id = String(staffId || '').trim()
   if (!row || !id) return false
   if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row) && typeof meetingScheduleVisibleForStaff === 'function') {
-    return meetingScheduleVisibleForStaff(row, id)
+    return meetingScheduleVisibleForStaff(row, id) || getScheduleDisplayStaffIds(row).includes(id)
   }
   return getScheduleDisplayStaffIds(row).includes(id)
 }
@@ -3542,10 +3545,14 @@ function getScheduleNotificationStaffIds(row = {}) {
   if (isVerifyReminderRow(row)) return getVerificationReminderAllPotentialStaffIds(row)
   const names = [
     getNoteValue(row, '通知行政'),
+    getNoteValue(row, '通知行政辦理'),
     getNoteValue(row, '通知主管'),
     getNoteValue(row, '通知主管追蹤'),
+    getNoteValue(row, '通知相關人員'),
     getFieldNoteValue(row, '通知行政'),
-    getFieldNoteValue(row, '通知主管')
+    getFieldNoteValue(row, '通知行政辦理'),
+    getFieldNoteValue(row, '通知主管'),
+    getFieldNoteValue(row, '通知相關人員')
   ]
     .map(value => String(value || '').trim())
     .filter(Boolean)
@@ -8527,6 +8534,17 @@ function isFieldDayReminderSchedule(row = {}) {
 
 
 function getFieldSchedulesForStaffDate(staffId, dateKey) {
+  const cachedRows = getOverviewPerformanceCachedRows('schedulesByStaffDate', staffId, dateKey)
+  if (cachedRows) {
+    return sortScheduleRowsForDisplay(uniqueScheduleRows(cachedRows.filter(row => {
+      if (!isVisibleSchedule(row)) return false
+      if (!isFieldScheduleRow(row)) return false
+      if (isFieldDayReminderSchedule(row)) return false
+      if (isLeaveOrReturnSchedule(row)) return false
+      return true
+    })), { dateFirst: false })
+  }
+
   return sortScheduleRowsForDisplay(uniqueScheduleRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
     if (!isFieldScheduleRow(row)) return false
@@ -8539,10 +8557,14 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
 
 function renderFieldScheduleCard(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
+  const fieldSpecialBadges = typeof renderFieldSpecialReminderBadges === 'function'
+    ? renderFieldSpecialReminderBadges(row)
+    : ''
   return `
     <button type="button" class="field-week-schedule-card simple-field-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
       ${renderSimpleFieldScheduleHead(row, 'field-week-card-time')}
       ${renderSimpleFieldScheduleTitle(row, 'for-e-card-title simple-field-schedule-title', 'strong')}
+      ${fieldSpecialBadges}
     </button>
   `
 }
@@ -18726,6 +18748,16 @@ function getOverviewContinuousSchedulesForStaff(staffId, dates = []) {
 }
 
 function getFieldContinuousSchedulesForStaff(staffId, dates = []) {
+  const cachedRows = getOverviewPerformanceCachedContinuousRows(staffId)
+  if (cachedRows) {
+    return uniqueContinuousRows(cachedRows.filter(row => {
+      if (!isVisibleSchedule(row)) return false
+      if (!isFieldScheduleRow(row)) return false
+      if (!isContinuousDateSchedule(row)) return false
+      return true
+    }))
+  }
+
   const dateKeys = getDateKeysFromDates(dates)
   if (!staffId || !dateKeys.length) return []
   const firstKey = dateKeys[0]
@@ -18737,7 +18769,7 @@ function getFieldContinuousSchedulesForStaff(staffId, dates = []) {
     if (!isContinuousDateSchedule(row)) return false
     if (row.start_date > lastKey || row.end_date < firstKey) return false
 
-    return (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)
+    return scheduleBelongsToStaff(row, staffId)
   }))
 }
 
@@ -18940,66 +18972,79 @@ function renderFieldMonthSlidingTable(staffRows = [], monthDates = [], todayKey 
 }
 
 function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayString()) {
-  if (fieldCalendarViewMode === '月份顯示') {
-    if (staffRows.length === 1) return renderFieldSingleMonthCalendar(staffRows[0], dates, todayKey)
-    return renderFieldMonthSlidingTable(staffRows, dates, todayKey)
-  }
+  // 1-3dn：外務頁面使用同一套預先索引快取，避免每個人 × 每一天都重新掃描全部 schedules。
+  const previousOverviewPerformanceCache = overviewPerformanceCache
+  const cacheDates = fieldCalendarViewMode === '月份顯示' && staffRows.length === 1
+    ? getMonthCalendarGridDates(dates)
+    : dates
 
-  return `
-    <div class="field-week-scroll">
-      <table class="field-week-table">
-        <thead>
-          <tr>
-            <th class="field-staff-col">外務人員</th>
-            ${dates.map(date => {
-              const key = toDateKey(date)
-              const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
-              return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
-                <span>${weekName}</span>
-                <strong>${key.slice(5)}</strong>
-                ${renderHolidayLabels(key)}
-              </th>`
-            }).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${staffRows.map(staff => {
-            const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, dates)
-            return `
+  overviewPerformanceCache = buildOverviewPerformanceCache(staffRows, cacheDates)
+
+  try {
+      if (fieldCalendarViewMode === '月份顯示') {
+        if (staffRows.length === 1) return renderFieldSingleMonthCalendar(staffRows[0], dates, todayKey)
+        return renderFieldMonthSlidingTable(staffRows, dates, todayKey)
+      }
+
+      return `
+        <div class="field-week-scroll">
+          <table class="field-week-table">
+            <thead>
               <tr>
-                <th class="field-staff-name-cell">
-                  ${renderCalendarStaffNameTitle(staff)}
-                  <span>${escapeHtml(staff.department_name || '')}</span>
-                </th>
+                <th class="field-staff-col">外務人員</th>
                 ${dates.map(date => {
                   const key = toDateKey(date)
-                  const rawRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
-                  const dayRows = filterDailyCardsForDate(rawRows, key)
-                  const continuationRows = getContinuationRowsForDate(continuousRows, key)
-                  const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
-                  const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
-                  const trainingPrompt = renderFieldTrainingCalendarPrompt(staff.staff_id, key)
-                  const autoFieldDayPrompt = !(dayMark.fieldDayRows || []).length && shouldRenderAutoFieldDayPrompt(dayRows, Boolean(trainingPrompt))
-                  return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
-                    ${renderContinuationDayMarks(continuousRows, key, 'field')}
-
-                    ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt, dateKey: key })}
-
-                    ${trainingPrompt}
-
-                    ${birthdayCard}
-
-                    ${renderLeaveReturnDayMark(dayMark.leaveRows, key, 'field')}
-                    ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="field-week-empty">—</span>')}
-                  </td>`
+                  const weekName = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+                  return `<th class="${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''}">
+                    <span>${weekName}</span>
+                    <strong>${key.slice(5)}</strong>
+                    ${renderHolidayLabels(key)}
+                  </th>`
                 }).join('')}
               </tr>
-            `
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
+            </thead>
+            <tbody>
+              ${staffRows.map(staff => {
+                const continuousRows = getFieldContinuousSchedulesForStaff(staff.staff_id, dates)
+                return `
+                  <tr>
+                    <th class="field-staff-name-cell">
+                      ${renderCalendarStaffNameTitle(staff)}
+                      <span>${escapeHtml(staff.department_name || '')}</span>
+                    </th>
+                    ${dates.map(date => {
+                      const key = toDateKey(date)
+                      const rawRows = getFieldSchedulesForStaffDate(staff.staff_id, key)
+                      const dayRows = filterDailyCardsForDate(rawRows, key)
+                      const continuationRows = getContinuationRowsForDate(continuousRows, key)
+                      const dayMark = getDayMarkInfo(staff.staff_id, key, continuationRows)
+                      const birthdayCard = renderStaffBirthdayCard(staff, key, 'field')
+                      const trainingPrompt = renderFieldTrainingCalendarPrompt(staff.staff_id, key)
+                      const autoFieldDayPrompt = !(dayMark.fieldDayRows || []).length && shouldRenderAutoFieldDayPrompt(dayRows, Boolean(trainingPrompt))
+                      return `<td class="field-week-day-cell ${key === todayKey ? 'is-today' : ''} ${isTaiwanHoliday(date) ? 'is-holiday' : ''} ${dayMark.className}" data-field-date="${key}" data-staff-id="${staff.staff_id}" ${dayMark.attrs}>
+                        ${renderContinuationDayMarks(continuousRows, key, 'field')}
+
+                        ${renderFieldDayReminderPrompt(dayMark.fieldDayRows, { auto: autoFieldDayPrompt, dateKey: key })}
+
+                        ${trainingPrompt}
+
+                        ${birthdayCard}
+
+                        ${renderLeaveReturnDayMark(dayMark.leaveRows, key, 'field')}
+                        ${dayRows.length ? dayRows.map(renderFieldScheduleCard).join('') : (birthdayCard || dayMark.className ? '' : '<span class="field-week-empty">—</span>')}
+                      </td>`
+                    }).join('')}
+                  </tr>
+                `
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+
+  } finally {
+    overviewPerformanceCache = previousOverviewPerformanceCache
+  }
 }
 
 function renderMeetingMonthTable(roomRows = [], monthDates = [], todayKey = todayString()) {
@@ -21501,10 +21546,15 @@ function renderWeekScheduleCard(row, occurrenceDate = '') {
     const fieldStaticCompletedClass = ['已完成', '已結案'].includes(String(rowForOccurrence.status || '').trim()) ? 'is-completed' : ''
     const fieldOccurrenceAttr = weekOccurrenceDate ? ` data-occurrence-date="${escapeHtml(weekOccurrenceDate)}"` : ''
 
+    const fieldSpecialBadges = typeof renderFieldSpecialReminderBadges === 'function'
+      ? renderFieldSpecialReminderBadges(rowForOccurrence)
+      : ''
+
     return `
       <button type="button" class="week-schedule-card simple-field-schedule-card ${fieldCompletedClass} ${fieldStaticCompletedClass} ${getAlertItemClass(rowForOccurrence)}" style="${getScheduleColorInlineStyle(rowForOccurrence)}" data-view-schedule="${rowForOccurrence.schedule_id}"${fieldOccurrenceAttr}>
         ${renderSimpleFieldScheduleHead(rowForOccurrence, 'week-card-time')}
         ${renderSimpleFieldScheduleTitle(rowForOccurrence, 'for-e-card-title simple-field-schedule-title', 'strong')}
+        ${fieldSpecialBadges}
       </button>
     `
   }
@@ -28530,10 +28580,26 @@ function supervisorSelectOptionsHtmlSelected(selectedStaffId = '') {
   return supervisorSelectOptionsHtml(selectedStaffId)
 }
 
+function normalizeStaffDisplayLookupText(value = '') {
+  return String(value || '')
+    .split(/[｜|]/)[0]
+    .replace(/\s*\([^)]*\)\s*$/g, '')
+    .replace(/\s*（[^）]*）\s*$/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
 function getStaffIdByDisplayName(name = '') {
-  const normalized = String(name || '').split('｜')[0].trim()
+  const normalized = normalizeStaffDisplayLookupText(name)
   if (!normalized) return ''
-  return staffList.find(staff => staff.name === normalized || String(staff.name || '').trim() === normalized)?.staff_id || ''
+  const rows = Array.isArray(staffList) ? staffList : []
+  const exact = rows.find(staff => normalizeStaffDisplayLookupText(staff?.name) === normalized)
+  if (exact?.staff_id) return exact.staff_id
+  const contains = rows.find(staff => {
+    const staffName = normalizeStaffDisplayLookupText(staff?.name)
+    return staffName && (normalized.includes(staffName) || staffName.includes(normalized))
+  })
+  return contains?.staff_id || ''
 }
 
 
