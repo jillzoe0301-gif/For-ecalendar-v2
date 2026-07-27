@@ -28549,3 +28549,36 @@ body.force-desktop-mode .meeting-week-table {
     display: none !important;
   }
 }
+
+/* FOR-e V002-1H-stable-1-3do START - core card display phase 3 */
+.meeting-room-overview-card .meeting-room-overview-head,
+.meeting-room-card .meeting-room-card-head {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.meeting-room-overview-room {
+  color: #4e71ff;
+  font-size: inherit;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.meeting-room-list-card .schedule-card-type-line,
+.card-display-meeting-room .meeting-room-name {
+  color: #4e71ff;
+  font-weight: 800;
+}
+
+.search-result-card-badges .field-special-badges,
+.simple-field-schedule-list-card > .schedule-card-main > .field-special-badges {
+  margin-top: 6px;
+}
+
+.search-result-card-badges .field-special-badge {
+  white-space: normal;
+}
+/* FOR-e V002-1H-stable-1-3do END - core card display phase 3 */
+
