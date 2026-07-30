@@ -1,0 +1,12 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3dz
+
+本次沒有新增 SQL，不需要進入 Supabase SQL Editor。
+
+本次只調整顧問新增／修改一般行程時的執行人員選擇：
+- 本人固定選取。
+- 可加選越雙語人員。
+- 可加選行政人員。
+
+不修改 Supabase schema、正式資料、舊行程、schedule_id、schedule_assignees、日期、週期、localStorage 或既有通知流程。
+
+若顧問角色本身仍出現 staff_role_check，代表既有 1-3dt SQL 尚未執行，並非 1-3dz 需要新 SQL。

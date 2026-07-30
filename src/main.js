@@ -370,13 +370,25 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3dy END - consultant self general schedule and direct assignment edit */
 
+/* FOR-e V002-1H-stable-1-3dz START - consultant general schedule bilingual and administrative assignees */
+/*
+  V002-1H-stable-1-3dz｜第四階段補充：顧問一般行程可加選越雙語與行政人員
+  - 顧問新增一般行程時仍固定包含顧問本人，並預設顯示本人已選取。
+  - 顧問可另外複選固定「越雙語」名單與系統既有行政人員。
+  - 顧問一般行程仍不顯示部門指派，不可選取其他未授權角色人員。
+  - 新增儲存前再次過濾執行者，只接受本人、越雙語與行政人員，避免繞過畫面送入其他人員。
+  - 顧問修改一般行程時也顯示同一可選範圍；服務、提醒、外務既有權限維持不變。
+  - 不修改 Supabase 資料表、正式舊資料或第五階段表單欄位架構。
+*/
+/* FOR-e V002-1H-stable-1-3dz END - consultant general schedule bilingual and administrative assignees */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dy'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dy'
+const APP_VERSION = 'V002-1H-stable-1-3dz'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dz'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：顧問新增一般行程固定指派本人；直接被指派的非提醒服務行程可修改，但不可已完成、取消或刪除。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：顧問新增一般行程固定包含本人，並可加選越雙語與行政人員；服務行程仍僅可修改。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -384,6 +396,7 @@ const CONSULTANT_GENERAL_SCHEDULE_PERMISSION_LOGIC_VERSION = '1-3dv'
 const CONSULTANT_SERVICE_SCHEDULE_EDIT_LOGIC_VERSION = '1-3dw'
 const CONSULTANT_SERVICE_EDIT_ONLY_LOGIC_VERSION = '1-3dx'
 const CONSULTANT_SELF_GENERAL_DIRECT_ASSIGNMENT_LOGIC_VERSION = '1-3dy'
+const CONSULTANT_GENERAL_ASSIGNEE_LOGIC_VERSION = '1-3dz'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -2971,6 +2984,102 @@ function getConsultantAssignableStaffRows(extraStaffIds = []) {
     })
 }
 
+function getConsultantGeneralScheduleAssignableStaffRows(extraStaffIds = []) {
+  const currentStaffId = getConsultantCurrentStaffId()
+  const extraIds = normalizeSchedulePeopleIds(extraStaffIds)
+  const bilingualRows = getConsultantBilingualStaffRows()
+  const administrativeRows = getAdministrativeStaffRows()
+  const extraRows = extraIds.map(staffId => getStaffRowById(staffId)).filter(Boolean)
+  const combinedRows = [
+    getStaffRowById(currentStaffId) || getCurrentProfileStaffRow(),
+    ...bilingualRows,
+    ...administrativeRows,
+    ...extraRows
+  ].filter(staff => staff?.staff_id)
+
+  const uniqueRows = []
+  const seenIds = new Set()
+  combinedRows.forEach(staff => {
+    const staffId = normalizeStaffId(staff?.staff_id || '')
+    if (!staffId || seenIds.has(staffId)) return
+    seenIds.add(staffId)
+    uniqueRows.push(staff)
+  })
+
+  const bilingualOrder = new Map(CONSULTANT_BILINGUAL_STAFF_NAMES.map((name, index) => [normalizeConsultantBilingualStaffName(name), index]))
+  const administrativeOrder = new Map(administrativeRows.map((staff, index) => [normalizeStaffId(staff?.staff_id || ''), index]))
+
+  return uniqueRows.sort((a, b) => {
+    const aId = normalizeStaffId(a?.staff_id || '')
+    const bId = normalizeStaffId(b?.staff_id || '')
+    if (aId === currentStaffId) return -1
+    if (bId === currentStaffId) return 1
+
+    const aBilingual = bilingualOrder.get(normalizeConsultantBilingualStaffName(a?.name || ''))
+    const bBilingual = bilingualOrder.get(normalizeConsultantBilingualStaffName(b?.name || ''))
+    const aBilingualOrder = Number.isInteger(aBilingual) ? aBilingual : 999999
+    const bBilingualOrder = Number.isInteger(bBilingual) ? bBilingual : 999999
+    if (aBilingualOrder !== bBilingualOrder) return aBilingualOrder - bBilingualOrder
+
+    const aAdminOrder = administrativeOrder.get(aId)
+    const bAdminOrder = administrativeOrder.get(bId)
+    const aAdministrativeOrder = Number.isInteger(aAdminOrder) ? aAdminOrder : 999999
+    const bAdministrativeOrder = Number.isInteger(bAdminOrder) ? bAdminOrder : 999999
+    if (aAdministrativeOrder !== bAdministrativeOrder) return aAdministrativeOrder - bAdministrativeOrder
+
+    return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hant')
+  })
+}
+
+function getConsultantGeneralScheduleAllowedStaffIds() {
+  return normalizeSchedulePeopleIds(getConsultantGeneralScheduleAssignableStaffRows().map(staff => staff.staff_id))
+}
+
+function normalizeConsultantGeneralScheduleExecutorIds(requestedStaffIds = []) {
+  const currentStaffId = getConsultantCurrentStaffId()
+  const allowedIds = new Set(getConsultantGeneralScheduleAllowedStaffIds())
+  const selectedAllowedIds = normalizeSchedulePeopleIds(requestedStaffIds)
+    .filter(staffId => allowedIds.has(staffId))
+  return normalizeSchedulePeopleIds([currentStaffId, ...selectedAllowedIds])
+}
+
+function consultantGeneralScheduleAssigneeOptionsHtml() {
+  const currentStaffId = getConsultantCurrentStaffId()
+  const currentStaff = getStaffRowById(currentStaffId) || getCurrentProfileStaffRow() || currentProfile
+  if (!currentStaffId) return '<div class="empty-state">目前顧問帳號尚未綁定人員，無法建立一般行程。</div>'
+
+  const bilingualRows = getConsultantBilingualStaffRows()
+    .filter(staff => normalizeStaffId(staff?.staff_id || '') !== currentStaffId)
+  const bilingualIds = new Set(bilingualRows.map(staff => normalizeStaffId(staff?.staff_id || '')))
+  const administrativeRows = getAdministrativeStaffRows()
+    .filter(staff => {
+      const staffId = normalizeStaffId(staff?.staff_id || '')
+      return staffId && staffId !== currentStaffId && !bilingualIds.has(staffId)
+    })
+
+  const renderSelectableRows = rows => rows.length
+    ? rows.map(staff => `
+      <label class="check-row">
+        <input type="checkbox" name="executor" value="${escapeHtml(staff.staff_id)}">
+        <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</span>
+      </label>
+    `).join('')
+    : '<div class="field-hint">目前沒有符合的人員。</div>'
+
+  return `
+    <input type="hidden" name="executor" value="${escapeHtml(currentStaffId)}">
+    <label class="check-row consultant-fixed-self-assignee">
+      <input type="checkbox" checked disabled>
+      <span>${escapeHtml(currentStaff?.name || currentProfile?.name || '本人')}｜${escapeHtml(currentStaff?.department_name || '')}｜本人（固定選取）</span>
+    </label>
+    <div class="field-hint">顧問本人會直接加入執行人員，並可再複選下列越雙語與行政人員。</div>
+    <div class="field-title">越雙語人員（可複選）</div>
+    ${renderSelectableRows(bilingualRows)}
+    <div class="field-title">行政人員（可複選）</div>
+    ${renderSelectableRows(administrativeRows)}
+  `
+}
+
 function scheduleIncludesConsultantBilingualStaff(row = {}) {
   const targetIds = new Set(getConsultantBilingualStaffIds())
   if (!targetIds.size || !row) return false
@@ -3060,7 +3169,7 @@ function isOverviewBlankCellBlockedTarget(target) {
 function getOverviewBlankCellDefaultStaffId(staffId = '') {
   const requestedStaffId = String(staffId || '').trim()
   const fallbackStaffId = currentProfile?.staff_id || ''
-  // 顧問新增一般行程固定指派本人，不因點到越雙語其他人員欄位而改變執行者。
+  // 顧問從任何欄位開啟新增表單時，都預設包含本人；表單內仍可加選越雙語與行政人員。
   if (isConsultantRole()) return fallbackStaffId
   if (!requestedStaffId) return fallbackStaffId
   if (!isGeneralStaffOverviewCreateMode()) return requestedStaffId
@@ -3175,7 +3284,7 @@ function denyPermission(message = '你的角色沒有此操作權限。') {
 function getRolePermissionNotice() {
   const role = getRoleName()
   if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
-  if (isConsultantRole(role)) return `目前角色：${role}｜新增一般行程固定指派本人；可修改自己建立、直接被指派或指定越雙語人員的一般行程與非提醒服務行程，其中服務行程不可已完成、取消或刪除；提醒、外務及其他類型僅可查看。`
+  if (isConsultantRole(role)) return `目前角色：${role}｜新增一般行程固定包含本人，並可加選越雙語與行政人員；可修改自己建立、直接被指派或指定越雙語人員的一般行程與非提醒服務行程，其中服務行程不可已完成、取消或刪除；提醒、外務及其他類型僅可查看。`
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
@@ -24712,7 +24821,9 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
 function editStaffOptionsHtml(row) {
   const selectedIds = new Set(getAssigneeIds(row))
   const rows = isConsultantRole()
-    ? getConsultantAssignableStaffRows([...selectedIds])
+    ? (isConsultantEditableGeneralSchedule(row)
+      ? getConsultantGeneralScheduleAssignableStaffRows([...selectedIds])
+      : getConsultantAssignableStaffRows([...selectedIds]))
     : sortStaffRowsForSelection(canAssignAllStaff() || shouldAllowFullStaffSelectionForGeneralStaffRow(row)
       ? getActiveStaffRows()
       : getActiveStaffRows().filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id))
@@ -28016,20 +28127,8 @@ function openScheduleModal(defaults = {}) {
     <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
   `).join('')
 
-  const consultantCreateSelfStaffId = isConsultantRole() ? getConsultantCurrentStaffId() : ''
-  const consultantCreateSelfStaff = consultantCreateSelfStaffId
-    ? (getStaffRowById(consultantCreateSelfStaffId) || getCurrentProfileStaffRow() || currentProfile)
-    : null
   const createScheduleAssigneeHtml = isConsultantRole()
-    ? (consultantCreateSelfStaffId
-      ? `
-        <input type="hidden" name="executor" value="${escapeHtml(consultantCreateSelfStaffId)}">
-        <div class="notice consultant-fixed-self-assignee">
-          <strong>執行人員：${escapeHtml(consultantCreateSelfStaff?.name || currentProfile?.name || '本人')}</strong>
-          <div class="field-hint">顧問新增一般行程固定指派本人，不需要選擇部門或其他人員。</div>
-        </div>
-      `
-      : '<div class="empty-state">目前顧問帳號尚未綁定人員，無法建立一般行程。</div>')
+    ? consultantGeneralScheduleAssigneeOptionsHtml()
     : (staffOptionsHtml(defaultStaffId, isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null) || '<div class="empty-state">目前沒有可選人員。</div>')
 
   const modal = document.createElement('div')
@@ -28455,7 +28554,7 @@ function openScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
-          <div class="field-title">${isConsultantRole() ? '執行人員' : '選擇人員'}</div>
+          <div class="field-title">${isConsultantRole() ? '執行人員（本人預設選取，可複選）' : '選擇人員'}</div>
           <div class="checkbox-list">${createScheduleAssigneeHtml}</div>
         </div>
 
@@ -31062,8 +31161,18 @@ async function saveSchedule(event, modal) {
   }
 
   const selectedExecutorIdsFromForm = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
+  if (isConsultantRole()) {
+    const consultantAllowedStaffIds = new Set(getConsultantGeneralScheduleAllowedStaffIds())
+    const disallowedStaffIds = normalizeSchedulePeopleIds(selectedExecutorIdsFromForm)
+      .filter(staffId => !consultantAllowedStaffIds.has(staffId))
+    if (disallowedStaffIds.length) {
+      alert('顧問一般行程只能選擇本人、越雙語人員或行政人員。')
+      saving = false
+      return
+    }
+  }
   const selectedExecutorIds = isConsultantRole()
-    ? [getConsultantCurrentStaffId()].filter(Boolean)
+    ? normalizeConsultantGeneralScheduleExecutorIds(selectedExecutorIdsFromForm)
     : selectedExecutorIdsFromForm
   const todoNoteTaggedExecutorIds = selectedExecutorIds.length ? selectedExecutorIds : [currentProfile?.staff_id].filter(Boolean)
   const executorIds = isGeneralStaffOverviewCreateMode()
@@ -31093,9 +31202,11 @@ async function saveSchedule(event, modal) {
     }
   }
 
-  const selectedStaff = isAdministrativeReminderCategoryName(category) || isConsultantRole()
+  const selectedStaff = isAdministrativeReminderCategoryName(category)
     ? [staffList.find(staff => staff.staff_id === executorIds[0]) || getCurrentProfileStaffRow() || currentProfile].filter(staff => staff?.staff_id)
-    : staffList.filter(staff => executorIds.includes(staff.staff_id))
+    : (isConsultantRole()
+      ? executorIds.map(staffId => staffList.find(staff => staff.staff_id === staffId) || (staffId === getConsultantCurrentStaffId() ? (getCurrentProfileStaffRow() || currentProfile) : null)).filter(staff => staff?.staff_id)
+      : staffList.filter(staff => executorIds.includes(staff.staff_id)))
   const firstStaff = selectedStaff[0] || getCurrentProfileStaffRow() || currentProfile || {}
   const isSimplifiedServiceTypeForSave = category === '服務行程' && isSimplifiedServiceFieldType(earlyServiceType)
   const needServiceRecord = category === '服務行程' && !isSimplifiedServiceTypeForSave && form.get('need_service_record') === 'on'
