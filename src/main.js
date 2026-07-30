@@ -280,13 +280,56 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3dq END - people display assignment phase 4 */
 
+/* FOR-e V002-1H-stable-1-3dr START - card color type title only phase 4 supplement */
+/*
+  V002-1H-stable-1-3dr｜第四階段補充修正：卡片顏色只依類型或標題
+  - 卡片顏色分類不再讀取 description / sub_type_note 等內容與備註文字。
+  - 內容出現「返鄉」、「電話協助」、「返台提醒」等關鍵字時，不再誤套用其他類型顏色。
+  - 行程類型、類別細項或標題本身包含對應名稱時，仍正常套用設定顏色。
+  - 保留第四階段統一人員顯示與指派邏輯，不改資料、權限、日期、通知或表單欄位。
+*/
+/* FOR-e V002-1H-stable-1-3dr END - card color type title only phase 4 supplement */
+
+/* FOR-e V002-1H-stable-1-3ds START - consultant role and Vietnamese bilingual overview */
+/*
+  V002-1H-stable-1-3ds｜第四階段補充：顧問角色與越雙語人員顯示 / 修改範圍
+  - 新增「顧問」角色，行程總覽操作方式比照一般職員。
+  - 顧問左側只顯示：個人行程表、行程總覽、行程搜尋、顏色設定、人員 / 帳號。
+  - 顧問可修改指定越雙語人員的行程，不取得管理員、主管或行政的全域修改權限。
+  - 顧問行程總覽預設啟用固定快速群組「越雙語」，顧問本人置頂，再依指定名單順序顯示。
+  - 不修改 Supabase 資料表、不寫入舊行程、不重建 schedules / schedule_assignees。
+*/
+/* FOR-e V002-1H-stable-1-3ds END - consultant role and Vietnamese bilingual overview */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dq'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dq'
+const APP_VERSION = 'V002-1H-stable-1-3ds'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ds'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段統一人員顯示與指派邏輯：建立者、執行者、通知主管與通知行政分開判斷，所有行程頁面共用同一套顯示人員規則。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：新增顧問角色，左側只顯示指定五項功能；行程總覽預設越雙語快速群組，顧問本人置頂，並可修改指定雙語人員行程。'
+
+const CONSULTANT_ROLE_NAME = '顧問'
+const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
+const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
+const CONSULTANT_BILINGUAL_STAFF_NAMES = Object.freeze([
+  '孫祥薇',
+  '范武薔薇',
+  '黃氏玄莊',
+  '賴黃娟',
+  '武俊平',
+  '吳氏何江',
+  '阮氏芳',
+  '阮氏璧',
+  '范紅筠'
+])
+const CONSULTANT_ALLOWED_PAGE_KEYS = new Set([
+  'personalSchedule',
+  'scheduleOverview',
+  'search',
+  'color',
+  'users'
+])
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
   待辦 / 一般記事若有勾選其他人，schedule_assignees 必須以實際勾選人員為準。
@@ -329,11 +372,11 @@ const pages = [
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
   { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
-  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
+  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
   { key: 'administrativeAnnouncement', label: '公告紀錄', mobileLabel: '公告', roles: ['管理員', '主管'], mobile: false },
-  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
+  { key: 'users', label: '人員 / 帳號', mobileLabel: '帳號', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問'], mobile: false },
   { key: 'health', label: '系統檢查', mobileLabel: '檢查', roles: ['管理員', '主管'], mobile: false }
 ]
 
@@ -1295,8 +1338,17 @@ function normalizeCreateScheduleCategory(value = '') {
   }
 }
 
+function isConsultantRole(role = getRoleName()) {
+  return String(role || '').trim() === CONSULTANT_ROLE_NAME
+}
+
+function isGeneralStaffLikeRole(role = getRoleName()) {
+  const normalizedRole = String(role || '').trim()
+  return normalizedRole === '一般職員' || normalizedRole === CONSULTANT_ROLE_NAME
+}
+
 function isGeneralStaffRole() {
-  return getRoleName() === '一般職員'
+  return isGeneralStaffLikeRole(getRoleName())
 }
 
 function getStaffRowById(staffId = '') {
@@ -1307,7 +1359,7 @@ function getStaffRowById(staffId = '') {
 
 function isGeneralStaffId(staffId = '') {
   const staff = getStaffRowById(staffId)
-  return String(staff?.role || '').trim() === '一般職員'
+  return isGeneralStaffLikeRole(staff?.role || '')
 }
 
 function scheduleHasGeneralStaff(row = {}) {
@@ -2526,6 +2578,25 @@ const rolePermissionMatrix = {
     submitServiceRecord: false,
     viewAudit: false,
     lineNotifyAll: false
+  },
+  '顧問': {
+    label: '顧問',
+    manageAllSchedules: false,
+    createServiceSchedule: false,
+    createPersonalSchedule: true,
+    createFieldSchedule: false,
+    createMeetingRoom: false,
+    createIncident: false,
+    assignAllStaff: false,
+    manageUsers: false,
+    manageOptions: false,
+    manageColor: false,
+    exportData: false,
+    viewStats: false,
+    viewServiceRecords: false,
+    submitServiceRecord: false,
+    viewAudit: false,
+    lineNotifyAll: false
   }
 }
 
@@ -2538,7 +2609,14 @@ function hasRolePermission(permissionName) {
 }
 
 function canSeePage(page, role) {
-  return page.roles === 'ALL' || page.roles.includes(role)
+  const normalizedRole = String(role || '').trim()
+  if (isConsultantRole(normalizedRole)) return CONSULTANT_ALLOWED_PAGE_KEYS.has(page?.key)
+  return page.roles === 'ALL' || page.roles.includes(normalizedRole)
+}
+
+function getPageDisplayLabel(page = {}, role = getRoleName()) {
+  if (isConsultantRole(role) && page?.key === 'users') return '人員帳號'
+  return page?.label || ''
 }
 
 function isPowerRole() {
@@ -2676,14 +2754,73 @@ function getActiveStaffRows() {
   return sortStaffRowsForSelection(staffList.filter(staff => staff?.staff_id && !staff.deleted_at && (staff.status || '啟用') === '啟用'))
 }
 
+function normalizeConsultantBilingualStaffName(value = '') {
+  return String(value || '').trim().replace(/\s+/g, '')
+}
+
+function getConsultantBilingualStaffRows() {
+  const orderMap = new Map(CONSULTANT_BILINGUAL_STAFF_NAMES.map((name, index) => [normalizeConsultantBilingualStaffName(name), index]))
+  return getActiveStaffRows()
+    .filter(staff => orderMap.has(normalizeConsultantBilingualStaffName(staff?.name || '')))
+    .sort((a, b) => {
+      const aOrder = orderMap.get(normalizeConsultantBilingualStaffName(a?.name || '')) ?? 999999
+      const bOrder = orderMap.get(normalizeConsultantBilingualStaffName(b?.name || '')) ?? 999999
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hant')
+    })
+}
+
+function getConsultantBilingualStaffIds() {
+  return normalizeSchedulePeopleIds(getConsultantBilingualStaffRows().map(staff => staff.staff_id))
+}
+
+function getConsultantOverviewStaffIds() {
+  const currentStaffId = typeof getCurrentProfileResolvedStaffId === 'function'
+    ? getCurrentProfileResolvedStaffId()
+    : normalizeStaffId(currentProfile?.staff_id || '')
+  return normalizeSchedulePeopleIds([currentStaffId, ...getConsultantBilingualStaffIds()])
+}
+
+function getConsultantAssignableStaffRows(extraStaffIds = []) {
+  const currentStaffId = typeof getCurrentProfileResolvedStaffId === 'function'
+    ? getCurrentProfileResolvedStaffId()
+    : normalizeStaffId(currentProfile?.staff_id || '')
+  const extraIds = new Set(normalizeSchedulePeopleIds(extraStaffIds))
+  const allowedIds = new Set(getConsultantOverviewStaffIds())
+  extraIds.forEach(id => allowedIds.add(id))
+
+  const nameOrder = new Map(CONSULTANT_BILINGUAL_STAFF_NAMES.map((name, index) => [normalizeConsultantBilingualStaffName(name), index + 1]))
+  return getActiveStaffRows()
+    .filter(staff => allowedIds.has(normalizeStaffId(staff?.staff_id || '')))
+    .sort((a, b) => {
+      const aId = normalizeStaffId(a?.staff_id || '')
+      const bId = normalizeStaffId(b?.staff_id || '')
+      const aOrder = aId && aId === currentStaffId ? 0 : (nameOrder.get(normalizeConsultantBilingualStaffName(a?.name || '')) ?? 999999)
+      const bOrder = bId && bId === currentStaffId ? 0 : (nameOrder.get(normalizeConsultantBilingualStaffName(b?.name || '')) ?? 999999)
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hant')
+    })
+}
+
+function scheduleIncludesConsultantBilingualStaff(row = {}) {
+  const targetIds = new Set(getConsultantBilingualStaffIds())
+  if (!targetIds.size || !row) return false
+  const scheduleStaffIds = normalizeSchedulePeopleIds([
+    row.creator_staff_id,
+    ...getActiveAssigneeIds(row),
+    ...getScheduleVisibleUserIds(row)
+  ])
+  return scheduleStaffIds.some(staffId => targetIds.has(staffId))
+}
+
 function shouldAllowFullStaffSelectionForGeneralStaff(category = '') {
-  if (!isGeneralStaffRole()) return false
+  if (!isGeneralStaffRole() || isConsultantRole()) return false
   const normalized = normalizeCreateScheduleCategory(category).category || String(category || '').trim()
   return ['一般行程', '一般記事', '待辦事項', '請假 / 會議 / 活動 / 外訓'].includes(normalized)
 }
 
 function shouldAllowFullStaffSelectionForGeneralStaffRow(row = {}) {
-  if (!isGeneralStaffRole()) return false
+  if (!isGeneralStaffRole() || isConsultantRole()) return false
   const raw = getGeneralStaffRawCategoryFromRow(row)
   return shouldAllowFullStaffSelectionForGeneralStaff(raw)
 }
@@ -2691,6 +2828,7 @@ function shouldAllowFullStaffSelectionForGeneralStaffRow(row = {}) {
 function getAssignableStaffRows() {
   if (canAssignAllStaff()) return getActiveStaffRows()
   const myStaffId = currentProfile?.staff_id
+  if (isConsultantRole()) return getConsultantAssignableStaffRows()
   if (isGeneralStaffRole()) {
     const myDepartmentId = currentProfile?.department_id || getStaffRowById(myStaffId)?.department_id || ''
     const myDepartmentName = currentProfile?.department_name || getStaffRowById(myStaffId)?.department_name || ''
@@ -2861,6 +2999,7 @@ function denyPermission(message = '你的角色沒有此操作權限。') {
 function getRolePermissionNotice() {
   const role = getRoleName()
   if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
+  if (isConsultantRole(role)) return `目前角色：${role}｜可管理自己建立的行程，以及指定越雙語人員的行程。`
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
@@ -2872,6 +3011,7 @@ function canModifySchedule(row) {
   if (!currentProfile || !row) return false
   if (canManageAllSchedules()) return true
   if (row.creator_staff_id === currentProfile.staff_id) return true
+  if (isConsultantRole() && scheduleIncludesConsultantBilingualStaff(row)) return true
   if (isTranslatorRole() && isAssignedToMe(row)) return true
   return false
 }
@@ -3262,6 +3402,7 @@ function getScheduleReadRange(row = {}) {
 }
 
 const CORE_PEOPLE_DISPLAY_LOGIC_VERSION = '1-3dq'
+const CONSULTANT_ROLE_LOGIC_VERSION = '1-3ds'
 
 function normalizeSchedulePeopleIds(values = []) {
   return [...new Set((values || [])
@@ -4932,7 +5073,8 @@ async function loadProfile(options = {}) {
     resetOverviewToPersonalWeek({ persist: false })
     await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions('個人當週') })
     loadOverviewQuickGroupsPreference()
-    resetOverviewToPersonalWeek({ persist: false })
+    resetOverviewToRoleDefault({ persist: false })
+    await ensureOverviewSchedulesLoadedForCurrentRange()
     saveOverviewFiltersPreference()
     saveOverviewQuickGroupsPreference()
   } else {
@@ -4945,7 +5087,11 @@ async function loadProfile(options = {}) {
     loadOverviewQuickGroupsPreference()
 
     const restoredOverviewState = hadSavedOverviewState && applyOverviewStatePreference({ validateQuickGroup: true })
-    if (!restoredOverviewState) {
+    if (isConsultantRole()) {
+      clearOverviewStatePreference()
+      resetOverviewToConsultantVietnameseBilingual({ persist: false })
+      await ensureOverviewSchedulesLoadedForCurrentRange()
+    } else if (!restoredOverviewState) {
       clearOverviewStatePreference()
       resetOverviewToPersonalWeek({ persist: false })
     }
@@ -6482,7 +6628,7 @@ function renderApp() {
           ${visiblePages.map(page => `
             <button class="menu-btn ${page.key === currentPage ? 'active' : ''}" data-page="${page.key}">
               <span class="menu-icon" aria-hidden="true">${renderPageIcon(page.key)}</span>
-              <span class="menu-label">${page.label}</span>
+              <span class="menu-label">${getPageDisplayLabel(page, currentProfile.role)}</span>
             </button>
           `).join('')}
         </nav>
@@ -6711,7 +6857,7 @@ function renderApp() {
   const resetOverviewFilterBtn = document.querySelector('#resetOverviewFilterBtn')
   if (resetOverviewFilterBtn) {
     resetOverviewFilterBtn.addEventListener('click', async () => {
-      resetOverviewToPersonalWeek({ persist: false })
+      resetOverviewToRoleDefault({ persist: false })
       clearOverviewStatePreference()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsPreference()
@@ -7617,7 +7763,7 @@ function renderApp() {
 
 function getPageTitle() {
   const page = pages.find(item => item.key === currentPage)
-  return page ? page.label : '個人行程表'
+  return page ? getPageDisplayLabel(page, currentProfile?.role) : '個人行程表'
 }
 
 
@@ -8363,7 +8509,7 @@ async function updateSchedulePayload(scheduleId = '', payload = {}) {
   if (!data?.schedule_id) {
     return {
       data: null,
-      error: new Error('行程沒有被更新。若此筆行程是他人建立，請確認目前帳號是管理員 / 主管 / 行政，且 Supabase 權限允許管理角色修改全部行程。')
+      error: new Error('行程沒有被更新。若目前角色為顧問，請先確認此筆行程屬於指定越雙語人員，並確認 Supabase 既有更新政策允許顧問修改該行程；其他角色請確認管理權限。')
     }
   }
 
@@ -13591,31 +13737,32 @@ function resetScheduleColorSettings() {
 
 function getScheduleColorKey(row) {
   if (!row) return '服務行程'
+  const colorRow = getScheduleColorClassificationRow(row)
   if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return '延期處理'
-  if (String(row?.category || '') === '公務車保養' || String(row?.schedule_type || '') === '公務車保養') return '公務車保養'
-  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(row)) return '會議室預約'
-  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return '外務日'
-  if (typeof isPhoneAssistanceSchedule === 'function' && isPhoneAssistanceSchedule(row)) return '電話協助'
-  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)) return '辦件提醒'
-  if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)) return '返台提醒'
-  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(row)) return '駐廠'
+  if (String(colorRow?.category || '') === '公務車保養' || String(colorRow?.schedule_type || '') === '公務車保養') return '公務車保養'
+  if (typeof isMeetingRoomSchedule === 'function' && isMeetingRoomSchedule(colorRow)) return '會議室預約'
+  if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(colorRow)) return '外務日'
+  if (typeof isPhoneAssistanceSchedule === 'function' && isPhoneAssistanceSchedule(colorRow)) return '電話協助'
+  if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(colorRow)) return '辦件提醒'
+  if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(colorRow)) return '返台提醒'
+  if (typeof isFactoryStationSchedule === 'function' && isFactoryStationSchedule(colorRow)) return '駐廠'
   const directReminderColorKey = typeof getServiceReminderTypeFromRow === 'function'
-    ? getServiceReminderTypeFromRow(row)
-    : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(row?.schedule_type || row?.sub_type || '') : String(row?.schedule_type || row?.sub_type || ''))
+    ? getServiceReminderTypeFromRow(colorRow)
+    : (typeof normalizeServiceTypeOption === 'function' ? normalizeServiceTypeOption(colorRow?.schedule_type || colorRow?.sub_type || '') : String(colorRow?.schedule_type || colorRow?.sub_type || ''))
   if (typeof isServiceReminderType === 'function' && isServiceReminderType(directReminderColorKey)) return getCanonicalColorSettingKey(directReminderColorKey)
-  const categoryText = String(row?.category || '').trim()
-  const scheduleTypeText = String(row?.schedule_type || '').trim()
+  const categoryText = String(colorRow?.category || '').trim()
+  const scheduleTypeText = String(colorRow?.schedule_type || '').trim()
   if (categoryText === '一般行程' || scheduleTypeText === '一般行程') return '一般行程'
   if (categoryText === '一般記事' || scheduleTypeText === '一般記事' || categoryText === '個人記事' || scheduleTypeText === '個人記事') {
-    return scheduleHasGeneralStaff(row) ? '個人記事' : '待辦/記事'
+    return scheduleHasGeneralStaff(colorRow) ? '個人記事' : '待辦/記事'
   }
   if (['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(categoryText) || ['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(scheduleTypeText)) {
     return '待辦/記事'
   }
-  if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(row)) return '外務行程'
-  if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(row)) return '異況追蹤'
+  if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(colorRow)) return '外務行程'
+  if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(colorRow)) return '異況追蹤'
 
-  const subtypeText = getScheduleSubtypeText(row)
+  const subtypeText = getScheduleSubtypeText(colorRow)
   const normalizedText = subtypeText.replace(/\s+/g, '').replace(/[／/]/g, '')
   const trainingKeywords = ['外訓', '外部訓練', '教育訓練', '教育訓練內容', '訓練', '培訓', '研習', '講習', '課程', '受訓', '上課', '上線教育訓練']
   const leaveKeywords = ['請假', '休假', '特休', '病假', '事假', '公假', '婚假', '喪假', '產假', '補休', '調休', '休息日']
@@ -13626,7 +13773,7 @@ function getScheduleColorKey(row) {
   if (subtypeText.includes('公司活動')) return '公司活動'
   if (subtypeText.includes('部門活動')) return '部門活動'
 
-  // 外訓資料常會在說明內出現「休息」等字，先判斷外訓，避免被誤歸類為休假。
+  // 類型或標題同時出現外訓與休假字樣時，優先依外訓判斷，避免誤歸類為請假。
   if (trainingKeywords.some(keyword => subtypeText.includes(keyword) || normalizedText.includes(keyword.replace(/\s+/g, '').replace(/[／/]/g, '')))) return '外訓'
 
   if (leaveKeywords.some(keyword => subtypeText.includes(keyword))) return '請假'
@@ -13634,15 +13781,14 @@ function getScheduleColorKey(row) {
   if (activityKeywords.some(keyword => subtypeText.includes(keyword))) return '活動'
   if (subtypeText.includes(publicDutyLeaveMeetingType)) return publicDutyLeaveMeetingType
 
-  const managedLeaveMeetingSubtype = getCoreLeaveMeetingSubtypeFromRow(row)
+  const managedLeaveMeetingSubtype = getCoreLeaveMeetingSubtypeFromRow(colorRow)
   if (managedLeaveMeetingSubtype) return managedLeaveMeetingSubtype
 
-  const note = String(row.sub_type_note || '')
-  if (note.includes('追蹤') || row.schedule_type === '追蹤事項') return '追蹤事項'
-  if (String(row.schedule_type || '').includes('提醒')) return '提醒事項'
+  if (subtypeText.includes('追蹤') || colorRow.schedule_type === '追蹤事項') return '追蹤事項'
+  if (subtypeText.includes('提醒') || String(colorRow.schedule_type || '').includes('提醒')) return '提醒事項'
 
-  if (row.category === '請假 / 會議 / 活動 / 外訓') return row.sub_type || row.schedule_type || '請假 / 會議 / 活動 / 外訓'
-  return getCanonicalColorSettingKey(row.category || row.schedule_type || '服務行程')
+  if (colorRow.category === '請假 / 會議 / 活動 / 外訓') return colorRow.sub_type || colorRow.schedule_type || '請假 / 會議 / 活動 / 外訓'
+  return getCanonicalColorSettingKey(colorRow.category || colorRow.schedule_type || '服務行程')
 }
 
 function getScheduleColor(row) {
@@ -15645,7 +15791,7 @@ function getHealthRows() {
     title: '角色權限矩陣',
     status: typeof rolePermissionMatrix === 'object' ? 'ok' : 'bad',
     detail: typeof rolePermissionMatrix === 'object' ? '角色權限矩陣已載入' : '角色權限矩陣未載入',
-    note: '管理員、主管、行政/海外、翻譯、外務/宿管/會計、一般職員會依角色控管。'
+    note: '管理員、主管、行政/海外、翻譯、外務/宿管/會計、一般職員、顧問會依角色控管。'
   })
 
   rows.push({
@@ -15843,7 +15989,7 @@ function getRolePermissionTestItems() {
 }
 
 function getRoleListForMatrix() {
-  return ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員']
+  return ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問']
 }
 
 function renderPermissionMark(enabled) {
@@ -15958,7 +16104,7 @@ function getLaunchTestGroups() {
         ['account-binding-audit', '帳號綁定檢查沒有紅色錯誤，刪除人員不出現在人員名單'],
         ['backup-export', '正式上線前已下載人員、帳號、行程、服務紀錄單、異動紀錄與共用設定備份'],
         ['data-integrity-audit', '資料完整性檢查沒有紅色錯誤'],
-        ['role-test-panel', '六種角色已完成實際登入確認並標記完成'],
+        ['role-test-panel', '七種角色已完成實際登入確認並標記完成'],
         ['final-acceptance-report', '正式上線驗收報告已複製留存'],
         ['system-icon', '系統檢查 ICON 使用 system-health.png，未覆蓋 checklist.png']
       ]
@@ -16909,6 +17055,12 @@ function getRoleTestDefinitions() {
       canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '會議室預約', '行程搜尋', '顏色設定', '人員 / 帳號'],
       cannotSee: ['LINE 通知', '異動紀錄', '外務行程', '外務明細', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', '選項管理', '系統檢查'],
       actions: ['可查看自己的行程', '可新增自己的個人待辦', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
+    },
+    {
+      role: '顧問',
+      canSee: ['個人行程表', '行程總覽', '行程搜尋', '顏色設定', '人員 / 帳號'],
+      cannotSee: ['個人一般待辦', '我指派的事項追蹤', '外務行程', '外務明細', '會議室預約', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', 'LINE 通知', '選項管理', '異動紀錄', '公告紀錄', '系統檢查'],
+      actions: ['行程總覽預設顯示越雙語群組', '本人置頂', '可修改指定越雙語人員行程', '只看自己的帳號資訊', '可修改自己的密碼']
     }
   ]
 }
@@ -17876,6 +18028,34 @@ function resetOverviewToPersonalWeek(options = {}) {
     saveOverviewStatePreference()
   }
   return overviewFilters
+}
+
+function resetOverviewToConsultantVietnameseBilingual(options = {}) {
+  overviewWeekOffset = 0
+  overviewDisplayMonth = getCurrentMonthValue()
+  overviewFilters = normalizeOverviewFilters({
+    ...overviewFilters,
+    viewMode: '全部行程',
+    departments: [],
+    staffIds: [],
+    sortBy: 'display_order',
+    sortDir: 'asc'
+  })
+  overviewQuickGroups = normalizeOverviewQuickGroups({
+    ...overviewQuickGroups,
+    activeId: CONSULTANT_OVERVIEW_QUICK_GROUP_ID
+  })
+  if (options.persist === true) {
+    saveOverviewFiltersPreference()
+    saveOverviewQuickGroupsPreference()
+    saveOverviewStatePreference()
+  }
+  return overviewFilters
+}
+
+function resetOverviewToRoleDefault(options = {}) {
+  if (isConsultantRole()) return resetOverviewToConsultantVietnameseBilingual(options)
+  return resetOverviewToPersonalWeek(options)
 }
 
 /* FOR-e V002-1H-stable-1-3bo START - keep overview state on refresh */
@@ -19500,11 +19680,24 @@ function normalizeManualColorCode(value = '', fallback = '') {
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : ''
 }
 
+const CORE_CARD_COLOR_LOGIC_VERSION = '1-3dr'
+
+function getScheduleColorClassificationRow(row = {}) {
+  if (!row || typeof row !== 'object') return {}
+  // 顏色只能依結構化類型或標題判斷；內容、備註及客戶名稱不得觸發關鍵字顏色。
+  return {
+    ...row,
+    description: '',
+    sub_type_note: '',
+    customer_name: ''
+  }
+}
+
 function getScheduleSubtypeText(row = {}) {
   const scheduleType = String(row.schedule_type || '')
   const category = String(row.category || '')
   const safeScheduleType = scheduleType === category || scheduleType === '請假 / 會議 / 活動 / 外訓' ? '' : scheduleType
-  return [row.sub_type, safeScheduleType, row.title, row.description, row.sub_type_note].filter(Boolean).join('｜')
+  return [row.sub_type, safeScheduleType, row.title].filter(Boolean).join('｜')
 }
 
 
@@ -19924,7 +20117,10 @@ function normalizeOverviewQuickGroups(value = {}) {
   const source = Array.isArray(value) ? { groups: value } : (value && typeof value === 'object' ? value : {})
   const groups = mergeOverviewQuickGroupGroups(getOverviewQuickGroupRawGroups(source))
   const activeId = String(source.activeId || source.active_id || 'all').trim() || 'all'
-  const validIds = new Set([...overviewBuiltInQuickGroupIds, ...groups.map(group => group.id)])
+  const builtInIds = typeof getOverviewBuiltInQuickGroups === 'function'
+    ? getOverviewBuiltInQuickGroups().map(group => String(group?.id || '').trim()).filter(Boolean)
+    : []
+  const validIds = new Set([...overviewBuiltInQuickGroupIds, ...builtInIds, ...groups.map(group => group.id)])
 
   return {
     activeId: validIds.has(activeId) ? activeId : 'all',
@@ -20499,27 +20695,49 @@ function getOverviewFixedQuickGroupStaffIds(names = [], fallbackMatcher = null) 
 }
 
 function getOverviewBuiltInQuickGroups() {
-  // 1-3be：取消固定快速人員群組，只保留「全部」。其他群組由每位登入者自行建立並只顯示給本人。
-  return [
+  const groups = [
     { id: 'all', name: '全部', builtIn: true, fixed: true, staffIds: [] }
   ]
+
+  if (isConsultantRole()) {
+    const staffIds = getConsultantOverviewStaffIds()
+    groups.push({
+      id: CONSULTANT_OVERVIEW_QUICK_GROUP_ID,
+      name: CONSULTANT_OVERVIEW_QUICK_GROUP_NAME,
+      builtIn: true,
+      fixed: true,
+      consultantDefault: true,
+      staffIds,
+      staff_ids: staffIds
+    })
+  }
+
+  return groups
 }
 
 function isHiddenOverviewQuickGroup(group = {}) {
   const id = String(group?.id || '').trim()
   const name = getOverviewQuickGroupDisplayName(group)
   if (!name) return true
-  if (id === 'all' || name === '全部') return false
+  if (id === 'all' || name === '全部' || id === CONSULTANT_OVERVIEW_QUICK_GROUP_ID) return false
   // 1-3be：不再隱藏營運處 / 翻譯群 / 貓群等名稱；若使用者自行建立，就應顯示在本人行程總覽。
   return false
 }
 
 function getOverviewQuickGroupRows() {
-  // 1-3be：快速人員群組只顯示「全部 + 目前登入者自行建立的個人群組」。
-  // 固定群組名單已取消，不再 render 外務人員 / 宿管群 / 翻譯群 / 貓群等預設群組。
+  // 1-3be：快速人員群組顯示「系統固定群組 + 目前登入者自行建立的個人群組」。
+  // 1-3ds：顧問固定群組「越雙語」不可被同名自訂群組覆蓋，但仍保留一般自訂群組管理功能。
+  const customGroups = getOverviewCustomQuickGroupRows().filter(group => {
+    if (!isConsultantRole()) return true
+    const groupId = String(group?.id || '').trim()
+    const groupName = normalizeOverviewQuickGroupNameText(getOverviewQuickGroupDisplayName(group))
+    return groupId !== CONSULTANT_OVERVIEW_QUICK_GROUP_ID
+      && groupName !== normalizeOverviewQuickGroupNameText(CONSULTANT_OVERVIEW_QUICK_GROUP_NAME)
+  })
+
   return mergeOverviewQuickGroupGroups(
     getOverviewBuiltInQuickGroups(),
-    getOverviewCustomQuickGroupRows()
+    customGroups
   )
     .map(group => withOverviewQuickGroupNameAliases(group))
     .filter(group => getOverviewQuickGroupDisplayName(group) && !isHiddenOverviewQuickGroup(group))
@@ -21432,7 +21650,20 @@ function getOverviewStaffRows() {
     rows = rows.filter(staff => groupStaffIds.includes(staff.staff_id))
   }
 
-  return sortStaffRowsByFilter(rows, overviewFilters)
+  const sortedRows = sortStaffRowsByFilter(rows, overviewFilters)
+  if (isConsultantRole() && activeGroup?.id === CONSULTANT_OVERVIEW_QUICK_GROUP_ID) {
+    const currentStaffId = getCurrentProfileResolvedStaffId()
+    const nameOrder = new Map(CONSULTANT_BILINGUAL_STAFF_NAMES.map((name, index) => [normalizeConsultantBilingualStaffName(name), index + 1]))
+    return [...sortedRows].sort((a, b) => {
+      const aId = normalizeStaffId(a?.staff_id || '')
+      const bId = normalizeStaffId(b?.staff_id || '')
+      const aOrder = aId && aId === currentStaffId ? 0 : (nameOrder.get(normalizeConsultantBilingualStaffName(a?.name || '')) ?? 999999)
+      const bOrder = bId && bId === currentStaffId ? 0 : (nameOrder.get(normalizeConsultantBilingualStaffName(b?.name || '')) ?? 999999)
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hant')
+    })
+  }
+  return sortedRows
 }
 
 
@@ -23258,7 +23489,7 @@ function renderUsersPage() {
     </div>
 
     <div class="notice">
-      人員 / 帳號檢視權限：管理員可全部管理，並可查看每個帳號最後一次登入狀況；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「停用」會保留人員資料但停用帳號；按「刪除」會採封存刪除，不硬刪歷史資料，避免行程、服務紀錄單或異動紀錄被破壞。
+      人員 / 帳號檢視權限：管理員可全部管理，並可查看每個帳號最後一次登入狀況；主管可檢視全部並修改「是否外務人員」；行政 / 海外、翻譯、外務 / 宿管人員 / 會計、一般職員、顧問只可查看自己的帳號資訊。所有角色都可以修改自己的密碼。管理員可用「重綁」重新綁定登入帳號；按「停用」會保留人員資料但停用帳號；按「刪除」會採封存刪除，不硬刪歷史資料，避免行程、服務紀錄單或異動紀錄被破壞。
     </div>
     ${renderAppSettingSyncNotice()}
 
@@ -23335,7 +23566,7 @@ function getStaffSnapshotForFunction(staff) {
 
 
 function getUserManageRoleOptions(selectedRole = '') {
-  const roles = ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員']
+  const roles = ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問']
   return roles.map(role => `<option value="${escapeHtml(role)}" ${role === selectedRole ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')
 }
 
@@ -24278,9 +24509,11 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
 
 function editStaffOptionsHtml(row) {
   const selectedIds = new Set(getAssigneeIds(row))
-  const rows = sortStaffRowsForSelection(canAssignAllStaff() || shouldAllowFullStaffSelectionForGeneralStaffRow(row)
-    ? getActiveStaffRows()
-    : getActiveStaffRows().filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id))
+  const rows = isConsultantRole()
+    ? getConsultantAssignableStaffRows([...selectedIds])
+    : sortStaffRowsForSelection(canAssignAllStaff() || shouldAllowFullStaffSelectionForGeneralStaffRow(row)
+      ? getActiveStaffRows()
+      : getActiveStaffRows().filter(staff => selectedIds.has(staff.staff_id) || staff.staff_id === currentProfile?.staff_id))
   return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="edit_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
