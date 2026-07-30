@@ -1,0 +1,12 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3dx
+
+本次沒有新增 SQL。
+
+本次只調整前端顧問服務行程操作權限：
+- 可修改非提醒服務行程。
+- 不可標記已完成。
+- 不可取消或刪除。
+
+不修改 Supabase schema、正式資料、schedules、schedule_id、schedule_assignees、日期、權限資料結構或 localStorage。
+
+注意：專案仍保留先前 1-3dt 的顧問角色 CHECK constraint SQL；只有顧問角色仍無法儲存並出現 staff_role_check 時，才需要確認 1-3dt SQL 是否已執行。本次 1-3dx 不需要另外執行 SQL。
