@@ -1,0 +1,44 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3dt 驗收重點
+
+一、版本
+1. APP_VERSION 顯示 V002-1H-stable-1-3dt。
+2. OFFICIAL_VERSION 顯示 official-v002-1h-stable-1-3dt。
+3. 保留 1-3ds 的顧問角色、越雙語固定群組及指定修改範圍。
+4. 第五階段「統一表單欄位設定」尚未開始。
+
+二、Supabase SQL（本版必要）
+1. 到 Supabase Dashboard → SQL Editor 執行：
+   for-e-v002-1h-stable-1-3dt-add-consultant-role-check.sql
+2. SQL 成功完成，不應出現 error。
+3. 最後查詢結果中，public.staff 的 staff_role_check 定義應包含「顧問」。
+4. 若 public.profiles 有角色 CHECK constraint，其定義也應包含「顧問」。
+5. SQL 可重複執行，不會重複新增限制。
+6. SQL 不更新既有人員、不更新行程、不重建資料表。
+
+三、顧問角色儲存
+1. 管理員進入「人員 / 帳號」。
+2. 修改指定人員，角色選擇「顧問」。
+3. 儲存成功，不再出現：
+   new row for relation "staff" violates check constraint "staff_role_check"
+4. 重新整理後，該人員角色仍顯示「顧問」。
+5. 綁定帳號者重新登入後，角色仍為「顧問」。
+
+四、顧問功能回歸
+1. 左側只顯示：個人行程表、行程總覽、行程搜尋、顏色設定、人員帳號。
+2. 行程總覽預設固定快速群組「越雙語」。
+3. 顧問本人位於最上方。
+4. 後續依序顯示：孫祥薇、范武薔薇、黃氏玄莊、賴黃娟、武俊平、吳氏何江、阮氏芳、阮氏璧、范紅筠。
+5. 顧問可修改自己與上述越雙語人員的行程。
+6. 顧問不能取得管理員、主管或行政的全域修改權限。
+
+五、程式檢查
+1. node --check src/main.js 通過。
+2. npm run build 通過後才可 commit / push。
+3. Vercel main Production deployment 顯示 Ready。
+
+六、不應受影響
+1. 正式行程資料。
+2. schedule_id、schedule_assignees。
+3. 日期與週期。
+4. LINE、提醒、統計、外務、會議室、服務紀錄單。
+5. 卡片顏色只依類型或標題的 1-3dr 規則。

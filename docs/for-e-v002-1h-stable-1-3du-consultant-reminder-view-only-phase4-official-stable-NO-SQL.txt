@@ -1,0 +1,15 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3du
+
+本次沒有新增 SQL。
+
+本次只修正前端顧問權限：
+- 提醒事項僅可查看。
+- 不可修改、完成、取消、刪除。
+- 不可把一般行程改成提醒事項。
+
+注意：
+若「顧問」角色仍出現 staff_role_check 錯誤，代表上一版 1-3dt 的顧問角色 SQL 尚未執行。
+請執行專案內既有檔案：
+supabase/sql/for-e-v002-1h-stable-1-3dt-add-consultant-role-check.sql
+
+1-3du 本身不需要再新增或修改任何 SQL。

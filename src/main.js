@@ -312,15 +312,27 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3dt END - consultant role database constraint */
 
+/* FOR-e V002-1H-stable-1-3du START - consultant reminder adjustment restriction */
+/*
+  V002-1H-stable-1-3du｜第四階段補充：顧問不得調整提醒事項
+  - 顧問可查看越雙語人員的提醒事項，但不顯示修改、完成、取消或刪除操作。
+  - 顧問不可修改既有提醒事項，也不可把一般服務行程改成提醒事項。
+  - 提醒辨識只依類別、行程類型、細項與標題，不因內容或備註出現提醒關鍵字而誤擋一般行程。
+  - 保留顧問五項選單、越雙語固定群組、一般行程修改範圍及 1-3dt 顧問角色資料庫限制。
+  - 不修改 Supabase 資料表、行程資料、指派資料或第五階段表單欄位設定。
+*/
+/* FOR-e V002-1H-stable-1-3du END - consultant reminder adjustment restriction */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dt'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dt'
+const APP_VERSION = 'V002-1H-stable-1-3du'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3du'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：修正 Supabase 角色限制，讓「顧問」可正常儲存；保留越雙語快速群組、指定人員修改範圍與既有顧問功能。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：顧問可查看越雙語提醒事項，但不得修改、完成、取消、刪除或把一般行程改成提醒事項；保留既有顧問角色與固定群組。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
+const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -1352,6 +1364,34 @@ function normalizeCreateScheduleCategory(value = '') {
 
 function isConsultantRole(role = getRoleName()) {
   return String(role || '').trim() === CONSULTANT_ROLE_NAME
+}
+
+function getConsultantReminderPermissionClassificationRow(row = {}) {
+  if (!row || typeof row !== 'object') return {}
+  // 權限辨識與 1-3dr 顏色規則一致：只依類型 / 細項 / 標題，不讀取內容、備註或客戶名稱。
+  if (typeof getScheduleColorClassificationRow === 'function') return getScheduleColorClassificationRow(row)
+  return {
+    ...row,
+    description: '',
+    sub_type_note: '',
+    customer_name: ''
+  }
+}
+
+function isConsultantRestrictedReminderSchedule(row = {}) {
+  const classifiedRow = getConsultantReminderPermissionClassificationRow(row)
+  if (!classifiedRow || !Object.keys(classifiedRow).length) return false
+
+  return Boolean(
+    (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(classifiedRow)) ||
+    (typeof isServiceReminderSchedule === 'function' && isServiceReminderSchedule(classifiedRow)) ||
+    (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(classifiedRow)) ||
+    (typeof isReminderSchedule === 'function' && isReminderSchedule(classifiedRow))
+  )
+}
+
+function canConsultantAdjustSchedule(row = {}) {
+  return !isConsultantRole() || !isConsultantRestrictedReminderSchedule(row)
 }
 
 function isGeneralStaffLikeRole(role = getRoleName()) {
@@ -3011,7 +3051,7 @@ function denyPermission(message = '你的角色沒有此操作權限。') {
 function getRolePermissionNotice() {
   const role = getRoleName()
   if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
-  if (isConsultantRole(role)) return `目前角色：${role}｜可管理自己建立的行程，以及指定越雙語人員的行程。`
+  if (isConsultantRole(role)) return `目前角色：${role}｜可管理自己建立的行程，以及指定越雙語人員的一般行程；提醒事項僅可查看。`
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
@@ -3021,6 +3061,7 @@ function isTranslatorRole() {
 
 function canModifySchedule(row) {
   if (!currentProfile || !row) return false
+  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
   if (canManageAllSchedules()) return true
   if (row.creator_staff_id === currentProfile.staff_id) return true
   if (isConsultantRole() && scheduleIncludesConsultantBilingualStaff(row)) return true
@@ -3030,6 +3071,7 @@ function canModifySchedule(row) {
 
 function canCompleteSchedule(row) {
   if (!currentProfile || !row) return false
+  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
   if (isNoCompletionControlSchedule(row)) return false
   if (row.status === '已完成' || row.status === '取消') return false
   if (canManageAllSchedules()) return true
@@ -3041,6 +3083,7 @@ function canCompleteSchedule(row) {
 /* FOR-e V002-1H-stable-1-3cl START - administrative reminder complete from detail */
 function canCompleteAdministrativeReminderSchedule(row = {}) {
   if (!currentProfile || !row) return false
+  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
   if (!isAdministrativeReminderSchedule(row)) return false
   const statusText = String(row.status || '').trim()
   if (['已完成', '完成', '取消', '已取消', '已刪除', '刪除'].includes(statusText)) return false
@@ -3148,6 +3191,7 @@ function openAdministrativeReminderCompleteModal(scheduleId = '') {
 
 function canCancelSchedule(row) {
   if (!currentProfile || !row) return false
+  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
   if (row.status === '取消') return false
   if (canManageAllSchedules()) return true
   return row.creator_staff_id === currentProfile.staff_id
@@ -29945,9 +29989,9 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             </select>
           </label>
 
-          <label>
+          <label class="${isConsultantRole() ? 'hidden' : ''}">
             提醒事項
-            <select name="service_reminder_type">
+            <select name="service_reminder_type" ${isConsultantRole() ? 'disabled aria-disabled="true"' : ''}>
               ${serviceReminderOptions}
             </select>
           </label>
@@ -30523,6 +30567,11 @@ async function ensureServiceRecordsForScheduleRow(scheduleRow = {}, staffIds = [
 async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
+  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(originalRow)) {
+    alert('顧問只能查看提醒事項，不能修改提醒事項。')
+    return
+  }
+
   const form = new FormData(event.target)
   const rawCategory = String(form.get('category') || '').trim()
   const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
@@ -30559,6 +30608,15 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const isService = category === '服務行程'
   const isMaintenance = category === '公務車保養'
   const editEarlyServiceType = isService ? getServiceScheduleTypeFromForm(form) : ''
+
+  if (isConsultantRole() && (
+    isAdministrativeReminderCategoryName(category) ||
+    (isService && isServiceReminderType(editEarlyServiceType))
+  )) {
+    alert('顧問不能新增或調整提醒事項。')
+    return
+  }
+
   const editSimplifiedServiceType = isService && isSimplifiedServiceFieldType(editEarlyServiceType)
   const submitted = isService && !editSimplifiedServiceType && form.get('service_record_submitted_check') === 'on'
   const submittedDate = submitted ? (form.get('service_record_submitted_date') || todayString()) : null
@@ -31134,6 +31192,12 @@ async function saveSchedule(event, modal) {
 
 async function completeSchedule(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canCompleteSchedule(row)) {
+    return denyPermission(isConsultantRole() && isConsultantRestrictedReminderSchedule(row)
+      ? '顧問只能查看提醒事項，不能完成提醒事項。'
+      : '你沒有完成此行程的權限。')
+  }
   const cascadeTargets = getIncidentCascadeCompleteTargets(row)
   const confirmText = cascadeTargets.length
     ? `確定要將此異況標記為已完成嗎？\n\n會一併完成 ${cascadeTargets.length} 筆延伸追蹤行程 / 行政待辦。`
@@ -31172,6 +31236,11 @@ async function completeSchedule(scheduleId) {
 function openCancelModal(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
+  if (!canCancelSchedule(row)) {
+    return denyPermission(isConsultantRole() && isConsultantRestrictedReminderSchedule(row)
+      ? '顧問只能查看提醒事項，不能取消或刪除提醒事項。'
+      : '你沒有取消此行程的權限。')
+  }
   const cancelOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
 
   const modal = document.createElement('div')
@@ -31352,6 +31421,12 @@ async function cancelScopedScheduleOccurrence(row = {}, reason = '', options = {
 
 async function cancelSchedule(scheduleId, reason, options = {}) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
+  if (!row) return
+  if (!canCancelSchedule(row)) {
+    return denyPermission(isConsultantRole() && isConsultantRestrictedReminderSchedule(row)
+      ? '顧問只能查看提醒事項，不能取消或刪除提醒事項。'
+      : '你沒有取消此行程的權限。')
+  }
   const scopedCancel = await cancelScopedScheduleOccurrence(row, reason, options)
   if (scopedCancel.handled) {
     if (scopedCancel.error) {

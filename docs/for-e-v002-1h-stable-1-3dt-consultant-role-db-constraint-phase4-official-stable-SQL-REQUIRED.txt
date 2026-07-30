@@ -1,0 +1,17 @@
+本次需要 SQL。
+
+原因：
+Supabase 的 public.staff 仍有 staff_role_check，尚未允許新角色「顧問」，因此前端儲存時會被資料庫拒絕。
+
+請執行：
+for-e-v002-1h-stable-1-3dt-add-consultant-role-check.sql
+
+SQL 行為：
+1. 保留 staff / profiles 原有角色 CHECK 條件。
+2. 只額外允許「顧問」。
+3. 不更新既有人員資料。
+4. 不更新或重建行程資料。
+5. 不重建資料表。
+6. 可重複執行。
+
+SQL 執行成功後，請回到人員帳號頁重新選擇「顧問」並儲存。
