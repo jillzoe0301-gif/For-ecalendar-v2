@@ -1,0 +1,22 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3dv
+
+本次沒有新增 SQL。
+
+本版只調整前端角色頁面、行程類別選項及操作權限判斷：
+- 顧問左側移除顏色設定。
+- 顧問新增／修改只允許一般行程。
+- 顧問對外務、提醒及其他行程維持唯讀。
+
+不修改：
+- Supabase schema
+- schedules
+- schedule_id
+- schedule_assignees
+- 正式舊資料
+- 日期與週期
+- localStorage 資料結構
+
+注意：若資料庫仍無法儲存「顧問」角色，代表 1-3dt 的既有 SQL 尚未執行，仍需執行：
+supabase/sql/for-e-v002-1h-stable-1-3dt-add-consultant-role-check.sql
+
+1-3dv 本身不需再執行新的 SQL。

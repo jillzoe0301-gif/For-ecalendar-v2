@@ -294,7 +294,7 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 /*
   V002-1H-stable-1-3ds｜第四階段補充：顧問角色與越雙語人員顯示 / 修改範圍
   - 新增「顧問」角色，行程總覽操作方式比照一般職員。
-  - 顧問左側只顯示：個人行程表、行程總覽、行程搜尋、顏色設定、人員 / 帳號。
+  - 1-3ds 當時顧問左側顯示五項功能；1-3dv 起移除顏色設定。
   - 顧問可修改指定越雙語人員的行程，不取得管理員、主管或行政的全域修改權限。
   - 顧問行程總覽預設啟用固定快速群組「越雙語」，顧問本人置頂，再依指定名單順序顯示。
   - 不修改 Supabase 資料表、不寫入舊行程、不重建 schedules / schedule_assignees。
@@ -318,21 +318,34 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
   - 顧問可查看越雙語人員的提醒事項，但不顯示修改、完成、取消或刪除操作。
   - 顧問不可修改既有提醒事項，也不可把一般服務行程改成提醒事項。
   - 提醒辨識只依類別、行程類型、細項與標題，不因內容或備註出現提醒關鍵字而誤擋一般行程。
-  - 保留顧問五項選單、越雙語固定群組、一般行程修改範圍及 1-3dt 顧問角色資料庫限制。
+  - 保留顧問既有選單架構、越雙語固定群組、一般行程修改範圍及 1-3dt 顧問角色資料庫限制。
   - 不修改 Supabase 資料表、行程資料、指派資料或第五階段表單欄位設定。
 */
 /* FOR-e V002-1H-stable-1-3du END - consultant reminder adjustment restriction */
 
+/* FOR-e V002-1H-stable-1-3dv START - consultant general schedule only */
+/*
+  V002-1H-stable-1-3dv｜第四階段補充：顧問只可調整一般行程
+  - 顧問新增與修改表單的行程類別只保留「一般行程」。
+  - 顧問可查看越雙語人員的服務、提醒、外務及其他行程，但僅能修改一般行程。
+  - 顧問不得修改、完成、補件、異常回報、取消或刪除外務行程。
+  - 顧問左側移除顏色設定，只保留個人行程表、行程總覽、行程搜尋、人員帳號。
+  - 保留越雙語固定群組、本人置頂、指定人員範圍與 1-3dt 顧問角色資料庫限制。
+  - 不修改 Supabase 資料表、正式行程、指派資料或第五階段表單欄位設定。
+*/
+/* FOR-e V002-1H-stable-1-3dv END - consultant general schedule only */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3du'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3du'
+const APP_VERSION = 'V002-1H-stable-1-3dv'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dv'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：顧問可查看越雙語提醒事項，但不得修改、完成、取消、刪除或把一般行程改成提醒事項；保留既有顧問角色與固定群組。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：顧問只可新增與修改一般行程；提醒、外務及其他類型皆為唯讀，左側移除顏色設定。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
+const CONSULTANT_GENERAL_SCHEDULE_PERMISSION_LOGIC_VERSION = '1-3dv'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -347,11 +360,11 @@ const CONSULTANT_BILINGUAL_STAFF_NAMES = Object.freeze([
   '阮氏璧',
   '范紅筠'
 ])
+const CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES = Object.freeze(['一般行程'])
 const CONSULTANT_ALLOWED_PAGE_KEYS = new Set([
   'personalSchedule',
   'scheduleOverview',
   'search',
-  'color',
   'users'
 ])
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
@@ -396,7 +409,7 @@ const pages = [
   { key: 'serviceRecord', label: '服務紀錄單', mobileLabel: '紀錄', roles: ['管理員', '主管'], mobile: false },
   { key: 'recordSubmit', label: '紀錄單繳交', mobileLabel: '繳交', roles: ['翻譯'], mobile: true },
   { key: 'line', label: 'LINE 通知', mobileLabel: 'LINE', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計'], mobile: true },
-  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問'], mobile: false },
+  { key: 'color', label: '顏色設定', mobileLabel: '顏色', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員'], mobile: false },
   { key: 'options', label: '選項管理', mobileLabel: '選項', roles: ['管理員', '主管'], mobile: false },
   { key: 'audit', label: '異動紀錄', mobileLabel: '紀錄', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: false },
   { key: 'administrativeAnnouncement', label: '公告紀錄', mobileLabel: '公告', roles: ['管理員', '主管'], mobile: false },
@@ -1390,8 +1403,16 @@ function isConsultantRestrictedReminderSchedule(row = {}) {
   )
 }
 
+function isConsultantEditableGeneralSchedule(row = {}) {
+  if (!row || typeof row !== 'object') return false
+  const category = String(row.category || '').trim()
+  const scheduleType = String(row.schedule_type || '').trim()
+  if (category === '外務行程' || ['外務', '外務行程'].includes(scheduleType)) return false
+  return category === '一般行程' || (!category && scheduleType === '一般行程')
+}
+
 function canConsultantAdjustSchedule(row = {}) {
-  return !isConsultantRole() || !isConsultantRestrictedReminderSchedule(row)
+  return !isConsultantRole() || isConsultantEditableGeneralSchedule(row)
 }
 
 function isGeneralStaffLikeRole(role = getRoleName()) {
@@ -3023,6 +3044,10 @@ function canCreateScheduleCategory(category) {
   const rawCategory = String(category || '').trim()
   const normalized = normalizeCreateScheduleCategory(rawCategory).category
 
+  if (isConsultantRole()) {
+    return rawCategory === '一般行程' && normalized === '一般行程' && canCreatePersonalSchedule()
+  }
+
   if (isGeneralStaffOverviewCreateMode()) {
     return generalStaffOverviewFormCategories.includes(rawCategory) && canCreatePersonalSchedule()
   }
@@ -3034,6 +3059,7 @@ function canCreateScheduleCategory(category) {
 
 function canManageFieldResult(row) {
   if (!row || row.status === '取消') return false
+  if (isConsultantRole()) return false
   return canCreateFieldSchedule() || isAssignedToMe(row)
 }
 
@@ -3051,7 +3077,7 @@ function denyPermission(message = '你的角色沒有此操作權限。') {
 function getRolePermissionNotice() {
   const role = getRoleName()
   if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
-  if (isConsultantRole(role)) return `目前角色：${role}｜可管理自己建立的行程，以及指定越雙語人員的一般行程；提醒事項僅可查看。`
+  if (isConsultantRole(role)) return `目前角色：${role}｜只可新增與修改自己或指定越雙語人員的一般行程；提醒、外務及其他類型僅可查看。`
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
@@ -3061,17 +3087,20 @@ function isTranslatorRole() {
 
 function canModifySchedule(row) {
   if (!currentProfile || !row) return false
-  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
+  if (isConsultantRole()) {
+    if (!isConsultantEditableGeneralSchedule(row)) return false
+    if (row.creator_staff_id === currentProfile.staff_id) return true
+    return scheduleIncludesConsultantBilingualStaff(row)
+  }
   if (canManageAllSchedules()) return true
   if (row.creator_staff_id === currentProfile.staff_id) return true
-  if (isConsultantRole() && scheduleIncludesConsultantBilingualStaff(row)) return true
   if (isTranslatorRole() && isAssignedToMe(row)) return true
   return false
 }
 
 function canCompleteSchedule(row) {
   if (!currentProfile || !row) return false
-  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
+  if (isConsultantRole() && !isConsultantEditableGeneralSchedule(row)) return false
   if (isNoCompletionControlSchedule(row)) return false
   if (row.status === '已完成' || row.status === '取消') return false
   if (canManageAllSchedules()) return true
@@ -3191,7 +3220,7 @@ function openAdministrativeReminderCompleteModal(scheduleId = '') {
 
 function canCancelSchedule(row) {
   if (!currentProfile || !row) return false
-  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)) return false
+  if (isConsultantRole() && !isConsultantEditableGeneralSchedule(row)) return false
   if (row.status === '取消') return false
   if (canManageAllSchedules()) return true
   return row.creator_staff_id === currentProfile.staff_id
@@ -8565,7 +8594,7 @@ async function updateSchedulePayload(scheduleId = '', payload = {}) {
   if (!data?.schedule_id) {
     return {
       data: null,
-      error: new Error('行程沒有被更新。若目前角色為顧問，請先確認此筆行程屬於指定越雙語人員，並確認 Supabase 既有更新政策允許顧問修改該行程；其他角色請確認管理權限。')
+      error: new Error('行程沒有被更新。若目前角色為顧問，請確認此筆為自己或指定越雙語人員的一般行程；提醒、外務及其他類型不可修改。其他角色請確認管理權限。')
     }
   }
 
@@ -17114,9 +17143,9 @@ function getRoleTestDefinitions() {
     },
     {
       role: '顧問',
-      canSee: ['個人行程表', '行程總覽', '行程搜尋', '顏色設定', '人員 / 帳號'],
-      cannotSee: ['個人一般待辦', '我指派的事項追蹤', '外務行程', '外務明細', '會議室預約', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', 'LINE 通知', '選項管理', '異動紀錄', '公告紀錄', '系統檢查'],
-      actions: ['行程總覽預設顯示越雙語群組', '本人置頂', '可修改指定越雙語人員行程', '只看自己的帳號資訊', '可修改自己的密碼']
+      canSee: ['個人行程表', '行程總覽', '行程搜尋', '人員 / 帳號'],
+      cannotSee: ['個人一般待辦', '我指派的事項追蹤', '顏色設定', '外務行程', '外務明細', '會議室預約', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', 'LINE 通知', '選項管理', '異動紀錄', '公告紀錄', '系統檢查'],
+      actions: ['行程總覽預設顯示越雙語群組', '本人置頂', '只可新增與修改一般行程', '提醒與外務行程僅可查看', '只看自己的帳號資訊', '可修改自己的密碼']
     }
   ]
 }
@@ -24013,6 +24042,7 @@ function renderScheduleItemLabel(extra = '') {
 }
 
 function canManageTodoNoteStatus(row = {}) {
+  if (isConsultantRole()) return false
   if (!isTodoOrNoteSchedule(row)) return false
   if (row.status === '取消') return false
   if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return false
@@ -24773,6 +24803,7 @@ function minuteOptionsHtml(defaultValue = '00') {
 
 function getRolePersonalScheduleCategories() {
   const role = getRoleName()
+  if (isConsultantRole(role)) return [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
   if (['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'].includes(role)) {
     if (currentPage === 'personalTodo') return adminManagerTodoCategories
@@ -24790,6 +24821,7 @@ function getRolePersonalScheduleCategories() {
 }
 
 function getAvailableFormCategories() {
+  if (isConsultantRole()) return [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
   if (currentPage === 'personalSchedule' || currentPage === 'personalTodo' || unifiedCreateCategoryPages.includes(currentPage)) return getRolePersonalScheduleCategories()
   return formCategories
@@ -26469,6 +26501,11 @@ function openEditFieldScheduleModal(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
 
+  if (isConsultantRole()) {
+    alert('顧問只能查看外務行程，不能修改外務行程。')
+    return
+  }
+
   if (!canModifySchedule(row)) {
     alert('您沒有權限修改此外務行程。')
     return
@@ -26649,6 +26686,10 @@ function openEditFieldScheduleModal(scheduleId) {
 
 async function saveEditedFieldSchedule(event, modal, originalRow) {
   event.preventDefault()
+  if (isConsultantRole()) {
+    alert('顧問只能查看外務行程，不能修改外務行程。')
+    return
+  }
   if (saving) return
   saving = true
 
@@ -29895,9 +29936,11 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const isGeneralStaffEditMode = isGeneralStaffEditableSchedule(row) && generalStaffUnifiedFormPages.includes(currentPage)
   const editRawCategory = isGeneralStaffEditMode ? getGeneralStaffRawCategoryFromRow(row) : getEditScheduleRawCategoryFromRow(row)
   const editNormalizedCategory = normalizeCreateScheduleCategory(editRawCategory).category
-  const editCategoryList = isGeneralStaffEditMode
-    ? generalStaffOverviewFormCategories
-    : (formCategories.includes(editRawCategory) ? formCategories : [...formCategories, editRawCategory].filter(Boolean))
+  const editCategoryList = isConsultantRole()
+    ? [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
+    : (isGeneralStaffEditMode
+      ? generalStaffOverviewFormCategories
+      : (formCategories.includes(editRawCategory) ? formCategories : [...formCategories, editRawCategory].filter(Boolean)))
   const categoryOptions = optionHtml(editCategoryList, editRawCategory)
   const normalizedEditServiceType = getServiceReminderTypeFromRow(row) || normalizeServiceTypeOption(row.schedule_type || '')
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
@@ -30567,8 +30610,10 @@ async function ensureServiceRecordsForScheduleRow(scheduleRow = {}, staffIds = [
 async function saveEditedSchedule(event, modal, originalRow) {
   event.preventDefault()
 
-  if (isConsultantRole() && isConsultantRestrictedReminderSchedule(originalRow)) {
-    alert('顧問只能查看提醒事項，不能修改提醒事項。')
+  if (isConsultantRole() && !isConsultantEditableGeneralSchedule(originalRow)) {
+    alert(isFieldScheduleRow(originalRow)
+      ? '顧問只能查看外務行程，不能修改外務行程。'
+      : '顧問只能修改一般行程，其他行程類型僅可查看。')
     return
   }
 
@@ -30577,6 +30622,10 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
   const category = categoryInfo.category
   const forcedScheduleType = categoryInfo.forcedScheduleType
+  if (isConsultantRole() && (rawCategory !== '一般行程' || category !== '一般行程')) {
+    alert('顧問行程類別只允許一般行程。')
+    return
+  }
   if (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && !generalStaffOverviewFormCategories.includes(rawCategory)) {
     alert('一般職員只能新增或修改一般行程、個人記事、請假/會議/活動/外訓、公務車保養。')
     return
@@ -30609,11 +30658,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const isMaintenance = category === '公務車保養'
   const editEarlyServiceType = isService ? getServiceScheduleTypeFromForm(form) : ''
 
-  if (isConsultantRole() && (
-    isAdministrativeReminderCategoryName(category) ||
-    (isService && isServiceReminderType(editEarlyServiceType))
-  )) {
-    alert('顧問不能新增或調整提醒事項。')
+  if (isConsultantRole() && category !== '一般行程') {
+    alert('顧問只能修改一般行程，提醒、外務及其他行程類型僅可查看。')
     return
   }
 
@@ -30848,6 +30894,11 @@ async function saveSchedule(event, modal) {
   const categoryInfo = normalizeCreateScheduleCategory(rawCategory)
   const category = categoryInfo.category
   const forcedScheduleType = categoryInfo.forcedScheduleType
+  if (isConsultantRole() && (rawCategory !== '一般行程' || category !== '一般行程')) {
+    alert('顧問只能新增一般行程。')
+    saving = false
+    return
+  }
   if (!canCreateScheduleCategory(rawCategory)) {
     alert('你的角色沒有新增此類行程的權限。')
     saving = false
@@ -30855,9 +30906,11 @@ async function saveSchedule(event, modal) {
   }
   const availableFormCategories = getAvailableFormCategories()
   if (!availableFormCategories.includes(rawCategory)) {
-    alert(isGeneralStaffOverviewCreateMode()
-      ? '一般職員只能新增一般行程、個人記事、請假/會議/活動/外訓、公務車保養。'
-      : '此頁面只能新增待辦事項、辦件提醒、請假 / 會議 / 活動 / 外訓。')
+    alert(isConsultantRole()
+      ? '顧問只能新增一般行程。'
+      : (isGeneralStaffOverviewCreateMode()
+        ? '一般職員只能新增一般行程、個人記事、請假/會議/活動/外訓、公務車保養。'
+        : '此頁面只能新增待辦事項、辦件提醒、請假 / 會議 / 活動 / 外訓。'))
     saving = false
     return
   }
