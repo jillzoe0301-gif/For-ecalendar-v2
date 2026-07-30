@@ -301,14 +301,26 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3ds END - consultant role and Vietnamese bilingual overview */
 
+/* FOR-e V002-1H-stable-1-3dt START - consultant role database constraint */
+/*
+  V002-1H-stable-1-3dt｜第四階段補充：顧問角色資料庫限制修正
+  - 修正 staff_role_check 尚未允許「顧問」，導致管理員無法儲存顧問角色。
+  - 提供最小範圍 SQL，保留既有角色限制，只額外允許「顧問」。
+  - 若 profiles 也有角色 CHECK constraint，SQL 會同步保留原條件並允許「顧問」。
+  - 前端遇到舊資料庫限制時，改顯示可辨識的 1-3dt SQL 操作提示。
+  - 不修改行程、日期、指派、權限範圍或第五階段表單欄位設定。
+*/
+/* FOR-e V002-1H-stable-1-3dt END - consultant role database constraint */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ds'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ds'
+const APP_VERSION = 'V002-1H-stable-1-3dt'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dt'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：新增顧問角色，左側只顯示指定五項功能；行程總覽預設越雙語快速群組，顧問本人置頂，並可修改指定雙語人員行程。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：修正 Supabase 角色限制，讓「顧問」可正常儲存；保留越雙語快速群組、指定人員修改範圍與既有顧問功能。'
 
+const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -23811,6 +23823,18 @@ function openUserAccountModal(staffId = '') {
   document.querySelector('#userAccountForm').addEventListener('submit', event => saveUserAccount(event, modal, staff?.staff_id || ''))
 }
 
+function getUserRoleSaveErrorMessage(error, role = '', actionLabel = '儲存') {
+  const message = String(error?.message || error || '未知錯誤').trim()
+  const normalizedRole = String(role || '').trim()
+  const isRoleConstraintError = /staff_role_check|violates check constraint/i.test(message)
+
+  if (normalizedRole === CONSULTANT_ROLE_NAME && isRoleConstraintError) {
+    return `${actionLabel}人員失敗：Supabase 的 staff_role_check 尚未允許「顧問」。\n\n請先到 Supabase SQL Editor 執行 1-3dt 提供的 SQL，再重新儲存此人員。\n\n原始錯誤：${message}`
+  }
+
+  return `${actionLabel}人員失敗：${message}`
+}
+
 async function saveUserAccount(event, modal, staffId = '') {
   event.preventDefault()
   if (saving) return
@@ -23883,7 +23907,7 @@ async function saveUserAccount(event, modal, staffId = '') {
 
       if (error) {
         console.error(error)
-        alert('修改人員失敗：' + error.message)
+        alert(getUserRoleSaveErrorMessage(error, payload.role, '修改'))
         saving = false
         return
       }
@@ -23896,7 +23920,7 @@ async function saveUserAccount(event, modal, staffId = '') {
 
       if (error) {
         console.error(error)
-        alert('新增人員失敗：' + error.message)
+        alert(getUserRoleSaveErrorMessage(error, payload.role, '新增'))
         saving = false
         return
       }
