@@ -359,19 +359,31 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3dx END - consultant service schedule edit only */
 
+/* FOR-e V002-1H-stable-1-3dy START - consultant self general schedule and direct assignment edit */
+/*
+  V002-1H-stable-1-3dy｜第四階段補充：顧問一般行程固定本人、直接受指派服務行程可修改
+  - 顧問新增一般行程時不顯示部門選擇，執行人員固定為顧問本人。
+  - 即使從行程總覽其他人員欄位開啟新增表單，也不會把一般行程指派給別人。
+  - 別人建立但直接指派給目前顧問的非提醒服務行程，顧問可正常進入修改。
+  - 顧問對服務行程仍只能修改，不可已完成、取消或刪除；提醒與外務仍維持唯讀。
+  - 不修改 Supabase 資料表、正式行程、既有指派資料或第五階段表單欄位設定。
+*/
+/* FOR-e V002-1H-stable-1-3dy END - consultant self general schedule and direct assignment edit */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3dx'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dx'
+const APP_VERSION = 'V002-1H-stable-1-3dy'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3dy'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：顧問可修改一般行程與非提醒服務行程；服務行程只可修改，不可已完成、取消或刪除。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：顧問新增一般行程固定指派本人；直接被指派的非提醒服務行程可修改，但不可已完成、取消或刪除。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
 const CONSULTANT_GENERAL_SCHEDULE_PERMISSION_LOGIC_VERSION = '1-3dv'
 const CONSULTANT_SERVICE_SCHEDULE_EDIT_LOGIC_VERSION = '1-3dw'
 const CONSULTANT_SERVICE_EDIT_ONLY_LOGIC_VERSION = '1-3dx'
+const CONSULTANT_SELF_GENERAL_DIRECT_ASSIGNMENT_LOGIC_VERSION = '1-3dy'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -1403,6 +1415,20 @@ function normalizeCreateScheduleCategory(value = '') {
 
 function isConsultantRole(role = getRoleName()) {
   return String(role || '').trim() === CONSULTANT_ROLE_NAME
+}
+
+function getConsultantCurrentStaffId() {
+  return String(
+    (typeof getCurrentProfileResolvedStaffId === 'function' && getCurrentProfileResolvedStaffId()) ||
+    currentProfile?.staff_id ||
+    ''
+  ).trim()
+}
+
+function isConsultantDirectlyAssignedToSchedule(row = {}) {
+  const currentStaffId = getConsultantCurrentStaffId()
+  if (!currentStaffId || !row) return false
+  return getActiveAssigneeIds(row).some(staffId => String(staffId || '').trim() === currentStaffId)
 }
 
 function getConsultantReminderPermissionClassificationRow(row = {}) {
@@ -3034,6 +3060,8 @@ function isOverviewBlankCellBlockedTarget(target) {
 function getOverviewBlankCellDefaultStaffId(staffId = '') {
   const requestedStaffId = String(staffId || '').trim()
   const fallbackStaffId = currentProfile?.staff_id || ''
+  // 顧問新增一般行程固定指派本人，不因點到越雙語其他人員欄位而改變執行者。
+  if (isConsultantRole()) return fallbackStaffId
   if (!requestedStaffId) return fallbackStaffId
   if (!isGeneralStaffOverviewCreateMode()) return requestedStaffId
 
@@ -3147,7 +3175,7 @@ function denyPermission(message = '你的角色沒有此操作權限。') {
 function getRolePermissionNotice() {
   const role = getRoleName()
   if (canManageAllSchedules()) return `目前角色：${role}｜可管理全部行程與指派事項。`
-  if (isConsultantRole(role)) return `目前角色：${role}｜只可新增一般行程；可修改自己或指定越雙語人員的一般行程與非提醒服務行程，其中服務行程不可已完成、取消或刪除；提醒、外務及其他類型僅可查看。`
+  if (isConsultantRole(role)) return `目前角色：${role}｜新增一般行程固定指派本人；可修改自己建立、直接被指派或指定越雙語人員的一般行程與非提醒服務行程，其中服務行程不可已完成、取消或刪除；提醒、外務及其他類型僅可查看。`
   return `目前角色：${role}｜僅可管理自己建立或被指派的事項。`
 }
 
@@ -3160,6 +3188,8 @@ function canModifySchedule(row) {
   if (isConsultantRole()) {
     if (!isConsultantEditableSchedule(row)) return false
     if (row.creator_staff_id === currentProfile.staff_id) return true
+    // 別人建立但直接指派給目前顧問的行程，顧問應可依類型規則修改。
+    if (isConsultantDirectlyAssignedToSchedule(row)) return true
     return scheduleIncludesConsultantBilingualStaff(row)
   }
   if (canManageAllSchedules()) return true
@@ -8666,7 +8696,7 @@ async function updateSchedulePayload(scheduleId = '', payload = {}) {
   if (!data?.schedule_id) {
     return {
       data: null,
-      error: new Error('行程沒有被更新。若目前角色為顧問，請確認此筆為自己或指定越雙語人員的一般行程或非提醒服務行程；提醒、外務及其他類型不可修改。其他角色請確認管理權限。')
+      error: new Error('行程沒有被更新。若目前角色為顧問，請確認此筆為自己建立、直接被指派或指定越雙語人員的一般行程或非提醒服務行程；提醒、外務及其他類型不可修改。其他角色請確認管理權限。')
     }
   }
 
@@ -27986,6 +28016,22 @@ function openScheduleModal(defaults = {}) {
     <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
   `).join('')
 
+  const consultantCreateSelfStaffId = isConsultantRole() ? getConsultantCurrentStaffId() : ''
+  const consultantCreateSelfStaff = consultantCreateSelfStaffId
+    ? (getStaffRowById(consultantCreateSelfStaffId) || getCurrentProfileStaffRow() || currentProfile)
+    : null
+  const createScheduleAssigneeHtml = isConsultantRole()
+    ? (consultantCreateSelfStaffId
+      ? `
+        <input type="hidden" name="executor" value="${escapeHtml(consultantCreateSelfStaffId)}">
+        <div class="notice consultant-fixed-self-assignee">
+          <strong>執行人員：${escapeHtml(consultantCreateSelfStaff?.name || currentProfile?.name || '本人')}</strong>
+          <div class="field-hint">顧問新增一般行程固定指派本人，不需要選擇部門或其他人員。</div>
+        </div>
+      `
+      : '<div class="empty-state">目前顧問帳號尚未綁定人員，無法建立一般行程。</div>')
+    : (staffOptionsHtml(defaultStaffId, isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null) || '<div class="empty-state">目前沒有可選人員。</div>')
+
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
   modal.innerHTML = `
@@ -28409,8 +28455,8 @@ function openScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
-          <div class="field-title">選擇人員</div>
-          <div class="checkbox-list">${staffOptionsHtml(defaultStaffId, isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
+          <div class="field-title">${isConsultantRole() ? '執行人員' : '選擇人員'}</div>
+          <div class="checkbox-list">${createScheduleAssigneeHtml}</div>
         </div>
 
         <div class="modal-actions span-2">
@@ -28490,6 +28536,7 @@ function openScheduleModal(defaults = {}) {
 
   function applyGeneralScheduleExplicitSelfSelectionRule(form, category = '') {
     if (!form || category !== '一般行程') return
+    if (isConsultantRole()) return
     if (form.dataset.explicitDefaultStaff === '1') return
     if (form.dataset.generalScheduleSelfTouched === '1') return
     if (form.dataset.generalScheduleSelfDefaultCleared === '1') return
@@ -28530,7 +28577,8 @@ function openScheduleModal(defaults = {}) {
     form.querySelector('[data-section="todo"]')?.classList.toggle('hidden', !shouldShowTodoItemField)
     if (isAdministrativeReminderCategoryName(category)) form.querySelector('[data-section="administrative-reminder"]')?.classList.remove('hidden')
     if (category === '請假 / 會議 / 活動 / 外訓') form.querySelectorAll('[data-section="leave-meeting"]').forEach(section => section.classList.remove('hidden'))
-    form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !(category === '請假 / 會議 / 活動 / 外訓' || (isGeneralStaffOverviewCreateMode() && rawCategory === '一般行程')))
+    const showDepartmentAssignee = !isConsultantRole() && (category === '請假 / 會議 / 活動 / 外訓' || (isGeneralStaffOverviewCreateMode() && rawCategory === '一般行程'))
+    form.querySelector('#meetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !showDepartmentAssignee)
     if (category === '證件交付') form.querySelector('[data-section="document-delivery"]')?.classList.remove('hidden')
     if (category === '服務行程') {
       form.querySelector('[data-section="service-top"]')?.classList.remove('hidden')
@@ -30549,7 +30597,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         editLeaveSelect.value = preferredLeaveType
       }
     }
-    document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !(category === '請假 / 會議 / 活動 / 外訓' || isGeneralNormalSchedule))
+    const showEditDepartmentAssignee = !isConsultantRole() && (category === '請假 / 會議 / 活動 / 外訓' || isGeneralNormalSchedule)
+    document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !showEditDepartmentAssignee)
     document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralPersonalNote)
     document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralNormalSchedule || isGeneralPersonalNote)
     document.querySelector('.edit-general-staff-general-fields')?.classList.toggle('hidden', !isGeneralNormalSchedule)
@@ -31012,7 +31061,10 @@ async function saveSchedule(event, modal) {
     return
   }
 
-  const selectedExecutorIds = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
+  const selectedExecutorIdsFromForm = getSelectedScheduleExecutorIds(form, 'executor', 'executor_departments', category)
+  const selectedExecutorIds = isConsultantRole()
+    ? [getConsultantCurrentStaffId()].filter(Boolean)
+    : selectedExecutorIdsFromForm
   const todoNoteTaggedExecutorIds = selectedExecutorIds.length ? selectedExecutorIds : [currentProfile?.staff_id].filter(Boolean)
   const executorIds = isGeneralStaffOverviewCreateMode()
     ? (rawCategory === '一般記事' || rawCategory === '待辦事項'
@@ -31041,10 +31093,10 @@ async function saveSchedule(event, modal) {
     }
   }
 
-  const selectedStaff = isAdministrativeReminderCategoryName(category)
-    ? [staffList.find(staff => staff.staff_id === currentProfile?.staff_id) || getCurrentProfileStaffRow()].filter(staff => staff?.staff_id)
+  const selectedStaff = isAdministrativeReminderCategoryName(category) || isConsultantRole()
+    ? [staffList.find(staff => staff.staff_id === executorIds[0]) || getCurrentProfileStaffRow() || currentProfile].filter(staff => staff?.staff_id)
     : staffList.filter(staff => executorIds.includes(staff.staff_id))
-  const firstStaff = selectedStaff[0]
+  const firstStaff = selectedStaff[0] || getCurrentProfileStaffRow() || currentProfile || {}
   const isSimplifiedServiceTypeForSave = category === '服務行程' && isSimplifiedServiceFieldType(earlyServiceType)
   const needServiceRecord = category === '服務行程' && !isSimplifiedServiceTypeForSave && form.get('need_service_record') === 'on'
   const serviceRecordSubmitted = category === '服務行程' && !isSimplifiedServiceTypeForSave && form.get('service_record_submitted_check') === 'on'
@@ -31194,8 +31246,8 @@ async function saveSchedule(event, modal) {
     creator_profile_id: currentProfile.profile_id,
     creator_staff_id: currentProfile.staff_id,
     creator_name: currentProfile.name || currentProfile.email,
-    department_id: firstStaff.department_id || currentProfile.department_id,
-    department_name: firstStaff.department_name || currentProfile.department_name,
+    department_id: firstStaff?.department_id || currentProfile.department_id,
+    department_name: firstStaff?.department_name || currentProfile.department_name,
     category,
     schedule_type: scheduleType,
     sub_type: subType || null,

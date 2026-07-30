@@ -1,0 +1,12 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3dy
+
+本次沒有新增 SQL，不需要進入 Supabase SQL Editor 執行新的 SQL。
+
+本版只調整前端顧問權限與新增表單行為：
+- 顧問新增一般行程固定指派本人。
+- 顧問一般行程不顯示部門選擇。
+- 別人直接指派給顧問的非提醒服務行程可修改。
+
+不修改 Supabase schema、正式資料、schedules、schedule_id、schedule_assignees、日期、週期或 localStorage 結構。
+
+注意：若顧問角色本身仍出現 staff_role_check，代表既有 1-3dt SQL 尚未執行；那是先前版本的必要 SQL，不是 1-3dy 新增 SQL。
