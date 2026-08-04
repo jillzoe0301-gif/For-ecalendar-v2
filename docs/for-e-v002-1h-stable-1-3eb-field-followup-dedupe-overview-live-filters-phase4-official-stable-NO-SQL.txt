@@ -1,0 +1,9 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3eb
+
+本次沒有 SQL。
+
+本版只修正：
+1. 下次領件／送審重複新增與畫面重複顯示。
+2. 行程總覽篩選選擇後立即套用。
+
+不修改 Supabase 資料表、不刪除舊行程、不重建 schedules／schedule_assignees，也不需要進入 SQL Editor。
