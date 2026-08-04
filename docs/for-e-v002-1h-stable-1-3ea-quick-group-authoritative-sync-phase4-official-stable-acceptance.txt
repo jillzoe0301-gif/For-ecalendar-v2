@@ -1,0 +1,67 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ea 驗收重點
+
+一、版本
+- APP_VERSION：V002-1H-stable-1-3ea
+- OFFICIAL_VERSION：official-v002-1h-stable-1-3ea
+- 接續版本：V002-1H-stable-1-3dz
+- 階段：第四階段補充修正
+
+二、本次問題
+快速人員群組過去會同時合併：
+1. 主要 auth_user_id app_settings
+2. profile_id / staff_id / Email 舊 app_settings key
+3. 多組 localStorage
+4. 畫面記憶 state
+
+已刪除群組若仍存在任一舊快照，就可能在重新登入、切換瀏覽器或 owner key 順序變動後重新出現。
+
+三、修正後規則
+1. 主要個人 app_settings / localStorage 快照存在時，只採主要快照。
+2. profile_id、staff_id、Email 舊 key 不再每次合併。
+3. 只有主要快照不存在時，才進行一次舊 key 搬移。
+4. 搬移或儲存後，所有目前可辨識的舊個人 key 都覆寫為同一份最新版。
+5. 刪除群組會把群組 ID、名稱及刪除時間保存於群組 state，並同步至 Supabase app_settings。
+6. 畫面快速群組只讀取目前權威 state，不再把遠端、本機、記憶體三方重新聯集。
+7. 不清除整個 localStorage，只更新快速群組專屬 key。
+
+四、必驗情境
+A. 舊群組復活
+- 主要 key 只有「目前保留群組」。
+- staff_id / Email 舊 key 仍有「已刪除群組」。
+- 登入後只能看到主要 key 的群組，已刪除群組不可出現。
+
+B. 同一群組不同 ID
+- 舊快照有同名但不同 ID 的群組。
+- tombstone 有該群組名稱。
+- 同名舊群組不可復活。
+
+C. 刪除後重新整理
+- 刪除任一自訂快速群組。
+- 重新整理頁面、登出再登入。
+- 群組不可重新出現。
+
+D. 跨裝置
+- 裝置 A 刪除群組並確認遠端同步成功。
+- 裝置 B 重新登入或重新整理。
+- 已刪除群組不可出現。
+
+E. 重新建立同名群組
+- 刪除群組後，重新建立相同名稱。
+- 新群組可正常建立，舊 tombstone 會移除。
+- 新群組人員名單依最新勾選結果顯示。
+
+F. 既有功能回歸
+- 新增、修改、套用、刪除快速群組正常。
+- 群組人員取消勾選後不會被舊快照加回。
+- 顧問固定「越雙語」群組正常。
+- 個人行程表、行程總覽、搜尋、顧問權限不受影響。
+
+五、資料與權限限制
+- 不修改 Supabase 資料表。
+- 不新增 SQL。
+- 不修改 schedules。
+- 不修改 schedule_id。
+- 不修改 schedule_assignees。
+- 不修改人員帳號或角色。
+- 不清除整個 localStorage。
+- 不進入第五階段表單欄位設定。

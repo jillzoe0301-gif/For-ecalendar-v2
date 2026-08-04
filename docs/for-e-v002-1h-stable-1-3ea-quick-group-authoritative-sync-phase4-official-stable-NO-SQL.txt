@@ -1,0 +1,16 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ea
+
+本次沒有 SQL。
+
+本次只調整前端快速人員群組的個人快照來源、舊 key 一次性搬移、刪除紀錄同步與重新整理邏輯。
+
+不修改：
+- Supabase schema
+- schedules
+- schedule_id
+- schedule_assignees
+- 人員帳號與角色
+- 正式行程資料
+- 日期與週期
+- LINE、提醒、統計、外務、會議室、服務紀錄單
+- 第五階段表單欄位設定
