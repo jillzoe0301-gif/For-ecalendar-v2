@@ -428,7 +428,7 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
 /* FOR-e V002-1H-stable-1-3ee START - daily reminder once, personal merge, week shortcut, performance */
 /*
-  V002-1H-stable-1-3ee｜第四階段補充：首頁與行事曆操作整合、載入效能
+  V002-1H-stable-1-3ef｜第四階段補充：行事曆切頁與渲染效能
   - 今日提醒依登入帳號 + 日期寫入 localStorage，同一天第一次登入 / 載入後最多顯示一次。
   - 個人一般待辦併入個人行程表，移除獨立側邊 / 手機待辦分頁。
   - 行程總覽電腦、平板、手機均提供「個人當週行程」捷徑。
@@ -438,13 +438,22 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3ee END - daily reminder once, personal merge, week shortcut, performance */
 
+/* FOR-e V002-1H-stable-1-3ef START - calendar interaction performance
+  - 行程總覽 / 外務行事曆衍生索引改為可重用快取，相同行程資料、相同人員與日期不再每次切頁重建。
+  - 快取建立時把每筆行程的日期匹配、類型旗標與人員歸屬先算一次，避免每個人 × 每一天重複呼叫相同判斷。
+  - 已進入快取的每日行程先完成驗證提醒 / 下次外務去重與排序，格子渲染不再重複排序。
+  - 登入後停留行程總覽時不再背景載入 151 天個人行程範圍，避免把 schedules 膨脹後造成第一次行事曆切換卡頓。
+  - 登入後以 idle 預熱目前行程總覽索引；不改資料庫、不改行程資料與權限。
+*/
+/* FOR-e V002-1H-stable-1-3ef END - calendar interaction performance */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ee'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ee'
+const APP_VERSION = 'V002-1H-stable-1-3ef'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ef'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：今日提醒每日一次、個人行程與一般待辦合併、行事曆新增個人當週捷徑，並優化登入與切頁載入。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：優化登入後行事曆切頁、衍生索引快取與格子渲染，降低第一次點行事曆的停頓。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -462,6 +471,7 @@ const LOGIN_DAILY_ONCE_LOGIC_VERSION = '1-3ee'
 const PERSONAL_PAGE_MERGE_LOGIC_VERSION = '1-3ee'
 const PERSONAL_WEEK_SHORTCUT_LOGIC_VERSION = '1-3ee'
 const PAGE_LOAD_PERFORMANCE_LOGIC_VERSION = '1-3ee'
+const CALENDAR_INTERACTION_PERFORMANCE_LOGIC_VERSION = '1-3ef'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -2221,6 +2231,7 @@ function renderDesktopViewToggleButton(extraClass = '') {
 }
 /* FOR-e V002-1H-stable-1-3de END - manual desktop view mode */
 let schedules = []
+let schedulesDataRevision = 0
 let staffList = []
 let allStaffList = []
 let userProfileList = []
@@ -5570,11 +5581,17 @@ function runForEWhenIdle(callback, timeout = 1800) {
   return window.setTimeout(callback, Math.min(timeout, 900))
 }
 
+function shouldPrefetchCommonPersonalScheduleRange() {
+  // 1-3ef：行程總覽本身只需要目前週 / 月。登入後若立刻在行程總覽背景載入 151 天，
+  // 會把 schedules 陣列放大，反而讓下一次行事曆 render 做更多 CPU 工作。
+  return ['personalSchedule', 'assignedTracking', 'search'].includes(currentPage)
+}
+
 function scheduleCommonSchedulePrefetch() {
   if (commonSchedulePrefetchTimer || !currentProfile) return
   commonSchedulePrefetchTimer = runForEWhenIdle(async () => {
     commonSchedulePrefetchTimer = null
-    if (!currentProfile || document.hidden) return
+    if (!currentProfile || document.hidden || !shouldPrefetchCommonPersonalScheduleRange()) return
     const options = getPersonalPageScheduleLoadOptions('common-prefetch')
     if (!shouldLoadSchedulesForOptions(options)) return
     try {
@@ -5585,9 +5602,30 @@ function scheduleCommonSchedulePrefetch() {
   }, 2200)
 }
 
+let overviewPerformanceWarmupHandle = null
+function scheduleOverviewPerformanceWarmup() {
+  if (overviewPerformanceWarmupHandle || !currentProfile) return
+  overviewPerformanceWarmupHandle = runForEWhenIdle(() => {
+    overviewPerformanceWarmupHandle = null
+    if (!currentProfile || document.hidden) return
+    try {
+      const viewMode = getOverviewViewMode()
+      const dates = getOverviewCalendarDates(viewMode)
+      const staffRows = getOverviewCalendarStaffRows(viewMode)
+      const cacheDates = ['個人當月', '月份顯示'].includes(viewMode) && staffRows.length === 1
+        ? getMonthCalendarGridDates(dates)
+        : dates
+      getOrBuildOverviewPerformanceCache(staffRows, cacheDates)
+    } catch (err) {
+      console.warn('行程總覽索引預熱失敗，不影響目前頁面。', err)
+    }
+  }, 900)
+}
+
 function schedulePostLoginWarmup(authUser = null) {
   scheduleBackgroundDataLoad(650)
   scheduleCommonSchedulePrefetch()
+  scheduleOverviewPerformanceWarmup()
   window.setTimeout(() => {
     if (!currentProfile) return
     recordCurrentAccountLastLogin(authUser, currentProfile).catch(err => {
@@ -7009,6 +7047,7 @@ async function loadSchedules(options = {}) {
 
     // FOR-e V002-1H-stable-1-3dl：第二階段只補上 read-only 顯示日期 metadata，不寫回 Supabase。
     schedules = normalizeScheduleReadRows(data || [])
+    schedulesDataRevision += 1
     schedulesLoadState = useDateRange
       ? { mode: options.scope || 'range', dateStart, dateEnd }
       : { mode: 'full', dateStart: '', dateEnd: '' }
@@ -7017,12 +7056,13 @@ async function loadSchedules(options = {}) {
     console.error(error)
     if (!silent) {
       schedules = []
+      schedulesDataRevision += 1
       schedulesError = error.message
     }
   }
 
-  // 1-3be：行程資料更新後清除行程總覽快取，避免顯示舊資料。
-  overviewPerformanceCache = null
+  // 1-3ef：行程資料更新後清除目前 / 可重用行程總覽索引，避免顯示舊資料。
+  clearOverviewPerformanceCaches()
   if (!silent) loadingSchedules = false
 }
 
@@ -19450,7 +19490,7 @@ function renderOverviewCalendarBody(viewMode, staffRows, weekDates, todayKey, ta
     ? getMonthCalendarGridDates(weekDates)
     : weekDates
 
-  overviewPerformanceCache = buildOverviewPerformanceCache(staffRows, cacheDates)
+  overviewPerformanceCache = getOrBuildOverviewPerformanceCache(staffRows, cacheDates)
 
   try {
     if (['個人當月', '月份顯示'].includes(viewMode)) {
@@ -20148,7 +20188,7 @@ function renderFieldCalendarBody(staffRows = [], dates = [], todayKey = todayStr
     ? getMonthCalendarGridDates(dates)
     : dates
 
-  overviewPerformanceCache = buildOverviewPerformanceCache(staffRows, cacheDates)
+  overviewPerformanceCache = getOrBuildOverviewPerformanceCache(staffRows, cacheDates)
 
   try {
       if (fieldCalendarViewMode === '月份顯示') {
@@ -22741,6 +22781,38 @@ function meetingScheduleVisibleForStaff(row = {}, staffId = '') {
 
 /* FOR-e V002-1H-stable-1-3ba START - overview performance cache */
 let overviewPerformanceCache = null
+let overviewPerformanceCacheStore = new Map()
+const OVERVIEW_PERFORMANCE_CACHE_STORE_LIMIT = 8
+
+function clearOverviewPerformanceCaches() {
+  overviewPerformanceCache = null
+  overviewPerformanceCacheStore.clear()
+}
+
+function getOverviewPerformanceCacheSignature(staffRows = [], dates = []) {
+  const staffIds = staffRows.map(staff => String(staff?.staff_id || '')).filter(Boolean).sort()
+  const dateKeys = getDateKeysFromDates(dates).filter(Boolean).sort()
+  return `${schedulesDataRevision}::${staffIds.join(',')}::${dateKeys.join(',')}`
+}
+
+function getOrBuildOverviewPerformanceCache(staffRows = [], dates = []) {
+  const signature = getOverviewPerformanceCacheSignature(staffRows, dates)
+  if (overviewPerformanceCacheStore.has(signature)) {
+    const cached = overviewPerformanceCacheStore.get(signature)
+    overviewPerformanceCacheStore.delete(signature)
+    overviewPerformanceCacheStore.set(signature, cached)
+    return cached
+  }
+
+  const cache = buildOverviewPerformanceCache(staffRows, dates)
+  cache.signature = signature
+  overviewPerformanceCacheStore.set(signature, cache)
+  while (overviewPerformanceCacheStore.size > OVERVIEW_PERFORMANCE_CACHE_STORE_LIMIT) {
+    const oldestKey = overviewPerformanceCacheStore.keys().next().value
+    overviewPerformanceCacheStore.delete(oldestKey)
+  }
+  return cache
+}
 
 function getOverviewPerformanceMapKey(staffId = '', dateKey = '') {
   return `${String(staffId || '')}@@${String(dateKey || '')}`
@@ -22774,7 +22846,10 @@ function sortOverviewPerformanceRows(map) {
   if (!map) return
   map.forEach((rows, key) => {
     const dateKey = String(key || '').split('@@')[1] || ''
-    const normalizedRows = dedupeAutoGeneratedFieldFollowupRows(rows, { dateKey })
+    const normalizedRows = dedupeVerifyReminderRows(
+      dedupeAutoGeneratedFieldFollowupRows(rows, { dateKey }),
+      dateKey
+    )
     map.set(key, sortScheduleRowsForDisplay(normalizedRows, { dateFirst: false }))
   })
 }
@@ -22837,6 +22912,7 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
   const dateKeys = getDateKeysFromDates(dates).filter(Boolean)
   const staffIds = staffRows.map(staff => staff?.staff_id).filter(Boolean)
   const cache = {
+    revision: schedulesDataRevision,
     dateKeys,
     staffIds,
     dateKeySet: new Set(dateKeys),
@@ -22855,7 +22931,6 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
 
   const firstKey = dateKeys[0]
   const lastKey = dateKeys[dateKeys.length - 1]
-
   const visibleRangeRows = (schedules || [])
     .filter(isVisibleSchedule)
     .filter(row => overviewScheduleMightMatchDateRange(row, dateKeys, firstKey, lastKey))
@@ -22864,40 +22939,63 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
     const candidateStaffIds = getOverviewPerformanceCandidateStaffIds(row, staffIds)
     if (!candidateStaffIds.length) return
 
+    // 1-3ef：與行程本身有關的判斷每筆只計算一次，不再在人員 × 日期迴圈內重複解析文字 / 類型。
+    const isContinuous = isContinuousDateSchedule(row)
+    const isLeaveRest = isPersonalLeaveOrRestSchedule(row)
+    const needsFullDayBackground = rowNeedsFullDayBackground(row)
+    const isLeaveReturn = isLeaveOrReturnSchedule(row)
+    const isFieldDay = typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)
+    const isAdministrative = typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row)
+    const isReturnTaiwan = typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row)
+    const directAssigneeIds = isLeaveRest
+      ? new Set((row.schedule_assignees || []).filter(item => !item.deleted_at).map(item => String(item.staff_id || '')))
+      : null
+
+    // 每個日期的 occurrence 判斷一筆行程只做一次，後續所有人員共用。
+    const dateMatchMap = new Map()
+    const returnTaiwanMatchMap = isReturnTaiwan ? new Map() : null
+    dateKeys.forEach(dateKey => {
+      dateMatchMap.set(dateKey, scheduleMatchesDateByMode(row, dateKey))
+      if (returnTaiwanMatchMap) returnTaiwanMatchMap.set(dateKey, returnTaiwanReminderMatchesDate(row, dateKey))
+    })
+
     candidateStaffIds.forEach(staffId => {
       if (!staffId) return
+      const belongsToStaff = scheduleBelongsToStaff(row, staffId)
 
-      if (isContinuousDateSchedule(row) && !(row.start_date > lastKey || getScheduleSimpleEndDate(row) < firstKey) && scheduleBelongsToStaff(row, staffId)) {
+      if (isContinuous && belongsToStaff && !(row.start_date > lastKey || getScheduleSimpleEndDate(row) < firstKey)) {
         if (!cache.continuousRowsByStaff.has(staffId)) cache.continuousRowsByStaff.set(staffId, [])
         cache.continuousRowsByStaff.get(staffId).push(row)
       }
 
       dateKeys.forEach(dateKey => {
-        if (scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaffOnDate(row, staffId, dateKey)) {
+        const dateMatches = dateMatchMap.get(dateKey) === true
+
+        if (dateMatches && scheduleBelongsToStaffOnDate(row, staffId, dateKey)) {
           pushOverviewPerformanceRow(cache.schedulesByStaffDate, staffId, dateKey, row)
         }
 
-        if (isPersonalLeaveOrRestSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && (row.schedule_assignees || []).some(item => item.staff_id === staffId && !item.deleted_at)) {
+        if (isLeaveRest && dateMatches && directAssigneeIds?.has(staffId)) {
           pushOverviewPerformanceRow(cache.leaveRestRowsByStaffDate, staffId, dateKey, row)
         }
 
-        if (rowNeedsFullDayBackground(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+        if (needsFullDayBackground && dateMatches && belongsToStaff) {
           pushOverviewPerformanceRow(cache.fieldBackgroundRowsByStaffDate, staffId, dateKey, row)
         }
 
-        if (isLeaveOrReturnSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && isStaffAssignedToSchedule(row, staffId)) {
+        if (isLeaveReturn && dateMatches && belongsToStaff) {
           pushOverviewPerformanceRow(cache.leaveReturnRowsByStaffDate, staffId, dateKey, row)
         }
 
-        if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+        if (isFieldDay && dateMatches && belongsToStaff) {
           pushOverviewPerformanceRow(cache.fieldDayRowsByStaffDate, staffId, dateKey, row)
         }
 
-        if (typeof isAdministrativeReminderSchedule === 'function' && isAdministrativeReminderSchedule(row) && scheduleMatchesDateByMode(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+        if (isAdministrative && dateMatches && belongsToStaff) {
           pushOverviewPerformanceRow(cache.administrativeRowsByStaffDate, staffId, dateKey, row)
         }
 
-        if (typeof isReturnTaiwanReminderSchedule === 'function' && isReturnTaiwanReminderSchedule(row) && returnTaiwanReminderMatchesDate(row, dateKey) && scheduleBelongsToStaff(row, staffId)) {
+        if (isReturnTaiwan && returnTaiwanMatchMap?.get(dateKey) === true && belongsToStaff) {
           pushOverviewPerformanceRow(cache.returnTaiwanRowsByStaffDate, staffId, dateKey, row)
         }
       })
@@ -22932,10 +23030,7 @@ function buildOverviewPerformanceCache(staffRows = [], dates = []) {
 
 function getSchedulesForStaffDate(staffId, dateKey) {
   const cachedRows = getOverviewPerformanceCachedRows('schedulesByStaffDate', staffId, dateKey)
-  if (cachedRows) {
-    const normalizedRows = dedupeAutoGeneratedFieldFollowupRows(cachedRows, { dateKey })
-    return sortScheduleRowsForDisplay(dedupeVerifyReminderRows(normalizedRows, dateKey), { dateFirst: false })
-  }
+  if (cachedRows) return cachedRows
 
   const rows = dedupeAutoGeneratedFieldFollowupRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false

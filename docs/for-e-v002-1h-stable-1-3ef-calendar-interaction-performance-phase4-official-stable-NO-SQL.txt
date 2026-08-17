@@ -1,0 +1,4 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ef
+本次沒有 SQL。
+
+本版僅調整前端行事曆資料工作集、衍生快取與 render 計算方式；不修改 Supabase schema、正式行程資料、schedule_id 或 schedule_assignees。

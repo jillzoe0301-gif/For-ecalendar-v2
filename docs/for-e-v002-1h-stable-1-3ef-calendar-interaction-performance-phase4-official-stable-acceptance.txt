@@ -1,0 +1,48 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ef 驗收重點
+
+接續版本：V002-1H-stable-1-3ee
+正式 tag：official-v002-1h-stable-1-3ef
+階段：第四階段補充－行事曆切頁與渲染效能
+
+一、問題原因
+1. 1-3ee 登入後會在 idle 背景預載今天前 31 天～後 120 天行程；此預載會直接取代 schedules 目前資料範圍，使登入後 schedules 筆數明顯增加。
+2. 行程總覽 / 外務行事曆每次 render 都重新 buildOverviewPerformanceCache，重新掃描 schedules。
+3. buildOverviewPerformanceCache 內相同的 scheduleMatchesDateByMode、行程類型判斷、scheduleBelongsToStaff 等，在每個人 × 每天迴圈重複執行。
+4. 已在 cache 排序過的每日行程，getSchedulesForStaffDate 仍再次做下次外務去重、驗證提醒去重與排序。
+
+二、本版修正
+1. 登入後若停留在行程總覽，不再背景載入 151 天個人行程範圍，避免把行程總覽工作集放大。
+2. 新增可重用 overview performance cache store；相同 schedules revision + 相同人員 + 相同日期範圍直接重用，不重新建索引。
+3. 每次 loadSchedules 更新資料時增加 schedulesDataRevision 並清除衍生 cache，確保不顯示舊資料。
+4. cache 建立時：
+   - 每筆行程類型旗標只計算一次。
+   - 每筆行程每個日期的 scheduleMatchesDateByMode 只計算一次，所有人員共用。
+   - 每筆行程對每位候選人員的 scheduleBelongsToStaff 只計算一次。
+5. schedulesByStaffDate 寫入 cache 時即完成：
+   - 下次領件 / 送審畫面去重
+   - 驗證提醒去重
+   - 顯示排序
+   格子 render 直接使用 cache，不再重複處理。
+6. 登入後 idle 時預熱目前行程總覽索引；如果之後切回行事曆，相同範圍可直接使用。
+7. 外務行事曆同步使用同一套可重用 cache。
+
+三、驗收方式
+1. 登入後立即點行程總覽：畫面切換應較 1-3ee 明顯順暢。
+2. 個人行程表 → 行程總覽 → 個人行程表 → 行程總覽：第二次進入行程總覽不應再次明顯停頓。
+3. 行程總覽切「上一週 / 下一週 / 本週」後，再回到先前已看過的週，應可重用 cache。
+4. 快速人員群組切換後，再切回同一群組 / 日期，畫面應較快。
+5. 外務行事曆切頁與返回同日期範圍，顯示內容不得減少或重複。
+6. 下次領件去重、返鄉狀況、顧問權限、統計規則皆維持既有 1-3ee 行為。
+
+四、資料安全
+- 不修改 Supabase schema。
+- 不新增 SQL。
+- 不刪除 / 改寫舊 schedules。
+- 不改 schedule_id。
+- 不重建 schedule_assignees。
+- 不清 localStorage。
+- 不修改權限、新增 / 修改 / 刪除行程資料流程。
+
+五、靜態檢查
+- node --check src/main.js：必須通過。
+- npm run build：必須於 Codespaces 通過後才可 push main。
