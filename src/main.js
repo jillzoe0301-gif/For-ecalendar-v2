@@ -404,13 +404,47 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3eb END - field followup dedupe and live overview filters */
 
+/* FOR-e V002-1H-stable-1-3ec START - statistics exclusions and translator-only personnel stats */
+/*
+  V002-1H-stable-1-3ec｜第四階段補充：統計報表排除指定提醒、人員統計只列翻譯
+  - 統計報表全面排除「電表提醒、辦件提醒、驗證提醒、轉出到期最後一天、加班單繳交」，不列入總數、部門、人員或行程類型統計。
+  - 人員統計只計算 role = 翻譯 的啟用人員；管理員、主管、行政 / 海外、一般職員、顧問、外務 / 宿管人員 / 會計等角色不列入人員統計。
+  - 人員統計預先列出所有啟用翻譯，即使期間內為 0 筆也仍顯示 0，避免只看到有行程的人。
+  - 統計人員篩選選單同步只顯示翻譯；舊篩選若指向非翻譯帳號則安全回到「全部翻譯」。
+  - 只調整前端統計計算與顯示，不修改 Supabase、行程資料、指派資料、權限或第五階段表單設定。
+*/
+/* FOR-e V002-1H-stable-1-3ec END - statistics exclusions and translator-only personnel stats */
+
+
+/* FOR-e V002-1H-stable-1-3ed START - strict return-home status card source */
+/*
+  V002-1H-stable-1-3ed｜第四階段補充：返鄉狀況只依人員行務細項顯示
+  - 只有「請假 / 會議 / 活動 / 外訓」（含舊稱人員行務）類別，且實際細項為「返鄉」時，才顯示返鄉狀況提示與返鄉整日底色。
+  - 服務行程、一般行程或其他類型即使標題包含「返鄉」，仍可依既有卡片顏色規則套色，但不再被當成返鄉狀況行程。
+  - 不讀取 description / sub_type_note / customer_name 判斷返鄉狀況，也不修改卡片顏色規則、行程資料、日期、權限或指派資料。
+  - 不修改 Supabase 資料表，不需要 SQL，第五階段尚未開始。
+*/
+/* FOR-e V002-1H-stable-1-3ed END - strict return-home status card source */
+
+/* FOR-e V002-1H-stable-1-3ee START - daily reminder once, personal merge, week shortcut, performance */
+/*
+  V002-1H-stable-1-3ee｜第四階段補充：首頁與行事曆操作整合、載入效能
+  - 今日提醒依登入帳號 + 日期寫入 localStorage，同一天第一次登入 / 載入後最多顯示一次。
+  - 個人一般待辦併入個人行程表，移除獨立側邊 / 手機待辦分頁。
+  - 行程總覽電腦、平板、手機均提供「個人當週行程」捷徑。
+  - 登入改用既有 session / signIn user，profile 與 staff 平行讀取；首屏先 render，再背景寫入最後登入與載入非必要資料。
+  - 常用個人行程日期範圍於瀏覽器 idle 時背景預載，降低第一次切到個人行程 / 搜尋等頁面的等待。
+  - 不修改 Supabase schema、不清 localStorage、不寫入舊行程資料，第五階段尚未開始。
+*/
+/* FOR-e V002-1H-stable-1-3ee END - daily reminder once, personal merge, week shortcut, performance */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3eb'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eb'
+const APP_VERSION = 'V002-1H-stable-1-3ee'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ee'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：修正下次領件 / 送審重複顯示，行程總覽篩選改為選擇後立即套用。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：今日提醒每日一次、個人行程與一般待辦合併、行事曆新增個人當週捷徑，並優化登入與切頁載入。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -422,6 +456,12 @@ const CONSULTANT_GENERAL_ASSIGNEE_LOGIC_VERSION = '1-3dz'
 const OVERVIEW_QUICK_GROUP_SYNC_LOGIC_VERSION = '1-3ea'
 const FIELD_FOLLOWUP_DEDUPE_LOGIC_VERSION = '1-3eb'
 const OVERVIEW_LIVE_FILTER_LOGIC_VERSION = '1-3eb'
+const STATS_TRANSLATOR_ONLY_LOGIC_VERSION = '1-3ec'
+const RETURN_HOME_STATUS_LOGIC_VERSION = '1-3ed'
+const LOGIN_DAILY_ONCE_LOGIC_VERSION = '1-3ee'
+const PERSONAL_PAGE_MERGE_LOGIC_VERSION = '1-3ee'
+const PERSONAL_WEEK_SHORTCUT_LOGIC_VERSION = '1-3ee'
+const PAGE_LOAD_PERFORMANCE_LOGIC_VERSION = '1-3ee'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -473,7 +513,6 @@ const CONSULTANT_ALLOWED_PAGE_KEYS = new Set([
 
 const pages = [
   { key: 'personalSchedule', label: '個人行程表', mobileLabel: '個人', roles: 'ALL', mobile: true },
-  { key: 'personalTodo', label: '個人一般待辦', mobileLabel: '待辦', roles: 'ALL', mobile: true },
   { key: 'assignedTracking', label: '我指派的事項追蹤', mobileLabel: '指派', roles: 'ALL', mobile: true },
   { key: 'scheduleOverview', label: '行程總覽', mobileLabel: '行程', roles: 'ALL', mobile: true },
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
@@ -1234,7 +1273,7 @@ const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請
 const generalStaffOverviewSimpleCategories = ['一般記事']
 const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓', '公差外出']
 const generalStaffPersonnelAffairsDisplayName = '請假/會議/活動/外訓'
-const generalStaffUnifiedFormPages = ['personalSchedule', 'personalTodo', 'scheduleOverview']
+const generalStaffUnifiedFormPages = ['personalSchedule', 'scheduleOverview']
 
 const CORE_SCHEDULE_TYPE_LOGIC_VERSION = '1-3dp'
 const publicDutyLeaveMeetingType = '公差外出'
@@ -3146,7 +3185,7 @@ function getAssignableStaffRows() {
 }
 
 function canCreateForCurrentPage() {
-  if (currentPage === 'personalSchedule' || currentPage === 'personalTodo') return canCreatePersonalSchedule()
+  if (currentPage === 'personalSchedule') return canCreatePersonalSchedule()
   if (currentPage === 'scheduleOverview') return canCreateServiceSchedule() || (isGeneralStaffRole() && canCreatePersonalSchedule())
   if (currentPage === 'assignedTracking') return canCreateServiceSchedule()
   if (currentPage === 'fieldSchedule' || currentPage === 'fieldDetail') return canCreateFieldSchedule()
@@ -5220,21 +5259,46 @@ async function login() {
     return
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const loginBtn = document.querySelector('#loginBtn')
+  if (loginBtn) {
+    loginBtn.disabled = true
+    loginBtn.textContent = '登入中...'
+  }
+
+  const { data: loginData, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {
     errorText.textContent = `登入失敗：${error.message}`
+    if (loginBtn) {
+      loginBtn.disabled = false
+      loginBtn.textContent = '登入'
+    }
     return
   }
 
   const remember = document.querySelector('#rememberLoginCheck')?.checked === true
   saveRememberedLogin(email, password, remember)
 
-  await loadProfile({ fromLogin: true, forceDailyReminder: true })
+  await loadProfile({ fromLogin: true, authUser: loginData?.user || null })
 }
 
 
 function normalizeProfileStaffId(profile) {
   return profile?.staff_id || profile?.staffId || profile?.staff_uuid || ''
+}
+
+function findLoadedStaffForProfile(profile = {}) {
+  const rows = (allStaffList && allStaffList.length) ? allStaffList : staffList
+  const staffId = normalizeProfileStaffId(profile)
+  if (staffId) {
+    const byId = rows.find(row => normalizeStaffId(row?.staff_id) === normalizeStaffId(staffId))
+    if (byId) return byId
+  }
+  const profileName = String(profile?.name || '').trim()
+  if (profileName) {
+    const byName = rows.find(row => !row?.deleted_at && String(row?.name || '').trim() === profileName)
+    if (byName) return byName
+  }
+  return null
 }
 
 async function findStaffForProfile(profile) {
@@ -5353,14 +5417,23 @@ function applyCurrentProfileStaffRole(staffPayload) {
 
 
 async function loadProfile(options = {}) {
-  const { data: userData } = await supabase.auth.getUser()
+  let authUser = options.authUser || null
+  if (!authUser) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    authUser = sessionData?.session?.user || null
+  }
 
-  if (!userData.user) {
+  if (!authUser) {
     renderLogin()
     return
   }
 
-  const { data: profile, error } = await supabase.rpc('get_my_profile').single()
+  // 1-3ee：profile RPC 與 staff 清單平行讀取，避免先查 profile、再查單筆 staff、再重抓整份 staff 的串行等待。
+  const [profileResult] = await Promise.all([
+    supabase.rpc('get_my_profile').single(),
+    loadStaff()
+  ])
+  const { data: profile, error } = profileResult
 
   if (error || !profile) {
     await supabase.auth.signOut()
@@ -5369,7 +5442,7 @@ async function loadProfile(options = {}) {
     return
   }
 
-  const staffForProfile = await findStaffForProfile(profile)
+  const staffForProfile = findLoadedStaffForProfile(profile) || await findStaffForProfile(profile)
   const mergedProfile = mergeProfileWithStaffRole(profile, staffForProfile)
 
   if (mergedProfile.status !== '啟用') {
@@ -5381,31 +5454,38 @@ async function loadProfile(options = {}) {
 
   currentProfile = {
     ...mergedProfile,
-    auth_user_id: userData.user.id,
-    user_id: mergedProfile.user_id || userData.user.id,
-    auth_id: mergedProfile.auth_id || userData.user.id
+    auth_user_id: authUser.id,
+    user_id: mergedProfile.user_id || authUser.id,
+    auth_id: mergedProfile.auth_id || authUser.id
   }
 
   loadFieldScheduleFiltersPreference()
   currentPage = 'scheduleOverview'
 
   if (options.fromLogin === true) {
-    // 1-3bo：使用者明確登出後重新登入，才回到個人當週預設。
     clearOverviewStatePreference()
     resetOverviewToPersonalWeek({ persist: false })
-    await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions('個人當週') })
+    await refreshData({
+      scheduleOptions: getOverviewScheduleLoadOptions('個人當週'),
+      staffAlreadyLoaded: true,
+      deferBackground: true
+    })
     loadOverviewQuickGroupsPreference()
     resetOverviewToRoleDefault({ persist: false })
     await ensureOverviewSchedulesLoadedForCurrentRange()
     saveOverviewFiltersPreference()
-    saveOverviewQuickGroupsPreference()
+    // 1-3ee：登入不再無條件把快速群組鏡像寫回多個 app_settings key，避免搶登入首頁網路資源。
+    saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
   } else {
-    // 1-3bo：重新整理頁面不等於重設篩選，先套用登入者個人行程總覽狀態。
     loadOverviewFiltersPreference()
     const hadSavedOverviewState = applyOverviewStatePreference({ validateQuickGroup: false })
     if (!hadSavedOverviewState) resetOverviewToPersonalWeek({ persist: false })
 
-    await refreshData({ scheduleOptions: getOverviewScheduleLoadOptions() })
+    await refreshData({
+      scheduleOptions: getOverviewScheduleLoadOptions(),
+      staffAlreadyLoaded: true,
+      deferBackground: true
+    })
     loadOverviewQuickGroupsPreference()
 
     const restoredOverviewState = hadSavedOverviewState && applyOverviewStatePreference({ validateQuickGroup: true })
@@ -5419,18 +5499,22 @@ async function loadProfile(options = {}) {
     }
 
     saveOverviewFiltersPreference()
-    saveOverviewQuickGroupsPreference()
+    saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
   }
 
   loadFieldScheduleFiltersPreference()
-  await recordCurrentAccountLastLogin(userData.user, currentProfile)
+
+  // 1-3ee：先把首頁畫面交給使用者，再在首屏後處理非必要登入紀錄與背景資料。
   renderApp()
-  maybeOpenLoginDailyReminder({ force: options.forceDailyReminder === true, fromLogin: options.fromLogin === true })
+  maybeOpenLoginDailyReminder({ fromLogin: options.fromLogin === true })
+  schedulePostLoginWarmup(authUser)
 }
 
 /* FOR-e V002-1H-stable-1-3be START - login lazy loading performance */
 let backgroundDataLoadingPromise = null
 let backgroundDataLoaded = false
+let backgroundDataLoadTimer = null
+let commonSchedulePrefetchTimer = null
 
 function shouldRenderAfterBackgroundDataLoadForPage(pageKey = currentPage) {
   return ['users', 'audit', 'serviceRecord', 'recordSubmit', 'health'].includes(pageKey)
@@ -5441,6 +5525,10 @@ function shouldRenderAfterBackgroundDataLoad() {
 }
 
 function startBackgroundDataLoad() {
+  if (backgroundDataLoadTimer) {
+    clearTimeout(backgroundDataLoadTimer)
+    backgroundDataLoadTimer = null
+  }
   if (backgroundDataLoadingPromise) return backgroundDataLoadingPromise
 
   backgroundDataLoadingPromise = Promise.allSettled([
@@ -5464,6 +5552,48 @@ function startBackgroundDataLoad() {
 async function ensureBackgroundDataLoaded() {
   if (backgroundDataLoaded) return
   await startBackgroundDataLoad()
+}
+
+function scheduleBackgroundDataLoad(delay = 700) {
+  if (backgroundDataLoaded || backgroundDataLoadingPromise || backgroundDataLoadTimer) return
+  backgroundDataLoadTimer = setTimeout(() => {
+    backgroundDataLoadTimer = null
+    if (!currentProfile) return
+    startBackgroundDataLoad()
+  }, Math.max(0, Number(delay || 0)))
+}
+
+function runForEWhenIdle(callback, timeout = 1800) {
+  if (typeof window.requestIdleCallback === 'function') {
+    return window.requestIdleCallback(callback, { timeout })
+  }
+  return window.setTimeout(callback, Math.min(timeout, 900))
+}
+
+function scheduleCommonSchedulePrefetch() {
+  if (commonSchedulePrefetchTimer || !currentProfile) return
+  commonSchedulePrefetchTimer = runForEWhenIdle(async () => {
+    commonSchedulePrefetchTimer = null
+    if (!currentProfile || document.hidden) return
+    const options = getPersonalPageScheduleLoadOptions('common-prefetch')
+    if (!shouldLoadSchedulesForOptions(options)) return
+    try {
+      await loadSchedules({ ...options, silent: true })
+    } catch (err) {
+      console.warn('常用行程範圍背景預載失敗，不影響目前頁面。', err)
+    }
+  }, 2200)
+}
+
+function schedulePostLoginWarmup(authUser = null) {
+  scheduleBackgroundDataLoad(650)
+  scheduleCommonSchedulePrefetch()
+  window.setTimeout(() => {
+    if (!currentProfile) return
+    recordCurrentAccountLastLogin(authUser, currentProfile).catch(err => {
+      console.warn('最後登入紀錄背景更新失敗，不影響使用。', err)
+    })
+  }, 900)
 }
 
 
@@ -5533,7 +5663,7 @@ function getScheduleLoadOptionsForPage(pageKey = currentPage) {
   if (pageKey === 'scheduleOverview') return getOverviewScheduleLoadOptions()
   if (pageKey === 'fieldSchedule' || pageKey === 'fieldDetail') return getFieldScheduleLoadOptions()
   if (pageKey === 'meetingRoom') return getMeetingScheduleLoadOptions()
-  if (pageKey === 'personalSchedule' || pageKey === 'personalTodo' || pageKey === 'assignedTracking') return getPersonalPageScheduleLoadOptions(pageKey)
+  if (pageKey === 'personalSchedule' || pageKey === 'assignedTracking') return getPersonalPageScheduleLoadOptions(pageKey)
   if (pageKey === 'search') return getSearchScheduleLoadOptions()
   if (pageKey === 'stats') return getStatsScheduleLoadOptions()
   return null
@@ -5601,11 +5731,15 @@ async function refreshStaffAndProfileDataAfterMutation() {
 
 async function loadCoreSharedData(options = {}) {
   const force = options.force === true
+  const staffAlreadyLoaded = options.staffAlreadyLoaded === true && (staffList.length || allStaffList.length)
   const isFresh = coreSharedDataLoadedAt && (Date.now() - coreSharedDataLoadedAt < CORE_SHARED_DATA_CACHE_MS)
   if (!force && isFresh && staffList.length) return
   if (coreSharedDataLoadingPromise) return coreSharedDataLoadingPromise
 
-  coreSharedDataLoadingPromise = Promise.all([loadAppSettings(), loadStaff()])
+  const tasks = [loadAppSettings()]
+  if (!staffAlreadyLoaded) tasks.push(loadStaff())
+
+  coreSharedDataLoadingPromise = Promise.all(tasks)
     .then(result => {
       coreSharedDataLoadedAt = Date.now()
       return result
@@ -5632,14 +5766,36 @@ async function ensurePageDataLoaded(pageKey = currentPage, token = pageDataLoadi
   }
 }
 
+function canRenderPageWhileScheduleRangeExpands(pageKey = currentPage) {
+  if (!schedules.length) return false
+  return [
+    'personalSchedule',
+    'assignedTracking',
+    'scheduleOverview',
+    'fieldSchedule',
+    'fieldDetail',
+    'meetingRoom',
+    'search',
+    'stats'
+  ].includes(pageKey)
+}
+
 function renderAppAndEnsurePageData(pageKey = currentPage) {
   const token = ++pageDataLoadingToken
   const scheduleOptions = getScheduleLoadOptionsForPage(pageKey)
   const needsSchedules = shouldLoadSchedulesForOptions(scheduleOptions)
   const needsBackground = shouldRenderAfterBackgroundDataLoadForPage(pageKey) && !backgroundDataLoaded
+  const softScheduleRefresh = needsSchedules && canRenderPageWhileScheduleRangeExpands(pageKey) && !needsBackground
 
-  if (needsSchedules || needsBackground) setPageDataLoading(pageKey)
-  else clearPageDataLoading(pageKey, token)
+  // 1-3ee：已有部分行程資料時先切換頁面並顯示現有內容，再背景補齊目標日期範圍；避免點頁面只看到整頁 loading。
+  if (softScheduleRefresh) {
+    clearPageDataLoading(pageKey, token)
+    loadingSchedules = true
+  } else if (needsSchedules || needsBackground) {
+    setPageDataLoading(pageKey)
+  } else {
+    clearPageDataLoading(pageKey, token)
+  }
 
   renderApp()
 
@@ -5654,7 +5810,7 @@ async function refreshData(options = {}) {
 
   // 登入後先載入畫面必要資料，避免手機 / 平板卡在 audit_logs、service_records、birthday_wishes 等非首頁資料。
   const scheduleOptions = forceFull ? {} : (options.scheduleOptions || getScheduleLoadOptionsForCurrentPage())
-  await Promise.all([loadCoreSharedData({ force: forceFull || options.forceCore === true }), loadSchedules(scheduleOptions)])
+  await Promise.all([loadCoreSharedData({ force: forceFull || options.forceCore === true, staffAlreadyLoaded: options.staffAlreadyLoaded === true }), loadSchedules(scheduleOptions)])
 
   if (forceFull) {
     await Promise.allSettled([loadUserProfiles(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
@@ -5663,7 +5819,8 @@ async function refreshData(options = {}) {
     return
   }
 
-  startBackgroundDataLoad()
+  if (options.deferBackground === true) scheduleBackgroundDataLoad()
+  else startBackgroundDataLoad()
 }
 /* FOR-e V002-1H-stable-1-3be END - login lazy loading performance */
 
@@ -6811,7 +6968,8 @@ async function fetchScheduleRowsPaged(buildQuery, requestSeq) {
 
 async function loadSchedules(options = {}) {
   const requestSeq = ++scheduleLoadRequestSeq
-  loadingSchedules = true
+  const silent = options.silent === true
+  if (!silent) loadingSchedules = true
   schedulesError = ''
 
   const dateStart = String(options.dateStart || '').trim()
@@ -6857,13 +7015,15 @@ async function loadSchedules(options = {}) {
   } catch (error) {
     if (requestSeq !== scheduleLoadRequestSeq) return
     console.error(error)
-    schedules = []
-    schedulesError = error.message
+    if (!silent) {
+      schedules = []
+      schedulesError = error.message
+    }
   }
 
   // 1-3be：行程資料更新後清除行程總覽快取，避免顯示舊資料。
   overviewPerformanceCache = null
-  loadingSchedules = false
+  if (!silent) loadingSchedules = false
 }
 
 
@@ -7242,6 +7402,17 @@ function renderApp() {
   const openOverviewQuickGroupManagerBtn = document.querySelector('#openOverviewQuickGroupManagerBtn')
   if (openOverviewQuickGroupManagerBtn) {
     openOverviewQuickGroupManagerBtn.addEventListener('click', () => openOverviewQuickGroupManagerModal())
+  }
+
+  const personalWeekBtn = document.querySelector('#personalWeekBtn')
+  if (personalWeekBtn) {
+    personalWeekBtn.addEventListener('click', () => {
+      resetOverviewToPersonalWeek({ persist: false })
+      clearOverviewStatePreference()
+      saveOverviewFiltersPreference()
+      saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
+      renderAppAndEnsurePageData('scheduleOverview')
+    })
   }
 
   const prevWeekBtn = document.querySelector('#prevWeekBtn')
@@ -12518,8 +12689,101 @@ function getStatsDateRange() {
   }
 }
 
+const STATS_EXCLUDED_SCHEDULE_TYPE_NAMES = Object.freeze([
+  '電表提醒',
+  '辦件提醒',
+  '驗證提醒',
+  '轉出到期最後一天',
+  '加班單繳交'
+])
+
+function getStatsScheduleTypeCandidates(row = {}) {
+  if (!row) return []
+  return [...new Set([
+    getStatsScheduleType(row),
+    row.schedule_type,
+    row.sub_type,
+    row.category
+  ]
+    .map(value => getCanonicalStatsTypeName(value))
+    .map(value => String(value || '').trim())
+    .filter(Boolean))]
+}
+
+function isExplicitStatsExcludedScheduleType(row = {}) {
+  const candidates = getStatsScheduleTypeCandidates(row)
+  return candidates.some(type => STATS_EXCLUDED_SCHEDULE_TYPE_NAMES.includes(type))
+}
+
+function isStatsTranslatorStaff(staff = {}) {
+  return String(staff?.role || '').trim() === '翻譯'
+}
+
+function getActiveStatsTranslatorStaffRows() {
+  return sortStaffRowsForSelection(staffList
+    .filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')
+    .filter(isStatsTranslatorStaff))
+}
+
+function getStatsTranslatorStaffByAssignee(assignee = {}) {
+  const staffId = String(assignee?.staff_id || '').trim()
+  const staffName = String(assignee?.staff_name || '').trim()
+  if (staffId) {
+    const byId = getActiveStatsTranslatorStaffRows().find(staff => String(staff.staff_id || '') === staffId)
+    if (byId) return byId
+  }
+  if (staffName) {
+    return getActiveStatsTranslatorStaffRows().find(staff => String(staff.name || '').trim() === staffName) || null
+  }
+  return null
+}
+
+function toStatsTranslatorAssignee(staff = {}, source = {}) {
+  return {
+    ...source,
+    staff_id: staff.staff_id || source.staff_id || '',
+    staff_name: staff.name || source.staff_name || '',
+    department_name: staff.department_name || source.department_name || '',
+    position: staff.position || staff.position_name || source.position || ''
+  }
+}
+
+function getStatsTranslatorAssignees(row = {}) {
+  const map = new Map()
+
+  getStatsAssignees(row).forEach(assignee => {
+    const staff = getStatsTranslatorStaffByAssignee(assignee)
+    if (!staff) return
+    const key = String(staff.staff_id || staff.name || '').trim()
+    if (!key || map.has(key)) return
+    map.set(key, toStatsTranslatorAssignee(staff, assignee))
+  })
+
+  if (!map.size) {
+    const creatorId = String(row.creator_staff_id || '').trim()
+    const creatorName = String(row.creator_name || '').trim()
+    const creator = getActiveStatsTranslatorStaffRows().find(staff => {
+      if (creatorId && String(staff.staff_id || '') === creatorId) return true
+      return !creatorId && creatorName && String(staff.name || '').trim() === creatorName
+    })
+    if (creator) {
+      const key = String(creator.staff_id || creator.name || '').trim()
+      map.set(key, toStatsTranslatorAssignee(creator))
+    }
+  }
+
+  return [...map.values()]
+}
+
+function getEffectiveStatsStaffFilterId() {
+  const staffId = String(statsFilters.staffId || '全部').trim()
+  if (!staffId || staffId === '全部') return '全部'
+  return getActiveStatsTranslatorStaffRows().some(staff => String(staff.staff_id || '') === staffId) ? staffId : '全部'
+}
+
 function isStatsExcludedSchedule(row) {
   if (!row) return true
+  if (isExplicitStatsExcludedScheduleType(row)) return true
   if (scheduleHasGeneralStaff(row)) return true
   if (isPublicGeneralSchedule(row)) return true
   if (typeof isIncidentSupervisorTrackingSchedule === 'function' && isIncidentSupervisorTrackingSchedule(row)) return true
@@ -12585,12 +12849,11 @@ function getStatsCategoryOptions() {
 }
 
 function getStatsStaffOptionsHtml() {
-  return `<option value="全部" ${statsFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>` +
-    sortStaffRowsForSelection(staffList
-      .filter(staff => staff?.staff_id && !staff.deleted_at && String(staff.status || '啟用') !== '停用')
-      .filter(staff => String(staff?.role || '').trim() !== '一般職員'))
+  const effectiveStaffId = getEffectiveStatsStaffFilterId()
+  return `<option value="全部" ${effectiveStaffId === '全部' ? 'selected' : ''}>全部翻譯</option>` +
+    getActiveStatsTranslatorStaffRows()
       .map(staff => `
-        <option value="${staff.staff_id}" ${statsFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>
+        <option value="${staff.staff_id}" ${effectiveStaffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>
       `).join('')
 }
 
@@ -12766,21 +13029,12 @@ function expandStatsRowsForPersonTotals(rows = []) {
   const result = []
 
   rows.forEach(row => {
+    const translatorAssignees = getStatsTranslatorAssignees(row)
+    if (!translatorAssignees.length) return
+
     if (isIncidentSchedule(row)) {
       const familyId = getStatsIncidentFamilyId(row)
-      const assignees = getStatsAssignees(row)
-      if (!assignees.length) {
-        const key = `${familyId}__unassigned`
-        if (incidentPersonKeys.has(key)) return
-        incidentPersonKeys.add(key)
-        result.push({
-          ...row,
-          __stats_incident_family_id: familyId
-        })
-        return
-      }
-
-      assignees.forEach(assignee => {
+      translatorAssignees.forEach(assignee => {
         const staffKey = assignee.staff_id || assignee.staff_name || '未指定'
         const key = `${familyId}__${staffKey}`
         if (incidentPersonKeys.has(key)) return
@@ -12798,19 +13052,29 @@ function expandStatsRowsForPersonTotals(rows = []) {
       return
     }
 
-    result.push(...expandStatsScheduleRows([row]))
+    translatorAssignees.forEach(assignee => {
+      result.push({
+        ...row,
+        __stats_staff_id: assignee.staff_id || '',
+        __stats_staff_name: assignee.staff_name || '',
+        __stats_department_name: assignee.department_name || '',
+        __stats_position: assignee.position || '',
+        schedule_assignees: [assignee]
+      })
+    })
   })
 
   return result
 }
 
 function filterExpandedStatsRows(rows = []) {
+  const effectiveStaffId = getEffectiveStatsStaffFilterId()
   return rows.filter(row => {
     if (statsFilters.department !== '全部' && getStatsDepartment(row) !== statsFilters.department) return false
 
-    if (statsFilters.staffId !== '全部') {
-      const expandedStaffMatched = row.__stats_staff_id && row.__stats_staff_id === statsFilters.staffId
-      const assigned = (row.schedule_assignees || []).some(item => item.staff_id === statsFilters.staffId && !item.deleted_at)
+    if (effectiveStaffId !== '全部') {
+      const expandedStaffMatched = row.__stats_staff_id && row.__stats_staff_id === effectiveStaffId
+      const assigned = (row.schedule_assignees || []).some(item => item.staff_id === effectiveStaffId && !item.deleted_at)
       if (!expandedStaffMatched && !assigned) return false
     }
 
@@ -12838,7 +13102,8 @@ function getStatsFilteredServiceRecords() {
     if (schedule && isStatsExcludedSchedule(schedule)) return false
 
     if (statsFilters.department !== '全部' && getServiceRecordDepartment(record) !== statsFilters.department) return false
-    if (statsFilters.staffId !== '全部' && record.staff_id !== statsFilters.staffId) return false
+    const effectiveStaffId = getEffectiveStatsStaffFilterId()
+    if (effectiveStaffId !== '全部' && record.staff_id !== effectiveStaffId) return false
 
     if (statsFilters.category !== '全部') {
       const type = schedule ? getStatsScheduleType(schedule) : getServiceRecordScheduleType(record)
@@ -12984,7 +13249,7 @@ function renderStatsFilterForm() {
       </label>
 
       <label>
-        人員
+        翻譯人員
         <select name="staffId">${getStatsStaffOptionsHtml()}</select>
       </label>
 
@@ -13143,11 +13408,37 @@ function renderServiceRecordStatsSection(records) {
 function getStatsPersonTypeSummary(rows) {
   const map = new Map()
   const counted = new Set()
+  const effectiveStaffId = getEffectiveStatsStaffFilterId()
+
+  getActiveStatsTranslatorStaffRows()
+    .filter(staff => effectiveStaffId === '全部' || String(staff.staff_id || '') === effectiveStaffId)
+    .filter(staff => statsFilters.department === '全部' || String(staff.department_name || '').trim() === statsFilters.department)
+    .forEach(staff => {
+      const key = String(staff.staff_id || staff.name || '').trim()
+      if (!key) return
+      map.set(key, {
+        key,
+        name: staff.name || '未指定',
+        department: staff.department_name || '-',
+        total: 0,
+        unfinished: 0,
+        overdue: 0,
+        completed: 0,
+        types: new Map()
+      })
+    })
 
   rows.forEach(row => {
     const type = getStatsScheduleType(row)
     const entry = getStatsExpandedPersonEntry(row)
-    const key = entry.staffId || entry.staffName || '未指定'
+    const matchedStaff = getStatsTranslatorStaffByAssignee({ staff_id: entry.staffId, staff_name: entry.staffName })
+    if (!matchedStaff) return
+
+    const key = String(matchedStaff.staff_id || matchedStaff.name || '').trim()
+    if (!key) return
+    if (effectiveStaffId !== '全部' && key !== effectiveStaffId) return
+    if (statsFilters.department !== '全部' && String(matchedStaff.department_name || '').trim() !== statsFilters.department) return
+
     const countKey = `${key}__${getStatsCaseKey(row)}`
     if (counted.has(countKey)) return
     counted.add(countKey)
@@ -13155,8 +13446,8 @@ function getStatsPersonTypeSummary(rows) {
     if (!map.has(key)) {
       map.set(key, {
         key,
-        name: entry.staffName || '未指定',
-        department: entry.departmentName || '-',
+        name: matchedStaff.name || entry.staffName || '未指定',
+        department: matchedStaff.department_name || entry.departmentName || '-',
         total: 0,
         unfinished: 0,
         overdue: 0,
@@ -13193,13 +13484,14 @@ function renderPersonTypeStats(rows) {
   const personRows = getStatsPersonTypeSummary(rows)
   const typeKeys = [...new Set(rows.map(getStatsScheduleType).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'zh-Hant'))
-  const columnTemplate = `minmax(110px, 1.1fr) minmax(110px, 1fr) repeat(4, minmax(58px, 0.55fr)) repeat(${Math.max(typeKeys.length, 1)}, minmax(74px, 0.65fr))`
+  const typeColumnTemplate = typeKeys.length ? ` repeat(${typeKeys.length}, minmax(74px, 0.65fr))` : ''
+  const columnTemplate = `minmax(110px, 1.1fr) minmax(110px, 1fr) repeat(4, minmax(58px, 0.55fr))${typeColumnTemplate}`
 
   return `
     <section class="clean-stats-section person-type-stats-section">
       <div class="section-title-row">
         <h4>人員統計（行程類型）</h4>
-        <span>每個行程類型獨立列出，不含會議室</span>
+        <span>只統計所有啟用翻譯；其他角色不列入</span>
       </div>
 
       ${personRows.length ? `
@@ -13243,7 +13535,7 @@ function renderStatsDashboard() {
     <div class="page-toolbar">
       <div>
         <h3>統計報表</h3>
-        <p class="muted">期間：${escapeHtml(range.label)}｜依行程類型、一部 / 二部與人員統計。</p>
+        <p class="muted">期間：${escapeHtml(range.label)}｜行程統計排除指定提醒類型；人員統計只列所有啟用翻譯。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetStatsFilterBtn">清除條件</button>
@@ -13254,7 +13546,7 @@ function renderStatsDashboard() {
     ${renderReadStatus()}
     ${renderStatsFilterForm()}
     ${renderStatsMetricCards(rows)}
-    ${renderCleanTypeList('行程類型統計', '不含會議室', typeRows)}
+    ${renderCleanTypeList('行程類型統計', '不含會議室及指定提醒類型', typeRows)}
     ${renderDepartmentTypeStats(departmentRows)}
     ${renderPersonTypeStats(personRows)}
   `
@@ -15203,7 +15495,6 @@ function renderColorSettingsPage() {
 
 const exportablePageKeys = new Set([
   'personalSchedule',
-  'personalTodo',
   'assignedTracking',
   'scheduleOverview',
   'fieldSchedule',
@@ -15309,14 +15600,8 @@ function getCurrentMeetingWeekExportRows() {
 }
 
 function getExportSchedulesForCurrentPage() {
-  const todoCategories = ['一般記事', '待辦事項', '辦件提醒', '請假 / 會議 / 活動 / 外訓', '證件交付']
-
   if (currentPage === 'personalSchedule') {
     return schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row))
-  }
-
-  if (currentPage === 'personalTodo') {
-    return schedules.filter(row => isActivePersonalSchedule(row) && isPersonalCalendarForMe(row) && isActionReminderSchedule(row) && todoCategories.includes(row.category))
   }
 
   if (currentPage === 'assignedTracking') return getAssignedTrackingRows()
@@ -15911,26 +16196,58 @@ function maybeOpenAssignedReminder(options = {}) {
 }
 
 
+const loginDailyReminderLastShownPrefix = 'for-e-login-reminder-last-shown-v1'
+
+function getLoginDailyReminderIdentityKey() {
+  return normalizeOverviewQuickGroupOwnerKey(
+    currentProfile?.auth_user_id
+    || currentProfile?.auth_id
+    || currentProfile?.user_id
+    || currentProfile?.staff_id
+    || currentProfile?.email
+    || 'unknown'
+  )
+}
+
+function getLoginDailyReminderLastShownKey() {
+  return `${loginDailyReminderLastShownPrefix}:${getLoginDailyReminderIdentityKey()}`
+}
+
+function wasLoginDailyReminderShownToday() {
+  try {
+    return localStorage.getItem(getLoginDailyReminderLastShownKey()) === todayString()
+  } catch (err) {
+    return sessionStorage.getItem(getLoginDailyReminderLastShownKey()) === todayString()
+  }
+}
+
+function markLoginDailyReminderShownToday() {
+  const today = todayString()
+  try {
+    localStorage.setItem(getLoginDailyReminderLastShownKey(), today)
+  } catch (err) {
+    sessionStorage.setItem(getLoginDailyReminderLastShownKey(), today)
+  }
+}
+
 function maybeOpenLoginDailyReminder(options = {}) {
   if (!currentProfile?.staff_id) return
-
-  const force = options.force === true
-  const key = `for-e-login-reminder-${currentProfile.staff_id}-${todayString()}`
-
-  if (!force && sessionStorage.getItem(key) === 'shown') return
+  if (wasLoginDailyReminderShownToday()) return
 
   const groups = getLoginDailyReminderRows()
   const total = (groups.personalBirthday ? 1 : 0) + (groups.birthdayRows?.length || 0) + groups.todaySchedules.length + groups.todayTodos.length + groups.overdueTasks.length + groups.reminderRows.length
 
+  // 1-3ee：當天第一次載入即完成今日提醒檢查；跨重新登入、重新整理與分頁都不再重複跳出。
   if (!total) {
-    if (!force) sessionStorage.setItem(key, 'shown')
+    markLoginDailyReminderShownToday()
     return
   }
 
   setTimeout(() => {
-    sessionStorage.setItem(key, 'shown')
+    if (wasLoginDailyReminderShownToday()) return
+    markLoginDailyReminderShownToday()
     openLoginDailyReminderModal(groups)
-  }, force ? 180 : 250)
+  }, options.fromLogin === true ? 180 : 250)
 }
 
 function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
@@ -17364,44 +17681,44 @@ function getRoleTestDefinitions() {
   return [
     {
       role: '管理員',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
       cannotSee: [],
       actions: ['新增 / 修改 / 完成 / 取消行程', '新增外務行程', '新增會議室預約', '新增異況', '人員新增 / 修改 / 綁定 / 重綁 / 重設 / 刪除', '選項管理可修改', '備份匯出可下載']
     },
     {
       role: '主管',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '異況追蹤', '行程搜尋', '統計報表', '服務紀錄單', 'LINE 通知', '顏色設定', '選項管理', '異動紀錄', '人員 / 帳號', '系統檢查'],
       cannotSee: ['外務明細'],
       actions: ['可查看全部人員', '只可調整是否外務人員', '可使用選項管理', '不可建立 / 重設 / 刪除帳號']
     },
     {
       role: '行政 / 海外',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', 'LINE 通知', '顏色設定', '異動紀錄', '人員 / 帳號'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '外務行程', '外務明細', '會議室預約', '異況追蹤', '行程搜尋', 'LINE 通知', '顏色設定', '異動紀錄', '人員 / 帳號'],
       cannotSee: ['統計報表', '服務紀錄單', '選項管理', '系統檢查'],
       actions: ['可新增 / 修改服務行程', '可新增外務行程', '可新增異況', '不可管理帳號', '不可管理選項']
     },
     {
       role: '翻譯',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '行程搜尋', '紀錄單繳交', 'LINE 通知', '顏色設定', '人員 / 帳號'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '行程搜尋', '紀錄單繳交', 'LINE 通知', '顏色設定', '人員 / 帳號'],
       cannotSee: ['異況追蹤', '外務行程', '外務明細', '會議室預約', '統計報表', '服務紀錄單', '選項管理', '異動紀錄', '系統檢查'],
       actions: ['可查看自己的行程', '可繳交紀錄單', '可修改自己的密碼', '不可看異況追蹤']
     },
     {
       role: '外務 / 宿管人員 / 會計',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '行程搜尋', 'LINE 通知', '異動紀錄', '人員 / 帳號'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '外務行程', '會議室預約', '行程搜尋', 'LINE 通知', '異動紀錄', '人員 / 帳號'],
       cannotSee: ['外務明細', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', '顏色設定', '選項管理', '系統檢查'],
       actions: ['可看外務行程表', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
     },
     {
       role: '一般職員',
-      canSee: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '會議室預約', '行程搜尋', '顏色設定', '人員 / 帳號'],
+      canSee: ['個人行程表', '我指派的事項追蹤', '行程總覽', '會議室預約', '行程搜尋', '顏色設定', '人員 / 帳號'],
       cannotSee: ['LINE 通知', '異動紀錄', '外務行程', '外務明細', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', '選項管理', '系統檢查'],
       actions: ['可查看自己的行程', '可新增自己的個人待辦', '可預約會議室', '只看自己的帳號資訊', '可修改自己的密碼']
     },
     {
       role: '顧問',
       canSee: ['個人行程表', '行程總覽', '行程搜尋', '人員 / 帳號'],
-      cannotSee: ['個人一般待辦', '我指派的事項追蹤', '顏色設定', '外務行程', '外務明細', '會議室預約', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', 'LINE 通知', '選項管理', '異動紀錄', '公告紀錄', '系統檢查'],
+      cannotSee: ['我指派的事項追蹤', '顏色設定', '外務行程', '外務明細', '會議室預約', '異況追蹤', '統計報表', '服務紀錄單', '紀錄單繳交', 'LINE 通知', '選項管理', '異動紀錄', '公告紀錄', '系統檢查'],
       actions: ['行程總覽預設顯示越雙語群組', '本人置頂', '只可新增一般行程', '可修改一般行程與非提醒服務行程', '提醒與外務行程僅可查看', '只看自己的帳號資訊', '可修改自己的密碼']
     }
   ]
@@ -17577,7 +17894,7 @@ function getCompletedModuleGroups() {
   return [
     {
       title: '核心行程',
-      items: ['個人行程表', '個人一般待辦', '我指派的事項追蹤', '行程總覽', '行程搜尋']
+      items: ['個人行程表', '我指派的事項追蹤', '行程總覽', '行程搜尋']
     },
     {
       title: '外務與會議',
@@ -17810,7 +18127,6 @@ function renderSystemHealthPage() {
 function renderPageContent() {
   if (isCurrentPageDataLoading()) return renderPageDataLoading()
   if (currentPage === 'personalSchedule') return renderPersonalSchedule()
-  if (currentPage === 'personalTodo') return renderPersonalTodo()
   if (currentPage === 'assignedTracking') return renderAssignedTrackingPage()
   if (currentPage === 'scheduleOverview') return renderScheduleOverview()
   if (currentPage === 'fieldSchedule') {
@@ -18030,7 +18346,7 @@ function renderToolbar(title) {
         <p class="muted">${getRolePermissionNotice()}</p>
       </div>
       <div class="toolbar-actions">
-        ${canAdd ? `<button class="primary-btn" id="addScheduleBtn">${currentPage === 'personalTodo' ? '新增一般待辦' : '新增行程'}</button>` : ''}
+        ${canAdd ? `<button class="primary-btn" id="addScheduleBtn">新增行程</button>` : ''}
         <button class="secondary-btn" id="refreshBtn">重新整理</button>
       </div>
     </div>
@@ -18182,6 +18498,30 @@ function renderPersonalOverdueTaskArea() {
   `
 }
 
+const mergedPersonalTodoCategories = Object.freeze(['一般記事', '待辦事項', '辦件提醒', '證件交付'])
+
+function isMergedPersonalTodoSchedule(row = {}) {
+  return mergedPersonalTodoCategories.includes(String(row?.category || '').trim())
+}
+
+function getMergedPersonalTodoRows() {
+  return schedules
+    .filter(row => isActivePersonalSchedule(row))
+    .filter(row => isPersonalCalendarForMe(row))
+    .filter(row => isActionReminderSchedule(row))
+    .filter(row => isMergedPersonalTodoSchedule(row))
+}
+
+function getMergedPersonalTodoReminderRows(today = todayString()) {
+  const rows = getMergedPersonalTodoRows()
+  const todayRows = normalizeRowsForOccurrenceDate(
+    rows.filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'),
+    today
+  )
+  const overdueRows = rows.filter(row => !isAdministrativeReminderSchedule(row) && row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
+  return { rows, todayRows, overdueRows }
+}
+
 function renderPersonalSchedule() {
   const today = todayString()
   const baseRows = schedules.filter(row => isActivePersonalSchedule(row))
@@ -18190,9 +18530,11 @@ function renderPersonalSchedule() {
     return isPersonalCalendarForMe(row)
   })
   const displayRows = dedupeVerifyReminderRows(normalizeRowsForPersonalScheduleDisplay(myRows, today))
-  const todayRows = dedupeVerifyReminderRows(normalizeRowsForOccurrenceDate(
+  const { todayRows: todoTodayRows, overdueRows: todoOverdueRows } = getMergedPersonalTodoReminderRows(today)
+  const todayScheduleRows = dedupeVerifyReminderRows(normalizeRowsForOccurrenceDate(
     baseRows
       .filter(row => !isVerifyReminderRow(row))
+      .filter(row => !isMergedPersonalTodoSchedule(row))
       .filter(row => scheduleBelongsToStaffOnDate(row, currentProfile?.staff_id, today))
       .filter(row => isActionReminderSchedule(row))
       .filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'),
@@ -18200,18 +18542,20 @@ function renderPersonalSchedule() {
   ), today)
   const overdueRows = getPersonalOverdueTaskRows()
   const todayMeetingRows = getPersonalTodayMeetingRows(today)
+  const todayPendingTotal = uniqueScheduleRows([...todayScheduleRows, ...todoTodayRows]).length
 
   return `
     ${renderToolbar('個人行程表')}
     ${renderReadStatus()}
-    ${renderPersonalTodayScheduleNotice(todayRows)}
+    ${renderPersonalTodayScheduleNotice(todayScheduleRows)}
+    ${renderPersonalTodoReminderNotice(todoTodayRows, todoOverdueRows, today)}
     ${renderPersonalTodayMeetingArea(todayMeetingRows, today)}
     ${renderServiceRecordReminderArea()}
     ${renderPersonalReminderArea()}
     ${renderPersonalOverdueTaskArea()}
     <div class="summary-grid">
       <div class="summary-card">
-        <strong>${todayRows.length}</strong>
+        <strong>${todayPendingTotal}</strong>
         <span>今日待處理</span>
       </div>
       <div class="summary-card">
@@ -18257,15 +18601,8 @@ function renderPersonalTodoReminderNotice(todayRows, overdueRows, today) {
 }
 
 function renderPersonalTodo() {
-  const todoCategories = ['一般記事', '待辦事項', '辦件提醒', '證件交付']
-  const myRows = schedules
-    .filter(row => isActivePersonalSchedule(row))
-    .filter(row => isPersonalCalendarForMe(row))
-    .filter(row => isActionReminderSchedule(row))
-    .filter(row => todoCategories.includes(row.category))
   const today = todayString()
-  const todayRows = normalizeRowsForOccurrenceDate(myRows.filter(row => scheduleMatchesActionReminderDate(row, today) && row.status !== '已完成' && row.status !== '取消'), today)
-  const overdueRows = myRows.filter(row => !isAdministrativeReminderSchedule(row) && row.start_date && row.start_date < today && row.status !== '已完成' && row.status !== '取消')
+  const { rows: myRows, todayRows, overdueRows } = getMergedPersonalTodoReminderRows(today)
 
   return `
     ${renderToolbar('個人一般待辦')}
@@ -19215,9 +19552,16 @@ function uniqueContinuousRows(rows = []) {
 }
 
 
+function isPersonnelAffairsReturnHomeSchedule(row = {}) {
+  if (!row) return false
+  if (!isCoreLeaveMeetingCategory(row.category)) return false
+  return getCoreLeaveMeetingSubtypeFromRow(row) === '返鄉'
+}
+
 function rowNeedsFullDayBackground(row = {}) {
   const key = getScheduleColorKey(row)
-  return ['請假', '返鄉', '外務行程', '外務日'].includes(key)
+  if (key === '返鄉') return isPersonnelAffairsReturnHomeSchedule(row)
+  return ['請假', '外務行程', '外務日'].includes(key)
 }
 
 function getStaffFieldBackgroundRowsForDate(staffId = '', dateKey = '') {
@@ -19236,11 +19580,12 @@ function getStaffFieldBackgroundRowsForDate(staffId = '', dateKey = '') {
 
 function isLeaveOrReturnSchedule(row = {}) {
   const key = getScheduleColorKey(row)
-  return key === '請假' || key === '返鄉'
+  if (key === '返鄉') return isPersonnelAffairsReturnHomeSchedule(row)
+  return key === '請假'
 }
 
 function isReturnHomeSchedule(row = {}) {
-  return getScheduleColorKey(row) === '返鄉'
+  return isPersonnelAffairsReturnHomeSchedule(row)
 }
 
 function isStaffAssignedToSchedule(row = {}, staffId = '') {
@@ -22885,6 +23230,7 @@ function renderScheduleOverview() {
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
       <div class="toolbar-actions overview-toolbar-actions ${isPersonalWeekMode ? 'overview-toolbar-personal-week' : ''}">
+        <button class="${isPersonalWeekMode ? 'primary-btn' : 'secondary-btn'} personal-week-shortcut-btn" id="personalWeekBtn">個人當週行程</button>
         ${isPersonalWeekMode ? '' : renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>
@@ -25455,7 +25801,7 @@ function getRolePersonalScheduleCategories() {
 function getAvailableFormCategories() {
   if (isConsultantRole()) return [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
   if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
-  if (currentPage === 'personalSchedule' || currentPage === 'personalTodo' || unifiedCreateCategoryPages.includes(currentPage)) return getRolePersonalScheduleCategories()
+  if (currentPage === 'personalSchedule' || unifiedCreateCategoryPages.includes(currentPage)) return getRolePersonalScheduleCategories()
   return formCategories
 }
 
@@ -28653,7 +28999,7 @@ function openScheduleModal(defaults = {}) {
   modal.innerHTML = `
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>${currentPage === 'personalTodo' && !isGeneralStaffUnifiedFormMode() ? '新增一般待辦' : '新增行程'}</h3>
+        <h3>新增行程</h3>
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
       </div>
 

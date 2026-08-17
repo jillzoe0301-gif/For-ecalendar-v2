@@ -1,0 +1,9 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ec
+
+本次沒有 SQL。
+
+本版只調整前端統計計算與顯示：
+- 排除電表提醒、辦件提醒、驗證提醒、轉出到期最後一天、加班單繳交。
+- 人員統計只列所有啟用翻譯。
+
+不修改 Supabase schema、不更新舊資料、不重建 schedules 或 schedule_assignees。

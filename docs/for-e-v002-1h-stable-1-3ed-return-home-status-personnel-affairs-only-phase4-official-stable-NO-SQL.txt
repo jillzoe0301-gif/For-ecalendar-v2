@@ -1,0 +1,5 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ed
+
+本次沒有 SQL。
+
+只調整前端「返鄉狀況提示 / 整日狀況背景」判斷，不修改 Supabase schema、正式資料、schedule_id、schedule_assignees、日期、權限或寫入流程。

@@ -1,0 +1,31 @@
+FOR-e Calendar V2｜V002-1H-stable-1-3ed 驗收重點
+
+版本：for-e-v002-1h-stable-1-3ed-return-home-status-personnel-affairs-only-phase4-official-stable
+正式 tag：official-v002-1h-stable-1-3ed
+接續版本：V002-1H-stable-1-3ec
+階段：第四階段補充修正
+
+一、本次修正
+1. 「返鄉狀況」不再共用卡片顏色分類結果判斷。
+2. 只有 category 為「請假 / 會議 / 活動 / 外訓」（或舊稱「人員行務」），且實際 sub_type / schedule_type 細項為「返鄉」時，才視為返鄉狀況行程。
+3. 服務行程、一般行程或其他類型，即使標題含「返鄉」，不顯示「返」狀況提示、不套返鄉整日狀況底色。
+4. description、sub_type_note、customer_name 皆不參與返鄉狀況判斷。
+5. 既有卡片顏色規則維持不變：類型、細項或標題本身含「返鄉」時，卡片顏色仍可依原本設定套色；只是不能觸發返鄉狀況提示。
+
+二、驗收情境
+A. category=請假 / 會議 / 活動 / 外訓，sub_type=返鄉：應顯示返鄉狀況提示與整日返鄉狀況背景。
+B. category=請假 / 會議 / 活動 / 外訓，schedule_type=返鄉：應顯示返鄉狀況提示。
+C. category=服務行程，title=創為 返鄉工人證件轉交：不得顯示「返」狀況提示，不得把日期格當返鄉整日狀況。
+D. category=服務行程，description=工人返鄉：不得顯示返鄉狀況提示。
+E. category=一般行程，title=返鄉資料整理：不得顯示返鄉狀況提示。
+F. category=請假 / 會議 / 活動 / 外訓，sub_type=會議，title=返鄉人員討論：不得顯示返鄉狀況提示。
+
+三、保留不變
+- 1-3ec 統計排除與翻譯人員統計規則保留。
+- 1-3eb 下次領件去重、行程總覽即時篩選保留。
+- 顧問角色、越雙語群組、服務行程修改限制保留。
+- 不改 Supabase schema、不刪舊資料、不重建 schedules / schedule_assignees。
+- 第五階段尚未開始。
+
+四、SQL
+本次沒有 SQL。
