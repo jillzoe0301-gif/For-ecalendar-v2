@@ -1,0 +1,107 @@
+/* FOR-e Calendar V2 | 1-3eh mobile overview consistency patch
+   1. Personal-week toolbar uses the same mobile layout as all-translator-week.
+   2. Month views keep the compact staff column instead of expanding to max-content.
+*/
+
+@media (max-width: 768px), (pointer: coarse) {
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions > *,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions.overview-toolbar-personal-week > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .personal-week-shortcut-btn,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .translator-week-shortcut-btn,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions #prevWeekBtn,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions #thisWeekBtn,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions #nextWeekBtn,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions #addScheduleBtn {
+    grid-column: span 1 !important;
+    min-height: 44px !important;
+    height: auto !important;
+    white-space: normal !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .toolbar-month-control,
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions #refreshBtn {
+    grid-column: 1 / -1 !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .toolbar-month-control {
+    display: block !important;
+    min-height: 44px !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .toolbar-month-control > span {
+    display: none !important;
+  }
+
+  body:not(.force-desktop-mode) .page-toolbar .overview-toolbar-actions .toolbar-month-control input[type="month"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 44px !important;
+    margin: 0 !important;
+  }
+
+  /* Month mode: keep the same compact staff column used by the weekly calendar. */
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-col,
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell,
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month thead th:first-child,
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month tbody th:first-child,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-col,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-name-cell,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month thead th:first-child,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month tbody th:first-child {
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell .calendar-staff-name-title,
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell .calendar-staff-name-text,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-name-cell .calendar-staff-name-title,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-name-cell .calendar-staff-name-text {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 116px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+  }
+
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell .calendar-staff-department,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-name-cell .calendar-staff-department {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 112px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+  }
+}
