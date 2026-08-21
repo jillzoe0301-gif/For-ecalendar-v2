@@ -1,0 +1,4 @@
+FOR-e Calendar V2 V002-1H-stable-1-3eg
+本次沒有 SQL。
+僅修正手機底部導覽列的 visual viewport 固定位置與 safe-area。
+不修改 Supabase schema 或正式資料。

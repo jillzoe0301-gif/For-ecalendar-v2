@@ -447,13 +447,25 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 */
 /* FOR-e V002-1H-stable-1-3ef END - calendar interaction performance */
 
+/* FOR-e V002-1H-stable-1-3eh START - original translator tracking and simplified staff selection */
+/*
+  V002-1H-stable-1-3eh｜第四階段補充：通知原翻譯、人員選擇簡化、全部翻譯當周行程
+  - 服務行程「通知主管」下方新增「通知原翻譯（可複選）」，通知對象可看到原服務行程但不列為執行者。
+  - 原翻譯查看自己的行事曆時，卡片顯示「提醒追蹤－行程標題（執行者）」；管理者在原翻譯欄位查看時也套用相同顯示。
+  - 選擇人員清單統一只顯示「姓名｜部門」，不再顯示職稱。
+  - 行程總覽新增「全部翻譯當周行程」按鈕，直接顯示翻譯池（翻譯、雙語人員、雙語舍監、宿管、PT）的本週行程。
+  - 新增／修改行程的「選擇人員」不再提供「全部翻譯」快速勾選，避免誤選；通知原翻譯區仍保留其群組快速操作。
+  - 不新增資料表、不改 schedule_assignees 結構；通知原翻譯以既有服務行程備註與讀取顯示邏輯完成。
+*/
+/* FOR-e V002-1H-stable-1-3eh END - original translator tracking and simplified staff selection */
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ef'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ef'
+const APP_VERSION = 'V002-1H-stable-1-3eh'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eh'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：優化登入後行事曆切頁、衍生索引快取與格子渲染，降低第一次點行事曆的停頓。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤、人員選擇簡化為姓名＋部門，行程總覽新增全部翻譯當周行程。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -472,6 +484,10 @@ const PERSONAL_PAGE_MERGE_LOGIC_VERSION = '1-3ee'
 const PERSONAL_WEEK_SHORTCUT_LOGIC_VERSION = '1-3ee'
 const PAGE_LOAD_PERFORMANCE_LOGIC_VERSION = '1-3ee'
 const CALENDAR_INTERACTION_PERFORMANCE_LOGIC_VERSION = '1-3ef'
+const MOBILE_BOTTOM_NAV_VIEWPORT_LOGIC_VERSION = '1-3eg'
+const SERVICE_ORIGINAL_TRANSLATOR_NOTIFY_LOGIC_VERSION = '1-3eh'
+const STAFF_SELECTION_DISPLAY_LOGIC_VERSION = '1-3eh'
+const TRANSLATOR_WEEK_SHORTCUT_LOGIC_VERSION = '1-3eh'
 const CONSULTANT_ROLE_NAME = '顧問'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_ID = 'consultant-vietnamese-bilingual'
 const CONSULTANT_OVERVIEW_QUICK_GROUP_NAME = '越雙語'
@@ -3137,7 +3153,7 @@ function consultantGeneralScheduleAssigneeOptionsHtml() {
     ? rows.map(staff => `
       <label class="check-row">
         <input type="checkbox" name="executor" value="${escapeHtml(staff.staff_id)}">
-        <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</span>
+        <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
       </label>
     `).join('')
     : '<div class="field-hint">目前沒有符合的人員。</div>'
@@ -4249,10 +4265,12 @@ function getScheduleNotificationStaffIds(row = {}) {
     getNoteValue(row, '通知行政辦理'),
     getNoteValue(row, '通知主管'),
     getNoteValue(row, '通知主管追蹤'),
+    getNoteValue(row, '通知原翻譯'),
     getNoteValue(row, '通知相關人員'),
     getFieldNoteValue(row, '通知行政'),
     getFieldNoteValue(row, '通知行政辦理'),
     getFieldNoteValue(row, '通知主管'),
+    getFieldNoteValue(row, '通知原翻譯'),
     getFieldNoteValue(row, '通知相關人員')
   ]
     .map(value => String(value || '').trim())
@@ -7130,6 +7148,34 @@ async function loadServiceRecords() {
   serviceRecordsLoading = false
 }
 
+let mobileBottomNavViewportBound = false
+
+function syncMobileBottomNavToVisualViewport() {
+  const viewport = window.visualViewport
+  const visualBottomOffset = viewport
+    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+    : 0
+
+  document.documentElement.style.setProperty(
+    '--for-e-mobile-nav-visual-bottom',
+    `${Math.round(visualBottomOffset)}px`
+  )
+}
+
+function ensureMobileBottomNavViewportBinding() {
+  syncMobileBottomNavToVisualViewport()
+  if (mobileBottomNavViewportBound) return
+
+  mobileBottomNavViewportBound = true
+  const viewport = window.visualViewport
+  if (viewport) {
+    viewport.addEventListener('resize', syncMobileBottomNavToVisualViewport, { passive: true })
+    viewport.addEventListener('scroll', syncMobileBottomNavToVisualViewport, { passive: true })
+  }
+  window.addEventListener('resize', syncMobileBottomNavToVisualViewport, { passive: true })
+  window.addEventListener('orientationchange', syncMobileBottomNavToVisualViewport, { passive: true })
+}
+
 function renderApp() {
   const visiblePages = pages.filter(page => canSeePage(page, currentProfile.role))
   const forceDesktopView = applyManualDesktopViewBodyClass()
@@ -7196,6 +7242,7 @@ function renderApp() {
     </section>
   `
 
+  ensureMobileBottomNavViewportBinding()
   initSearchableChoicePanels(document)
 
   document.querySelectorAll('[data-page]').forEach(btn => {
@@ -7451,6 +7498,17 @@ function renderApp() {
       clearOverviewStatePreference()
       saveOverviewFiltersPreference()
       saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
+      renderAppAndEnsurePageData('scheduleOverview')
+    })
+  }
+
+  const allTranslatorWeekBtn = document.querySelector('#allTranslatorWeekBtn')
+  if (allTranslatorWeekBtn) {
+    allTranslatorWeekBtn.addEventListener('click', () => {
+      resetOverviewToAllTranslatorWeek({ persist: false })
+      saveOverviewFiltersPreference()
+      saveOverviewQuickGroupsLocalPreference(overviewQuickGroups)
+      saveOverviewStatePreference()
       renderAppAndEnsurePageData('scheduleOverview')
     })
   }
@@ -10021,7 +10079,8 @@ const CORE_CARD_DISPLAY_LOGIC_VERSION = '1-3dq'
 
 function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
   const row = schedule || {}
-  const peopleConfig = getSchedulePeopleDisplayConfig(row, context)
+  const viewerStaffId = String(row.__viewer_staff_id || currentProfile?.staff_id || '').trim()
+  const peopleConfig = getSchedulePeopleDisplayConfig(row, context, viewerStaffId)
   const occurrenceDate = row.__occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date || ''
   const typeTitleParts = getScheduleTypeTitleParts(row)
   const isMeeting = isMeetingRoomSchedule(row)
@@ -10071,6 +10130,24 @@ function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
     showAddress: Boolean(getScheduleAddressText(row)),
     showReminderTags: true,
     showPreview: true
+  }
+
+  if (isServiceOriginalTranslatorTrackingViewer(row, viewerStaffId)) {
+    config.variant = 'original-translator-tracking'
+    config.typeLabel = ''
+    config.titleText = getServiceOriginalTranslatorTrackingCardTitle(row)
+    config.summaryText = config.titleText
+    config.showType = false
+    config.showStatus = false
+    config.showAssignee = false
+    config.showCreator = false
+    config.showItem = false
+    config.showCustomer = false
+    config.showLocation = false
+    config.showAddress = false
+    config.showReminderTags = false
+    config.showPreview = false
+    return config
   }
 
   if (isTransferTitleOnly) {
@@ -11007,7 +11084,7 @@ function incidentTrackingTargetChecksHtml(selectedIds = [], inputName = 'inciden
   return staffList.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="${inputName}" value="${staff.staff_id}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
   `).join('')
 }
@@ -11174,7 +11251,7 @@ function incidentAssistantChecksHtml(selectedIds = [], inputName = 'incident_ass
   return staffList.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="${inputName}" value="${staff.staff_id}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
   `).join('')
 }
@@ -18749,6 +18826,45 @@ function resetOverviewToPersonalWeek(options = {}) {
   return overviewFilters
 }
 
+/* FOR-e V002-1H-stable-1-3eh START - all translator current week shortcut */
+function getOverviewAllTranslatorWeekStaffIds() {
+  return getAllTranslatorPoolStaffIds()
+}
+
+function isOverviewAllTranslatorWeekMode() {
+  if (getOverviewViewMode() !== '全部行程' || overviewWeekOffset !== 0) return false
+  if (normalizeOverviewFilterList(overviewFilters.departments).length) return false
+  const selected = normalizeOverviewFilterList(overviewFilters.staffIds).sort()
+  const translatorIds = getOverviewAllTranslatorWeekStaffIds().sort()
+  return selected.length > 0
+    && selected.length === translatorIds.length
+    && selected.every((staffId, index) => staffId === translatorIds[index])
+}
+
+function resetOverviewToAllTranslatorWeek(options = {}) {
+  overviewWeekOffset = 0
+  overviewDisplayMonth = getCurrentMonthValue()
+  overviewFilters = normalizeOverviewFilters({
+    ...overviewFilters,
+    viewMode: '全部行程',
+    departments: [],
+    staffIds: getOverviewAllTranslatorWeekStaffIds(),
+    sortBy: overviewFilters?.sortBy || 'display_order',
+    sortDir: overviewFilters?.sortDir || 'asc'
+  })
+  overviewQuickGroups = normalizeOverviewQuickGroups({
+    ...overviewQuickGroups,
+    activeId: 'all'
+  })
+  if (options.persist === true) {
+    saveOverviewFiltersPreference()
+    saveOverviewQuickGroupsPreference()
+    saveOverviewStatePreference()
+  }
+  return overviewFilters
+}
+/* FOR-e V002-1H-stable-1-3eh END - all translator current week shortcut */
+
 function resetOverviewToConsultantVietnameseBilingual(options = {}) {
   overviewWeekOffset = 0
   overviewDisplayMonth = getCurrentMonthValue()
@@ -19329,7 +19445,8 @@ function renderOverviewSortedCellContent({ staffId = '', dateKey = '', dayRows =
   }
 
   uniqueScheduleRows(continuationRows || []).forEach(row => {
-    pushOverviewSortedContentItem(items, row, renderContinuationDayMarks([row], dateKey, variant), dateKey)
+    const viewerRow = { ...row, __viewer_staff_id: staffId }
+    pushOverviewSortedContentItem(items, viewerRow, renderContinuationDayMarks([viewerRow], dateKey, variant), dateKey)
   })
 
   const explicitFieldDayRows = dedupeFieldDayReminderRows(dayMark?.fieldDayRows || [], { dateKey })
@@ -19355,7 +19472,8 @@ function renderOverviewSortedCellContent({ staffId = '', dateKey = '', dayRows =
   })
 
   uniqueScheduleRows(dayRows || []).forEach(row => {
-    pushOverviewSortedContentItem(items, row, renderWeekScheduleCard(row, dateKey), dateKey)
+    const viewerRow = { ...row, __viewer_staff_id: staffId }
+    pushOverviewSortedContentItem(items, viewerRow, renderWeekScheduleCard(viewerRow, dateKey), dateKey)
   })
 
   return items
@@ -23315,6 +23433,7 @@ function renderScheduleOverview() {
   const todayKey = todayString()
   const isMonthMode = ['月份顯示', '個人當月'].includes(viewMode)
   const isPersonalWeekMode = viewMode === '個人當週'
+  const isAllTranslatorWeekMode = isOverviewAllTranslatorWeekMode()
   const showWeekNav = viewMode === '全部行程' || isMonthMode || isPersonalWeekMode
   const tableClass = getOverviewViewModeTableClass(viewMode)
 
@@ -23326,6 +23445,7 @@ function renderScheduleOverview() {
       </div>
       <div class="toolbar-actions overview-toolbar-actions ${isPersonalWeekMode ? 'overview-toolbar-personal-week' : ''}">
         <button class="${isPersonalWeekMode ? 'primary-btn' : 'secondary-btn'} personal-week-shortcut-btn" id="personalWeekBtn">個人當週行程</button>
+        <button class="${isAllTranslatorWeekMode ? 'primary-btn' : 'secondary-btn'} translator-week-shortcut-btn" id="allTranslatorWeekBtn">全部翻譯當周行程</button>
         ${isPersonalWeekMode ? '' : renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>
@@ -25688,7 +25808,7 @@ function editStaffOptionsHtml(row) {
   return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="edit_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
-      <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
   `).join('')
 }
@@ -25834,6 +25954,156 @@ function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_depa
 }
 
 
+
+/* FOR-e V002-1H-stable-1-3eh START - translator pool and original translator notification helpers */
+function isAllTranslatorPoolStaff(staff = {}) {
+  if (!staff?.staff_id || staff.deleted_at || (staff.status || '啟用') !== '啟用') return false
+  const roleText = String(staff.role || '').trim()
+  const positionText = [staff.position, staff.position_name, staff.title].filter(Boolean).join('｜')
+  const departmentText = String(staff.department_name || '').trim()
+  const combined = [roleText, positionText, departmentText].filter(Boolean).join('｜')
+  return roleText === '翻譯'
+    || combined.includes('雙語')
+    || combined.includes('雙語舍監')
+    || combined.includes('宿管')
+    || /(^|｜)PT($|｜)/i.test(combined)
+}
+
+function getAllTranslatorPoolStaffRows() {
+  return sortStaffRowsForSelection(getActiveStaffRows().filter(isAllTranslatorPoolStaff))
+}
+
+function getAllTranslatorPoolStaffIds() {
+  return uniqueOptionList(getAllTranslatorPoolStaffRows().map(staff => String(staff.staff_id || '').trim()).filter(Boolean))
+}
+
+function serviceOriginalTranslatorCheckboxesHtml(selectedStaffIds = [], inputName = 'service_original_translator_staff_ids') {
+  const selected = new Set((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  const poolRows = getAllTranslatorPoolStaffRows()
+  const poolIds = new Set(poolRows.map(staff => String(staff.staff_id || '').trim()))
+  const extras = getActiveStaffRows().filter(staff => selected.has(String(staff.staff_id || '').trim()) && !poolIds.has(String(staff.staff_id || '').trim()))
+  const rows = sortStaffRowsForSelection([...extras, ...poolRows])
+  if (!rows.length) return '<div class="field-hint">目前沒有可選翻譯人員。</div>'
+  return rows.map(staff => `
+    <label class="inline-check service-original-translator-option">
+      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
+    </label>
+  `).join('')
+}
+
+function serviceOriginalTranslatorDropdownHtml(selectedStaffIds = [], inputName = 'service_original_translator_staff_ids') {
+  const selected = uniqueOptionList((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
+  const names = getStaffNamesByIds(selected)
+  const summary = names.length ? (names.length <= 2 ? names.join('、') : `已選擇 ${names.length} 位原翻譯`) : '不通知原翻譯'
+  return `
+    <details class="service-admin-dropdown service-original-translator-dropdown" data-service-original-translator-dropdown>
+      <summary><span data-service-original-translator-summary>${escapeHtml(summary)}</span></summary>
+      <div class="service-admin-dropdown-panel service-admin-check-list">
+        <div class="quick-select-action-row">
+          <button type="button" class="small-secondary-btn select-all-translators-btn" data-target-input-name="${escapeHtml(inputName)}">全部翻譯</button>
+          <button type="button" class="small-secondary-btn clear-staff-selection-btn" data-target-input-name="${escapeHtml(inputName)}">清除</button>
+        </div>
+        <input type="search" class="service-admin-search-input" placeholder="搜尋姓名或部門" autocomplete="off" data-service-admin-search>
+        ${serviceOriginalTranslatorCheckboxesHtml(selected, inputName)}
+      </div>
+    </details>
+  `
+}
+
+function getServiceOriginalTranslatorStaffIdsFromForm(form) {
+  return uniqueOptionList([
+    ...(form?.getAll?.('service_original_translator_staff_ids') || []),
+    ...(form?.getAll?.('edit_service_original_translator_staff_ids') || [])
+  ].map(value => String(value || '').trim()).filter(Boolean))
+}
+
+function cleanServiceOriginalTranslatorNotifyNote(noteText = '') {
+  return String(noteText || '')
+    .split('｜')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter(item => !item.startsWith('通知原翻譯：'))
+    .join('｜')
+}
+
+function appendServiceOriginalTranslatorNotifyNote(parts = [], translatorNames = []) {
+  const cleaned = (parts || []).map(item => cleanServiceOriginalTranslatorNotifyNote(item)).filter(Boolean)
+  const joined = uniqueOptionList((Array.isArray(translatorNames) ? translatorNames : splitMultiValue(translatorNames))
+    .map(name => String(name || '').trim()).filter(Boolean)).join('、')
+  if (joined) cleaned.push(`通知原翻譯：${joined}`)
+  return cleaned
+}
+
+function getServiceOriginalTranslatorNotifyStaffIds(row = {}) {
+  if (!row || row.category !== '服務行程') return []
+  const names = getNoteValue(row, '通知原翻譯') || getFieldNoteValue(row, '通知原翻譯') || ''
+  return typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(names) : []
+}
+
+function isServiceOriginalTranslatorTrackingViewer(row = {}, viewerStaffId = '') {
+  const viewerId = String(viewerStaffId || row.__viewer_staff_id || currentProfile?.staff_id || '').trim()
+  if (!viewerId || row?.category !== '服務行程') return false
+  if (!getServiceOriginalTranslatorNotifyStaffIds(row).includes(viewerId)) return false
+  // 若本人同時是實際執行者，維持正常服務行程卡，不改成追蹤卡。
+  return !getActiveAssigneeIds(row).includes(viewerId)
+}
+
+function getServiceOriginalTranslatorTrackingCardTitle(row = {}) {
+  const baseTitle = cleanCalendarSummaryPart(row.title || row.customer_name || getScheduleTypeTitleParts(row).title || '服務行程') || '服務行程'
+  const executorNames = uniqueOptionList((row.schedule_assignees || [])
+    .filter(item => !item.deleted_at && item.staff_id)
+    .map(item => String(item.staff_name || getStaffNameById(item.staff_id) || '').trim())
+    .filter(Boolean))
+  const executorText = executorNames.join('、') || '未指定'
+  return `提醒追蹤-${baseTitle}（${executorText}）`
+}
+
+function refreshServiceOriginalTranslatorDropdownSummary(dropdown) {
+  if (!dropdown) return
+  const checkedIds = [...dropdown.querySelectorAll('input[type="checkbox"]:checked')].map(input => String(input.value || '').trim()).filter(Boolean)
+  const names = getStaffNamesByIds(checkedIds)
+  const summary = names.length ? (names.length <= 2 ? names.join('、') : `已選擇 ${names.length} 位原翻譯`) : '不通知原翻譯'
+  const summaryEl = dropdown.querySelector('[data-service-original-translator-summary]')
+  if (summaryEl) summaryEl.textContent = summary
+}
+
+function applyTranslatorPoolQuickSelection(button, checked = true) {
+  const inputName = String(button?.dataset?.targetInputName || '').trim()
+  const scope = button?.closest?.('.service-admin-dropdown, #scheduleAssigneeBlock, .edit-assignee-box, .checkbox-list') || document
+  if (!scope) return
+  const poolIds = new Set(getAllTranslatorPoolStaffIds())
+  scope.querySelectorAll(`input[type="checkbox"]${inputName ? `[name="${inputName}"]` : '[name="executor"], input[name="edit_executor"]'}`).forEach(input => {
+    if (poolIds.has(String(input.value || '').trim())) input.checked = checked
+  })
+  refreshServiceOriginalTranslatorDropdownSummary(scope.closest?.('.service-original-translator-dropdown') || scope.querySelector?.('.service-original-translator-dropdown'))
+}
+
+if (!window.__FOR_E_TRANSLATOR_POOL_QUICK_SELECT_BOUND__) {
+  window.__FOR_E_TRANSLATOR_POOL_QUICK_SELECT_BOUND__ = true
+  document.addEventListener('click', event => {
+    const allBtn = event.target?.closest?.('.select-all-translators-btn')
+    if (allBtn) {
+      event.preventDefault()
+      applyTranslatorPoolQuickSelection(allBtn, true)
+      return
+    }
+    const clearBtn = event.target?.closest?.('.clear-staff-selection-btn')
+    if (clearBtn) {
+      event.preventDefault()
+      const inputName = String(clearBtn.dataset.targetInputName || '').trim()
+      const scope = clearBtn.closest('.service-admin-dropdown, #scheduleAssigneeBlock, .edit-assignee-box, .checkbox-list') || document
+      scope.querySelectorAll(`input[type="checkbox"]${inputName ? `[name="${inputName}"]` : ''}`).forEach(input => { input.checked = false })
+      refreshServiceOriginalTranslatorDropdownSummary(scope.closest?.('.service-original-translator-dropdown') || scope.querySelector?.('.service-original-translator-dropdown'))
+    }
+  })
+  document.addEventListener('change', event => {
+    const input = event.target?.closest?.('.service-original-translator-dropdown input[type="checkbox"]')
+    if (input) refreshServiceOriginalTranslatorDropdownSummary(input.closest('.service-original-translator-dropdown'))
+  })
+}
+/* FOR-e V002-1H-stable-1-3eh END - translator pool and original translator notification helpers */
+
 /* FOR-e V002-1H-stable-1-3bs START - explicit self selection for public general schedules */
 function staffOptionsHtml(defaultStaffId = '', rowsOverride = null, options = {}) {
   const rows = sortStaffRowsForSelection(Array.isArray(rowsOverride) ? rowsOverride : (isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : getAssignableStaffRows()))
@@ -25841,7 +26111,7 @@ function staffOptionsHtml(defaultStaffId = '', rowsOverride = null, options = {}
   return rows.map(staff => `
     <label class="check-row">
       <input type="checkbox" name="executor" value="${staff.staff_id}" ${allowGeneralScheduleAutoDefault && staff.staff_id === defaultStaffId ? 'checked' : ''}>
-      <span>${staff.name}｜${staff.department_name}｜${staff.position}</span>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
   `).join('')
 }
@@ -26616,6 +26886,7 @@ function positionCreateServiceSpecialFields(form, activeType = '') {
   const dateGroup = form.querySelector('.schedule-date-cycle-group')
   const serviceLocation = form.querySelector('[data-section="service-location"]')
   const notifySupervisor = form.querySelector('.notify-supervisor-field')
+    const notifyOriginalTranslator = form.querySelector('.notify-original-translator-field')
   if (isNoCommonDateTimeReminderType(activeType)) {
     const anchor = serviceLocation || dateGroup
     if (anchor) anchor.insertAdjacentElement('afterend', activeBlock)
@@ -27753,7 +28024,7 @@ function openEditFieldScheduleModal(scheduleId) {
             ${getFieldStaffRowsForEdit(row).map(staff => `
               <label class="check-row">
                 <input type="checkbox" name="edit_field_executor" value="${staff.staff_id}" ${selectedIds.has(staff.staff_id) ? 'checked' : ''}>
-                <span>${staff.name}｜${staff.department_name || ''}｜${staff.position || ''}</span>
+                <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
               </label>
             `).join('')}
           </div>
@@ -29072,6 +29343,7 @@ function openScheduleModal(defaults = {}) {
   const carSelectOptions = carOptionSelectOptionsHtml('不使用')
   const supervisorOptions = supervisorSelectOptionsHtml()
   const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
+  const serviceOriginalTranslatorDropdown = serviceOriginalTranslatorDropdownHtml([], 'service_original_translator_staff_ids')
   const weekdayChecks = weekdays.map(([value, label]) => `
     <label class="inline-check"><input type="checkbox" name="repeat_weekdays" value="${value}">${label}</label>
   `).join('')
@@ -29196,6 +29468,12 @@ function openScheduleModal(defaults = {}) {
             ${supervisorOptions}
           </select>
         </label>
+
+        <div class="span-2 notify-original-translator-field hidden">
+          <div class="field-title">通知原翻譯</div>
+          ${serviceOriginalTranslatorDropdown}
+          <p class="field-hint">通知原翻譯只增加追蹤顯示，不會把原翻譯加入執行者。</p>
+        </div>
 
         <div class="span-2 form-section hidden service-grid service-top-grid" data-section="service-top">
           <label>
@@ -29546,6 +29824,7 @@ function openScheduleModal(defaults = {}) {
     const serviceLocation = form.querySelector('[data-section="service-location"]')
     const leaveSubtype = form.querySelector('.leave-meeting-subtype-section')
     const notifySupervisor = form.querySelector('.notify-supervisor-field')
+    const notifyOriginalTranslator = form.querySelector('.notify-original-translator-field')
     const leaveProxy = form.querySelector('.leave-meeting-proxy-section')
     const adminReminder = form.querySelector('[data-section="administrative-reminder"]')
     const todoBlock = form.querySelector('[data-section="todo"]')
@@ -29554,7 +29833,7 @@ function openScheduleModal(defaults = {}) {
     const assigneeBlock = form.querySelector('#scheduleAssigneeBlock')
 
     if (category === '服務行程') {
-      moveScheduleFormNodesAfter(serviceLocation, [commonSimple, notifySupervisor, assigneeBlock])
+      moveScheduleFormNodesAfter(serviceLocation, [commonSimple, notifySupervisor, notifyOriginalTranslator, assigneeBlock])
       return
     }
 
@@ -29686,6 +29965,7 @@ function openScheduleModal(defaults = {}) {
     const hideGeneralAssignee = false
     form.querySelector('#scheduleAssigneeBlock')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || hideGeneralAssignee)
     form.querySelector('.notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralNormalSchedule || isGeneralPersonalNote)
+    form.querySelector('.notify-original-translator-field')?.classList.toggle('hidden', category !== '服務行程')
     form.querySelector('.schedule-time-group')?.classList.toggle('hidden', isAdministrativeReminderCategoryName(category))
 
     const commonTitleField = form.querySelector('.common-title-field')
@@ -30051,7 +30331,7 @@ function supervisorSelectOptionsHtml(selectedStaffId = '') {
     : []
 
   return `<option value="" ${!selectedStaffId ? 'selected' : ''}>不通知主管</option>` + [...extra, ...rows].map(staff => `
-    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}｜${staff.position || staff.position_name || staff.role || ''}</option>
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${staff.name}｜${staff.department_name}</option>
   `).join('')
 }
 
@@ -30077,7 +30357,7 @@ function administrativeStaffOptionsHtml(selectedStaffId = '') {
     : []
 
   return `<option value="" ${!selectedStaffId ? 'selected' : ''}>請選擇行政</option>` + [...extra, ...rows].map(staff => `
-    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}｜${escapeHtml(staff.position || staff.position_name || staff.role || '')}</option>
+    <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''}>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</option>
   `).join('')
 }
 
@@ -31154,6 +31434,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
   const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
   const editServiceAdminStaffIds = row.category === '服務行程' ? getStaffIdsByDisplayNames(getNoteValue(row, '通知行政')) : []
+  const editServiceOriginalTranslatorStaffIds = row.category === '服務行程' ? getStaffIdsByDisplayNames(getNoteValue(row, '通知原翻譯')) : []
   const editServiceAdminChecks = administrativeStaffCheckboxesHtml(editServiceAdminStaffIds, 'edit_service_admin_staff_ids')
   const isMaintenanceActiveIds = getActiveAssigneeIds(row)
   const maintenanceCarValue = row.car_no || row.customer_name || row.sub_type || '不使用'
@@ -31202,6 +31483,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             ${supervisorOptions}
           </select>
         </label>
+
+        <div class="span-2 edit-notify-original-translator-field hidden">
+          <div class="field-title">通知原翻譯</div>
+          ${serviceOriginalTranslatorDropdownHtml(editServiceOriginalTranslatorStaffIds, 'edit_service_original_translator_staff_ids')}
+          <p class="field-hint">原翻譯只收到追蹤卡片，不會加入執行者。</p>
+        </div>
 
         <div class="span-2 service-grid" id="editServiceBlock">
           <label>
@@ -31556,6 +31843,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     const timeTypeField = form.querySelector('.edit-time-type-field')
     const timeRangeBlock = form.querySelector('#editTimeRangeBlock')
     const notifySupervisor = form.querySelector('.edit-notify-supervisor-field')
+    const notifyOriginalTranslator = form.querySelector('.edit-notify-original-translator-field')
     const serviceLocation = form.querySelector('#editServiceLocationBlock')
     const generalFields = form.querySelector('.edit-general-staff-general-fields')
     const titleField = form.querySelector('.edit-common-title-field')
@@ -31572,7 +31860,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     moveEditScheduleFormNodesAfter(dateTimeAnchor, [modeBox, timeTypeField, timeRangeBlock])
 
     if (category === '服務行程') {
-      moveEditScheduleFormNodesAfter(serviceLocation, [titleField, descriptionField, notifySupervisor, assigneeBox])
+      moveEditScheduleFormNodesAfter(serviceLocation, [titleField, descriptionField, notifySupervisor, notifyOriginalTranslator, assigneeBox])
       return
     }
 
@@ -31658,6 +31946,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     document.querySelector('#editMeetingDepartmentAssigneeBlock')?.classList.toggle('hidden', !showEditDepartmentAssignee)
     document.querySelector('.edit-assignee-box')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralPersonalNote)
     document.querySelector('.edit-notify-supervisor-field')?.classList.toggle('hidden', category === '公務車保養' || isAdministrativeReminderCategoryName(category) || isGeneralNormalSchedule || isGeneralPersonalNote)
+    document.querySelector('.edit-notify-original-translator-field')?.classList.toggle('hidden', category !== '服務行程')
     document.querySelector('.edit-general-staff-general-fields')?.classList.toggle('hidden', !isGeneralNormalSchedule)
     document.querySelector('.edit-general-staff-general-fields label:nth-child(2)')?.classList.toggle('hidden', true)
     const editTitleLabel = document.querySelector('.edit-common-title-field')
@@ -31815,6 +32104,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
   const editNotifySupervisorName = (category === '公務車保養' || isAdministrativeReminderCategoryName(category)) || (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && category !== '服務行程') ? '' : getStaffNameFromSelect('edit_notify_supervisor_staff')
   const editServiceAdminStaffIds = category === '服務行程' ? getServiceAdminStaffIdsFromForm(form) : []
   const editServiceAdminNames = getStaffNamesByIds(editServiceAdminStaffIds)
+  const editServiceOriginalTranslatorStaffIds = category === '服務行程' ? getServiceOriginalTranslatorStaffIdsFromForm(form) : []
+  const editServiceOriginalTranslatorNames = getStaffNamesByIds(editServiceOriginalTranslatorStaffIds)
   const selectedEditExecutorIds = getSelectedScheduleExecutorIds(form, 'edit_executor', 'edit_executor_departments', category)
   const editTodoNoteTaggedExecutorIds = selectedEditExecutorIds.length ? selectedEditExecutorIds : [currentProfile?.staff_id].filter(Boolean)
   const editExecutorIds = (isGeneralStaffRole() && generalStaffUnifiedFormPages.includes(currentPage) && generalStaffOverviewFormCategories.includes(rawCategory))
@@ -31885,13 +32176,13 @@ async function saveEditedSchedule(event, modal, originalRow) {
       payloadDescription = null
     }
 
-    const cleanedNote = cleanServiceAdminNotifyNote(cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType))))
+    const cleanedNote = cleanServiceOriginalTranslatorNotifyNote(cleanServiceAdminNotifyNote(cleanNotifySupervisorNote(cleanRepeatNote(cleanServiceExtraNotes(form.get('sub_type_note') || '', editScheduleType)))))
     const extraNotes = buildServiceExtraNotes(form, editScheduleType)
-    editSubTypeNote = appendNotifySupervisorNote(appendServiceAdminNotifyNote([
+    editSubTypeNote = appendNotifySupervisorNote(appendServiceOriginalTranslatorNotifyNote(appendServiceAdminNotifyNote([
       buildRepeatNote(form),
       isCompactSpecialScheduleType(editScheduleType) ? '' : cleanedNote,
       ...extraNotes
-    ].filter(Boolean), editServiceAdminNames), editNotifySupervisorName).join('｜') || null
+    ].filter(Boolean), editServiceAdminNames), editServiceOriginalTranslatorNames), editNotifySupervisorName).join('｜') || null
   }
 
   if (category === '公務車保養') {
@@ -32177,6 +32468,8 @@ async function saveSchedule(event, modal) {
   const notifySupervisorName = (category === '公務車保養' || isAdministrativeReminderCategoryName(category)) || isGeneralStaffOverviewCreateMode() ? '' : getStaffNameFromSelect('notify_supervisor_staff')
   const serviceAdminStaffIds = category === '服務行程' ? getServiceAdminStaffIdsFromForm(form) : []
   const serviceAdminNames = getStaffNamesByIds(serviceAdminStaffIds)
+  const serviceOriginalTranslatorStaffIds = category === '服務行程' ? getServiceOriginalTranslatorStaffIdsFromForm(form) : []
+  const serviceOriginalTranslatorNames = getStaffNamesByIds(serviceOriginalTranslatorStaffIds)
   if (notifySupervisorName) subTypeNoteParts.push(`通知主管：${notifySupervisorName}`)
   let customerName = null
   let locationName = null
@@ -32305,6 +32598,7 @@ async function saveSchedule(event, modal) {
     if (scheduleType === '電表提醒') form.set('description', '')
     subTypeNoteParts.push(...buildServiceExtraNotes(form, scheduleType))
     if (serviceAdminNames.length) subTypeNoteParts.push(`通知行政：${serviceAdminNames.join('、')}`)
+    if (serviceOriginalTranslatorNames.length) subTypeNoteParts.push(`通知原翻譯：${serviceOriginalTranslatorNames.join('、')}`)
     if (!isCompactSpecialScheduleType(scheduleType)) {
       if (form.get('sub_type_note')) subTypeNoteParts.push(form.get('sub_type_note'))
       if (needServiceRecord && !isSimplifiedServiceFieldType(scheduleType)) subTypeNoteParts.push(`服務紀錄單：${serviceRecordSubmitted ? '已繳交' : '需要，尚未繳交'}`)
