@@ -465,7 +465,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const APP_VERSION = 'V002-1H-stable-1-3eh'
 const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eh'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤；原翻譯名單限定翻譯、雙語人員、雙語舍監、宿管、PT，並簡化為直接勾選；行程總覽新增全部翻譯當周行程。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤；原翻譯名單限定翻譯、雙語人員、雙語舍監、宿管、PT，並排除會計／財務；通知主管與通知行政的追蹤卡片統一為淡黃色提醒追蹤卡；行程總覽新增全部翻譯當周行程，月份選單固定顯示。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -10132,10 +10132,10 @@ function getScheduleCardDisplayConfig(schedule = {}, context = 'week') {
     showPreview: true
   }
 
-  if (isServiceOriginalTranslatorTrackingViewer(row, viewerStaffId)) {
-    config.variant = 'original-translator-tracking'
+  if (isServiceFollowupTrackingViewer(row, viewerStaffId)) {
+    config.variant = 'service-followup-tracking'
     config.typeLabel = ''
-    config.titleText = getServiceOriginalTranslatorTrackingCardTitle(row)
+    config.titleText = getServiceFollowupTrackingCardTitle(row)
     config.summaryText = config.titleText
     config.showType = false
     config.showStatus = false
@@ -14488,6 +14488,7 @@ function resetScheduleColorSettings() {
 
 function getScheduleColorKey(row) {
   if (!row) return '服務行程'
+  if (typeof isServiceFollowupTrackingViewer === 'function' && isServiceFollowupTrackingViewer(row, row.__viewer_staff_id || currentProfile?.staff_id || '')) return '個人記事'
   const colorRow = getScheduleColorClassificationRow(row)
   if (typeof isPostponedOriginalSchedule === 'function' && isPostponedOriginalSchedule(row)) return '延期處理'
   if (String(colorRow?.category || '') === '公務車保養' || String(colorRow?.schedule_type || '') === '公務車保養') return '公務車保養'
@@ -23446,7 +23447,7 @@ function renderScheduleOverview() {
       <div class="toolbar-actions overview-toolbar-actions ${isPersonalWeekMode ? 'overview-toolbar-personal-week' : ''}">
         <button class="${isPersonalWeekMode ? 'primary-btn' : 'secondary-btn'} personal-week-shortcut-btn" id="personalWeekBtn">個人當週行程</button>
         <button class="${isAllTranslatorWeekMode ? 'primary-btn' : 'secondary-btn'} translator-week-shortcut-btn" id="allTranslatorWeekBtn">全部翻譯當周行程</button>
-        ${isPersonalWeekMode ? '' : renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
+        ${renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>
           <button class="secondary-btn" id="thisWeekBtn">${isMonthMode ? '本月' : '本週'}</button>
@@ -25956,8 +25957,16 @@ function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_depa
 
 
 /* FOR-e V002-1H-stable-1-3eh START - translator pool and original translator notification helpers */
+function isTranslatorPoolAccountingOrFinanceStaff(staff = {}) {
+  const tokens = [staff.position, staff.position_name, staff.title, staff.department_name, staff.name]
+    .map(value => String(value || '').replace(/\s+/g, '').trim())
+    .filter(Boolean)
+  return tokens.some(value => value.includes('會計') || value.includes('財務'))
+}
+
 function isAllTranslatorPoolStaff(staff = {}) {
   if (!staff?.staff_id || staff.deleted_at || (staff.status || '啟用') !== '啟用') return false
+  if (isTranslatorPoolAccountingOrFinanceStaff(staff)) return false
   const roleText = String(staff.role || '').trim()
   const positionValues = [staff.position, staff.position_name, staff.title]
     .map(value => String(value || '').trim())
@@ -26040,15 +26049,34 @@ function getServiceOriginalTranslatorNotifyStaffIds(row = {}) {
   return typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(names) : []
 }
 
-function isServiceOriginalTranslatorTrackingViewer(row = {}, viewerStaffId = '') {
+function getServiceFollowupTrackingViewerType(row = {}, viewerStaffId = '') {
   const viewerId = String(viewerStaffId || row.__viewer_staff_id || currentProfile?.staff_id || '').trim()
-  if (!viewerId || row?.category !== '服務行程') return false
-  if (!getServiceOriginalTranslatorNotifyStaffIds(row).includes(viewerId)) return false
-  // 若本人同時是實際執行者，維持正常服務行程卡，不改成追蹤卡。
-  return !getActiveAssigneeIds(row).includes(viewerId)
+  if (!viewerId || row?.category !== '服務行程') return ''
+  if (getActiveAssigneeIds(row).includes(viewerId)) return ''
+
+  const originalTranslatorIds = getServiceOriginalTranslatorNotifyStaffIds(row)
+  if (originalTranslatorIds.includes(viewerId)) return 'original-translator'
+
+  const adminNames = [getNoteValue(row, '通知行政'), getFieldNoteValue(row, '通知行政')].filter(Boolean).join('、')
+  const adminIds = typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(adminNames) : []
+  if (adminIds.includes(viewerId)) return 'admin'
+
+  const supervisorNames = [getNoteValue(row, '通知主管'), getFieldNoteValue(row, '通知主管')].filter(Boolean).join('、')
+  const supervisorIds = typeof getStaffIdsByDisplayNames === 'function' ? getStaffIdsByDisplayNames(supervisorNames) : []
+  if (supervisorIds.includes(viewerId)) return 'supervisor'
+
+  return ''
 }
 
-function getServiceOriginalTranslatorTrackingCardTitle(row = {}) {
+function isServiceFollowupTrackingViewer(row = {}, viewerStaffId = '') {
+  return Boolean(getServiceFollowupTrackingViewerType(row, viewerStaffId))
+}
+
+function isServiceOriginalTranslatorTrackingViewer(row = {}, viewerStaffId = '') {
+  return getServiceFollowupTrackingViewerType(row, viewerStaffId) === 'original-translator'
+}
+
+function getServiceFollowupTrackingCardTitle(row = {}) {
   const baseTitle = cleanCalendarSummaryPart(row.title || row.customer_name || getScheduleTypeTitleParts(row).title || '服務行程') || '服務行程'
   const executorNames = uniqueOptionList((row.schedule_assignees || [])
     .filter(item => !item.deleted_at && item.staff_id)
@@ -26056,6 +26084,10 @@ function getServiceOriginalTranslatorTrackingCardTitle(row = {}) {
     .filter(Boolean))
   const executorText = executorNames.join('、') || '未指定'
   return `提醒追蹤-${baseTitle}（${executorText}）`
+}
+
+function getServiceOriginalTranslatorTrackingCardTitle(row = {}) {
+  return getServiceFollowupTrackingCardTitle(row)
 }
 
 function refreshServiceOriginalTranslatorDropdownSummary(dropdown) {
