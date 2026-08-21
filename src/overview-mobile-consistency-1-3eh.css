@@ -1,6 +1,6 @@
-/* FOR-e Calendar V2 | 1-3eh mobile overview consistency patch
+/* FOR-e Calendar V2 | 1-3ei mobile overview consistency patch
    1. Personal-week toolbar uses the same mobile layout as all-translator-week.
-   2. Month views keep the compact staff column instead of expanding to max-content.
+   2. Month views use compact fixed columns on phones so the calendar does not stretch or drift.
 */
 
 @media (max-width: 768px), (pointer: coarse) {
@@ -60,7 +60,16 @@
     margin: 0 !important;
   }
 
-  /* Month mode: keep the same compact staff column used by the weekly calendar. */
+  /* 1-3ei: month calendar is a compact horizontal strip on phones. */
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month {
+    width: max-content !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    table-layout: fixed !important;
+  }
+
+  /* Staff column: keep it as small as practical and never let name/department expand the table. */
   body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-col,
   body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell,
   body:not(.force-desktop-mode) .week-overview-table.is-overview-month thead th:first-child,
@@ -69,10 +78,13 @@
   body:not(.force-desktop-mode) .week-overview-table.is-personal-month .staff-name-cell,
   body:not(.force-desktop-mode) .week-overview-table.is-personal-month thead th:first-child,
   body:not(.force-desktop-mode) .week-overview-table.is-personal-month tbody th:first-child {
-    width: 132px !important;
-    min-width: 132px !important;
-    max-width: 132px !important;
+    width: 82px !important;
+    min-width: 82px !important;
+    max-width: 82px !important;
     box-sizing: border-box !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    overflow: hidden !important;
   }
 
   body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell .calendar-staff-name-title,
@@ -82,13 +94,16 @@
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
-    max-width: 116px !important;
+    max-width: 74px !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    text-overflow: clip !important;
     text-align: center !important;
+    line-height: 1.25 !important;
   }
 
   body:not(.force-desktop-mode) .week-overview-table.is-overview-month .staff-name-cell .calendar-staff-department,
@@ -96,12 +111,45 @@
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
-    max-width: 112px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    white-space: nowrap !important;
+    max-width: 72px !important;
+    margin: 4px auto 0 !important;
+    white-space: normal !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    text-overflow: clip !important;
     text-align: center !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Every date column is fixed and equal width; cards must stay inside that date. */
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month thead th:not(:first-child),
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month tbody td,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month thead th:not(:first-child),
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month tbody td {
+    width: 148px !important;
+    min-width: 148px !important;
+    max-width: 148px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    vertical-align: top !important;
+  }
+
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month tbody td > *,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month tbody td > *,
+  body:not(.force-desktop-mode) .week-overview-table.is-overview-month .week-schedule-card,
+  body:not(.force-desktop-mode) .week-overview-table.is-personal-month .week-schedule-card {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* The month grid scrolls horizontally instead of squeezing columns together. */
+  body:not(.force-desktop-mode) .month-sliding-scroll,
+  body:not(.force-desktop-mode) .week-overview-scroll,
+  body:not(.force-desktop-mode) .overview-calendar-scroll {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
