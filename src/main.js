@@ -465,7 +465,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const APP_VERSION = 'V002-1H-stable-1-3eh'
 const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eh'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤；原翻譯名單限定翻譯、雙語人員、雙語舍監、宿管、PT，並排除會計／財務；通知主管與通知行政的追蹤卡片統一為淡黃色提醒追蹤卡；行程總覽新增全部翻譯當周行程，月份選單固定顯示。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -7396,8 +7396,14 @@ function renderApp() {
   if (overviewMonthToolbarInput) {
     overviewMonthToolbarInput.addEventListener('change', event => {
       overviewDisplayMonth = normalizeMonthValue(event.target.value || overviewDisplayMonth || getCurrentMonthValue())
+      const currentViewMode = getOverviewViewMode()
+      overviewFilters = normalizeOverviewFilters({
+        ...overviewFilters,
+        viewMode: currentViewMode.startsWith('個人') ? '個人當月' : '月份顯示'
+      })
+      saveOverviewFiltersPreference()
       saveOverviewStatePreference()
-      renderAppAndEnsurePageData()
+      renderAppAndEnsurePageData('scheduleOverview')
     })
   }
 
@@ -14544,6 +14550,7 @@ function getScheduleColorKey(row) {
 }
 
 function getScheduleColor(row) {
+  if (typeof isServiceFollowupTrackingViewer === 'function' && isServiceFollowupTrackingViewer(row, row?.__viewer_staff_id || currentProfile?.staff_id || '')) return '#F2C94C'
   const settings = getScheduleColorSettings()
   const key = getScheduleColorKey(row)
   if (settings[key]) return settings[key]
@@ -14594,6 +14601,11 @@ function getScheduleColorInlineStyleByKey(colorKey = '', fallbackRow = null) {
 }
 
 function getScheduleColorInlineStyle(row) {
+  if (typeof isServiceFollowupTrackingViewer === 'function' && isServiceFollowupTrackingViewer(row, row?.__viewer_staff_id || currentProfile?.staff_id || '')) {
+    const accentColor = '#E3B341'
+    const backgroundColor = '#FFF4BF'
+    return `background:${backgroundColor};border:4px solid ${accentColor};--schedule-accent:${accentColor};--schedule-tag-bg:#FFF0A6;--schedule-tag-text:#7A5A00;`
+  }
   const colorKey = getScheduleColorKey(row)
   return getScheduleColorInlineStyleByKey(colorKey, row)
 }
@@ -25988,17 +26000,32 @@ function getAllTranslatorPoolStaffRows() {
   return sortStaffRowsForSelection(getActiveStaffRows().filter(isAllTranslatorPoolStaff))
 }
 
+function isOriginalTranslatorNotifyPoolStaff(staff = {}) {
+  if (!staff?.staff_id || staff.deleted_at || (staff.status || '啟用') !== '啟用') return false
+  if (isTranslatorPoolAccountingOrFinanceStaff(staff)) return false
+  const positionTokens = [staff.position, staff.position_name, staff.title]
+    .map(value => String(value || '').replace(/\s+/g, '').trim())
+    .filter(Boolean)
+  return positionTokens.some(value => (
+    value === '雙語人員' || value.includes('雙語人員') ||
+    value === '雙語舍監' || value.includes('雙語舍監') ||
+    value === '宿管' || value === '宿管人員' || value.includes('宿管') ||
+    /^PT$/i.test(value)
+  ))
+}
+
+function getOriginalTranslatorNotifyPoolStaffRows() {
+  return sortStaffRowsForSelection(getActiveStaffRows().filter(isOriginalTranslatorNotifyPoolStaff))
+}
+
 function getAllTranslatorPoolStaffIds() {
   return uniqueOptionList(getAllTranslatorPoolStaffRows().map(staff => String(staff.staff_id || '').trim()).filter(Boolean))
 }
 
 function serviceOriginalTranslatorCheckboxesHtml(selectedStaffIds = [], inputName = 'service_original_translator_staff_ids') {
   const selected = new Set((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
-  const poolRows = getAllTranslatorPoolStaffRows()
-  const poolIds = new Set(poolRows.map(staff => String(staff.staff_id || '').trim()))
-  const extras = getActiveStaffRows().filter(staff => selected.has(String(staff.staff_id || '').trim()) && !poolIds.has(String(staff.staff_id || '').trim()))
-  const rows = sortStaffRowsForSelection([...extras, ...poolRows])
-  if (!rows.length) return '<div class="field-hint">目前沒有可選翻譯人員。</div>'
+  const rows = getOriginalTranslatorNotifyPoolStaffRows()
+  if (!rows.length) return '<div class="field-hint">目前沒有符合職務的原翻譯人員。</div>'
   return rows.map(staff => `
     <label class="inline-check service-original-translator-option">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
