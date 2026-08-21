@@ -454,7 +454,7 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
   - 原翻譯查看自己的行事曆時，卡片顯示「提醒追蹤－行程標題（執行者）」；管理者在原翻譯欄位查看時也套用相同顯示。
   - 選擇人員清單統一只顯示「姓名｜部門」，不再顯示職稱。
   - 行程總覽新增「全部翻譯當周行程」按鈕，直接顯示翻譯池（翻譯、雙語人員、雙語舍監、宿管、PT）的本週行程。
-  - 新增／修改行程的「選擇人員」不再提供「全部翻譯」快速勾選，避免誤選；通知原翻譯區仍保留其群組快速操作。
+  - 新增／修改行程的「選擇人員」不提供「全部翻譯」快速勾選；通知原翻譯改為直接顯示指定翻譯池名單，不提供快速全選或清除按鈕。
   - 不新增資料表、不改 schedule_assignees 結構；通知原翻譯以既有服務行程備註與讀取顯示邏輯完成。
 */
 /* FOR-e V002-1H-stable-1-3eh END - original translator tracking and simplified staff selection */
@@ -465,7 +465,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const APP_VERSION = 'V002-1H-stable-1-3eh'
 const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eh'
 const SYSTEM_VERSION = APP_VERSION
-const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤、人員選擇簡化為姓名＋部門，行程總覽新增全部翻譯當周行程。'
+const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程新增通知原翻譯追蹤；原翻譯名單限定翻譯、雙語人員、雙語舍監、宿管、PT，並簡化為直接勾選；行程總覽新增全部翻譯當周行程。'
 
 const CONSULTANT_ROLE_DATABASE_LOGIC_VERSION = '1-3dt'
 const CONSULTANT_REMINDER_PERMISSION_LOGIC_VERSION = '1-3du'
@@ -25959,14 +25959,20 @@ function syncDepartmentAssigneeChecks(form, departmentInputName = 'executor_depa
 function isAllTranslatorPoolStaff(staff = {}) {
   if (!staff?.staff_id || staff.deleted_at || (staff.status || '啟用') !== '啟用') return false
   const roleText = String(staff.role || '').trim()
-  const positionText = [staff.position, staff.position_name, staff.title].filter(Boolean).join('｜')
+  const positionValues = [staff.position, staff.position_name, staff.title]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
   const departmentText = String(staff.department_name || '').trim()
-  const combined = [roleText, positionText, departmentText].filter(Boolean).join('｜')
-  return roleText === '翻譯'
-    || combined.includes('雙語')
-    || combined.includes('雙語舍監')
-    || combined.includes('宿管')
-    || /(^|｜)PT($|｜)/i.test(combined)
+  const normalizedTokens = [roleText, ...positionValues, departmentText]
+    .map(value => value.replace(/\s+/g, ''))
+    .filter(Boolean)
+
+  if (roleText === '翻譯') return true
+  if (normalizedTokens.some(value => value === '雙語人員' || value.includes('雙語人員'))) return true
+  if (normalizedTokens.some(value => value === '雙語舍監' || value.includes('雙語舍監'))) return true
+  if (normalizedTokens.some(value => value === '宿管' || value === '宿管人員' || value.includes('宿管'))) return true
+  if (normalizedTokens.some(value => /^PT$/i.test(value))) return true
+  return false
 }
 
 function getAllTranslatorPoolStaffRows() {
@@ -25994,20 +26000,13 @@ function serviceOriginalTranslatorCheckboxesHtml(selectedStaffIds = [], inputNam
 
 function serviceOriginalTranslatorDropdownHtml(selectedStaffIds = [], inputName = 'service_original_translator_staff_ids') {
   const selected = uniqueOptionList((selectedStaffIds || []).map(value => String(value || '').trim()).filter(Boolean))
-  const names = getStaffNamesByIds(selected)
-  const summary = names.length ? (names.length <= 2 ? names.join('、') : `已選擇 ${names.length} 位原翻譯`) : '不通知原翻譯'
   return `
-    <details class="service-admin-dropdown service-original-translator-dropdown" data-service-original-translator-dropdown>
-      <summary><span data-service-original-translator-summary>${escapeHtml(summary)}</span></summary>
-      <div class="service-admin-dropdown-panel service-admin-check-list">
-        <div class="quick-select-action-row">
-          <button type="button" class="small-secondary-btn select-all-translators-btn" data-target-input-name="${escapeHtml(inputName)}">全部翻譯</button>
-          <button type="button" class="small-secondary-btn clear-staff-selection-btn" data-target-input-name="${escapeHtml(inputName)}">清除</button>
-        </div>
-        <input type="search" class="service-admin-search-input" placeholder="搜尋姓名或部門" autocomplete="off" data-service-admin-search>
+    <div class="service-original-translator-direct-list" data-service-original-translator-list>
+      <input type="search" class="service-admin-search-input" placeholder="搜尋姓名或部門" autocomplete="off" data-service-admin-search>
+      <div class="service-admin-check-list">
         ${serviceOriginalTranslatorCheckboxesHtml(selected, inputName)}
       </div>
-    </details>
+    </div>
   `
 }
 
@@ -26096,10 +26095,6 @@ if (!window.__FOR_E_TRANSLATOR_POOL_QUICK_SELECT_BOUND__) {
       scope.querySelectorAll(`input[type="checkbox"]${inputName ? `[name="${inputName}"]` : ''}`).forEach(input => { input.checked = false })
       refreshServiceOriginalTranslatorDropdownSummary(scope.closest?.('.service-original-translator-dropdown') || scope.querySelector?.('.service-original-translator-dropdown'))
     }
-  })
-  document.addEventListener('change', event => {
-    const input = event.target?.closest?.('.service-original-translator-dropdown input[type="checkbox"]')
-    if (input) refreshServiceOriginalTranslatorDropdownSummary(input.closest('.service-original-translator-dropdown'))
   })
 }
 /* FOR-e V002-1H-stable-1-3eh END - translator pool and original translator notification helpers */
@@ -30475,18 +30470,18 @@ if (!window.__FOR_E_SERVICE_ADMIN_DROPDOWN_BOUND__) {
     refreshServiceAdminDropdownSummary(input.closest('.service-admin-dropdown'))
   })
   document.addEventListener('input', event => {
-    const searchInput = event.target?.closest?.('.service-admin-dropdown [data-service-admin-search]')
+    const searchInput = event.target?.closest?.('[data-service-admin-search]')
     if (!searchInput) return
-    const dropdown = searchInput.closest('.service-admin-dropdown')
+    const scope = searchInput.closest('.service-admin-dropdown, [data-service-original-translator-list]')
     const keyword = String(searchInput.value || '').trim().toLowerCase()
     let visibleCount = 0
-    dropdown?.querySelectorAll?.('.service-admin-check-option')?.forEach(option => {
+    scope?.querySelectorAll?.('.service-admin-check-option, .service-original-translator-option')?.forEach(option => {
       const text = String(option.textContent || '').trim().toLowerCase()
       const hidden = Boolean(keyword && !text.includes(keyword))
       option.hidden = hidden
       if (!hidden) visibleCount += 1
     })
-    const emptyEl = dropdown?.querySelector?.('[data-maintenance-notify-empty]')
+    const emptyEl = scope?.querySelector?.('[data-maintenance-notify-empty]')
     if (emptyEl) emptyEl.hidden = visibleCount > 0
   })
 }
