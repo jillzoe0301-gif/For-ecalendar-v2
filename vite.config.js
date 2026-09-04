@@ -1,14 +1,61 @@
 import { defineConfig } from 'vite'
 
-const forETranslatorWeekPositionPatch = {
-  name: 'for-e-1-3ej-translator-week-position-filter',
+const oldFieldScheduleRow = `function isFieldScheduleRow(row) {
+  if (!row) return false
+
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+
+  return (
+    text.includes('外務') ||
+    row.category === '外務行程' ||
+    row.schedule_type === '外務行程' ||
+    row.schedule_type === '外務'
+  )
+}`
+
+const newFieldScheduleRow = `const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3ek'
+
+function isFieldPublicDutySchedule(row = {}) {
+  if (!row) return false
+  if (String(row.category || '').trim() !== '請假 / 會議 / 活動 / 外訓') return false
+  const typeText = [row.sub_type, row.schedule_type, row.title]
+    .filter(Boolean)
+    .join('｜')
+  if (!typeText.includes(publicDutyLeaveMeetingType)) return false
+
+  return getActiveAssigneeIds(row).some(staffId => {
+    const staff = staffList.find(item => String(item?.staff_id || '') === String(staffId || ''))
+    return staff ? isStaffFieldWorker(staff) : false
+  })
+}
+
+function isFieldScheduleRow(row) {
+  if (!row) return false
+  if (isFieldPublicDutySchedule(row)) return true
+
+  const text = [row.category, row.schedule_type, row.sub_type, row.title, row.sub_type_note]
+    .filter(Boolean)
+    .join('｜')
+
+  return (
+    text.includes('外務') ||
+    row.category === '外務行程' ||
+    row.schedule_type === '外務行程' ||
+    row.schedule_type === '外務'
+  )
+}`
+
+const forEPhase4CompatibilityPatch = {
+  name: 'for-e-1-3ek-field-public-duty-display',
   enforce: 'pre',
   transform(code, id) {
     if (!id.replaceAll('\\', '/').endsWith('/src/main.js')) return null
 
     let next = code
-      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3ej'")
-      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ej'")
+      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3ek'")
+      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ek'")
       .replaceAll('全部翻譯當周行程', '全部翻譯當週行程')
       .replace('翻譯池（翻譯、雙語人員、雙語舍監、宿管、PT）', '翻譯池（雙語人員、雙語舍監、宿管、PT）')
       .replace("  if (roleText === '翻譯') return true\n", '')
@@ -16,6 +63,10 @@ const forETranslatorWeekPositionPatch = {
         'const normalizedTokens = [roleText, ...positionValues, departmentText]',
         'const normalizedTokens = positionValues'
       )
+
+    if (!next.includes("const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3ek'")) {
+      next = next.replace(oldFieldScheduleRow, newFieldScheduleRow)
+    }
 
     if (!next.includes("const TRANSLATOR_WEEK_ROLE_FILTER_LOGIC_VERSION = '1-3ej'")) {
       next = next.replace(
@@ -29,7 +80,7 @@ const forETranslatorWeekPositionPatch = {
 }
 
 export default defineConfig({
-  plugins: [forETranslatorWeekPositionPatch],
+  plugins: [forEPhase4CompatibilityPatch],
   server: {
     host: '0.0.0.0',
     port: 5173
