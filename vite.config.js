@@ -15,7 +15,7 @@ const oldFieldScheduleRow = `function isFieldScheduleRow(row) {
   )
 }`
 
-const newFieldScheduleRow = `const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3ek'
+const newFieldScheduleRow = `const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3el'
 
 function isFieldPublicDutySchedule(row = {}) {
   if (!row) return false
@@ -47,15 +47,31 @@ function isFieldScheduleRow(row) {
   )
 }`
 
+const oldFieldScheduleReadBranch = `      if (isFieldDayReminderSchedule(row)) return false
+      if (isLeaveOrReturnSchedule(row)) return false
+      return true`
+
+const newFieldScheduleReadBranch = `      if (isFieldDayReminderSchedule(row)) return false
+      if (isLeaveOrReturnSchedule(row) && !isFieldPublicDutySchedule(row)) return false
+      return true`
+
+const oldFieldScheduleReadBranchDirect = `    if (isFieldDayReminderSchedule(row)) return false
+    if (isLeaveOrReturnSchedule(row)) return false
+    if (!scheduleMatchesDateByMode(row, dateKey)) return false`
+
+const newFieldScheduleReadBranchDirect = `    if (isFieldDayReminderSchedule(row)) return false
+    if (isLeaveOrReturnSchedule(row) && !isFieldPublicDutySchedule(row)) return false
+    if (!scheduleMatchesDateByMode(row, dateKey)) return false`
+
 const forEPhase4CompatibilityPatch = {
-  name: 'for-e-1-3ek-field-public-duty-display',
+  name: 'for-e-1-3el-field-public-duty-final-filter',
   enforce: 'pre',
   transform(code, id) {
     if (!id.replaceAll('\\', '/').endsWith('/src/main.js')) return null
 
     let next = code
-      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3ek'")
-      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ek'")
+      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3el'")
+      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3el'")
       .replaceAll('全部翻譯當周行程', '全部翻譯當週行程')
       .replace('翻譯池（翻譯、雙語人員、雙語舍監、宿管、PT）', '翻譯池（雙語人員、雙語舍監、宿管、PT）')
       .replace("  if (roleText === '翻譯') return true\n", '')
@@ -64,9 +80,15 @@ const forEPhase4CompatibilityPatch = {
         'const normalizedTokens = positionValues'
       )
 
-    if (!next.includes("const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3ek'")) {
+    if (!next.includes('function isFieldPublicDutySchedule(row = {})')) {
       next = next.replace(oldFieldScheduleRow, newFieldScheduleRow)
+    } else {
+      next = next.replace("const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3ek'", "const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3el'")
     }
+
+    next = next
+      .replace(oldFieldScheduleReadBranch, newFieldScheduleReadBranch)
+      .replace(oldFieldScheduleReadBranchDirect, newFieldScheduleReadBranchDirect)
 
     if (!next.includes("const TRANSLATOR_WEEK_ROLE_FILTER_LOGIC_VERSION = '1-3ej'")) {
       next = next.replace(
