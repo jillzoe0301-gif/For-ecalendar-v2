@@ -17,3 +17,5 @@ supabase/migrations/202607030017_arc_v13_v45_case_edit_total_copy_count.sql
 ```
 
 再部署前端。
+
+<!-- FOR-e Calendar rollback deployment trigger: restore stable 1-3er production -->
