@@ -403,8 +403,79 @@ function renderServiceRecordDashboard() {`)
   }
 }
 
+const forEConsultantServiceEditPatch = {
+  name: 'for-e-1-3er-consultant-service-content-assignee-only',
+  enforce: 'post',
+  transform(code, id) {
+    if (!id.replaceAll('\\', '/').endsWith('/src/main.js')) return null
+
+    let next = code
+      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3er'")
+      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3er'")
+
+    if (!next.includes("const CONSULTANT_SERVICE_LIMITED_EDIT_LOGIC_VERSION = '1-3er'")) {
+      next = next.replace(
+        "const DATE_RANGE_REPORT_FILTER_LOGIC_VERSION = '1-3eq'",
+        "const DATE_RANGE_REPORT_FILTER_LOGIC_VERSION = '1-3eq'\nconst CONSULTANT_SERVICE_LIMITED_EDIT_LOGIC_VERSION = '1-3er'"
+      )
+    }
+
+    if (!next.includes('function applyConsultantServiceLimitedEditUi(row = {}, modal)')) {
+      next = next.replace(
+        '\nfunction openEditScheduleModal(scheduleId, occurrenceDate = \'\') {',
+`\nfunction applyConsultantServiceLimitedEditUi(row = {}, modal) {
+  if (!isConsultantServiceEditOnlySchedule(row) || !modal) return
+  const form = modal.querySelector('#editScheduleForm')
+  if (!form) return
+
+  ;[...form.children].forEach(node => {
+    if (!(node instanceof HTMLElement)) return
+    const keep = node.matches('.edit-common-description-field, .edit-assignee-box, .modal-actions')
+    node.classList.toggle('hidden', !keep)
+  })
+
+  const descriptionField = form.querySelector('.edit-common-description-field')
+  if (descriptionField) descriptionField.classList.remove('hidden')
+  const assigneeBox = form.querySelector('.edit-assignee-box')
+  if (assigneeBox) assigneeBox.classList.remove('hidden')
+  const actions = form.querySelector('.modal-actions')
+  if (actions) actions.classList.remove('hidden')
+
+  const hint = document.createElement('div')
+  hint.className = 'notice span-2 consultant-service-limited-edit-note'
+  hint.textContent = '顧問只能修改此服務行程的內容與執行者；標題、日期、時間、類型、通知與其他設定均維持原值。'
+  form.insertBefore(hint, descriptionField || form.firstChild)
+}
+
+function openEditScheduleModal(scheduleId, occurrenceDate = '') {`)
+    }
+
+    next = next.replace(
+      `  refreshEditServiceRecordChecks()\n  applyEditCompactSpecialFields()\n\n  document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())`,
+      `  refreshEditServiceRecordChecks()\n  applyEditCompactSpecialFields()\n  applyConsultantServiceLimitedEditUi(row, modal)\n\n  document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())`
+    )
+
+    next = next.replace(
+      `  const payload = {\n    category,\n    schedule_type: editScheduleType,\n    sub_type: editSubType,\n    sub_type_note: editSubTypeNote,\n    title: payloadTitle,\n    description: payloadDescription,\n    start_date: payloadStartDate,\n    end_date: payloadEndDate,\n    time_type: payloadTimeType,\n    start_time: payloadStartTime,\n    end_time: payloadEndTime,\n    customer_name: payloadCustomerName,\n    location_name: payloadLocationName,\n    address: payloadAddress,\n    car_no: payloadCarNo,\n    need_service_record: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && form.get('need_service_record') === 'on',\n    service_record_submitted: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && submitted,\n    service_record_submitted_date: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? submittedDate : null\n  }`,
+      `  const payload = {\n    category,\n    schedule_type: editScheduleType,\n    sub_type: editSubType,\n    sub_type_note: editSubTypeNote,\n    title: payloadTitle,\n    description: payloadDescription,\n    start_date: payloadStartDate,\n    end_date: payloadEndDate,\n    time_type: payloadTimeType,\n    start_time: payloadStartTime,\n    end_time: payloadEndTime,\n    customer_name: payloadCustomerName,\n    location_name: payloadLocationName,\n    address: payloadAddress,\n    car_no: payloadCarNo,\n    need_service_record: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && form.get('need_service_record') === 'on',\n    service_record_submitted: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && submitted,\n    service_record_submitted_date: isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? submittedDate : null\n  }\n\n  if (isConsultantServiceEditOnlySchedule(originalRow)) {\n    Object.assign(payload, {\n      category: originalRow.category,\n      schedule_type: originalRow.schedule_type,\n      sub_type: originalRow.sub_type,\n      sub_type_note: originalRow.sub_type_note,\n      title: originalRow.title,\n      start_date: originalRow.start_date,\n      end_date: originalRow.end_date,\n      time_type: originalRow.time_type,\n      start_time: originalRow.start_time,\n      end_time: originalRow.end_time,\n      customer_name: originalRow.customer_name,\n      location_name: originalRow.location_name,\n      address: originalRow.address,\n      car_no: originalRow.car_no,\n      need_service_record: originalRow.need_service_record,\n      service_record_submitted: originalRow.service_record_submitted,\n      service_record_submitted_date: originalRow.service_record_submitted_date\n    })\n  }`
+    )
+
+    next = next.replace(
+      `  if (isService) {\n    await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)\n    await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)\n\n    try {`,
+      `  if (isService) {\n    await ensureServiceRecordsForScheduleRow({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, editExecutorIds)\n    if (!isConsultantServiceEditOnlySchedule(originalRow)) {\n      await syncMedicalFollowupSchedule({ ...originalRow, ...editedSchedulePayload, schedule_id: editedScheduleId }, form, editExecutorIds)\n\n      try {`
+    )
+
+    next = next.replace(
+      `    } catch (serviceAdminError) {\n      console.error(serviceAdminError)\n      alert('行程已修改，但通知行政待辦同步失敗：' + (serviceAdminError?.message || serviceAdminError))\n    }\n  }\n\n  await supabase.from('audit_logs').insert({`,
+      `      } catch (serviceAdminError) {\n        console.error(serviceAdminError)\n        alert('行程已修改，但通知行政待辦同步失敗：' + (serviceAdminError?.message || serviceAdminError))\n      }\n    }\n  }\n\n  await supabase.from('audit_logs').insert({`
+    )
+
+    return { code: next, map: null }
+  }
+}
+
 export default defineConfig({
-  plugins: [forEPhase4CompatibilityPatch, forEReportRangePatch],
+  plugins: [forEPhase4CompatibilityPatch, forEReportRangePatch, forEConsultantServiceEditPatch],
   server: {
     host: '0.0.0.0',
     port: 5173
