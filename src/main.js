@@ -261,9 +261,9 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
 /* FOR-e V002-1H-stable-1-3dp START - public duty display supplement */
 /*
-  V002-1H-stable-1-3dp｜第三階段後補充修正：公差外出顯示
-  - 修正「請假 / 會議 / 活動 / 外訓」新增「公差外出」後，選項或行程未完整顯示的問題。
-  - 將公差外出納入一般職員可新增細項、選項管理、卡片類型、顏色、連續行程提示與自動結案判斷。
+  V002-1H-stable-1-3dp｜第三階段後補充修正：公出顯示
+  - 修正「請假 / 會議 / 活動 / 外訓」新增「公出」後，選項或行程未完整顯示的問題。
+  - 將公出納入一般職員可新增細項、選項管理、卡片類型、顏色、連續行程提示與自動結案判斷。
   - 新增共用類型辨識函式，讓此大分類後續新增的自訂細項可依大分類正常顯示，不再只依固定四種文字判斷。
   - 本版是第三階段完成後的補充修正，不列為正式第四階段。
 */
@@ -449,11 +449,11 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
 /* FOR-e V002-1H-stable-1-3eh START - original translator tracking and simplified staff selection */
 /*
-  V002-1H-stable-1-3eh｜第四階段補充：通知原翻譯、人員選擇簡化、全部翻譯當周行程
+  V002-1H-stable-1-3eh｜第四階段補充：通知原翻譯、人員選擇簡化、全部翻譯當週行程
   - 服務行程「通知主管」下方新增「通知原翻譯（可複選）」，通知對象可看到原服務行程但不列為執行者。
   - 原翻譯查看自己的行事曆時，卡片顯示「提醒追蹤－行程標題（執行者）」；管理者在原翻譯欄位查看時也套用相同顯示。
   - 選擇人員清單統一只顯示「姓名｜部門」，不再顯示職稱。
-  - 行程總覽新增「全部翻譯當周行程」按鈕，直接顯示翻譯池（翻譯、雙語人員、雙語舍監、宿管、PT）的本週行程。
+  - 行程總覽新增「全部翻譯當週行程」按鈕，直接顯示翻譯池（雙語人員、雙語舍監、宿管、PT）的本週行程。
   - 新增／修改行程的「選擇人員」不提供「全部翻譯」快速勾選；通知原翻譯改為直接顯示指定翻譯池名單，不提供快速全選或清除按鈕。
   - 不新增資料表、不改 schedule_assignees 結構；通知原翻譯以既有服務行程備註與讀取顯示邏輯完成。
 */
@@ -462,8 +462,10 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3eh'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eh'
+const APP_VERSION = 'V002-1H-stable-1-3eu'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eu'
+const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
+const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
@@ -478,6 +480,7 @@ const OVERVIEW_QUICK_GROUP_SYNC_LOGIC_VERSION = '1-3ea'
 const FIELD_FOLLOWUP_DEDUPE_LOGIC_VERSION = '1-3eb'
 const OVERVIEW_LIVE_FILTER_LOGIC_VERSION = '1-3eb'
 const STATS_TRANSLATOR_ONLY_LOGIC_VERSION = '1-3ec'
+const DATE_RANGE_REPORT_FILTER_LOGIC_VERSION = '1-3eq'
 const RETURN_HOME_STATUS_LOGIC_VERSION = '1-3ed'
 const LOGIN_DAILY_ONCE_LOGIC_VERSION = '1-3ee'
 const PERSONAL_PAGE_MERGE_LOGIC_VERSION = '1-3ee'
@@ -485,6 +488,8 @@ const PERSONAL_WEEK_SHORTCUT_LOGIC_VERSION = '1-3ee'
 const PAGE_LOAD_PERFORMANCE_LOGIC_VERSION = '1-3ee'
 const CALENDAR_INTERACTION_PERFORMANCE_LOGIC_VERSION = '1-3ef'
 const MOBILE_BOTTOM_NAV_VIEWPORT_LOGIC_VERSION = '1-3eg'
+const MOBILE_MONTH_OVERVIEW_LAYOUT_LOGIC_VERSION = '1-3ei'
+const TRANSLATOR_WEEK_ROLE_FILTER_LOGIC_VERSION = '1-3ej'
 const SERVICE_ORIGINAL_TRANSLATOR_NOTIFY_LOGIC_VERSION = '1-3eh'
 const STAFF_SELECTION_DISPLAY_LOGIC_VERSION = '1-3eh'
 const TRANSLATOR_WEEK_SHORTCUT_LOGIC_VERSION = '1-3eh'
@@ -1297,12 +1302,12 @@ function renderAdministrativeAnnouncementPage() {
 const formCategories = ['服務行程', '一般記事', '辦件提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '公務車保養']
 const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '公務車保養']
 const generalStaffOverviewSimpleCategories = ['一般記事']
-const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓', '公差外出']
+const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓', '公出']
 const generalStaffPersonnelAffairsDisplayName = '請假/會議/活動/外訓'
 const generalStaffUnifiedFormPages = ['personalSchedule', 'scheduleOverview']
 
 const CORE_SCHEDULE_TYPE_LOGIC_VERSION = '1-3dp'
-const publicDutyLeaveMeetingType = '公差外出'
+const publicDutyLeaveMeetingType = '公出'
 
 function normalizeCoreScheduleTypeText(value = '') {
   return String(value || '').trim().replace(/\s+/g, '').replace(/[／/]/g, '/')
@@ -1738,7 +1743,7 @@ const scheduleContentTemplates = [
 ]
 const todoItems = ['送件', '補件', '登記', '回覆', '追蹤', '繳費', '產文件', '用印申請']
 const administrativeReminderItems = ['--', '求才', '送審', '逃跑', '轉出', '住變', '居留證', '追蹤', '刻正', '補件']
-const leaveMeetingTypes = ['請假', '返鄉', '會議', '活動', '外訓', '公差外出', '部門活動', '公司活動', 'TalkTalk']
+const leaveMeetingTypes = ['請假', '返鄉', '會議', '活動', '外訓', '公出', '部門活動', '公司活動', 'TalkTalk']
 const meetingRoomOptions = ['第一會議室', '第二會議室', '大會議室', '小會議室']
 const carOptions = [
   '不使用',
@@ -1769,7 +1774,7 @@ const serviceRecordStatusOptions = ['未繳交', '已繳交', '超過14天未繳
 const housingInfoReminderOptions = ['住變資訊提供']
 const scheduleCategoryOptionDefaults = ['服務行程', '一般行程', '公務車保養', '待辦事項', '一般記事', '辦件提醒', '請假 / 會議 / 活動 / 外訓', '證件交付', '外務行程', '外務明細', '會議室預約', '異況追蹤']
 const scheduleStatusOptionDefaults = ['未完成', '已完成', '已取消', '取消', '延期處理', '已結案', '已結束案件', '行事曆顯示']
-const scheduleSubtypeOptionDefaults = ['--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療', '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '請假', '返鄉', '會議', '活動', '外訓', '公差外出', '公司活動', '部門活動', '延期處理', '其他']
+const scheduleSubtypeOptionDefaults = ['--', '面談', '上線/教育訓練', '定期/開會', '駐廠', '送工', '銀行', '醫療', '車禍處理', '結薪', '收/簽收文件', '宿舍', '求才拍照', '請假', '返鄉', '會議', '活動', '外訓', '公出', '公司活動', '部門活動', '延期處理', '其他']
 const notifyTargetOptionDefaults = ['通知行政', '通知主管', '通知相關人員', '翻譯', '主管', '行政', '外務人員', '建立者', '執行者']
 const reminderDisplayOptionDefaults = ['提醒事項', '返台提醒', '返台確認', '轉出到期前提醒', '轉出到期最後一天', '逃跑第一天通知', '逃跑第二天通知', '逃跑第三天通知', '驗證提醒', '離境通知', '結薪日提醒', '住變資訊提供', '服務紀錄單未繳交', '超過14天未繳交', '延期處理']
 const vehicleRelatedOptionDefaults = ['公務車保養', '代步車', '保養期間代步車', '通知相關人員']
@@ -2350,22 +2355,21 @@ let serviceRecords = []
 let serviceRecordsLoading = false
 let serviceRecordsError = ''
 let statsFilters = {
-  period: '當月',
-  startDate: '',
-  endDate: '',
+  yearValue: todayString().slice(0, 4),
+  monthNumber: todayString().slice(5, 7),
   department: '全部',
   staffId: '全部',
   category: '全部'
 }
 
 let serviceRecordFilters = {
+  yearValue: todayString().slice(0, 4),
+  monthNumber: todayString().slice(5, 7),
   status: '全部',
   staffId: '全部',
   department: '全部',
   scheduleType: '全部',
-  keyword: '',
-  startDate: '',
-  endDate: ''
+  keyword: ''
 }
 
 let userAccountFilters = {
@@ -4026,7 +4030,7 @@ function isNoCompletionControlSchedule(row) {
     '返鄉',
     '會議',
     '外訓',
-    '公差外出',
+    '公出',
     '活動',
     '駐廠',
     '部門活動',
@@ -4392,7 +4396,7 @@ function getContinuationInitial(row = {}) {
     '會議': '會',
     '活動': '活',
     '外訓': '訓',
-    '公差外出': '差',
+    '公出': '差',
     '證件交付': '證',
     '外務行程': '外',
     '異況追蹤': '異',
@@ -4804,7 +4808,7 @@ async function saveBirthdayWish(staffId = '', dateKey = todayString(), message =
 }
 
 function isPublicLeaveMeetingActivitySchedule(row = {}) {
-  // 1-3dp：此大分類本身就是公開行事曆類型；不得再用固定文字清單排除公差外出或日後自訂細項。
+  // 1-3dp：此大分類本身就是公開行事曆類型；不得再用固定文字清單排除公出或日後自訂細項。
   return isCoreLeaveMeetingSchedule(row)
 }
 
@@ -5546,7 +5550,7 @@ let backgroundDataLoadTimer = null
 let commonSchedulePrefetchTimer = null
 
 function shouldRenderAfterBackgroundDataLoadForPage(pageKey = currentPage) {
-  return ['users', 'audit', 'serviceRecord', 'recordSubmit', 'health'].includes(pageKey)
+  return ['users', 'audit', 'health'].includes(pageKey)
 }
 
 function shouldRenderAfterBackgroundDataLoad() {
@@ -5697,22 +5701,24 @@ function getSearchScheduleLoadOptions() {
 }
 
 function getStatsScheduleLoadOptions() {
-  const today = todayString()
-  if (statsFilters.period === '當月') {
-    const month = today.slice(0, 7)
-    const dates = getDatesByMonthValue(month)
-    return getRangeOptionsFromDates(dates, 'stats-month')
-  }
-  if (statsFilters.period === '當年') {
-    const year = today.slice(0, 4)
-    return { scope: 'stats-year', dateStart: `${year}-01-01`, dateEnd: `${year}-12-31` }
-  }
-  if (statsFilters.startDate || statsFilters.endDate) {
-    const dateStart = statsFilters.startDate || getDateKeyWithOffset(statsFilters.endDate || today, -365)
-    const dateEnd = statsFilters.endDate || getDateKeyWithOffset(statsFilters.startDate || today, 365)
-    return { scope: 'stats-custom', dateStart, dateEnd }
-  }
-  return getPersonalPageScheduleLoadOptions('stats')
+  const range = getStatsDateRange()
+  return { scope: `stats-${range.ym}`, dateStart: range.start, dateEnd: range.end }
+}
+
+function getSelectedYearMonthRange(yearValue = todayString().slice(0, 4), monthNumber = todayString().slice(5, 7)) {
+  const year = /^\d{4}$/.test(String(yearValue || '')) ? String(yearValue) : todayString().slice(0, 4)
+  const month = /^(0[1-9]|1[0-2])$/.test(String(monthNumber || '')) ? String(monthNumber) : todayString().slice(5, 7)
+  const ym = `${year}-${month}`
+  return { start: `${ym}-01`, end: getMonthLastDay(`${ym}-01`), label: `${year}年${Number(month)}月`, year, month, ym }
+}
+
+function getServiceRecordDateRange() {
+  return getSelectedYearMonthRange(serviceRecordFilters.yearValue, serviceRecordFilters.monthNumber)
+}
+
+function getServiceRecordScheduleLoadOptions() {
+  const range = getServiceRecordDateRange()
+  return { scope: `service-record-${range.ym}`, dateStart: range.start, dateEnd: range.end }
 }
 
 function getScheduleLoadOptionsForPage(pageKey = currentPage) {
@@ -5722,6 +5728,7 @@ function getScheduleLoadOptionsForPage(pageKey = currentPage) {
   if (pageKey === 'personalSchedule' || pageKey === 'assignedTracking') return getPersonalPageScheduleLoadOptions(pageKey)
   if (pageKey === 'search') return getSearchScheduleLoadOptions()
   if (pageKey === 'stats') return getStatsScheduleLoadOptions()
+  if (pageKey === 'serviceRecord' || pageKey === 'recordSubmit') return getServiceRecordScheduleLoadOptions()
   return null
 }
 
@@ -5812,6 +5819,7 @@ async function ensurePageDataLoaded(pageKey = currentPage, token = pageDataLoadi
   try {
     const tasks = []
     if (shouldLoadSchedulesForOptions(scheduleOptions)) tasks.push(loadSchedules(scheduleOptions))
+    if (pageKey === 'serviceRecord' || pageKey === 'recordSubmit') tasks.push(loadServiceRecords())
     if (shouldRenderAfterBackgroundDataLoadForPage(pageKey) && !backgroundDataLoaded) tasks.push(ensureBackgroundDataLoaded())
     if (tasks.length) await Promise.allSettled(tasks)
   } finally {
@@ -7131,11 +7139,20 @@ async function loadServiceRecords() {
   serviceRecordsLoading = true
   serviceRecordsError = ''
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('service_records')
     .select('*')
     .order('schedule_date', { ascending: false })
-    .limit(2000)
+
+  if (currentPage === 'serviceRecord' || currentPage === 'recordSubmit') {
+    const range = getServiceRecordDateRange()
+    if (range.start) query = query.gte('schedule_date', range.start)
+    if (range.end) query = query.lte('schedule_date', range.end)
+  } else {
+    query = query.limit(2000)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error(error)
@@ -7362,33 +7379,34 @@ function renderApp() {
   if (resetServiceRecordFilterBtn) {
     resetServiceRecordFilterBtn.addEventListener('click', () => {
       serviceRecordFilters = {
+        yearValue: todayString().slice(0, 4),
+        monthNumber: todayString().slice(5, 7),
         status: '全部',
         staffId: '全部',
         department: '全部',
         scheduleType: '全部',
-        keyword: '',
-        startDate: '',
-        endDate: ''
+        keyword: ''
       }
-      renderApp()
+      loadServiceRecords().then(() => renderAppAndEnsurePageData(currentPage))
     })
   }
 
   const serviceRecordFilterForm = document.querySelector('#serviceRecordFilterForm')
   if (serviceRecordFilterForm) {
-    serviceRecordFilterForm.addEventListener('submit', event => {
+    serviceRecordFilterForm.addEventListener('submit', async event => {
       event.preventDefault()
       const form = new FormData(event.target)
       serviceRecordFilters = {
+        yearValue: form.get('yearValue') || todayString().slice(0, 4),
+        monthNumber: form.get('monthNumber') || todayString().slice(5, 7),
         status: form.get('status') || '全部',
         staffId: form.get('staffId') || '全部',
         department: form.get('department') || '全部',
         scheduleType: form.get('scheduleType') || '全部',
-        keyword: form.get('keyword') || '',
-        startDate: form.get('startDate') || '',
-        endDate: form.get('endDate') || ''
+        keyword: form.get('keyword') || ''
       }
-      renderApp()
+      await loadServiceRecords()
+      await renderAppAndEnsurePageData(currentPage)
     })
   }
 
@@ -7751,14 +7769,13 @@ function renderApp() {
       event.preventDefault()
       const form = new FormData(event.target)
       statsFilters = {
-        period: form.get('period') || '當月',
-        startDate: form.get('startDate') || '',
-        endDate: form.get('endDate') || '',
+        yearValue: form.get('yearValue') || todayString().slice(0, 4),
+        monthNumber: form.get('monthNumber') || todayString().slice(5, 7),
         department: form.get('department') || '全部',
         staffId: form.get('staffId') || '全部',
         category: form.get('category') || '全部'
       }
-      renderApp()
+      renderAppAndEnsurePageData('stats')
     })
   }
 
@@ -7766,14 +7783,42 @@ function renderApp() {
   if (resetStatsFilterBtn) {
     resetStatsFilterBtn.addEventListener('click', () => {
       statsFilters = {
-        period: '當月',
-        startDate: '',
-        endDate: '',
+        yearValue: todayString().slice(0, 4),
+        monthNumber: todayString().slice(5, 7),
         department: '全部',
         staffId: '全部',
         category: '全部'
       }
-      renderApp()
+      renderAppAndEnsurePageData('stats')
+    })
+  }
+
+
+  document.querySelectorAll('#statsFilterForm select[name="yearValue"], #statsFilterForm select[name="monthNumber"]').forEach(input => {
+    input.addEventListener('change', () => document.querySelector('#statsFilterForm')?.requestSubmit())
+  })
+  document.querySelectorAll('#serviceRecordFilterForm select[name="yearValue"], #serviceRecordFilterForm select[name="monthNumber"]').forEach(input => {
+    input.addEventListener('change', () => document.querySelector('#serviceRecordFilterForm')?.requestSubmit())
+  })
+
+  const downloadStatsMonthDetailBtn = document.querySelector('#downloadStatsMonthDetailBtn')
+  if (downloadStatsMonthDetailBtn) {
+    downloadStatsMonthDetailBtn.addEventListener('click', () => {
+      const rows = uniqueStatsRowsByCase(getStatsFilteredSchedules())
+      if (!rows.length) return alert('選擇月份目前沒有可下載的統計明細。')
+      const range = getStatsDateRange()
+      downloadCsv(`FOR-e_統計報表明細_${range.ym}.csv`, getScheduleCsvColumns(), rows)
+    })
+  }
+
+  const downloadServiceRecordMonthDetailBtn = document.querySelector('#downloadServiceRecordMonthDetailBtn')
+  if (downloadServiceRecordMonthDetailBtn) {
+    downloadServiceRecordMonthDetailBtn.addEventListener('click', () => {
+      const onlyMine = currentPage === 'recordSubmit'
+      const rows = getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, onlyMine))
+      if (!rows.length) return alert('選擇月份目前沒有可下載的服務紀錄單明細。')
+      const range = getServiceRecordDateRange()
+      downloadCsv(`FOR-e_服務紀錄單明細_${range.ym}.csv`, getServiceRecordCsvColumns(), rows)
     })
   }
 
@@ -9422,6 +9467,22 @@ function getFieldStaffRows() {
   return sortStaffRowsByFilter(rows, fieldScheduleFilters)
 }
 
+const FIELD_PUBLIC_DUTY_DISPLAY_LOGIC_VERSION = '1-3eo'
+
+function isFieldPublicDutySchedule(row = {}) {
+  if (!row) return false
+  if (String(row.category || '').trim() !== '請假 / 會議 / 活動 / 外訓') return false
+  const typeText = [row.sub_type, row.schedule_type, row.title]
+    .filter(Boolean)
+    .join('｜')
+  if (!typeText.includes(publicDutyLeaveMeetingType)) return false
+
+  return getActiveAssigneeIds(row).some(staffId => {
+    const staff = staffList.find(item => String(item?.staff_id || '') === String(staffId || ''))
+    return staff ? isStaffFieldWorker(staff) : false
+  })
+}
+
 function isFieldScheduleRow(row) {
   if (!row) return false
 
@@ -9435,6 +9496,12 @@ function isFieldScheduleRow(row) {
     row.schedule_type === '外務行程' ||
     row.schedule_type === '外務'
   )
+}
+
+// 1-3eo：外務行程「類型」與外務行程表「顯示資格」分離。
+// 公出只取得外務行程表顯示資格，不會因此吃到外務顏色、badge、完成按鈕或修改規則。
+function isFieldCalendarVisibleSchedule(row = {}) {
+  return isFieldScheduleRow(row) || isFieldPublicDutySchedule(row)
 }
 
 
@@ -9451,18 +9518,18 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
   if (cachedRows) {
     return sortScheduleRowsForDisplay(dedupeAutoGeneratedFieldFollowupRows(cachedRows.filter(row => {
       if (!isVisibleSchedule(row)) return false
-      if (!isFieldScheduleRow(row)) return false
+      if (!isFieldCalendarVisibleSchedule(row)) return false
       if (isFieldDayReminderSchedule(row)) return false
-      if (isLeaveOrReturnSchedule(row)) return false
+      if (isLeaveOrReturnSchedule(row) && !isFieldPublicDutySchedule(row)) return false
       return true
     }), { dateKey }), { dateFirst: false })
   }
 
   return sortScheduleRowsForDisplay(dedupeAutoGeneratedFieldFollowupRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
-    if (!isFieldScheduleRow(row)) return false
+    if (!isFieldCalendarVisibleSchedule(row)) return false
     if (isFieldDayReminderSchedule(row)) return false
-    if (isLeaveOrReturnSchedule(row)) return false
+    if (isLeaveOrReturnSchedule(row) && !isFieldPublicDutySchedule(row)) return false
     if (!scheduleMatchesDateByMode(row, dateKey)) return false
     return scheduleBelongsToStaff(row, staffId)
   }), { dateKey }), { dateFirst: false })
@@ -9470,6 +9537,10 @@ function getFieldSchedulesForStaffDate(staffId, dateKey) {
 
 function renderFieldScheduleCard(row) {
   if (typeof isFieldDayReminderSchedule === 'function' && isFieldDayReminderSchedule(row)) return ''
+  // 1-3en：外務人員的公出只借用外務行程表顯示資格，卡片維持一般公出樣式。
+  if (typeof isFieldPublicDutySchedule === 'function' && isFieldPublicDutySchedule(row)) {
+    return renderWeekScheduleCard(row, row.__occurrence_date || row.__render_date || row.start_date || '')
+  }
   const displayConfig = getScheduleCardDisplayConfig(row, 'field-calendar')
   return `
     <button type="button" class="field-week-schedule-card simple-field-schedule-card ${['已完成', '已結案'].includes(getScheduleStatusLabel(row)) ? 'is-completed' : ''} ${getAlertItemClass(row)}" style="${getScheduleColorInlineStyle(row)}" data-view-schedule="${row.schedule_id}">
@@ -9588,7 +9659,7 @@ function getFieldDetailStatusOptionsHtml() {
 function getFieldDetailRows() {
   return uniqueScheduleRows(schedules
     .filter(row => isVisibleSchedule(row))
-    .filter(row => isFieldScheduleRow(row))
+    .filter(row => isFieldCalendarVisibleSchedule(row))
     .filter(row => !isFieldDayReminderSchedule(row))
     .filter(row => {
       if (fieldDetailFilters.status !== '全部' && row.status !== fieldDetailFilters.status) return false
@@ -12788,28 +12859,7 @@ function getMonthLastDay(dateText = todayString()) {
 }
 
 function getStatsDateRange() {
-  const today = todayString()
-  if (statsFilters.period === '當月') {
-    return {
-      start: getMonthFirstDay(today),
-      end: getMonthLastDay(today),
-      label: `${today.slice(0, 7)} 當月`
-    }
-  }
-
-  if (statsFilters.period === '當年') {
-    return {
-      start: `${today.slice(0, 4)}-01-01`,
-      end: `${today.slice(0, 4)}-12-31`,
-      label: `${today.slice(0, 4)} 當年`
-    }
-  }
-
-  return {
-    start: statsFilters.startDate || '',
-    end: statsFilters.endDate || '',
-    label: `${statsFilters.startDate || '不限起日'} ～ ${statsFilters.endDate || '不限迄日'}`
-  }
+  return getSelectedYearMonthRange(statsFilters.yearValue, statsFilters.monthNumber)
 }
 
 const STATS_EXCLUDED_SCHEDULE_TYPE_NAMES = Object.freeze([
@@ -13341,47 +13391,35 @@ function getStatsTypeByDepartmentGroups(rows) {
   }))
 }
 
-function renderStatsFilterForm() {
-  const periodOptions = ['當月', '當年', '自訂']
-    .map(item => `<option value="${item}" ${statsFilters.period === item ? 'selected' : ''}>${item}</option>`)
+function getReportYearOptions(selectedYear = todayString().slice(0, 4)) {
+  const currentYear = Number(todayString().slice(0, 4))
+  const years = []
+  for (let year = currentYear + 1; year >= currentYear - 8; year -= 1) years.push(String(year))
+  if (selectedYear && !years.includes(String(selectedYear))) years.push(String(selectedYear))
+  return [...new Set(years)].sort((a, b) => Number(b) - Number(a))
+    .map(year => `<option value="${year}" ${String(selectedYear) === year ? 'selected' : ''}>${year}年</option>`)
     .join('')
+}
 
+
+function getReportMonthOptions(selectedMonth = todayString().slice(5, 7)) {
+  return Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
+    .map(month => `<option value="${month}" ${String(selectedMonth) === month ? 'selected' : ''}>${Number(month)}月</option>`)
+    .join('')
+}
+
+function renderStatsFilterForm() {
   const departmentOptions = buildServiceRecordOptionList(getStatsDepartmentOptions(), statsFilters.department)
   const categoryOptions = buildServiceRecordOptionList(getStatsCategoryOptions(), statsFilters.category)
-
   return `
     <form id="statsFilterForm" class="stats-filter-panel clean-stats-filter">
-      <label>
-        期間
-        <select name="period">${periodOptions}</select>
-      </label>
-
-      <label>
-        起日
-        <input name="startDate" type="date" value="${statsFilters.startDate}">
-      </label>
-
-      <label>
-        迄日
-        <input name="endDate" type="date" value="${statsFilters.endDate}">
-      </label>
-
-      <label>
-        部門
-        <select name="department">${departmentOptions}</select>
-      </label>
-
-      <label>
-        翻譯人員
-        <select name="staffId">${getStatsStaffOptionsHtml()}</select>
-      </label>
-
-      <label>
-        行程類型
-        <select name="category">${categoryOptions}</select>
-      </label>
-
+      <label>年份<select name="yearValue">${getReportYearOptions(statsFilters.yearValue)}</select></label>
+      <label>月份<select name="monthNumber">${getReportMonthOptions(statsFilters.monthNumber)}</select></label>
+      <label>部門<select name="department">${departmentOptions}</select></label>
+      <label>翻譯人員<select name="staffId">${getStatsStaffOptionsHtml()}</select></label>
+      <label>行程類型<select name="category">${categoryOptions}</select></label>
       <button type="submit" class="primary-btn">套用統計</button>
+      <button type="button" class="secondary-btn" id="downloadStatsMonthDetailBtn">下載選擇月份明細</button>
     </form>
   `
 }
@@ -13658,7 +13696,7 @@ function renderStatsDashboard() {
     <div class="page-toolbar">
       <div>
         <h3>統計報表</h3>
-        <p class="muted">期間：${escapeHtml(range.label)}｜行程統計排除指定提醒類型；人員統計只列所有啟用翻譯。</p>
+        <p class="muted">月份：${escapeHtml(range.label)}｜行程統計排除指定提醒類型；人員統計只列所有啟用翻譯。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetStatsFilterBtn">清除條件</button>
@@ -14284,7 +14322,7 @@ function getScheduleColorDefinitions() {
     { group: '一般行程類', key: '會議', label: '會議', defaultColor: '#5E7AC4' },
     { group: '一般行程類', key: '活動', label: '活動', defaultColor: '#FF937E' },
     { group: '一般行程類', key: '外訓', label: '外訓', defaultColor: '#87B6BC' },
-    { group: '一般行程類', key: '公差外出', label: '公差外出', defaultColor: '#9FC5C0' },
+    { group: '一般行程類', key: '公出', label: '公出', defaultColor: '#9FC5C0' },
     { group: '一般行程類', key: '返鄉', label: '返鄉', defaultColor: '#9B8EC7' },
     { group: '一般行程類', key: '公司活動', label: '公司活動', defaultColor: '#FFB3A7' },
     { group: '一般行程類', key: '部門活動', label: '部門活動', defaultColor: '#FFA8C5' },
@@ -14517,6 +14555,8 @@ function getScheduleColorKey(row) {
   if (['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(categoryText) || ['待辦事項', '待辦/記事', '待辦事項/個人記事'].includes(scheduleTypeText)) {
     return '待辦/記事'
   }
+  // 1-3en：公出保留原本公出顏色，不因出現在外務頁而變成外務橘色。
+  if (typeof isFieldPublicDutySchedule === 'function' && isFieldPublicDutySchedule(colorRow)) return publicDutyLeaveMeetingType
   if (typeof isFieldScheduleRow === 'function' && isFieldScheduleRow(colorRow)) return '外務行程'
   if (typeof isIncidentSchedule === 'function' && isIncidentSchedule(colorRow)) return '異況追蹤'
 
@@ -15058,10 +15098,10 @@ function getLineNotifyRows() {
     rows = expandRowsByLineDateFilter(baseRows)
       .filter(isLineNotifyUpcomingOpen)
   } else if (type === '外務行程') {
-    rows = expandRowsByLineDateFilter(baseRows.filter(row => isFieldScheduleRow(row)))
+    rows = expandRowsByLineDateFilter(baseRows.filter(row => isFieldCalendarVisibleSchedule(row)))
   } else if (type === '今日外務') {
     rows = baseRows
-      .filter(row => isFieldScheduleRow(row))
+      .filter(row => isFieldCalendarVisibleSchedule(row))
       .filter(row => scheduleMatchesDateByMode(row, today))
       .map(row => cloneLineNotifyRow(row, today, 'field-today'))
   } else if (type === '今日會議室') {
@@ -20093,7 +20133,7 @@ function getFieldContinuousSchedulesForStaff(staffId, dates = []) {
   if (cachedRows) {
     return uniqueContinuousRows(cachedRows.filter(row => {
       if (!isVisibleSchedule(row)) return false
-      if (!isFieldScheduleRow(row)) return false
+      if (!isFieldCalendarVisibleSchedule(row)) return false
       if (!isContinuousDateSchedule(row)) return false
       return true
     }))
@@ -20106,7 +20146,7 @@ function getFieldContinuousSchedulesForStaff(staffId, dates = []) {
 
   return uniqueContinuousRows(schedules.filter(row => {
     if (!isVisibleSchedule(row)) return false
-    if (!isFieldScheduleRow(row)) return false
+    if (!isFieldCalendarVisibleSchedule(row)) return false
     if (!isContinuousDateSchedule(row)) return false
     if (row.start_date > lastKey || row.end_date < firstKey) return false
 
@@ -23456,9 +23496,9 @@ function renderScheduleOverview() {
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
-      <div class="toolbar-actions overview-toolbar-actions ${isPersonalWeekMode ? 'overview-toolbar-personal-week' : ''}">
+      <div class="toolbar-actions overview-toolbar-actions">
         <button class="${isPersonalWeekMode ? 'primary-btn' : 'secondary-btn'} personal-week-shortcut-btn" id="personalWeekBtn">個人當週行程</button>
-        <button class="${isAllTranslatorWeekMode ? 'primary-btn' : 'secondary-btn'} translator-week-shortcut-btn" id="allTranslatorWeekBtn">全部翻譯當周行程</button>
+        <button class="${isAllTranslatorWeekMode ? 'primary-btn' : 'secondary-btn'} translator-week-shortcut-btn" id="allTranslatorWeekBtn">全部翻譯當週行程</button>
         ${renderToolbarMonthInput('overviewMonthToolbarInput', getOverviewActiveMonth())}
         ${showWeekNav ? `
           <button class="secondary-btn" id="prevWeekBtn">${isMonthMode ? '上一月' : '上一週'}</button>
@@ -24279,8 +24319,9 @@ function matchesServiceRecordFilters(record, onlyMine = false) {
     if (!haystack.includes(keyword)) return false
   }
 
-  if (serviceRecordFilters.startDate && record.schedule_date < serviceRecordFilters.startDate) return false
-  if (serviceRecordFilters.endDate && record.schedule_date > serviceRecordFilters.endDate) return false
+  const range = getServiceRecordDateRange()
+  if (range.start && record.schedule_date < range.start) return false
+  if (range.end && record.schedule_date > range.end) return false
 
   return true
 }
@@ -24289,58 +24330,21 @@ function renderServiceRecordFilterForm(onlyMine = false) {
   const statusOptions = ['全部', '未繳交', '超過2週', '已繳交']
     .map(item => `<option value="${item}" ${serviceRecordFilters.status === item ? 'selected' : ''}>${item}</option>`)
     .join('')
-
   const departmentOptions = buildServiceRecordOptionList(getServiceRecordDepartmentOptions(), serviceRecordFilters.department || '全部')
   const typeOptions = buildServiceRecordOptionList(getServiceRecordTypeOptions(), serviceRecordFilters.scheduleType || '全部')
-
-  const staffOptions = onlyMine
-    ? ''
-    : `<label>
-        翻譯 / 人員
-        <select name="staffId">
-          <option value="全部" ${serviceRecordFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>
-          ${staffList.map(staff => `<option value="${staff.staff_id}" ${serviceRecordFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>`).join('')}
-        </select>
-      </label>`
-
-  const departmentField = onlyMine
-    ? ''
-    : `<label>
-        部門
-        <select name="department">${departmentOptions}</select>
-      </label>`
-
+  const staffOptions = onlyMine ? '' : `<label>翻譯 / 人員<select name="staffId"><option value="全部" ${serviceRecordFilters.staffId === '全部' ? 'selected' : ''}>全部人員</option>${staffList.map(staff => `<option value="${staff.staff_id}" ${serviceRecordFilters.staffId === staff.staff_id ? 'selected' : ''}>${escapeHtml(staff.name || '-')}</option>`).join('')}</select></label>`
+  const departmentField = onlyMine ? '' : `<label>部門<select name="department">${departmentOptions}</select></label>`
   return `
     <form id="serviceRecordFilterForm" class="service-record-filter service-record-filter-upgraded">
-      <label>
-        狀態
-        <select name="status">${statusOptions}</select>
-      </label>
-
+      <label>年份<select name="yearValue">${getReportYearOptions(serviceRecordFilters.yearValue)}</select></label>
+      <label>月份<select name="monthNumber">${getReportMonthOptions(serviceRecordFilters.monthNumber)}</select></label>
+      <label>狀態<select name="status">${statusOptions}</select></label>
       ${staffOptions}
       ${departmentField}
-
-      <label>
-        行程類型
-        <select name="scheduleType">${typeOptions}</select>
-      </label>
-
-      <label>
-        起日
-        <input name="startDate" type="date" value="${serviceRecordFilters.startDate}">
-      </label>
-
-      <label>
-        迄日
-        <input name="endDate" type="date" value="${serviceRecordFilters.endDate}">
-      </label>
-
-      <label class="service-record-keyword-filter">
-        關鍵字
-        <input name="keyword" value="${escapeHtml(serviceRecordFilters.keyword || '')}" placeholder="搜尋客戶、行程、內容、人員">
-      </label>
-
+      <label>行程類型<select name="scheduleType">${typeOptions}</select></label>
+      <label class="service-record-keyword-filter">關鍵字<input name="keyword" value="${escapeHtml(serviceRecordFilters.keyword || '')}" placeholder="搜尋客戶、行程、內容、人員"></label>
       <button type="submit" class="primary-btn">篩選</button>
+      <button type="button" class="secondary-btn" id="downloadServiceRecordMonthDetailBtn">下載選擇月份明細</button>
     </form>
   `
 }
@@ -24367,8 +24371,8 @@ function renderServiceRecordSummary(records) {
         <span>已繳交</span>
       </div>
       <div class="summary-card">
-        <strong>${monthlyRows.length}</strong>
-        <span>本月紀錄</span>
+        <strong>${records.length}</strong>
+        <span>查詢範圍</span>
       </div>
     </div>
   `
@@ -24502,6 +24506,21 @@ function renderServiceRecordDepartmentSplitStatusV3(records) {
 }
 
 
+
+function renderServiceRecordUnifiedStatus(records) {
+  const range = getServiceRecordDateRange()
+  const personRows = summarizeServiceRecordRows(
+    records,
+    record => record.staff_id || record.staff_name || '未指定',
+    record => record.staff_name || '-'
+  )
+  const departmentRows = summarizeServiceRecordDepartmentGroupRows(records)
+  return `
+    ${renderServiceRecordSimplePeriodTable('全部繳交狀況－人員', range.label, personRows, '人員')}
+    ${renderServiceRecordSimplePeriodTable('全部繳交狀況－部門', range.label, departmentRows, '部門')}
+  `
+}
+
 function renderServiceRecordDashboard() {
   const records = getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, false))
 
@@ -24509,7 +24528,7 @@ function renderServiceRecordDashboard() {
     <div class="page-toolbar">
       <div>
         <h3>服務紀錄單</h3>
-        <p class="muted">管理員 / 主管查看全部服務紀錄單繳交狀況。</p>
+        <p class="muted">管理員 / 主管依年份與月份查看服務紀錄單繳交狀況。</p>
       </div>
       <div class="toolbar-actions">
         <button class="secondary-btn" id="resetServiceRecordFilterBtn">清除條件</button>
@@ -24522,8 +24541,7 @@ function renderServiceRecordDashboard() {
 
     ${renderServiceRecordFilterForm(false)}
     ${renderServiceRecordSummary(records)}
-    ${renderServiceRecordPersonSplitStatusV3(records)}
-    ${renderServiceRecordDepartmentSplitStatusV3(records)}
+    ${renderServiceRecordUnifiedStatus(records)}
     ${renderServiceRecordDetailTitle()}
     ${renderServiceRecordList(records, '目前沒有符合條件的服務紀錄單。')}
   `
@@ -25979,16 +25997,13 @@ function isTranslatorPoolAccountingOrFinanceStaff(staff = {}) {
 function isAllTranslatorPoolStaff(staff = {}) {
   if (!staff?.staff_id || staff.deleted_at || (staff.status || '啟用') !== '啟用') return false
   if (isTranslatorPoolAccountingOrFinanceStaff(staff)) return false
-  const roleText = String(staff.role || '').trim()
   const positionValues = [staff.position, staff.position_name, staff.title]
     .map(value => String(value || '').trim())
     .filter(Boolean)
-  const departmentText = String(staff.department_name || '').trim()
-  const normalizedTokens = [roleText, ...positionValues, departmentText]
+  const normalizedTokens = positionValues
     .map(value => value.replace(/\s+/g, ''))
     .filter(Boolean)
 
-  if (roleText === '翻譯') return true
   if (normalizedTokens.some(value => value === '雙語人員' || value.includes('雙語人員'))) return true
   if (normalizedTokens.some(value => value === '雙語舍監' || value.includes('雙語舍監'))) return true
   if (normalizedTokens.some(value => value === '宿管' || value === '宿管人員' || value.includes('宿管'))) return true
@@ -29840,7 +29855,7 @@ function openScheduleModal(defaults = {}) {
         <div class="span-2 department-assignee-box hidden" id="meetingDepartmentAssigneeBlock">
           <div class="field-title">選擇部門</div>
           <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('executor_departments', [], isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null)}</div>
-          <p class="field-hint">適用會議 / 活動 / 外訓 / 公差外出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+          <p class="field-hint">適用會議 / 活動 / 外訓 / 公出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
@@ -31859,7 +31874,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         <div class="span-2 department-assignee-box hidden" id="editMeetingDepartmentAssigneeBlock">
           <div class="field-title">選擇部門</div>
           <div class="checkbox-list department-assignee-list">${departmentAssigneeOptionsHtml('edit_executor_departments', getScheduleExecutorDepartments(row), shouldAllowFullStaffSelectionForGeneralStaffRow(row) ? getActiveStaffRows() : null)}</div>
-          <p class="field-hint">適用會議 / 活動 / 外訓 / 公差外出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
+          <p class="field-hint">適用會議 / 活動 / 外訓 / 公出，可直接勾選整個部門，系統會同步勾選該部門人員。</p>
         </div>
 
         <div class="span-2 edit-assignee-box">
@@ -32567,7 +32582,7 @@ async function saveSchedule(event, modal) {
   if (category === '請假 / 會議 / 活動 / 外訓') {
     const requestedLeaveMeetingType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
     if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
-      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓、公差外出。')
+      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓、公出。')
       saving = false
       return
     }

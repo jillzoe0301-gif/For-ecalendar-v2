@@ -110,6 +110,7 @@ const forEPhase4CompatibilityPatch = {
   }
 }
 
+
 const forEReportRangePatch = {
   name: 'for-e-1-3eq-report-range-filters',
   enforce: 'post',
@@ -403,15 +404,16 @@ function renderServiceRecordDashboard() {`)
   }
 }
 
+
 const forEConsultantServiceEditPatch = {
-  name: 'for-e-1-3er-consultant-service-content-assignee-only',
+  name: 'for-e-1-3eu-consultant-service-content-assignee-only',
   enforce: 'post',
   transform(code, id) {
     if (!id.replaceAll('\\', '/').endsWith('/src/main.js')) return null
 
     let next = code
-      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3er'")
-      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3er'")
+      .replace(/const APP_VERSION = 'V002-1H-stable-1-3e[a-z]'/, "const APP_VERSION = 'V002-1H-stable-1-3eu'")
+      .replace(/const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3e[a-z]'/, "const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eu'")
 
     if (!next.includes("const CONSULTANT_SERVICE_LIMITED_EDIT_LOGIC_VERSION = '1-3er'")) {
       next = next.replace(
@@ -475,7 +477,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {`)
 }
 
 export default defineConfig({
-  plugins: [forEPhase4CompatibilityPatch, forEReportRangePatch, forEConsultantServiceEditPatch],
+  plugins: [forEPhase4CompatibilityPatch, forEConsultantServiceEditPatch],
   server: {
     host: '0.0.0.0',
     port: 5173
