@@ -462,10 +462,12 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3eu'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3eu'
+const APP_VERSION = 'V002-1H-stable-1-3ev'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ev'
 const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
 const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
+const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ev'
+const SERVICE_RECORD_DUPLICATE_SAFE_VERSION = '1-3ev'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
@@ -3405,13 +3407,11 @@ function canModifySchedule(row) {
 
 function canCompleteSchedule(row) {
   if (!currentProfile || !row) return false
-  if (isConsultantServiceEditOnlySchedule(row)) return false
-  if (isConsultantRole() && !isConsultantEditableGeneralSchedule(row)) return false
   if (isNoCompletionControlSchedule(row)) return false
-  if (row.status === '已完成' || row.status === '取消') return false
-  if (canManageAllSchedules()) return true
-  if (isPublicGeneralSchedule(row)) return row.creator_staff_id === currentProfile.staff_id
-  return row.creator_staff_id === currentProfile.staff_id || isAssignedToMe(row)
+  const statusText = String(row.status || '').trim()
+  if (['已完成', '完成', '取消', '已取消', '已刪除', '刪除'].includes(statusText)) return false
+  // 1-3ev：完成行程不再依角色、建立者或執行者限制。
+  return true
 }
 
 
@@ -26042,7 +26042,7 @@ function serviceOriginalTranslatorCheckboxesHtml(selectedStaffIds = [], inputNam
   const rows = getOriginalTranslatorNotifyPoolStaffRows()
   if (!rows.length) return '<div class="field-hint">目前沒有符合職務的原翻譯人員。</div>'
   return rows.map(staff => `
-    <label class="inline-check service-original-translator-option">
+    <label class="check-row service-original-translator-option">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(staff.staff_id)}" ${selected.has(staff.staff_id) ? 'checked' : ''}>
       <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
@@ -29431,9 +29431,9 @@ function openScheduleModal(defaults = {}) {
     : (staffOptionsHtml(defaultStaffId, isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null) || '<div class="empty-state">目前沒有可選人員。</div>')
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop'
+  modal.className = 'modal-backdrop schedule-create-backdrop'
   modal.innerHTML = `
-    <div class="modal-panel">
+    <div class="modal-panel schedule-create-modal">
       <div class="modal-header">
         <h3>新增行程</h3>
         <button class="icon-btn" id="closeModalBtn" type="button">×</button>
@@ -32140,8 +32140,13 @@ async function ensureServiceRecordsForScheduleRow(scheduleRow = {}, staffIds = [
 
   const { error } = await supabase.from('service_records').insert(rows)
   if (error) {
-    console.warn('補建立個別服務紀錄單失敗', error)
-    alert('行程已儲存，但部分執行者的服務紀錄單建立失敗：' + error.message)
+    const isDuplicate = String(error.code || '') === '23505'
+      || String(error.message || '').includes('service_records_unique')
+      || String(error.message || '').includes('duplicate key')
+    if (!isDuplicate) {
+      console.warn('補建立個別服務紀錄單失敗', error)
+      alert('行程已儲存，但部分執行者的服務紀錄單建立失敗：' + error.message)
+    }
   }
 }
 
@@ -32773,8 +32778,13 @@ async function saveSchedule(event, modal) {
     const { error: serviceError } = await supabase.from('service_records').insert(serviceRows)
 
     if (serviceError) {
-      console.error(serviceError)
-      alert('行程已建立，但服務紀錄單資料寫入失敗：' + serviceError.message)
+      const isDuplicate = String(serviceError.code || '') === '23505'
+        || String(serviceError.message || '').includes('service_records_unique')
+        || String(serviceError.message || '').includes('duplicate key')
+      if (!isDuplicate) {
+        console.error(serviceError)
+        alert('行程已建立，但服務紀錄單資料寫入失敗：' + serviceError.message)
+      }
     }
   }
 
@@ -32805,11 +32815,7 @@ async function completeSchedule(scheduleId) {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
   if (!canCompleteSchedule(row)) {
-    return denyPermission(isConsultantServiceEditOnlySchedule(row)
-      ? getConsultantServiceStatusActionDeniedMessage('完成')
-      : (isConsultantRole() && isConsultantRestrictedReminderSchedule(row)
-        ? '顧問只能查看提醒事項，不能完成提醒事項。'
-        : '你沒有完成此行程的權限。'))
+    return denyPermission('此行程目前不能標記為已完成。')
   }
   const cascadeTargets = getIncidentCascadeCompleteTargets(row)
   const confirmText = cascadeTargets.length
@@ -33223,8 +33229,31 @@ function openServiceRecordModal(scheduleId, staffId = '') {
       } else {
         const { error } = await supabase.from('service_records').insert(payload)
         if (error) {
-          alert('建立服務紀錄單狀況失敗：' + error.message)
-          return
+          const isDuplicate = String(error.code || '') === '23505'
+            || String(error.message || '').includes('service_records_unique')
+            || String(error.message || '').includes('duplicate key')
+          if (isDuplicate) {
+            const { error: updateDuplicateError } = await supabase
+              .from('service_records')
+              .update({
+                submitted,
+                submitted_date: submittedDate,
+                schedule_date: row.start_date,
+                schedule_type: row.schedule_type || row.category,
+                title: row.title,
+                location_name: row.location_name || row.customer_name || null,
+                need_submit: true
+              })
+              .eq('schedule_id', scheduleId)
+              .eq('staff_id', id)
+            if (updateDuplicateError) {
+              alert('更新既有服務紀錄單狀況失敗：' + updateDuplicateError.message)
+              return
+            }
+          } else {
+            alert('建立服務紀錄單狀況失敗：' + error.message)
+            return
+          }
         }
       }
     }
