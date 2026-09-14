@@ -28796,3 +28796,84 @@ body.force-desktop-mode .meeting-week-table {
   body:not(.force-desktop-mode) .schedule-create-modal #scheduleForm > .modal-actions button { min-height:52px !important; }
 }
 /* FOR-e V002-1H-stable-1-3ev END - mobile create modal translator list */
+
+
+/* FOR-e V002-1H-stable-1-3ew START - mobile footer no overlay + translator desktop-mode layout */
+@media (max-width: 768px), (pointer: coarse) {
+  /* 手機不論是否切成電腦版，通知原翻譯都維持和選擇人員一致的水平清單 */
+  .service-original-translator-direct-list {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .service-original-translator-direct-list .service-admin-check-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    width: 100% !important;
+    max-height: 240px !important;
+    overflow-y: auto !important;
+    padding: 0 !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    background: #fff !important;
+  }
+  .service-original-translator-option {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 14px 12px !important;
+    gap: 10px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+  .service-original-translator-option:last-child { border-bottom: 0 !important; }
+  .service-original-translator-option input[type="checkbox"] {
+    flex: 0 0 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    margin: 0 !important;
+  }
+  .service-original-translator-option span {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    text-align: left !important;
+    line-height: 1.45 !important;
+  }
+
+  /* 新增行程底部按鈕不再浮在表單內容上，避免遮住是否有證件 */
+  body:not(.force-desktop-mode) .schedule-create-modal {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+  }
+  body:not(.force-desktop-mode) .schedule-create-modal #scheduleForm {
+    padding-bottom: 0 !important;
+  }
+  body:not(.force-desktop-mode) .schedule-create-modal #scheduleForm > .modal-actions {
+    position: static !important;
+    inset: auto !important;
+    margin: 18px 0 0 !important;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom)) !important;
+    background: #fff !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: none !important;
+  }
+  body:not(.force-desktop-mode) .schedule-create-modal #scheduleForm > .modal-actions button {
+    min-height: 52px !important;
+  }
+}
+/* FOR-e V002-1H-stable-1-3ew END - mobile footer no overlay + translator desktop-mode layout */

@@ -462,12 +462,13 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ev'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ev'
+const APP_VERSION = 'V002-1H-stable-1-3ew'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ew'
 const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
 const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
-const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ev'
-const SERVICE_RECORD_DUPLICATE_SAFE_VERSION = '1-3ev'
+const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ew'
+const SERVICE_RECORD_DUPLICATE_SAFE_VERSION = '1-3ew'
+const MOBILE_FORM_FOOTER_TRANSLATOR_LAYOUT_VERSION = '1-3ew'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
