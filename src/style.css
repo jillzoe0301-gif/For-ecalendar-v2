@@ -28877,3 +28877,55 @@ body.force-desktop-mode .meeting-week-table {
   }
 }
 /* FOR-e V002-1H-stable-1-3ew END - mobile footer no overlay + translator desktop-mode layout */
+
+
+/* FOR-e V002-1H-stable-1-3ex START - create assignee selection and delete date */
+#scheduleAssigneeBlock .selected-assignee-summary {
+  margin: 8px 0 10px;
+  padding: 9px 12px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 12px;
+  background: #f8faff;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+#scheduleAssigneeBlock .selected-assignee-summary.has-selection {
+  border-style: solid;
+  border-color: #91a7ff;
+  background: #eef3ff;
+  color: #2449b8;
+}
+
+#scheduleAssigneeBlock .selected-assignee-row {
+  background: #eef3ff !important;
+  border-color: #91a7ff !important;
+}
+
+#scheduleAssigneeBlock .selected-assignee-row span {
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.cancel-occurrence-date-field {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.cancel-occurrence-date-field small {
+  color: #64748b;
+  line-height: 1.45;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  #scheduleAssigneeBlock .selected-assignee-summary {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-top: 0;
+    background: #eef3ff;
+  }
+}
+/* FOR-e V002-1H-stable-1-3ex END - create assignee selection and delete date */

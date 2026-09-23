@@ -462,13 +462,14 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ew'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ew'
+const APP_VERSION = 'V002-1H-stable-1-3ex'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ex'
 const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
 const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
 const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ew'
 const SERVICE_RECORD_DUPLICATE_SAFE_VERSION = '1-3ew'
 const MOBILE_FORM_FOOTER_TRANSLATOR_LAYOUT_VERSION = '1-3ew'
+const CREATE_ASSIGNEE_SELECTION_DELETE_DATE_VERSION = '1-3ex'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
@@ -3135,48 +3136,21 @@ function getConsultantGeneralScheduleAllowedStaffIds() {
 }
 
 function normalizeConsultantGeneralScheduleExecutorIds(requestedStaffIds = []) {
-  const currentStaffId = getConsultantCurrentStaffId()
   const allowedIds = new Set(getConsultantGeneralScheduleAllowedStaffIds())
-  const selectedAllowedIds = normalizeSchedulePeopleIds(requestedStaffIds)
+  return normalizeSchedulePeopleIds(requestedStaffIds)
     .filter(staffId => allowedIds.has(staffId))
-  return normalizeSchedulePeopleIds([currentStaffId, ...selectedAllowedIds])
 }
 
-function consultantGeneralScheduleAssigneeOptionsHtml() {
-  const currentStaffId = getConsultantCurrentStaffId()
-  const currentStaff = getStaffRowById(currentStaffId) || getCurrentProfileStaffRow() || currentProfile
-  if (!currentStaffId) return '<div class="empty-state">目前顧問帳號尚未綁定人員，無法建立一般行程。</div>'
-
-  const bilingualRows = getConsultantBilingualStaffRows()
-    .filter(staff => normalizeStaffId(staff?.staff_id || '') !== currentStaffId)
-  const bilingualIds = new Set(bilingualRows.map(staff => normalizeStaffId(staff?.staff_id || '')))
-  const administrativeRows = getAdministrativeStaffRows()
-    .filter(staff => {
-      const staffId = normalizeStaffId(staff?.staff_id || '')
-      return staffId && staffId !== currentStaffId && !bilingualIds.has(staffId)
-    })
-
-  const renderSelectableRows = rows => rows.length
-    ? rows.map(staff => `
-      <label class="check-row">
-        <input type="checkbox" name="executor" value="${escapeHtml(staff.staff_id)}">
-        <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
-      </label>
-    `).join('')
-    : '<div class="field-hint">目前沒有符合的人員。</div>'
-
-  return `
-    <input type="hidden" name="executor" value="${escapeHtml(currentStaffId)}">
-    <label class="check-row consultant-fixed-self-assignee">
-      <input type="checkbox" checked disabled>
-      <span>${escapeHtml(currentStaff?.name || currentProfile?.name || '本人')}｜${escapeHtml(currentStaff?.department_name || '')}｜本人（固定選取）</span>
+function consultantGeneralScheduleAssigneeOptionsHtml(defaultStaffId = '') {
+  const rows = getConsultantGeneralScheduleAssignableStaffRows()
+  if (!rows.length) return '<div class="empty-state">目前沒有可選人員。</div>'
+  const selectedId = String(defaultStaffId || '').trim()
+  return rows.map(staff => `
+    <label class="check-row">
+      <input type="checkbox" name="executor" value="${escapeHtml(staff.staff_id)}" ${selectedId && String(staff.staff_id || '').trim() === selectedId ? 'checked' : ''}>
+      <span>${escapeHtml(staff.name || '-')}｜${escapeHtml(staff.department_name || '')}</span>
     </label>
-    <div class="field-hint">顧問本人會直接加入執行人員，並可再複選下列越雙語與行政人員。</div>
-    <div class="field-title">越雙語人員（可複選）</div>
-    ${renderSelectableRows(bilingualRows)}
-    <div class="field-title">行政人員（可複選）</div>
-    ${renderSelectableRows(administrativeRows)}
-  `
+  `).join('')
 }
 
 function scheduleIncludesConsultantBilingualStaff(row = {}) {
@@ -29108,7 +29082,7 @@ function bindFieldTrainingHint(modal, formSelector, checkboxName, excludeSchedul
 function openFieldScheduleModal(defaults = {}) {
   if (!canCreateFieldSchedule()) return denyPermission('你的角色沒有新增外務行程權限。')
   const defaultDate = defaults.date || todayString()
-  const defaultStaffId = defaults.staffId || currentProfile?.staff_id || ''
+  const defaultStaffId = String(defaults.staffId || '').trim()
 
   const modal = document.createElement('div')
   modal.className = 'modal-backdrop'
@@ -29402,7 +29376,7 @@ async function saveFieldSchedule(event, modal) {
 function openScheduleModal(defaults = {}) {
   if (!canCreateForCurrentPage()) return denyPermission('你的角色沒有新增此類行程的權限。')
   const hasExplicitDefaultStaff = Object.prototype.hasOwnProperty.call(defaults || {}, 'staffId') && Boolean(defaults.staffId)
-  const defaultStaffId = hasExplicitDefaultStaff ? String(defaults.staffId || '').trim() : (currentProfile.staff_id || '')
+  const defaultStaffId = hasExplicitDefaultStaff ? String(defaults.staffId || '').trim() : ''
   const defaultDate = defaults.date || todayString()
   const availableFormCategories = getAvailableFormCategories()
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getCreateFormCategoryDisplayLabel(category))}</option>`).join('')
@@ -29428,7 +29402,7 @@ function openScheduleModal(defaults = {}) {
   `).join('')
 
   const createScheduleAssigneeHtml = isConsultantRole()
-    ? consultantGeneralScheduleAssigneeOptionsHtml()
+    ? consultantGeneralScheduleAssigneeOptionsHtml(defaultStaffId)
     : (staffOptionsHtml(defaultStaffId, isGeneralStaffOverviewCreateMode() ? getActiveStaffRows() : null) || '<div class="empty-state">目前沒有可選人員。</div>')
 
   const modal = document.createElement('div')
@@ -29860,7 +29834,8 @@ function openScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
-          <div class="field-title">${isConsultantRole() ? '執行人員（本人預設選取，可複選）' : '選擇人員'}</div>
+          <div class="field-title">選擇人員</div>
+          <div class="selected-assignee-summary" id="selectedAssigneeSummary">尚未選擇人員</div>
           <div class="checkbox-list">${createScheduleAssigneeHtml}</div>
         </div>
 
@@ -29964,6 +29939,29 @@ function openScheduleModal(defaults = {}) {
       if (form) form.dataset.generalScheduleSelfTouched = '1'
     })
   }
+
+  function refreshCreateAssigneeSelectionDisplay() {
+    const block = modal.querySelector('#scheduleAssigneeBlock')
+    const list = block?.querySelector('.checkbox-list')
+    const summary = block?.querySelector('#selectedAssigneeSummary')
+    if (!block || !list || !summary) return
+
+    const rows = [...list.querySelectorAll(':scope > label.check-row')]
+    const selectedRows = rows.filter(row => row.querySelector('input[name="executor"]')?.checked)
+    const unselectedRows = rows.filter(row => !row.querySelector('input[name="executor"]')?.checked)
+    ;[...selectedRows, ...unselectedRows].forEach(row => list.appendChild(row))
+
+    rows.forEach(row => row.classList.toggle('selected-assignee-row', Boolean(row.querySelector('input[name="executor"]')?.checked)))
+    const selectedNames = selectedRows
+      .map(row => String(row.querySelector('span')?.textContent || '').trim())
+      .filter(Boolean)
+    summary.textContent = selectedNames.length ? `已選人員：${selectedNames.join('、')}` : '尚未選擇人員'
+    summary.classList.toggle('has-selection', selectedNames.length > 0)
+  }
+
+  modal.querySelectorAll('input[name="executor"]').forEach(input => {
+    input.addEventListener('change', refreshCreateAssigneeSelectionDisplay)
+  })
 
   function refreshFormSections() {
     const rawCategory = categorySelect.value
@@ -30114,7 +30112,10 @@ function openScheduleModal(defaults = {}) {
   }
 
   document.querySelectorAll('input[name="executor_departments"]').forEach(input => {
-    input.addEventListener('change', () => syncDepartmentAssigneeChecks(document.querySelector('#scheduleForm'), 'executor_departments', 'executor'))
+    input.addEventListener('change', () => {
+      syncDepartmentAssigneeChecks(document.querySelector('#scheduleForm'), 'executor_departments', 'executor')
+      refreshCreateAssigneeSelectionDisplay()
+    })
   })
 
   timeTypeSelect.addEventListener('change', refreshTimeBlock)
@@ -30183,6 +30184,7 @@ function openScheduleModal(defaults = {}) {
   refreshDocumentsBlock()
   refreshExtraScheduleBlock()
   applyCreateCompactSpecialFields()
+  refreshCreateAssigneeSelectionDisplay()
 
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
@@ -32879,7 +32881,15 @@ function openCancelModal(scheduleId, occurrenceDate = '') {
         <p>系統目前會以「取消行程」方式保留紀錄，不會直接硬刪資料。若取消主異況，會一併取消延伸追蹤行程與行政待辦。</p>
       </div>
 
-      ${isScheduleSeriesLike(row) ? `<div class="notice">目前選取日期：${escapeHtml(cancelOccurrenceDate)}</div>` : ''}
+      ${isScheduleSeriesLike(row) ? `
+        <label class="cancel-occurrence-date-field">
+          目前選取日期
+          <select id="cancelOccurrenceDateSelect">
+            ${getScheduleOccurrenceDates(row).map(dateKey => `<option value="${escapeHtml(dateKey)}" ${dateKey === cancelOccurrenceDate ? 'selected' : ''}>${escapeHtml(dateKey)}</option>`).join('')}
+          </select>
+          <small>可改選這組連續 / 週期行程中的其他日期，再決定只刪這次、之後或全部。</small>
+        </label>
+      ` : ''}
 
       <div class="radio-list">
         <label class="radio-row">
@@ -32957,9 +32967,10 @@ function openCancelModal(scheduleId, occurrenceDate = '') {
       }
     }
 
+    const selectedOccurrenceDate = document.querySelector('#cancelOccurrenceDateSelect')?.value || cancelOccurrenceDate
     const finalReason = `${scope}｜${reason}`
     modal.remove()
-    await cancelSchedule(scheduleId, finalReason, { scope, occurrenceDate: cancelOccurrenceDate })
+    await cancelSchedule(scheduleId, finalReason, { scope, occurrenceDate: selectedOccurrenceDate })
   })
 
   refreshDeleteAllBlock()
