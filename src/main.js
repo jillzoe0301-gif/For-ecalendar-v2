@@ -462,8 +462,8 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3ez'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3ez'
+const APP_VERSION = 'V002-1H-stable-1-3fa'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3fa'
 const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
 const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
 const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ew'
@@ -472,6 +472,7 @@ const MOBILE_FORM_FOOTER_TRANSLATOR_LAYOUT_VERSION = '1-3ew'
 const CREATE_ASSIGNEE_SELECTION_DELETE_DATE_VERSION = '1-3ex'
 const SCHEDULE_DETAIL_CREATOR_DISPLAY_VERSION = '1-3ey'
 const NAV_ANNOUNCEMENT_LINE_HIDE_VERSION = '1-3ez'
+const MEETING_ROOM_ALL_ROLES_ATTENDEES_VERSION = '1-3fa'
 const SYSTEM_VERSION = APP_VERSION
 const SYSTEM_VERSION_NOTE = '第四階段補充：服務行程通知原翻譯名單只依職務顯示雙語人員、雙語舍監、宿管、PT並排除會計／財務；通知原翻譯、通知主管、通知行政的非執行者卡片統一顯示提醒追蹤-行程標題（執行人員）並固定黃色；月份選單固定顯示且選擇後直接切到該月份。'
 
@@ -518,7 +519,8 @@ const CONSULTANT_ALLOWED_PAGE_KEYS = new Set([
   'personalSchedule',
   'scheduleOverview',
   'search',
-  'users'
+  'users',
+  'meetingRoom'
 ])
 /* FOR-e V002-1H-stable-1-3df START - shared todo note assignee visibility */
 /*
@@ -554,7 +556,7 @@ const pages = [
   { key: 'scheduleOverview', label: '行程總覽', mobileLabel: '行程', roles: 'ALL', mobile: true },
   { key: 'fieldSchedule', label: '外務行程', mobileLabel: '外務', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計'], mobile: true },
   { key: 'fieldDetail', label: '外務明細', mobileLabel: '明細', roles: ['管理員', '主管', '行政 / 海外'], mobile: false },
-  { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '外務 / 宿管人員 / 會計', '一般職員'], mobile: true },
+  { key: 'meetingRoom', label: '會議室預約', mobileLabel: '會議室', roles: ['管理員', '主管', '行政 / 海外', '翻譯', '外務 / 宿管人員 / 會計', '一般職員', '顧問'], mobile: true },
   { key: 'incident', label: '異況追蹤', mobileLabel: '異況', roles: ['管理員', '主管', '行政 / 海外'], mobile: true },
   { key: 'search', label: '行程搜尋', mobileLabel: '搜尋', roles: 'ALL', mobile: true },
   { key: 'stats', label: '統計報表', mobileLabel: '統計', roles: ['管理員', '主管'], mobile: false },
@@ -2911,7 +2913,8 @@ function canCreateFieldSchedule() {
 }
 
 function canCreateMeetingRoomSchedule() {
-  return hasRolePermission('createMeetingRoom')
+  // 1-3fa：會議室為全員共用資源，所有已登入且有 staff 身分的人員皆可預約。
+  return Boolean(currentProfile && (currentProfile.staff_id || currentProfile.profile_id || currentProfile.email))
 }
 
 function canCreateIncidentSchedule() {
@@ -28551,7 +28554,8 @@ function meetingDepartmentCheckboxesHtml(selectedDepartments = []) {
 
 function meetingParticipantCheckboxesHtml(selectedStaffIds = []) {
   const selected = new Set((selectedStaffIds || []).map(item => String(item || '').trim()).filter(Boolean))
-  const rows = canAssignAllStaff() ? getActiveMeetingStaffRows() : getActiveMeetingStaffRows().filter(staff => staff.staff_id === currentProfile?.staff_id)
+  // 1-3fa：會議室與會人員獨立於一般行程指派權限，所有職務都可選全部啟用人員。
+  const rows = getActiveMeetingStaffRows()
 
   return rows.map(staff => {
     const text = [staff.name || '-', staff.department_name || ''].filter(Boolean).join('｜')
@@ -28859,7 +28863,8 @@ function getMeetingParticipantFormHtml(selectedDepartments = [], selectedStaffId
 
 
 function staffOptionsSelectHtml(selectedStaffId = '') {
-  const rows = canAssignAllStaff() ? getActiveStaffRows() : getAssignableStaffRows()
+  // 1-3fa：會議室預約人選單可使用全部啟用人員，不套用一般行程 assignAllStaff 限制。
+  const rows = getActiveMeetingStaffRows()
   return sortStaffRowsForSelection(rows).map(staff => `
     <option value="${staff.staff_id}" ${staff.staff_id === selectedStaffId ? 'selected' : ''} data-department="${escapeHtml(staff.department_name || '')}">
       ${staff.name}｜${staff.department_name || ''}
