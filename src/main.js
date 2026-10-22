@@ -19342,7 +19342,7 @@ function getStaffReturnTaiwanReminderRowsForDate(staffId = '', dateKey = '') {
 function getReturnTaiwanReminderInfo(row = {}) {
   const parsed = typeof parseReturnTaiwanReminderInfo === 'function' ? parseReturnTaiwanReminderInfo(row) : {}
   return {
-    title: String(row.customer_name || row.title || row.sub_type || '返台提醒').trim(),
+    title: [String(row.customer_name || '').trim(), String(row.title || '').trim()].filter((value,index,parts) => value && (index === 0 || !parts[0] || (value !== parts[0] && !parts[0].includes(value)))).filter((value,index,parts) => index !== 0 || !parts[1]?.includes(value)).join('／') || '返台提醒',
     date: parsed.date || getReturnTaiwanReminderDate(row),
     flight: parsed.flight || '',
     time: parsed.time || ''
@@ -35382,4 +35382,5 @@ if (!window.__FOR_E_CALENDAR_DRAG_SCROLL_V313D_BOUND__) {
   document.addEventListener('dblclick', suppressClickAfterPan, true)
 }
 /* FOR-e V002-1H-stable-1-3d END - Android native pan and zoom safe calendar scroll */
+
 
