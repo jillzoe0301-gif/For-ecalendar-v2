@@ -1,0 +1,17 @@
+.for-e-pwa-install-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 12px;border:1px solid #cbd5ff;border-radius:10px;background:#f2f5ff;color:#4059d8;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}
+.for-e-pwa-install-btn:hover{background:#e8edff}
+.mobile-header .for-e-pwa-install-btn{margin-left:auto}
+.topbar-actions .for-e-pwa-install-btn{flex:0 0 auto}
+.for-e-pwa-guide-backdrop{position:fixed;inset:0;z-index:30000;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.48)}
+.for-e-pwa-guide-card{position:relative;width:min(100%,440px);max-height:min(86dvh,720px);overflow:auto;padding:26px 24px 22px;border:1px solid #e1e7f0;border-radius:22px;background:#fff;color:#263247;box-shadow:0 24px 70px rgba(15,23,42,.2)}
+.for-e-pwa-guide-close{position:absolute;top:12px;right:14px;width:34px;height:34px;border:0;border-radius:10px;background:#f3f5f9;color:#475467;font-size:24px}
+.for-e-pwa-guide-mark{display:grid;place-items:center;width:56px;height:56px;margin-bottom:16px;border-radius:16px;background:#eef1ff;color:#5068e9;font-weight:800}
+.for-e-pwa-guide-card h2{margin:0 0 8px;font-size:21px}.for-e-pwa-guide-card p{color:#667085;font-size:14px;line-height:1.65}
+.for-e-pwa-guide-card ol{padding-left:22px;margin:16px 0}.for-e-pwa-guide-card li{margin:10px 0;line-height:1.6;font-size:14px}
+.for-e-pwa-guide-note{padding:12px 14px;border-radius:12px;background:#f4f6fb}
+.for-e-pwa-guide-primary{width:100%;min-height:46px;margin-top:8px;border:0;border-radius:12px;background:#5170ff;color:#fff;font-weight:700}
+.for-e-pwa-update-toast{position:fixed;z-index:29999;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px;width:min(470px,calc(100vw - 36px));padding:14px;border:1px solid #dbe3f0;border-radius:16px;background:rgba(255,255,255,.98);color:#263247;box-shadow:0 16px 44px rgba(15,23,42,.16)}
+.for-e-pwa-update-copy{display:grid;gap:4px;min-width:0;flex:1}.for-e-pwa-update-copy strong{font-size:14px}.for-e-pwa-update-copy span{color:#667085;font-size:12px;line-height:1.45}
+.for-e-pwa-update-action{flex:0 0 auto;border:0;border-radius:10px;padding:10px 12px;background:#5170ff;color:#fff;font-size:12px;font-weight:700}
+.for-e-pwa-update-dismiss{flex:0 0 auto;width:28px;height:28px;border:0;border-radius:8px;background:#f3f5f9;color:#475467;font-size:20px}
+@media(max-width:768px){.mobile-header .for-e-pwa-install-btn{min-height:32px;padding:6px 9px;font-size:12px}.for-e-pwa-update-toast{right:10px;bottom:calc(82px + env(safe-area-inset-bottom));width:calc(100vw - 20px);gap:8px;padding:11px}.for-e-pwa-update-action{padding:9px 10px}.for-e-pwa-guide-card{width:100%;max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:24px 20px calc(20px + env(safe-area-inset-bottom))}}
