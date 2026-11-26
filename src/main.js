@@ -462,10 +462,11 @@ import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const APP_VERSION = 'V002-1H-stable-1-3fb'
-const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3fb'
+const APP_VERSION = 'V002-1H-stable-1-3fd'
+const OFFICIAL_VERSION = 'official-v002-1h-stable-1-3fd'
 const YEAR_MONTH_REPORT_FILTER_LOGIC_VERSION = '1-3eu'
 const SERVICE_RECORD_PAGE_CLICK_FIX_VERSION = '1-3eu'
+const PWA_PUSH_NOTIFICATION_VERSION = '1-3fd'
 const ROLE_COMPLETE_MOBILE_FORM_FIX_VERSION = '1-3ew'
 const SERVICE_RECORD_DUPLICATE_SAFE_VERSION = '1-3ew'
 const MOBILE_FORM_FOOTER_TRANSLATOR_LAYOUT_VERSION = '1-3ew'
@@ -2242,6 +2243,235 @@ function renderDesktopViewToggleButton(extraClass = '') {
   const safeClass = String(extraClass || '').trim()
   return `<button type="button" class="view-mode-toggle-btn ${safeClass}" id="desktopViewToggleBtn">${escapeHtml(label)}</button>`
 }
+
+/* FOR-e V002-1H-stable-1-3fd START - PWA push notification settings */
+const FOR_E_PUSH_FUNCTION = 'for-e-push'
+
+function renderPushNotificationButton(extraClass = '') {
+  const safeClass = String(extraClass || '').trim()
+  return '<button type="button" class="push-notification-settings-btn ' + escapeHtml(safeClass) + '" id="pushNotificationSettingsBtn">通知設定</button>'
+}
+
+function pushBase64UrlToUint8Array(value = '') {
+  const padding = '='.repeat((4 - value.length % 4) % 4)
+  const base64 = String(value || '').replace(/-/g, '+').replace(/_/g, '/') + padding
+  const raw = atob(base64)
+  return Uint8Array.from(raw, char => char.charCodeAt(0))
+}
+
+async function invokeForEPush(payload = {}) {
+  const { data, error } = await supabase.functions.invoke(FOR_E_PUSH_FUNCTION, { body: payload })
+  if (error) {
+    let message = error.message || '推播服務暫時無法使用。'
+    try {
+      const detail = await error.context?.json?.()
+      if (detail?.error) message = detail.error
+    } catch (_) {}
+    throw new Error(message)
+  }
+  if (data?.error) throw new Error(data.error)
+  return data || {}
+}
+
+function getPushDeviceLabel() {
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'Apple 裝置'
+  if (/Android/i.test(ua)) return 'Android 裝置'
+  if (/Macintosh/i.test(ua)) return 'Mac'
+  if (/Windows/i.test(ua)) return 'Windows'
+  return '瀏覽器裝置'
+}
+
+function isInstalledForEPush() {
+  return Boolean(
+    window.matchMedia?.('(display-mode: standalone)').matches
+    || window.navigator.standalone === true
+  )
+}
+
+async function openPushNotificationSettingsModal() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    alert('目前瀏覽器不支援 Web Push 通知，請改用支援通知的 Safari、Chrome 或 Edge。')
+    return
+  }
+
+  const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+  if (isIOSDevice && !isInstalledForEPush()) {
+    alert('iPhone / iPad 必須先將 FOR-e 加入主畫面，再從主畫面的 FOR-e APP 開啟，才能啟用推播通知。')
+    return
+  }
+
+  let registration
+  let subscription
+  let publicKey = ''
+  let serverStatus = { subscribed: false, settings: null }
+
+  try {
+    registration = await navigator.serviceWorker.getRegistration('/') || await navigator.serviceWorker.ready
+    subscription = await registration.pushManager.getSubscription()
+    const keyResult = await invokeForEPush({ action: 'public-key' })
+    publicKey = String(keyResult.publicKey || '')
+    if (!publicKey) throw new Error('推播公鑰尚未設定。')
+    if (subscription) {
+      serverStatus = await invokeForEPush({ action: 'status', endpoint: subscription.endpoint })
+    }
+  } catch (error) {
+    alert('推播服務尚未完成設定：' + (error?.message || error) + '\n\n請先完成 FOR-e 推播伺服器的一次性金鑰設定。')
+    return
+  }
+
+  const settings = serverStatus.settings || {}
+  const permissionText = Notification.permission === 'granted'
+    ? '已允許'
+    : Notification.permission === 'denied'
+      ? '已被瀏覽器封鎖'
+      : '尚未允許'
+  const modal = document.createElement('div')
+  modal.className = 'modal-backdrop push-settings-backdrop'
+  modal.innerHTML = [
+    '<section class="modal-panel push-settings-modal" role="dialog" aria-modal="true" aria-labelledby="pushSettingsTitle">',
+      '<div class="modal-header"><div><h3 id="pushSettingsTitle">FOR-e 推播通知</h3><p class="muted">管理這個裝置接收重要行程通知的方式</p></div><button type="button" class="icon-btn" id="closePushSettingsBtn">×</button></div>',
+      '<div class="push-settings-status"><span>瀏覽器通知權限</span><strong>', escapeHtml(permissionText), '</strong><span>此裝置狀態</span><strong id="pushDeviceStatus">', (subscription && serverStatus.subscribed ? '已啟用' : '尚未啟用'), '</strong></div>',
+      '<div class="push-settings-options">',
+        '<label class="push-setting-option"><input type="checkbox" id="pushNewScheduleOption" ', (settings.notify_new_schedule !== false ? 'checked' : ''), '><span><strong>新行程指派</strong><small>有人指派新行程給我時通知</small></span></label>',
+        '<label class="push-setting-option"><input type="checkbox" id="pushScheduleUpdatedOption" ', (settings.notify_schedule_updated !== false ? 'checked' : ''), '><span><strong>行程修改</strong><small>我被指派的行程內容有異動時通知</small></span></label>',
+        '<label class="push-setting-option"><input type="checkbox" id="pushScheduleCancelledOption" ', (settings.notify_schedule_cancelled !== false ? 'checked' : ''), '><span><strong>行程取消</strong><small>我被指派的行程取消時通知</small></span></label>',
+      '</div>',
+      '<div class="push-settings-note">目前只推播新指派、修改及取消，不會推播每次登入或一般背景同步，避免通知過多。</div>',
+      '<div class="modal-actions push-settings-actions"><button type="button" class="secondary-btn" id="disablePushBtn" ', (subscription ? '' : 'disabled'), '>關閉此裝置</button><button type="button" class="secondary-btn" id="testPushBtn" ', (subscription && serverStatus.subscribed ? '' : 'disabled'), '>傳送測試</button><button type="button" class="primary-btn" id="enablePushBtn">', (subscription && serverStatus.subscribed ? '重新確認啟用' : '啟用此裝置推播'), '</button></div>',
+      '<div class="push-settings-footer" id="pushSettingsMessage" aria-live="polite"></div>',
+    '</section>'
+  ].join('')
+  document.body.appendChild(modal)
+
+  const close = () => modal.remove()
+  modal.addEventListener('click', event => {
+    if (event.target === modal) close()
+  })
+  modal.querySelector('#closePushSettingsBtn')?.addEventListener('click', close)
+
+  const message = modal.querySelector('#pushSettingsMessage')
+  const deviceStatus = modal.querySelector('#pushDeviceStatus')
+  const enableButton = modal.querySelector('#enablePushBtn')
+  const testButton = modal.querySelector('#testPushBtn')
+  const disableButton = modal.querySelector('#disablePushBtn')
+
+  function setMessage(text, isError = false) {
+    message.textContent = text
+    message.classList.toggle('is-error', Boolean(isError))
+  }
+
+  async function savePushPreferences() {
+    if (!subscription) return
+    await invokeForEPush({
+      action: 'update-settings',
+      endpoint: subscription.endpoint,
+      settings: {
+        notify_new_schedule: modal.querySelector('#pushNewScheduleOption').checked,
+        notify_schedule_updated: modal.querySelector('#pushScheduleUpdatedOption').checked,
+        notify_schedule_cancelled: modal.querySelector('#pushScheduleCancelledOption').checked
+      }
+    })
+  }
+
+  enableButton?.addEventListener('click', async () => {
+    enableButton.disabled = true
+    setMessage('正在啟用此裝置…')
+    try {
+      let permission = Notification.permission
+      if (permission === 'default') permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        throw new Error(permission === 'denied'
+          ? '通知權限已被封鎖，請到手機或瀏覽器設定中允許 FOR-e 通知。'
+          : '尚未取得通知權限。')
+      }
+
+      let currentSubscription = await registration.pushManager.getSubscription()
+      if (!currentSubscription) {
+        currentSubscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: pushBase64UrlToUint8Array(publicKey)
+        })
+      }
+
+      await invokeForEPush({
+        action: 'subscribe',
+        subscription: currentSubscription.toJSON(),
+        deviceLabel: getPushDeviceLabel()
+      })
+
+      subscription = currentSubscription
+      await savePushPreferences()
+      deviceStatus.textContent = '已啟用'
+      enableButton.textContent = '重新確認啟用'
+      testButton.disabled = false
+      disableButton.disabled = false
+      setMessage('此裝置已成功啟用推播通知。')
+    } catch (error) {
+      setMessage(error?.message || String(error), true)
+    } finally {
+      enableButton.disabled = false
+    }
+  })
+
+  testButton?.addEventListener('click', async () => {
+    if (!subscription) return
+    testButton.disabled = true
+    setMessage('正在傳送測試通知…')
+    try {
+      await invokeForEPush({ action: 'test', endpoint: subscription.endpoint })
+      setMessage('測試通知已送出，請查看手機通知中心。')
+    } catch (error) {
+      setMessage(error?.message || String(error), true)
+    } finally {
+      testButton.disabled = false
+    }
+  })
+
+  disableButton?.addEventListener('click', async () => {
+    if (!subscription) return
+    disableButton.disabled = true
+    setMessage('正在關閉此裝置推播…')
+    try {
+      await invokeForEPush({ action: 'unsubscribe', endpoint: subscription.endpoint })
+      await subscription.unsubscribe().catch(() => false)
+      subscription = null
+      deviceStatus.textContent = '尚未啟用'
+      enableButton.textContent = '啟用此裝置推播'
+      testButton.disabled = true
+      disableButton.disabled = true
+      setMessage('此裝置已關閉推播通知。')
+    } catch (error) {
+      setMessage(error?.message || String(error), true)
+      disableButton.disabled = false
+    }
+  })
+
+  ;['#pushNewScheduleOption', '#pushScheduleUpdatedOption', '#pushScheduleCancelledOption'].forEach(selector => {
+    modal.querySelector(selector)?.addEventListener('change', async () => {
+      if (!subscription) return
+      try {
+        await savePushPreferences()
+        setMessage('通知偏好已自動儲存。')
+      } catch (error) {
+        setMessage(error?.message || String(error), true)
+      }
+    })
+  })
+}
+
+function notifySchedulePush(eventType = '', scheduleId = '', occurrenceDate = '') {
+  if (!scheduleId || !['created', 'updated', 'cancelled'].includes(eventType)) return
+  supabase.functions.invoke(FOR_E_PUSH_FUNCTION, {
+    body: { action: 'notify-schedule', eventType, scheduleId, occurrenceDate }
+  }).then(({ error, data }) => {
+    if (error || data?.error) console.warn('FOR-e 推播通知未送出，不影響行程儲存。', error || data.error)
+  }).catch(error => {
+    console.warn('FOR-e 推播通知服務暫時無法使用，不影響行程儲存。', error)
+  })
+}
+/* FOR-e V002-1H-stable-1-3fd END - PWA push notification settings */
+
 /* FOR-e V002-1H-stable-1-3de END - manual desktop view mode */
 let schedules = []
 let schedulesDataRevision = 0
@@ -7187,6 +7417,7 @@ function renderApp() {
       <main class="main">
         <header class="mobile-header">
           ${renderBrandLogo('horizontal')}
+          ${renderPushNotificationButton('mobile-push-notification-btn')}
           ${renderDesktopViewToggleButton('mobile-view-toggle-btn')}
         </header>
 
@@ -7201,6 +7432,7 @@ function renderApp() {
             </p>
           </div>
           <div class="topbar-actions">
+            ${renderPushNotificationButton()}
             ${renderDesktopViewToggleButton()}
             <button class="logout-btn" id="logoutBtn">登出</button>
           </div>
@@ -7241,6 +7473,10 @@ function renderApp() {
       setManualDesktopViewEnabled(!isManualDesktopViewEnabled())
       renderAppAndEnsurePageData(currentPage)
     })
+  })
+
+  document.querySelectorAll('#pushNotificationSettingsBtn').forEach(btn => {
+    btn.addEventListener('click', openPushNotificationSettingsModal)
   })
 
   document.querySelector('#logoutBtn').addEventListener('click', logout)
@@ -32453,6 +32689,8 @@ async function saveEditedSchedule(event, modal, originalRow) {
     note: `V002-1P-176 修改行程內容｜範圍：${editScope}`
   })
 
+  notifySchedulePush('updated', editedScheduleId, editOccurrenceDate)
+
   modal.remove()
   await refreshData()
   renderApp()
@@ -32833,6 +33071,8 @@ async function saveSchedule(event, modal) {
     note: `V002-1H-stable-1-3f 新增行程｜建立者：${currentProfile.name || currentProfile.email || '-'}｜指派人員：${selectedStaff.map(staff => staff.name).filter(Boolean).join('、') || '-'}`
   })
 
+  notifySchedulePush('created', schedule.schedule_id)
+
   modal.remove()
   await refreshData()
   saving = false
@@ -33098,6 +33338,7 @@ async function cancelSchedule(scheduleId, reason, options = {}) {
       alert('取消行程失敗：' + scopedCancel.error.message)
     } else {
       alert('已取消選取日期，其他週期行程不受影響。')
+      notifySchedulePush('cancelled', row.schedule_id, options.occurrenceDate || row.__occurrence_date || row.__render_date || row.start_date)
     }
     await refreshData()
     renderApp()
@@ -33136,6 +33377,8 @@ async function cancelSchedule(scheduleId, reason, options = {}) {
     renderApp()
     return
   }
+
+  targetRows.forEach(targetRow => notifySchedulePush('cancelled', targetRow.schedule_id))
 
   if (cascadeTargets.length) {
     alert(`異況已取消，並同步取消 ${cascadeTargets.length} 筆延伸行程 / 行政待辦。`)
