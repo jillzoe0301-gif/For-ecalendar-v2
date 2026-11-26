@@ -1,16 +1,16 @@
 /* FOR-e Calendar V2 PWA 1-3fc
  * Cache static shell/assets only. Never cache Supabase/API/auth or user data.
  */
-const VERSION = '1-3fc';
+const VERSION = '1-3fd';
 const PREFIX = 'for-e-pwa-';
 const STATIC_CACHE = PREFIX + 'static-' + VERSION;
 const SHELL_CACHE = PREFIX + 'shell-' + VERSION;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [
   OFFLINE_URL,
-  '/site.webmanifest?v=1-3fc',
-  '/pwa.css?v=1-3fc',
-  '/pwa-register.js?v=1-3fc',
+  '/site.webmanifest?v=1-3fd',
+  '/pwa.css?v=1-3fd',
+  '/pwa-register.js?v=1-3fd',
   '/icon-192.png',
   '/icon-512.png',
   '/maskable-icon-192.png',
@@ -64,6 +64,53 @@ async function cacheFirstStatic(request) {
   if (response && response.ok && response.type === 'basic') await cache.put(request, response.clone());
   return response;
 }
+
+self.addEventListener('push', event => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    payload = { body: event.data ? event.data.text() : '' };
+  }
+
+  const title = String(payload.title || 'FOR-e｜行程通知');
+  const options = {
+    body: String(payload.body || '您有一筆新的行程通知，請開啟 FOR-e 查看。'),
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: String(payload.tag || 'for-e-notification'),
+    renotify: false,
+    data: { url: String(payload.url || '/'), scheduleId: payload.data?.scheduleId || '' }
+  };
+
+  // Safari on iOS requires visible notifications; always show immediately.
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const rawUrl = String(event.notification.data?.url || '/');
+  let targetUrl = self.location.origin + '/';
+  try {
+    const parsed = new URL(rawUrl, self.location.origin);
+    if (parsed.origin === self.location.origin) targetUrl = parsed.href;
+  } catch (_) {}
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find(client => {
+      try { return new URL(client.url).origin === self.location.origin; }
+      catch (_) { return false; }
+    });
+    if (existing) {
+      try { await existing.navigate(targetUrl); } catch (_) {}
+      await existing.focus();
+      return;
+    }
+    await self.clients.openWindow(targetUrl);
+  })());
+});
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
