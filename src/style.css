@@ -28929,3 +28929,114 @@ body.force-desktop-mode .meeting-week-table {
   }
 }
 /* FOR-e V002-1H-stable-1-3ex END - create assignee selection and delete date */
+
+
+/* FOR-e V002-1H-stable-1-3fd START - PWA push settings */
+.push-notification-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #d8def4;
+  border-radius: 10px;
+  background: #f6f7ff;
+  color: #4c5fc5;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.push-notification-settings-btn:hover { background: #edf0ff; }
+.mobile-header .push-notification-settings-btn {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.push-settings-backdrop { z-index: 15000; }
+.push-settings-modal {
+  width: min(100%, 520px);
+  max-height: min(88dvh, 760px);
+  overflow-y: auto;
+}
+.push-settings-modal .modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.push-settings-modal .modal-header h3 { margin: 0 0 4px; }
+.push-settings-modal .modal-header .muted { margin: 0; font-size: 12px; }
+.push-settings-status {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 14px;
+  padding: 14px;
+  border: 1px solid var(--border, #e4e7ec);
+  border-radius: 14px;
+  background: var(--surface-soft, #f8fafc);
+  font-size: 13px;
+}
+.push-settings-status span { color: var(--muted, #667085); }
+.push-settings-status strong { text-align: right; }
+.push-settings-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.push-setting-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--border, #e4e7ec);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+}
+.push-setting-option input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.push-setting-option span { display: grid; gap: 3px; min-width: 0; }
+.push-setting-option strong { font-size: 13px; }
+.push-setting-option small { color: var(--muted, #667085); font-size: 12px; }
+.push-settings-note {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: #f5f7fb;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.push-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.push-settings-actions button { flex: 1 1 auto; min-height: 42px; }
+.push-settings-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.push-settings-footer {
+  min-height: 20px;
+  margin-top: 10px;
+  color: #27805d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.push-settings-footer.is-error { color: #b54747; }
+@media (max-width: 768px) {
+  .push-settings-modal {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .push-settings-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .push-settings-actions #enablePushBtn { grid-column: 1 / -1; }
+}
+/* FOR-e V002-1H-stable-1-3fd END - PWA push settings */
