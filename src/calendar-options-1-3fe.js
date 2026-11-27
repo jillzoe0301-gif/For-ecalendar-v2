@@ -199,30 +199,55 @@ function updateOptions(){
  apply();
 }
 const filterPrefs=new Map();
+const filterOriginalDisplay=new WeakMap();
+function setFilterVisibility(el,hidden){
+ if(!filterOriginalDisplay.has(el))filterOriginalDisplay.set(el,{value:el.style.getPropertyValue('display'),priority:el.style.getPropertyPriority('display')});
+ el.classList.toggle('for-e-filter-collapsed',hidden);
+ if(hidden){if(el.style.getPropertyValue('display')!=='none'||el.style.getPropertyPriority('display')!=='important')el.style.setProperty('display','none','important');}
+ else {
+  const prev=filterOriginalDisplay.get(el);
+  if(prev.value)el.style.setProperty('display',prev.value,prev.priority);
+  else el.style.removeProperty('display');
+ }
+}
 function updateFilters(){
- const panels=[...document.querySelectorAll('.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel')].filter(p=>!p.parentElement.closest('.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel'));
+ const selector='.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel';
+ const panels=[...document.querySelectorAll(selector)].filter(p=>!p.parentElement.closest(selector));
+ const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+ const groups=[...document.querySelectorAll('.overview-quick-group-bar')];
+ const overview=panels.find(p=>!p.classList.contains('field-filter-panel-compact'))||panels[0];
  panels.forEach((panel,i)=>{
   const key=panel.id|| (panel.classList.contains('field-filter-panel-compact')?'field':'overview')+':'+i;
-  const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
   let toggle=panel.previousElementSibling;
   if(!toggle?.classList.contains('for-e-filter-toggle')){
    toggle=document.createElement('button');toggle.type='button';toggle.className='for-e-filter-toggle';
    const label=document.createElement('span');label.textContent='篩選條件';
    const mark=document.createElement('span');mark.className='for-e-filter-mark';toggle.append(label,mark);
-   toggle.addEventListener('click',()=>{filterPrefs.set(key,!filterPrefs.get(key));updateFilters()});
    panel.before(toggle);
   }
+  const paired=panel===overview?groups:[];
   const expanded=filterPrefs.get(key)===true;
-  panel.classList.toggle('for-e-filter-collapsed',isMobile&&!expanded);
-  toggle.setAttribute('aria-expanded',String(expanded));
-  const mark=toggle.querySelector('.for-e-filter-mark');
-  const text=expanded?'收起 ▴':'展開 ▾';
-  if(mark.textContent!==text)mark.textContent=text;
+  const apply=(open)=>{
+   setFilterVisibility(panel,isMobile&&!open);
+   paired.forEach(group=>setFilterVisibility(group,isMobile&&!open));
+   toggle.setAttribute('aria-expanded',String(open));
+   const label=toggle.firstElementChild;
+   const title=paired.length?'篩選條件／快速人員群組':'篩選條件';
+   if(label.textContent!==title)label.textContent=title;
+   const mark=toggle.querySelector('.for-e-filter-mark');
+   const text=open?'收起 ▴':'展開 ▾';
+   if(mark.textContent!==text)mark.textContent=text;
+  };
+  toggle.onclick=event=>{
+   event.preventDefault();event.stopPropagation();
+   const next=!Boolean(filterPrefs.get(key));filterPrefs.set(key,next);apply(next);
+  };
+  apply(expanded);
  });
 }
 
 let queued=false;
-function refresh(){queued=false;updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();updateFilters();}
+function refresh(){queued=false;updateFilters();updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
