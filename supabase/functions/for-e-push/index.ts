@@ -133,7 +133,7 @@ async function handleRequest(req: Request) {
   }
 
   const action = String(body?.action || "");
-  const { user, profile, service } = context;
+  const { user, profile, service, userClient } = context;
 
   try {
     if (action === "public-key") {
@@ -232,14 +232,13 @@ async function handleRequest(req: Request) {
     if (action === "notify-schedule") {
       const scheduleId = String(body?.scheduleId || "");
       const eventType = String(body?.eventType || "");
-      const occurrenceDate = String(body?.occurrenceDate || "");
       if (!scheduleId || !["created", "updated", "cancelled"].includes(eventType)) {
         return json({ error: "Invalid schedule notification request." }, 400);
       }
 
       const { data: schedule, error: scheduleError } = await service
         .from("schedules")
-        .select("schedule_id, creator_profile_id, creator_staff_id, category, schedule_type, title, start_date, start_time, deleted_at")
+        .select("schedule_id, creator_profile_id, creator_staff_id, start_date, deleted_at, is_cancelled")
         .eq("schedule_id", scheduleId)
         .maybeSingle();
       if (scheduleError) throw scheduleError;
@@ -252,14 +251,31 @@ async function handleRequest(req: Request) {
         .is("deleted_at", null);
       if (assigneeError) throw assigneeError;
 
-      const privilegedRoles = ["管理員", "主管", "行政 / 海外"];
-      const actorIsCreator =
-        schedule.creator_profile_id === user.id ||
-        (profile.staff_id && schedule.creator_staff_id === profile.staff_id);
-      const actorIsAssignee = (assignees || []).some((item: any) => item.staff_id === profile.staff_id);
-      if (!actorIsCreator && !actorIsAssignee && !privilegedRoles.includes(String(profile.role || ""))) {
-        return json({ error: "You are not allowed to send notifications for this schedule." }, 403);
+      // Require existing application write authorization, then a server-recorded change
+      // made by this authenticated actor. Client input cannot manufacture events.
+      const { data: canWrite, error: permissionError } = await userClient.rpc("for_e_can_write_schedule_by_id", { target_schedule_id: scheduleId });
+      if (permissionError || canWrite !== true) return json({ error: "Schedule notification not authorized." }, 403);
+      const { data: recorded, error: eventError } = await service.from("push_schedule_events")
+        .select("event_id, actor_profile_id, event_type, occurred_at, claimed_at")
+        .eq("schedule_id", scheduleId)
+        .order("occurred_at", { ascending: false })
+        .order("event_id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (eventError) throw eventError;
+      if (!recorded || recorded.actor_profile_id !== user.id || recorded.event_type !== eventType ||
+          recorded.claimed_at || Date.now() - Date.parse(recorded.occurred_at) > 5 * 60 * 1000 ||
+          (eventType === "cancelled") !== Boolean(schedule.is_cancelled)) {
+        return json({ ok: true, sent: 0, skipped: "no-current-unclaimed-event" });
       }
+
+      // Atomic claim: only one request can acquire this row, even across instances.
+      const { data: claim, error: claimError } = await service.from("push_schedule_events")
+        .update({ claimed_at: new Date().toISOString() })
+        .eq("event_id", recorded.event_id).is("claimed_at", null)
+        .select("event_id").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claim) return json({ ok: true, sent: 0, skipped: "already-claimed" });
 
       const staffIds = [...new Set((assignees || [])
         .filter((item: any) => ["executor", "follow_up", "admin_notice"].includes(String(item.assignee_type || "executor")))
@@ -296,7 +312,7 @@ async function handleRequest(req: Request) {
       if (!eligible.length) return json({ ok: true, sent: 0, skipped: recipientIds.length });
 
       const { applicationServer } = await getVapidConfig();
-      const dateText = occurrenceDate || schedule.start_date || "";
+      const dateText = schedule.start_date || "";
       const title = eventType === "created"
         ? "FOR-e｜新行程指派"
         : eventType === "updated"
@@ -311,7 +327,7 @@ async function handleRequest(req: Request) {
         title,
         body: dateText ? `${bodyText}（${dateText}）` : bodyText,
         url: "/",
-        tag: `for-e-schedule-${scheduleId}`,
+        tag: `for-e-event-${recorded.event_id}`,
         data: { scheduleId },
       };
 
@@ -328,7 +344,7 @@ async function handleRequest(req: Request) {
             if (!deleteError) removed += 1;
           } else {
             failed += 1;
-            console.warn("FOR-e push delivery failed", String(error));
+            console.warn("FOR-e push delivery failed");
           }
         }
       }));
@@ -339,9 +355,9 @@ async function handleRequest(req: Request) {
   } catch (error) {
     const code = (error as any)?.code || "";
     const status = code === "PUSH_VAPID_NOT_CONFIGURED" ? 503 : 500;
-    console.error("for-e-push error:", error);
+    console.error("for-e-push error:", code || "internal_error");
     return json({
-      error: error instanceof Error ? error.message : String(error),
+      error: status === 503 ? "Push service is not configured." : "Push service request failed.",
       code,
     }, status);
   }
