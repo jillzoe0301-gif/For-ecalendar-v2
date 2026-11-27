@@ -1,7 +1,7 @@
 // Presentation-only enhancement. Original handlers and data storage remain untouched.
 const mobile = matchMedia('(max-width: 768px), (pointer: coarse)');
 const css = `
-.for-e-menu-removed { display:none!important; }
+#app .for-e-menu-removed, .sidebar .for-e-menu-removed, .mobile-nav .for-e-menu-removed { display:none!important; }
 .for-e-option-hidden { display:none!important; }
 .option-management-form .for-e-option-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:12px; background:#f4f6fa; border-radius:14px; }
 .for-e-option-tabs button { padding:10px 14px; background:white; color:#42536e; border:1px solid #dce2ee; }
@@ -35,15 +35,23 @@ const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定
 const clean = value=>String(value||'').replace(/\s+/g,'').trim();
 function navKey(el){return el.getAttribute('data-page')||el.getAttribute('data-target')||el.getAttribute('data-view')||''}
 function updateMenus(){
- const buttons=[...document.querySelectorAll('.sidebar button,.mobile-nav button,.sidebar a,.mobile-nav a')];
- const keys=new Set(buttons.filter(b=>removed.has(clean(b.textContent))||removed.has(clean(b.getAttribute('title')))).map(navKey).filter(Boolean));
- for(const b of buttons){
-  const hide=removed.has(clean(b.textContent))||removed.has(clean(b.getAttribute('title')))||removed.has(clean(b.getAttribute('aria-label')))||keys.has(navKey(b));
+ const buttons=[...new Set(document.querySelectorAll('.sidebar button,.mobile-nav button,.sidebar a,.mobile-nav a,.mobile-menu-label'))].map(node=>node.matches('.mobile-menu-label')?node.closest('button,a,[role="button"]')||node:node);
+ const unique=[...new Set(buttons)];
+ const labels=b=>[b.querySelector('.mobile-menu-label')?.textContent,b.textContent,b.getAttribute('title'),b.getAttribute('aria-label')].map(clean);
+ const direct=b=>labels(b).some(x=>removed.has(x));
+ const mobileHidden=b=>Boolean(b.closest('.mobile-nav')||b.querySelector('.mobile-menu-label')||b.matches('.mobile-menu-label'))&&labels(b).some(x=>['個人','個人行程','異況','異況追蹤','顏色','顏色設定'].includes(x));
+ const keys=new Set(unique.filter(b=>direct(b)||mobileHidden(b)).map(navKey).filter(Boolean));
+ for(const b of unique){
+  const hide=direct(b)||mobileHidden(b)||keys.has(navKey(b));
   b.classList.toggle('for-e-menu-removed',hide);
-  if(hide && b.classList.contains('active')){
-   const target=buttons.find(x=>!x.classList.contains('for-e-menu-removed')&&['行程總覽','行程'].includes(clean(x.textContent)));
-   if(target && target!==b){queueMicrotask(()=>{if(b.isConnected&&b.classList.contains('active'))target.click()});}
-  }
+  if(hide)b.style.setProperty('display','none','important');
+  else if(b.dataset.forERemoved==='1')b.style.removeProperty('display');
+  if(hide)b.dataset.forERemoved='1';else delete b.dataset.forERemoved;
+ }
+ const active=unique.find(b=>b.classList.contains('for-e-menu-removed')&&b.classList.contains('active'));
+ if(active){
+  const target=unique.find(x=>!x.classList.contains('for-e-menu-removed')&&labels(x).some(v=>['行程總覽','行程'].includes(v))&&x.getClientRects().length)||unique.find(x=>!x.classList.contains('for-e-menu-removed')&&labels(x).some(v=>['行程總覽','行程'].includes(v)));
+  if(target)queueMicrotask(()=>{if(active.isConnected&&active.classList.contains('active'))target.click()});
  }
 }
 const observed = new WeakSet();
