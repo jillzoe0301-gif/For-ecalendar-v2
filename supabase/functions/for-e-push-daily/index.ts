@@ -39,27 +39,41 @@ function getUserClient(token: string) {
 }
 
 async function getVapidConfig() {
+  let stage="read";
+  try {
   const raw = Deno.env.get("VAPID_KEYS_JSON");
   if (!raw) {
     const error = new Error("VAPID_KEYS_JSON is not configured.");
     (error as Error & { code?: string }).code = "PUSH_VAPID_NOT_CONFIGURED";
     throw error;
   }
-  let exported = JSON.parse(raw);
-  if (typeof exported === "string") exported = JSON.parse(exported);
+  stage="parse";
+  // Normalize dotenv quoting and escaped JSON without exposing its contents.
+  let exported: any;
+  const trimmed=raw.trim();
+  const candidates=[trimmed];
+  if ((trimmed.startsWith('"')&&trimmed.endsWith('"'))||(trimmed.startsWith("'")&&trimmed.endsWith("'"))) candidates.push(trimmed.slice(1,-1));
+  for(const value of [...candidates]) if(value.includes('\\\"'))candidates.push(value.replaceAll('\\\"','"'));
+  for(const candidate of candidates){
+    try { let value=JSON.parse(candidate); if(typeof value==="string")value=JSON.parse(value); if(value?.publicKey&&value?.privateKey){exported=value;break;} } catch (_) {}
+  }
   if (!exported?.publicKey || !exported?.privateKey) throw new Error("Invalid VAPID key format.");
   // Web Push needs to export the public point; keep the signing key non-extractable.
+  stage="import";
   const algorithm = { name: "ECDSA", namedCurve: "P-256" };
   const vapidKeys = {
     publicKey: await crypto.subtle.importKey("jwk", exported.publicKey, algorithm, true, ["verify"]),
     privateKey: await crypto.subtle.importKey("jwk", exported.privateKey, algorithm, false, ["sign"]),
   };
+  stage="export";
   const publicKey = await webpush.exportApplicationServerKey(vapidKeys);
+  stage="server";
   const applicationServer = await webpush.ApplicationServer.new({
     contactInformation: VAPID_CONTACT,
     vapidKeys,
   });
   return { publicKey, applicationServer };
+ } catch (_) { throw Object.assign(new Error("VAPID initialization failed"), {code:"VAPID_"+stage}); }
 }
 
 async function getAuthenticatedContext(req: Request) {
@@ -132,6 +146,8 @@ async function handleDigest(req: Request) {
   const service=getServiceClient();
   const {data:authorized,error:authError}=await service.rpc("for_e_push_digest_authorized",{p_token:token});
   if(authError||authorized!==true)return json({error:"Unauthorized"},401);
+  const diagnostic=await req.json().catch(()=>({}));
+  if(diagnostic.action==="health"){try{await getVapidConfig();return json({ok:true,stage:"ready"});}catch(e){return json({ok:false,stage:(e as any).code||"unknown"},503);}}
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
   const part=(type:string)=>parts.find(x=>x.type===type)?.value||"";
   const day=part("year")+"-"+part("month")+"-"+part("day");
