@@ -478,13 +478,13 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {`)
 
 
 const forEPushDailyPreferences = {
- name: 'for-e-push-daily-preferences', enforce:'post',
+ name: 'for-e-push-daily-preferences', enforce:'pre',
  transform(code,id){
   if(!id.replaceAll('\\\\','/').endsWith('/src/main.js'))return null;
   const note = "      '<div class=\"push-settings-note\">目前只推播新指派、修改及取消，不會推播每次登入或一般背景同步，避免通知過多。</div>',";
   const save = "        notify_schedule_cancelled: modal.querySelector('#pushScheduleCancelledOption').checked";
   const list = "['#pushNewScheduleOption', '#pushScheduleUpdatedOption', '#pushScheduleCancelledOption']";
-  if(!code.includes(note)||!code.includes(save)||!code.includes(list))throw new Error('FOR-e push preferences anchors missing');
+  if(!code.includes(note)||!code.includes(save)||!code.includes(list)){console.warn('FOR-e push preferences anchors missing; original UI retained');return null;}
   const dailyRows = "        '<label class=\"push-setting-option\"><input type=\"checkbox\" id=\"pushEscapeOption\" ', (settings.notify_escape !== false ? 'checked' : ''), '><span><strong>逃跑追蹤</strong><small>每日 08:30 工作摘要</small></span></label>',\n        '<label class=\"push-setting-option\"><input type=\"checkbox\" id=\"pushTransferOption\" ', (settings.notify_transfer !== false ? 'checked' : ''), '><span><strong>轉出追蹤</strong><small>每日 08:30 工作摘要</small></span></label>',\n        '<label class=\"push-setting-option\"><input type=\"checkbox\" id=\"pushVerificationOption\" ', (settings.notify_verification !== false ? 'checked' : ''), '><span><strong>驗證提醒</strong><small>每日 08:30 工作摘要</small></span></label>',\n        '<label class=\"push-setting-option\"><input type=\"checkbox\" id=\"pushReturnOption\" ', (settings.notify_return !== false ? 'checked' : ''), '><span><strong>返台確認</strong><small>每日 08:30 工作摘要</small></span></label>',\n        '<label class=\"push-setting-option\"><input type=\"checkbox\" id=\"pushMeetingOption\" ', (settings.notify_meeting !== false ? 'checked' : ''), '><span><strong>會議提醒</strong><small>每日 08:30 工作摘要</small></span></label>',";
   let next=code.replace(note,dailyRows+'\n'+"      '<div class=\"push-settings-note\">每日 08:30 合併工作與會議提醒；已完成、取消及沒有待辦不通知。</div>',");
   next=next.replace(save,save+',\n'+"        notify_escape: modal.querySelector('#pushEscapeOption').checked,\n        notify_transfer: modal.querySelector('#pushTransferOption').checked,\n        notify_verification: modal.querySelector('#pushVerificationOption').checked,\n        notify_return: modal.querySelector('#pushReturnOption').checked,\n        notify_meeting: modal.querySelector('#pushMeetingOption').checked");
