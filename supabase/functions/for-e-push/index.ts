@@ -45,8 +45,15 @@ async function getVapidConfig() {
     (error as Error & { code?: string }).code = "PUSH_VAPID_NOT_CONFIGURED";
     throw error;
   }
-  const exported = JSON.parse(raw);
-  const vapidKeys = await webpush.importVapidKeys(exported, { extractable: false });
+  let exported = JSON.parse(raw);
+  if (typeof exported === "string") exported = JSON.parse(exported);
+  if (!exported?.publicKey || !exported?.privateKey) throw new Error("Invalid VAPID key format.");
+  // Web Push needs to export the public point; keep the signing key non-extractable.
+  const algorithm = { name: "ECDSA", namedCurve: "P-256" };
+  const vapidKeys = {
+    publicKey: await crypto.subtle.importKey("jwk", exported.publicKey, algorithm, true, ["verify"]),
+    privateKey: await crypto.subtle.importKey("jwk", exported.privateKey, algorithm, false, ["sign"]),
+  };
   const publicKey = await webpush.exportApplicationServerKey(vapidKeys);
   const applicationServer = await webpush.ApplicationServer.new({
     contactInformation: VAPID_CONTACT,
