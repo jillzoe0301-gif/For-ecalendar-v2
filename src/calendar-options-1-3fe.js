@@ -247,7 +247,18 @@ function updateFilters(){
 }
 
 let queued=false;
-function refresh(){queued=false;updateFilters();updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
+function updateDesktopAssignedReminder(){
+ const desktop=document.body.classList.contains('force-desktop-mode')||!mobile.matches;
+ if(!desktop)return;
+ document.querySelectorAll('.assigned-reminder-backdrop').forEach(node=>node.remove());
+ // The obsolete shortcut led to the retired personal-calendar page.
+ document.querySelectorAll('.sidebar button,.sidebar a,.nav button,.nav a').forEach(node=>{
+  if(clean(node.textContent)==='指派事項'||clean(node.getAttribute('title'))==='指派事項'){
+   node.classList.add('for-e-menu-removed');node.style.setProperty('display','none','important');
+  }
+ });
+}
+function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
