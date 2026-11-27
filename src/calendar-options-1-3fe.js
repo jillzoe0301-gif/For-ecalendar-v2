@@ -10,25 +10,61 @@ const css = `
 .option-management-form .option-line-list { max-height:none!important; overflow:visible!important; }
 .option-management-form .option-edit-box { min-width:0; }
 .option-management-form .option-form-actions { position:sticky; bottom:0; background:white; padding:12px; z-index:5; }
-.for-e-float-name { display:none; }
+.for-e-name-band { display:none!important; }
 @media (max-width:768px), (pointer:coarse) {
- body:not(.force-desktop-mode) table.for-e-float-active > thead > tr > :first-child {
-  left:auto!important; inset-inline-start:auto!important; z-index:1!important;
- }
- body:not(.force-desktop-mode) table.for-e-float-active > tbody > tr > :first-child {
-  position:relative!important; left:auto!important; inset-inline-start:auto!important;
-  z-index:4!important; overflow:visible!important; background:transparent!important; box-shadow:none!important;
- }
- body:not(.force-desktop-mode) table.for-e-float-active > tbody > tr > :first-child > :not(.for-e-float-name) { visibility:hidden!important; }
- body:not(.force-desktop-mode) table.for-e-float-active > tbody > tr > :not(:first-child) { padding-top:34px!important; }
- body:not(.force-desktop-mode) table.for-e-float-active .for-e-float-name {
-  display:block!important; position:absolute!important; top:5px!important; left:7px!important;
-  transform:translateX(var(--for-e-float-x,0px))!important; white-space:nowrap!important;
-  color:#fff!important; background:#526783!important; font-size:12px!important; font-weight:700!important;
-  line-height:18px!important; padding:2px 9px!important; border-radius:999px!important;
-  width:max-content!important; max-width:none!important; visibility:visible!important; pointer-events:none!important;
- }
+  #app table.for-e-horizontal-names > thead > tr > .for-e-original-name,
+  #app table.for-e-horizontal-names > tbody > tr > .for-e-original-name,
+  #app table.for-e-horizontal-names > colgroup > .for-e-original-name {
+    display:none!important;
+  }
+  #app table.for-e-horizontal-names > tbody > tr.for-e-name-band {
+    display:table-row!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  #app table.for-e-horizontal-names > tbody > tr.for-e-name-band > td.for-e-name-band-cell {
+    display:table-cell!important;
+    position:static!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:6px 8px!important;
+    background:#eaf0f7!important;
+    border:1px solid #d6dce7!important;
+    box-shadow:none!important;
+    text-align:left!important;
+    overflow:visible!important;
+    vertical-align:middle!important;
+  }
+  #app table.for-e-horizontal-names .for-e-name-band-content {
+    position:sticky!important;
+    left:8px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    gap:9px!important;
+    width:max-content!important;
+    max-width:calc(100vw - 32px)!important;
+    white-space:nowrap!important;
+    line-height:1.25!important;
+  }
+  #app table.for-e-horizontal-names .for-e-name-pill {
+    display:inline-block!important;
+    background:#526783!important;
+    color:#fff!important;
+    border-radius:999px!important;
+    font-size:13px!important;
+    font-weight:750!important;
+    padding:4px 12px!important;
+  }
+  #app table.for-e-horizontal-names .for-e-name-department {
+    color:#64748b!important;
+    font-size:12px!important;
+    font-weight:500!important;
+  }
 }
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -54,35 +90,47 @@ function updateMenus(){
   if(target)queueMicrotask(()=>{if(active.isConnected&&active.classList.contains('active'))target.click()});
  }
 }
-const observed = new WeakSet();
 const selector='table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table';
-function getScroll(table){
- for(let p=table.parentElement;p&&p!==document.body;p=p.parentElement){
-  const overflow=getComputedStyle(p).overflowX;
-  if(/auto|scroll/.test(overflow)) return p;
- }
- return null;
-}
 function updateTable(table){
- const scroll=getScroll(table); if(!scroll)return;
- const update=()=>{
-  const active=mobile.matches&&!document.body.classList.contains('force-desktop-mode')&&scroll.scrollLeft>3;
-  table.classList.toggle('for-e-float-active',active);
-  table.style.setProperty('--for-e-float-x',Math.max(0,scroll.scrollLeft)+'px');
- };
- for(const row of table.querySelectorAll(':scope > tbody > tr')){
+ const active=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+ table.classList.toggle('for-e-horizontal-names',active);
+ if(!active)return;
+ const rows=[...table.querySelectorAll(':scope > tbody > tr:not(.for-e-name-band)')];
+ for(const row of rows){
   const cell=row.firstElementChild;
-  if(!cell||row.children.length<2||cell.querySelector(':scope > .for-e-float-name'))continue;
+  if(!cell||row.children.length<2||cell.colSpan>1)continue;
   const name=cell.querySelector('.calendar-staff-name-text,.meeting-room-name-main')||cell.querySelector('strong');
   const raw=clean(name?.textContent||cell.textContent);
   if(!raw)continue;
   const num=cell.querySelector('.meeting-room-name-number');
-  const label=document.createElement('span'); label.className='for-e-float-name';
-  label.textContent=raw+(num&&!raw.includes(clean(num.textContent))?' '+clean(num.textContent):'');
-  label.setAttribute('aria-hidden','true'); cell.append(label);
+  const department=cell.querySelector('.calendar-staff-department');
+  const title=raw+(num&&!raw.includes(clean(num.textContent))?' '+clean(num.textContent):'');
+  const dept=clean(department?.textContent);
+  const colspan=[...row.children].slice(1).reduce((n,td)=>n+(td.colSpan||1),0);
+  cell.classList.add('for-e-original-name');
+  let band=row.previousElementSibling;
+  if(!band?.classList.contains('for-e-name-band')){
+   band=document.createElement('tr');band.className='for-e-name-band';
+   const td=document.createElement('td');td.className='for-e-name-band-cell';
+   const content=document.createElement('div');content.className='for-e-name-band-content';
+   const pill=document.createElement('span');pill.className='for-e-name-pill';
+   const sub=document.createElement('span');sub.className='for-e-name-department';
+   content.append(pill,sub);td.append(content);band.append(td);row.before(band);
+  }
+  const td=band.firstElementChild;
+  if(td.colSpan!==colspan)td.colSpan=colspan;
+  const pill=td.querySelector('.for-e-name-pill'),sub=td.querySelector('.for-e-name-department');
+  if(pill.textContent!==title)pill.textContent=title;
+  if(sub.textContent!==dept)sub.textContent=dept;
+  sub.hidden=!dept;
  }
- if(!observed.has(table)){observed.add(table);scroll.addEventListener('scroll',update,{passive:true});}
- update();
+ // Only remove the original name column, not the date columns.
+ for(const row of table.querySelectorAll(':scope > thead > tr')){
+  const cell=row.firstElementChild;
+  if(cell&&row.children.length>1&&cell.colSpan===1)cell.classList.add('for-e-original-name');
+ }
+ const firstCol=table.querySelector(':scope > colgroup > col:first-child');
+ if(firstCol)firstCol.classList.add('for-e-original-name');
 }
 let selected='';
 function updateOptions(){
