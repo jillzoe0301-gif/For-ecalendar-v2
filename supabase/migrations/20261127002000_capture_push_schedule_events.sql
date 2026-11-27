@@ -45,6 +45,5 @@ exception when others then
 end;
 $$;
 revoke all on function for_e_push_private.capture_schedule_change() from public, anon, authenticated;
-drop trigger if exists for_e_push_capture_schedule on public.schedules;
 create trigger for_e_push_capture_schedule after insert or update on public.schedules
 for each row execute function for_e_push_private.capture_schedule_change();
