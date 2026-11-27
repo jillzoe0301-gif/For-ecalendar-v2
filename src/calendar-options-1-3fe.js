@@ -73,7 +73,7 @@ function updateTable(table){
   label.textContent=raw+(num&&!raw.includes(clean(num.textContent))?' '+clean(num.textContent):'');
   label.setAttribute('aria-hidden','true'); cell.append(label);
  }
- if(!observed.has(table)){observed.add(table);scroll.addEventListener('scroll',update,{passive:true});mobile.addEventListener('change',update);}
+ if(!observed.has(table)){observed.add(table);scroll.addEventListener('scroll',update,{passive:true});}
  update();
 }
 let selected='';
@@ -94,10 +94,11 @@ function updateOptions(){
   });
   tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===selected)));
  }
+ if(tabs && tabs.dataset.categories!==JSON.stringify(names)){tabs.remove();tabs=null;}
  if(!tabs){
-  tabs=document.createElement('div');tabs.className='for-e-option-tabs';tabs.setAttribute('aria-label','選項分類');
+  tabs=document.createElement('div');tabs.dataset.categories=JSON.stringify(names);tabs.className='for-e-option-tabs';tabs.setAttribute('aria-label','選項分類');
   const fragment=document.createDocumentFragment();
-  for(const name of [...new Set(names)]){const b=document.createElement('button');b.type='button';b.textContent=name;b.addEventListener('click',()=>{selected=name;apply()});fragment.append(b);}
+  for(const name of [...new Set(names)]){const b=document.createElement('button');b.type='button';b.textContent=name;b.addEventListener('click',()=>{selected=name;updateOptions()});fragment.append(b);}
   tabs.append(fragment);form.prepend(tabs);
  }
  apply();
@@ -106,5 +107,6 @@ let queued=false;
 function refresh(){queued=false;updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
+mobile.addEventListener('change',schedule);
 window.addEventListener('resize',schedule,{passive:true});
 schedule();
