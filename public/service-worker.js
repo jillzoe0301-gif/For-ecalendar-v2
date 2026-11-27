@@ -1,16 +1,16 @@
-/* FOR-e Calendar V2 PWA 1-3fc
+/* FOR-e Calendar V2 PWA 1-3fe-ui2
  * Cache static shell/assets only. Never cache Supabase/API/auth or user data.
  */
-const VERSION = '1-3fd';
+const VERSION = '1-3fe-ui2';
 const PREFIX = 'for-e-pwa-';
 const STATIC_CACHE = PREFIX + 'static-' + VERSION;
 const SHELL_CACHE = PREFIX + 'shell-' + VERSION;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [
   OFFLINE_URL,
-  '/site.webmanifest?v=1-3fd',
-  '/pwa.css?v=1-3fd',
-  '/pwa-register.js?v=1-3fd',
+  '/site.webmanifest?v=1-3fc',
+  '/pwa.css?v=1-3fc',
+  '/pwa-register.js?v=1-3fc',
   '/icon-192.png',
   '/icon-512.png',
   '/maskable-icon-192.png',
@@ -64,7 +64,6 @@ async function cacheFirstStatic(request) {
   if (response && response.ok && response.type === 'basic') await cache.put(request, response.clone());
   return response;
 }
-
 self.addEventListener('push', event => {
   let payload = {};
   try {
