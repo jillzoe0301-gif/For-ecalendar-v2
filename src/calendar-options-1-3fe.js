@@ -65,6 +65,39 @@ const css = `
   }
 }
 
+@media (max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) .mobile-nav {
+    display:flex!important; gap:0!important; padding-inline:4px!important;
+    justify-content:space-evenly!important; overflow-x:hidden!important;
+    box-sizing:border-box!important;
+  }
+  html body:not(.force-desktop-mode) .mobile-nav > button:not(.for-e-menu-removed),
+  html body:not(.force-desktop-mode) .mobile-nav > a:not(.for-e-menu-removed) {
+    flex:1 1 0!important; min-width:0!important; width:0!important; max-width:none!important;
+    margin:0!important; padding-inline:2px!important;
+  }
+  html body:not(.force-desktop-mode) .mobile-nav .mobile-menu-label {
+    white-space:nowrap!important; font-size:clamp(10px,2.8vw,13px)!important;
+  }
+  html body:not(.force-desktop-mode) .mobile-nav .for-e-menu-removed { display:none!important; }
+  html body:not(.force-desktop-mode) .for-e-filter-toggle {
+    display:flex!important; align-items:center; justify-content:space-between;
+    width:100%; padding:12px 15px; margin:8px 0; border:1px solid #dbe3f0;
+    border-radius:13px; background:#f7f9fc; color:#344563; font-size:14px;
+  }
+  html body:not(.force-desktop-mode) .for-e-filter-collapsed { display:none!important; }
+  html body:not(.force-desktop-mode) .overview-filter-summary,
+  html body:not(.force-desktop-mode) .overview-quick-group-title span { display:none!important; }
+  #app table.for-e-horizontal-names .for-e-band-field-badge {
+    display:inline-flex!important; align-items:center; justify-content:center;
+    background:#ffe5c7!important; color:#a95010!important; border:1px solid #f3b46d;
+    border-radius:999px!important; font-size:12px!important; font-weight:800!important;
+    min-width:24px; height:24px; padding:0 5px;
+  }
+  #app table.for-e-horizontal-names .for-e-band-field-badge[hidden] { display:none!important; }
+}
+.for-e-filter-toggle { display:none; }
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -106,6 +139,8 @@ function updateTable(table){
   const department=cell.querySelector('.calendar-staff-department');
   const title=raw+(num&&!raw.includes(clean(num.textContent))?' '+clean(num.textContent):'');
   const dept=clean(department?.textContent);
+  const fieldBadge=cell.querySelector('.field-worker-badge');
+  const fieldText=fieldBadge?clean(fieldBadge.textContent)||'外':'';
   const colspan=[...row.children].slice(1).reduce((n,td)=>n+(td.colSpan||1),0);
   cell.classList.add('for-e-original-name');
   let band=row.previousElementSibling;
@@ -115,7 +150,8 @@ function updateTable(table){
    const content=document.createElement('div');content.className='for-e-name-band-content';
    const pill=document.createElement('span');pill.className='for-e-name-pill';
    const sub=document.createElement('span');sub.className='for-e-name-department';
-   content.append(pill,sub);td.append(content);band.append(td);row.before(band);
+   const badge=document.createElement('span');badge.className='for-e-band-field-badge';badge.hidden=true;
+   content.append(pill,badge,sub);td.append(content);band.append(td);row.before(band);
   }
   const td=band.firstElementChild;
   if(td.colSpan!==colspan)td.colSpan=colspan;
@@ -123,6 +159,9 @@ function updateTable(table){
   if(pill.textContent!==title)pill.textContent=title;
   if(sub.textContent!==dept)sub.textContent=dept;
   sub.hidden=!dept;
+  const badge=td.querySelector('.for-e-band-field-badge');
+  if(badge.textContent!==fieldText)badge.textContent=fieldText;
+  badge.hidden=!fieldText;
  }
  // Only remove the original name column, not the date columns.
  for(const row of table.querySelectorAll(':scope > thead > tr')){
@@ -159,8 +198,31 @@ function updateOptions(){
  }
  apply();
 }
+const filterPrefs=new Map();
+function updateFilters(){
+ const panels=[...document.querySelectorAll('.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel')].filter(p=>!p.parentElement.closest('.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel'));
+ panels.forEach((panel,i)=>{
+  const key=panel.id|| (panel.classList.contains('field-filter-panel-compact')?'field':'overview')+':'+i;
+  const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+  let toggle=panel.previousElementSibling;
+  if(!toggle?.classList.contains('for-e-filter-toggle')){
+   toggle=document.createElement('button');toggle.type='button';toggle.className='for-e-filter-toggle';
+   const label=document.createElement('span');label.textContent='篩選條件';
+   const mark=document.createElement('span');mark.className='for-e-filter-mark';toggle.append(label,mark);
+   toggle.addEventListener('click',()=>{filterPrefs.set(key,!filterPrefs.get(key));updateFilters()});
+   panel.before(toggle);
+  }
+  const expanded=filterPrefs.get(key)===true;
+  panel.classList.toggle('for-e-filter-collapsed',isMobile&&!expanded);
+  toggle.setAttribute('aria-expanded',String(expanded));
+  const mark=toggle.querySelector('.for-e-filter-mark');
+  const text=expanded?'收起 ▴':'展開 ▾';
+  if(mark.textContent!==text)mark.textContent=text;
+ });
+}
+
 let queued=false;
-function refresh(){queued=false;updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
+function refresh(){queued=false;updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();updateFilters();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
