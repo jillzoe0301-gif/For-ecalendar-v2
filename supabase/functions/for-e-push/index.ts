@@ -114,6 +114,9 @@ async function sendToSubscription(applicationServer: InstanceType<typeof webpush
   await subscriber.pushTextMessage(JSON.stringify(payload), { ttl: 3600 });
 }
 
+function safeNotificationText(value: unknown, max = 100) {
+ return String(value || "").replace(/[A-Z][0-9]{8,9}/gi,"[證件已隱藏]").replace(/\b\d{8,}\b/g,"[號碼已隱藏]").replace(/\s+/g," ").trim().slice(0,max);
+}
 async function handleRequest(req: Request) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -146,7 +149,7 @@ async function handleRequest(req: Request) {
       if (!endpoint) return json({ subscribed: false, permissionManagedByBrowser: true });
       const { data, error } = await service
         .from("push_subscriptions")
-        .select("is_enabled, notify_new_schedule, notify_schedule_updated, notify_schedule_cancelled, device_label, last_seen_at")
+        .select("is_enabled, notify_new_schedule, notify_schedule_updated, notify_schedule_cancelled, notify_escape, notify_transfer, notify_verification, notify_return, notify_meeting, device_label, last_seen_at")
         .eq("profile_id", user.id)
         .eq("endpoint", endpoint)
         .maybeSingle();
@@ -186,7 +189,7 @@ async function handleRequest(req: Request) {
     if (action === "update-settings") {
       const endpoint = validateEndpoint(String(body?.endpoint || ""));
       const settings = body?.settings || {};
-      const allowedKeys = ["notify_new_schedule", "notify_schedule_updated", "notify_schedule_cancelled"];
+      const allowedKeys = ["notify_new_schedule", "notify_schedule_updated", "notify_schedule_cancelled", "notify_escape", "notify_transfer", "notify_verification", "notify_return", "notify_meeting"];
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
       for (const key of allowedKeys) {
         if (typeof settings[key] === "boolean") patch[key] = settings[key];
@@ -238,7 +241,7 @@ async function handleRequest(req: Request) {
 
       const { data: schedule, error: scheduleError } = await service
         .from("schedules")
-        .select("schedule_id, creator_profile_id, creator_staff_id, start_date, deleted_at, is_cancelled")
+        .select("schedule_id, creator_profile_id, creator_staff_id, start_date, start_time, end_time, title, deleted_at, is_cancelled")
         .eq("schedule_id", scheduleId)
         .maybeSingle();
       if (scheduleError) throw scheduleError;
@@ -325,7 +328,7 @@ async function handleRequest(req: Request) {
           : "您被指派的行程已取消，請開啟 FOR-e 確認。";
       const payload = {
         title,
-        body: dateText ? `${bodyText}（${dateText}）` : bodyText,
+        body: [safeNotificationText(schedule.title, 100) || bodyText, [dateText, schedule.start_time?.slice(0,5), schedule.end_time ? "–"+schedule.end_time.slice(0,5) : ""].filter(Boolean).join(" ")].filter(Boolean).join("\n"),
         url: "/",
         tag: `for-e-event-${recorded.event_id}`,
         data: { scheduleId },
