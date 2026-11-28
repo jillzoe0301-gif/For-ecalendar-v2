@@ -61,3 +61,81 @@
   #scheduleForm .extra-schedule-box .service-extra-multi-field{margin:0 0 6px!important}
   #scheduleForm .dc-segments button{flex:0 1 auto!important}
 }
+
+/* Confirmed desktop Plan A: a compact shared grid, without moving native inputs. */
+.dc-status-badge{display:none}
+@media (min-width:769px) and (pointer:fine) {
+  #overviewFilterForm.overview-filter-panel-compact .overview-filter-compact-row{display:flex!important;flex-wrap:nowrap!important;gap:8px!important;align-items:center!important}
+  #overviewFilterForm .overview-filter-compact-row > .compact-filter-control{flex:0 1 132px!important;width:132px!important;min-width:0!important;max-width:132px!important;margin:0!important}
+  #overviewFilterForm .overview-filter-compact-row > #resetOverviewFilterBtn{flex:0 0 auto!important;align-self:center!important;min-width:0!important;width:auto!important;max-width:none!important;margin:0!important;padding:5px 9px!important;background:transparent!important;border:0!important;box-shadow:none!important;color:#626f88!important;white-space:nowrap!important}
+  #overviewFilterForm #resetOverviewFilterBtn::before{content:'↻';margin-right:4px;font-size:16px}
+  .dc-multi-footer{border-top:1px solid #e5e7ef;padding-top:7px;justify-content:flex-start!important;gap:5px!important;flex-wrap:nowrap}
+  .dc-multi-footer .dc-count{margin-left:auto;white-space:nowrap}
+  .dc-multi-footer .dc-text-action{background:transparent!important;border:0!important;box-shadow:none!important;min-height:28px!important;padding:4px 5px!important;color:#626f88!important;white-space:nowrap}
+  .dc-multi-options .dc-option{border:0!important;border-radius:4px!important;min-height:30px!important;padding:5px 7px!important;justify-content:flex-start!important;gap:8px}
+  .dc-multi-options .dc-option::before{content:' ';width:15px;height:15px;border:1px solid #a9b4ca;border-radius:3px;box-sizing:border-box;flex:none;line-height:13px;text-align:center}
+  .dc-multi-options .dc-option[aria-pressed=true]::before{content:'✓';color:white;background:#575be7;border-color:#575be7}
+  .dc-multi-options .dc-option[aria-pressed=true]::after{content:none}
+  .dc-multi-options .dc-option:hover{background:#f4f6fb!important}
+  .dc-multi-options{gap:1px}
+  .schedule-create-modal .modal-header h3{display:flex;align-items:center;gap:12px}
+  .schedule-create-modal .dc-status-badge{display:inline-flex;align-items:center;background:#eeefff;color:#5156d4;border:1px solid #d9dcfd;border-radius:5px;padding:3px 9px;font-size:12px;font-weight:650}
+  #scheduleForm.dc-layout-a{grid-template-columns:repeat(12,minmax(0,1fr))!important;gap:8px 16px!important;align-items:start!important;padding-top:10px!important}
+  #scheduleForm.dc-layout-a > *{grid-column:1/-1;order:45!important;min-width:0}
+  #scheduleForm.dc-layout-a .schedule-status-field{display:none!important}
+  #scheduleForm.dc-layout-a > label:has(#categorySelect){grid-column:span 6!important;order:10!important}
+  #scheduleForm.dc-layout-a #scheduleAssigneeBlock{grid-column:span 6!important;order:2!important;border:0!important;padding:0!important;margin:0!important;background:transparent!important}
+  #scheduleForm.dc-layout-a [data-section="common-simple"]:not(.hidden),
+  #scheduleForm.dc-layout-a [data-section="service-location"]:not(.hidden):not(.compact-special-hidden),
+  #scheduleForm.dc-layout-a [data-section="service-top"]:not(.hidden),
+  #scheduleForm.dc-layout-a .extra-schedule-box:not(.hidden):not(.compact-special-hidden),
+  #scheduleForm.dc-layout-a .extra-schedule-box:not(.hidden):not(.compact-special-hidden) #extraScheduleBlock:not(.hidden):not(.compact-special-hidden){display:contents!important}
+  #scheduleForm.dc-layout-a .common-title-field,#scheduleForm.dc-layout-a label:has(input[name="customer_name"]){grid-column:span 6!important;order:1!important}
+  #scheduleForm.dc-layout-a label:has(input[name="general_item"]),#scheduleForm.dc-layout-a label:has(input[name="general_customer_name"]){grid-column:span 6!important;order:3!important}
+  #scheduleForm.dc-layout-a .service-general-address-field{grid-column:span 6!important;order:11!important}
+  #scheduleForm.dc-layout-a .schedule-date-cycle-group{order:20!important}
+  #scheduleForm.dc-layout-a .schedule-time-group{order:21!important}
+  #scheduleForm.dc-layout-a .block-group,#scheduleForm.dc-layout-a .form-section:not(.hidden){padding:0!important;border:0!important}
+  #scheduleForm.dc-layout-a .inner-grid{margin:0!important;gap:8px 16px!important;align-items:start!important}
+  #scheduleForm.dc-layout-a label:has(#serviceTypeSelect){grid-column:span 6!important;order:30!important}
+  #scheduleForm.dc-layout-a label:has(#serviceReminderTypeSelect){grid-column:span 6!important;order:31!important}
+  #scheduleForm.dc-layout-a .service-extra-multi-field{grid-column:span 6!important;order:32!important;margin:0!important;padding:0!important}
+  #scheduleForm.dc-layout-a label:has(input[name="sub_type_note"]){grid-column:span 6!important;order:33!important}
+  #scheduleForm.dc-layout-a label:has(textarea[name="description"]){grid-column:1/-1!important;order:50!important}
+  #scheduleForm.dc-layout-a .schedule-template-row{grid-column:1/-1!important;order:51!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;background:transparent!important;border:0!important;min-height:0!important}
+  #scheduleForm.dc-layout-a .schedule-template-row.hidden,#scheduleForm.dc-layout-a .schedule-template-row.compact-special-hidden{display:none!important}
+  #scheduleForm.dc-layout-a #applyScheduleTypeContentBtn{width:auto!important;min-width:0!important;min-height:26px!important;flex:0 0 auto!important;padding:4px 8px!important;font-size:12px!important}
+  #scheduleForm.dc-layout-a .schedule-template-row > span{font-size:11px!important;color:#67738b!important}
+  #scheduleForm.dc-layout-a .service-record-box:not(.hidden):not(.compact-special-hidden){grid-column:1/-1!important;order:52!important;display:flex!important;align-items:center!important;gap:10px!important;margin:0!important;border:0!important;padding:0!important}
+  #scheduleForm.dc-layout-a .service-record-box > .field-title{flex:0 0 auto!important;width:auto!important;margin:0!important}
+  #scheduleForm.dc-layout-a .service-record-box > label,#scheduleForm.dc-layout-a label:has([name="service_record_submitted_date"]){display:none!important}
+  #scheduleForm.dc-layout-a .dc-record-choice{width:auto!important}
+  #scheduleForm.dc-layout-a > .pa-notification-group:not([hidden]){order:60!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px 16px!important;padding:0!important;border:0!important;margin:0!important}
+  #scheduleForm.dc-layout-a .pa-notification-group > .field-title,#scheduleForm.dc-layout-a .pa-notification-group > .pa-notification-hint{display:none!important}
+  #scheduleForm.dc-layout-a > [data-section="service"]{order:61!important}
+  #scheduleForm.dc-layout-a > .modal-actions{order:100!important}
+  #scheduleForm.dc-layout-a label:not(.hidden),#scheduleForm.dc-layout-a .field-title{line-height:18px!important;font-size:13px!important;font-weight:650!important;margin:0!important}
+  #scheduleForm.dc-layout-a label:not(.hidden){display:flex;flex-direction:column;justify-content:flex-start!important;gap:4px!important;padding:0!important}
+  #scheduleForm.dc-layout-a .field-title{margin-bottom:4px!important}
+  #scheduleForm.dc-layout-a label > input:not([type=checkbox]):not([type=radio]):not([type=hidden]),#scheduleForm.dc-layout-a label > select,#scheduleForm.dc-layout-a .dc-trigger,#scheduleForm.dc-layout-a .dc-segments > button{height:34px!important;min-height:34px!important;max-height:34px!important;box-sizing:border-box!important;margin:0!important}
+  #scheduleForm.dc-layout-a label > textarea{width:100%!important;min-height:66px!important;margin:0!important;box-sizing:border-box!important}
+  #scheduleForm.dc-layout-a .dc-source{display:none!important}
+  #scheduleForm.dc-layout-a .hidden,#scheduleForm.dc-layout-a .compact-special-hidden,#scheduleForm.dc-layout-a [hidden]{display:none!important}
+  #scheduleForm.dc-layout-a input[type=hidden]{display:none!important}
+}
+.dc-content-heading{display:contents}
+.dc-content-shortcut{display:none}
+@media (min-width:769px) and (pointer:fine) {
+  #scheduleForm.dc-layout-a .dc-content-heading{display:flex;align-items:center;gap:8px;min-height:24px}
+  #scheduleForm.dc-layout-a .dc-content-shortcut:not([hidden]){display:inline-flex!important;align-items:center;min-height:24px!important;height:24px!important;padding:2px 8px!important;color:#5055d1!important;background:#f0f1ff!important;font-size:12px!important}
+  #scheduleForm.dc-layout-a .schedule-template-row{display:none!important}
+  #scheduleForm.dc-layout-a .pa-notification-group > div{margin:0!important;padding:0!important;border:0!important;min-width:0!important}
+  #scheduleForm.dc-layout-a .pa-notification-group > div .field-title{margin:0 0 4px!important;line-height:18px!important}
+  #scheduleForm.dc-layout-a .pa-notification-group .dc-trigger{margin:0!important}
+  #scheduleForm.dc-layout-a > [data-section="service"] .vehicle-doc-row{margin:0!important;padding:0!important}
+  #scheduleForm.dc-layout-a > [data-section="service"] .document-section{display:block!important}
+}
+@media (min-width:769px) and (pointer:fine) {
+  #scheduleForm.dc-layout-a label:has(#serviceTypeSelect),#scheduleForm.dc-layout-a label:has(#serviceReminderTypeSelect){min-height:0!important;height:auto!important}
+  #scheduleForm.dc-layout-a .pa-notification-group > .service-admin-notify-field{display:block!important;gap:0!important}
+}

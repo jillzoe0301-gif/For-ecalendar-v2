@@ -36,9 +36,9 @@ function multi(anchor,host,source,title,{overview=false,group=false,extra=false}
   const all=[...source.querySelectorAll('input[type=checkbox]')]
   const selected=new Set(all.filter(i=>i.checked));let query=''
   popup(anchor,host,title,(panel,dismiss)=>{
-    const actions=el('div','dc-popup-actions'),list=el('div','dc-options'),foot=el('div','dc-popup-actions')
+    const list=el('div','dc-options dc-multi-options'),foot=el('div','dc-popup-actions dc-multi-footer')
     if(extra) list.classList.add('dc-options-grid')
-    const allBtn=button('全選'),clear=button('清除'),count=el('span','dc-count'),apply=button('套用','dc-button dc-primary')
+    const allBtn=button('全選','dc-button dc-text-action'),clear=button('清除','dc-button dc-text-action'),count=el('span','dc-count'),apply=button('套用','dc-button dc-primary')
     const visible=()=>all.filter(i=>name(i).toLowerCase().includes(query))
     const draw=()=>{
       list.replaceChildren();let previous=null
@@ -50,12 +50,12 @@ function multi(anchor,host,source,title,{overview=false,group=false,extra=false}
         list.append(row)
       }
       if(!list.children.length)list.append(el('p','dc-count','沒有符合的選項'))
-      count.textContent='已選 '+selected.size+(extra?' 項':' 位／項')
+      count.textContent=selected.size+(extra||title.includes('部門')?' 項':' 位')
     }
     search(panel,extra?'搜尋附加行程':title.includes('部門')?'搜尋部門':'搜尋姓名',v=>{query=v;draw()})
     allBtn.onclick=()=>{visible().filter(i=>!i.disabled).forEach(i=>selected.add(i));draw()}
     clear.onclick=()=>{all.filter(i=>!i.disabled).forEach(i=>selected.delete(i));draw()}
-    actions.append(allBtn,clear);foot.append(count,apply);panel.append(actions,list,foot);draw()
+    foot.append(allBtn,clear,count,apply);panel.append(list,foot);draw()
     apply.onclick=()=>{
       if(overview){for(const i of all)if(!i.disabled)i.checked=selected.has(i);dismiss();const form=source.closest('form');form.dataset.desktopFilterApply='1';form.requestSubmit()}
       else {for(const i of all)if(!i.disabled&&i.checked!==selected.has(i)){i.checked=selected.has(i);change(i)}dismiss()}
@@ -64,7 +64,32 @@ function multi(anchor,host,source,title,{overview=false,group=false,extra=false}
 }
 export function enhanceDesktopCreate(modal){
   const form=modal.querySelector('#scheduleForm');if(!form||!desktop())return
+  form.classList.add('dc-layout-a')
   const syncs=[]
+  const status=el('span','dc-status-badge','未完成')
+  status.setAttribute('aria-label','執行狀態：未完成')
+  modal.querySelector('.modal-header h3')?.append(status)
+  const record=form.querySelector('.service-record-box'), need=record?.querySelector('[name="need_service_record"]')
+  if(need){
+    const controls=el('div','dc-segments dc-record-choice')
+    for(const [text,value] of [['需繳交',true],['無需繳交',false]]){
+      const b=button(text);b.onclick=()=>{need.checked=value;change(need)};controls.append(b)
+    }
+    record.append(controls)
+    syncs.push(()=>{[...controls.children].forEach((b,i)=>{b.setAttribute('aria-pressed',String(need.checked===(i===0)));b.disabled=need.disabled})})
+  }
+  const description=form.querySelector('textarea[name="description"]')
+  const template=form.querySelector('#applyScheduleTypeContentBtn')
+  const templateRow=template?.closest('.schedule-template-row')
+  if(description&&template&&templateRow){
+    const label=description.closest('label'), heading=el('div','dc-content-heading')
+    const caption=el('span','','內容'), shortcut=button('帶入對應內容','dc-button dc-content-shortcut')
+    shortcut.title=templateRow.querySelector('span')?.textContent.trim()||''
+    shortcut.onclick=e=>{e.preventDefault();template.click()}
+    for(const n of [...label.childNodes])if(n.nodeType===Node.TEXT_NODE&&n.textContent.trim()==='內容')n.remove()
+    heading.append(caption,shortcut);label.prepend(heading)
+    syncs.push(()=>{shortcut.hidden=templateRow.classList.contains('hidden')||templateRow.classList.contains('compact-special-hidden')||template.classList.contains('hidden')})
+  }
   for(const select of form.querySelectorAll('select')){
     if(select.multiple|| /(?:_hour|_minute)$/.test(select.name))continue
     const direct=['repeat_mode','time_type','has_documents'].includes(select.name)
