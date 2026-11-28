@@ -317,3 +317,71 @@
 @media (max-width:768px), (pointer:coarse) {
   .mobile-filter-selection-hint { display:block; color:#68748b; font-size:11px; margin:0 0 7px; }
 }
+
+/* Fixed same-row mobile controls. Avoid display:contents / implicit grid sizing
+   for older iOS WebKit and conflicts with the original toolbar layout. */
+@media (max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) #app .mobile-calendar-b .mobile-calendar-scope {
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:stretch !important; justify-content:stretch !important; gap:3px !important;
+    width:100% !important; max-width:100% !important; min-width:0 !important; box-sizing:border-box !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-b .mobile-calendar-scope > button {
+    flex:1 1 0px !important; width:0 !important; min-width:0 !important; max-width:none !important;
+    box-sizing:border-box !important; text-align:center !important; justify-content:center !important;
+    align-items:center !important; display:flex !important; min-height:40px !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-b .mobile-calendar-controls {
+    display:flex !important; flex-direction:column !important; flex-wrap:nowrap !important;
+    align-items:stretch !important; gap:6px !important; width:100% !important; min-width:0 !important;
+    box-sizing:border-box !important; margin:0 !important; padding:0 !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row {
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:center !important; justify-content:space-between !important; gap:6px !important;
+    width:100% !important; min-width:0 !important; box-sizing:border-box !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row > .mobile-filter-launch {
+    flex:0 0 auto !important; width:auto !important; max-width:34% !important; min-height:44px !important;
+    margin:0 !important; padding:6px 8px !important; font-size:12px !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row > .for-e-zoom-toolbar {
+    display:block !important; flex:1 1 0px !important; width:0 !important; min-width:0 !important;
+    max-width:none !important; margin:0 !important; padding:0 !important; border:0 !important;
+    background:transparent !important; box-sizing:border-box !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-modes {
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    width:100% !important; min-width:0 !important; max-width:100% !important; padding:3px !important; box-sizing:border-box !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-modes > button {
+    display:flex !important; justify-content:center !important; align-items:center !important;
+    flex:1 1 0px !important; width:0 !important; min-width:0 !important; max-width:none !important;
+    min-height:38px !important; padding:4px 1px !important; white-space:nowrap !important; font-size:12px !important;
+    box-sizing:border-box !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row > .mobile-calendar-refresh {
+    flex:0 0 44px !important; width:44px !important; min-width:44px !important; max-width:44px !important;
+    height:44px !important; min-height:44px !important; margin:0 !important; padding:0 !important;
+    display:flex !important; align-items:center !important; justify-content:center !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-controls > .for-e-zoom-controls:not([hidden]) {
+    display:grid !important; grid-template-columns:32px minmax(0,1fr) 32px auto auto !important;
+    align-items:center !important; gap:4px !important; width:100% !important; min-width:0 !important;
+    box-sizing:border-box !important; padding:3px !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-controls > .for-e-zoom-controls[hidden] { display:none !important; }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-controls > .for-e-zoom-controls input {
+    width:100% !important; min-width:0 !important; margin:0 !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-controls > .for-e-zoom-controls button {
+    width:auto !important; min-width:0 !important; padding:4px 3px !important; min-height:36px !important;
+    background:#e8edf7 !important; color:#344563 !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-controls > .for-e-zoom-controls output {
+    white-space:nowrap; font-size:12px; color:#344563;
+  }
+  html body:not(.force-desktop-mode) #app .personal-month-calendar > .mobile-month-zoom-content {
+    width:max-content !important; min-width:100% !important; max-width:none !important;
+  }
+}

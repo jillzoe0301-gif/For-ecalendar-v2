@@ -365,58 +365,89 @@ function calendarScroll(table){
  }
  return table.parentElement;
 }
-function updateCalendarZoom(table){
+function updateCalendarZoom(table, monthHost=null){
  const enabled=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
- const host=calendarScroll(table);
+ const host=monthHost||calendarScroll(table);
  if(!host)return;
  let state=zoomBindings.get(table);
  if(!enabled){
-  if(state){state.toolbar.hidden=true;if(state.toolbar.parentElement!==state.host.parentElement)state.host.before(state.toolbar);table.classList.remove('for-e-zoom-active');table.style.removeProperty('zoom');state.applied=1;}
+  if(state){
+   state.toolbar.hidden=true;
+   if(state.controls.parentElement!==state.toolbar)state.toolbar.append(state.controls);
+   if(state.toolbar.parentElement!==state.host.parentElement)state.host.before(state.toolbar);
+   table.classList.remove('for-e-zoom-active');table.style.removeProperty('zoom');state.applied=1;
+  }
   return;
  }
- const key=table.classList.contains('field-week-table')?'field':table.classList.contains('meeting-week-table')||table.classList.contains('meeting-room-table')?'meeting':'overview';
+ const kind=document.querySelector('[data-mobile-calendar]')?.dataset.mobileCalendar;
+ const key=kind||(table.classList.contains('field-week-table')?'field':table.classList.contains('meeting-week-table')||table.classList.contains('meeting-room-table')?'meeting':'overview');
  let pref=zoomPrefs.get(key);
  if(!pref){pref={mode:'normal',scale:1,fit:true};zoomPrefs.set(key,pref);}
  if(!state){
   const toolbar=document.createElement('div');toolbar.className='for-e-zoom-toolbar';
   toolbar.innerHTML='<div class="for-e-zoom-modes"><button type="button" data-zoom-mode="normal">一般檢視</button><button type="button" data-zoom-mode="overview" aria-label="全覽模式">全覽</button></div><div class="for-e-zoom-controls" hidden><button type="button" data-zoom-action="minus" aria-label="縮小">−</button><input type="range" min="10" max="120" step="1" aria-label="縮放比例"><button type="button" data-zoom-action="plus" aria-label="放大">＋</button><output></output><button type="button" data-zoom-action="fit">適應螢幕</button></div>';
-  const actions=document.querySelector('[data-mobile-calendar] .mobile-calendar-controls');
-  if(actions)actions.insertBefore(toolbar,actions.querySelector('.mobile-calendar-refresh'));else host.before(toolbar);
-  state={toolbar,host,applied:1,touch:null};
+  const controls=toolbar.querySelector('.for-e-zoom-controls');
+  state={toolbar,controls,host,applied:1,touch:null};
   zoomBindings.set(table,state);
   const clamp=n=>Math.max(.1,Math.min(1.2,n));
   const render=()=>{
    if(!table.isConnected)return;
    const overview=pref.mode==='overview';
-   const natural=state.applied===1?table.getBoundingClientRect().width:(state.natural||table.getBoundingClientRect().width/state.applied);if(state.applied===1)state.natural=natural;
+   // Read the unscaled intrinsic width so fit remains accurate after orientation changes.
+   let natural=Math.max(table.scrollWidth,table.offsetWidth,1);
+   if(state.applied===1)state.natural=natural;
+   else natural=state.natural||natural;
    const scale=overview?(pref.fit?clamp((host.clientWidth-2)/Math.max(natural,1)):clamp(pref.scale)):1;
    if(overview){table.style.setProperty('zoom',String(scale),'important');table.classList.add('for-e-zoom-active');}
    else{table.style.removeProperty('zoom');table.classList.remove('for-e-zoom-active');}
    state.applied=scale;
    toolbar.querySelectorAll('[data-zoom-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.zoomMode===pref.mode)));
-   toolbar.querySelector('.for-e-zoom-controls').hidden=!overview;
-   toolbar.querySelector('input').value=String(Math.round(scale*100));
-   const output=toolbar.querySelector('output');const label=Math.round(scale*100)+'%';if(output.textContent!==label)output.textContent=label;
+   controls.hidden=!overview;
+   controls.querySelector('input').value=String(Math.round(scale*100));
+   const output=controls.querySelector('output');const label=Math.round(scale*100)+'%';if(output.textContent!==label)output.textContent=label;
   };
   state.render=render;
-  toolbar.addEventListener('click',e=>{
+  const handleClick=e=>{
    const button=e.target.closest('button');if(!button)return;
    e.preventDefault();e.stopPropagation();
    if(button.dataset.zoomMode){pref.mode=button.dataset.zoomMode;if(pref.mode==='overview'){pref.fit=true;host.scrollLeft=0;}}
    else if(button.dataset.zoomAction==='fit'){pref.fit=true;host.scrollLeft=0;}
-   else {pref.fit=false;pref.scale=clamp(state.applied+(button.dataset.zoomAction==='plus'?.1:-.1));}
+   else{pref.fit=false;pref.scale=clamp(state.applied+(button.dataset.zoomAction==='plus'?.1:-.1));}
    render();
-  });
-  toolbar.querySelector('input').addEventListener('input',e=>{pref.fit=false;pref.scale=clamp(Number(e.target.value)/100);render();});
+  };
+  toolbar.addEventListener('click',handleClick);controls.addEventListener('click',handleClick);
+  controls.querySelector('input').addEventListener('input',e=>{pref.fit=false;pref.scale=clamp(Number(e.target.value)/100);render();});
   const distance=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
   table.addEventListener('touchstart',e=>{if(pref.mode==='overview'&&e.touches.length===2){state.touch={distance:distance(e.touches),scale:state.applied};}},{passive:true});
   table.addEventListener('touchmove',e=>{if(pref.mode!=='overview'||!state.touch||e.touches.length!==2)return;if(e.cancelable)e.preventDefault();pref.fit=false;pref.scale=clamp(state.touch.scale*distance(e.touches)/Math.max(state.touch.distance,1));render();},{passive:false});
   const end=()=>{state.touch=null;};table.addEventListener('touchend',end,{passive:true});table.addEventListener('touchcancel',end,{passive:true});
  }
  const actions=document.querySelector('[data-mobile-calendar] .mobile-calendar-controls');
- if(actions&&state.toolbar.parentElement!==actions)actions.insertBefore(state.toolbar,actions.querySelector('.mobile-calendar-refresh'));
- state.toolbar.hidden=false;
- state.render();
+ const row=actions?.querySelector('.mobile-calendar-action-row');
+ if(row){
+  if(state.toolbar.parentElement!==row)row.insertBefore(state.toolbar,row.querySelector('.mobile-calendar-refresh'));
+  if(state.controls.parentElement!==actions)actions.append(state.controls);
+ }else{
+  if(state.toolbar.parentElement!==host.parentElement)host.before(state.toolbar);
+  if(state.controls.parentElement!==state.toolbar)state.toolbar.append(state.controls);
+ }
+ state.toolbar.hidden=false;state.render();
+}
+function updateSingleMonthZoom(){
+ const month=document.querySelector('[data-mobile-calendar]')&&document.querySelector('.personal-month-calendar');
+ if(!month)return;
+ const enabled=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+ let sheet=month.querySelector(':scope > .mobile-month-zoom-content');
+ if(enabled&&!sheet){
+  sheet=document.createElement('div');sheet.className='mobile-month-zoom-content';
+  sheet.append(...Array.from(month.childNodes));month.append(sheet);
+ }
+ if(sheet&&!enabled){
+  updateCalendarZoom(sheet,month);
+  zoomBindings.get(sheet)?.toolbar.remove();
+  zoomBindings.delete(sheet);
+  sheet.replaceWith(...Array.from(sheet.childNodes));
+ }else if(sheet)updateCalendarZoom(sheet,month);
 }
 
 let selected='';
@@ -516,7 +547,8 @@ function updateMobileCalendarToolbar(){
   dates.forEach((date,i)=>{const day=document.createElement('div');day.className='mobile-calendar-day'+(i>=5?' is-weekend':'')+(date===root.dataset.calendarToday?' is-current':'');day.setAttribute('aria-label',date+' 星期'+['一','二','三','四','五','六','日'][i]);const label=document.createElement('span');label.textContent=['一','二','三','四','五','六','日'][i];const number=document.createElement('strong');number.textContent=String(Number(date.slice(8)));day.append(label,number);strip.append(day);});
  }
  const actions=make('mobile-calendar-controls',root);
- const refresh=toolbar.querySelector('#refreshBtn');if(refresh){move(refresh,actions);shorten(refresh,'↻');refresh.classList.add('mobile-calendar-refresh');touched.push(()=>refresh.classList.remove('mobile-calendar-refresh'));}
+ const actionRow=make('mobile-calendar-action-row',actions);
+ const refresh=toolbar.querySelector('#refreshBtn');if(refresh){move(refresh,actionRow);shorten(refresh,'↻');refresh.classList.add('mobile-calendar-refresh');touched.push(()=>refresh.classList.remove('mobile-calendar-refresh'));}
  const exportBtn=toolbar.querySelector('#exportCsvBtn'),account=document.querySelector('.overview-account-panel');
  if(exportBtn&&account)move(exportBtn,account);
  mobileTools.set(root,{actions,restore:()=>{touched.reverse().forEach(fn=>fn());nodes.reverse().forEach(el=>el.remove());title.classList.remove('mobile-calendar-title');root.classList.remove('mobile-calendar-b');}});
@@ -525,7 +557,7 @@ const mobileSheets=new WeakMap();
 let activeSheet=null;
 function updateMobileFilterSheet(panel,isMobile){
  const root=document.querySelector('[data-mobile-calendar]');if(!root)return;
- const actions=root.querySelector('.mobile-calendar-controls');
+ const actions=root.querySelector('.mobile-calendar-action-row');
  const existing=mobileSheets.get(panel);
  if(!isMobile){if(existing){existing.restore();mobileSheets.delete(panel);}if(activeSheet?.id===panel.id)activeSheet=null;return;}
  if(existing||!actions)return;
@@ -734,7 +766,7 @@ function updateDesktopAssignedReminder(){
   }
  });
 }
-function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table);updateMeetingCardPresentation(table);updateReminderPresentation(table)});updateOptions();}
+function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table);updateMeetingCardPresentation(table);updateReminderPresentation(table)});updateSingleMonthZoom();updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
