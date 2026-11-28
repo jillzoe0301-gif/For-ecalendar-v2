@@ -5,6 +5,8 @@ import './schedule-plan-a.css'
 import './field-plan-a.css'
 import './schedule-detail-plan-a.css'
 import './mobile-modal-safe.css'
+import './holiday-birthday-login.css'
+import { getHolidayEntries, renderHolidayLabels, bindHolidayDetails } from './holiday-calendar.js'
 import { enhanceSchedulePlanA } from './schedule-plan-a.js'
 import versionInfoIcon from './assets/version-info-icon.png'
 import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
@@ -1790,108 +1792,12 @@ const weekdays = [
   ['FR', '週五'], ['SA', '週六'], ['SU', '週日']
 ]
 
-const holidayMaps = {
-  2026: {
-    tw: {
-      '2026-01-01': ['元旦'],
-      '2026-02-15': ['小年夜'],
-      '2026-02-16': ['除夕'],
-      '2026-02-17': ['春節'],
-      '2026-02-18': ['春節'],
-      '2026-02-19': ['春節'],
-      '2026-02-20': ['春節補休'],
-      '2026-02-27': ['和平紀念日補休'],
-      '2026-02-28': ['和平紀念日'],
-      '2026-04-03': ['兒童節補休'],
-      '2026-04-04': ['兒童節'],
-      '2026-04-05': ['清明節'],
-      '2026-04-06': ['清明節補休'],
-      '2026-05-01': ['勞動節'],
-      '2026-06-19': ['端午節'],
-      '2026-09-25': ['中秋節'],
-      '2026-09-28': ['教師節'],
-      '2026-10-09': ['國慶日補休'],
-      '2026-10-10': ['國慶日'],
-      '2026-10-25': ['臺灣光復節'],
-      '2026-10-26': ['臺灣光復節補休'],
-      '2026-12-25': ['行憲紀念日']
-    },
-    th: {
-      '2026-01-01': ['泰國：元旦'],
-      '2026-04-13': ['泰國：宋干節'],
-      '2026-04-14': ['泰國：宋干節'],
-      '2026-04-15': ['泰國：宋干節'],
-      '2026-05-01': ['泰國：勞動節'],
-      '2026-07-28': ['泰國：國王誕辰'],
-      '2026-08-12': ['泰國：母親節'],
-      '2026-10-13': ['泰國：蒲美蓬紀念日'],
-      '2026-10-23': ['泰國：朱拉隆功紀念日'],
-      '2026-12-05': ['泰國：父親節'],
-      '2026-12-10': ['泰國：憲法日']
-    },
-    vn: {
-      '2026-01-01': ['越南：元旦'],
-      '2026-02-16': ['越南：春節'],
-      '2026-02-17': ['越南：春節'],
-      '2026-02-18': ['越南：春節'],
-      '2026-02-19': ['越南：春節'],
-      '2026-02-20': ['越南：春節'],
-      '2026-04-30': ['越南：統一日'],
-      '2026-05-01': ['越南：勞動節'],
-      '2026-09-02': ['越南：國慶日']
-    },
-    ph: {
-      '2026-01-01': ['菲律賓：元旦'],
-      '2026-04-09': ['菲律賓：勇士節'],
-      '2026-05-01': ['菲律賓：勞動節'],
-      '2026-06-12': ['菲律賓：獨立日'],
-      '2026-08-31': ['菲律賓：國家英雄日'],
-      '2026-11-30': ['菲律賓：博尼法西奧日'],
-      '2026-12-25': ['菲律賓：聖誕節'],
-      '2026-12-30': ['菲律賓：黎剎日']
-    },
-    id: {
-      '2026-01-01': ['印尼：元旦'],
-      '2026-02-16': ['印尼：農曆新年'],
-      '2026-03-19': ['印尼：開齋節'],
-      '2026-03-20': ['印尼：開齋節'],
-      '2026-05-01': ['印尼：勞動節'],
-      '2026-05-27': ['印尼：古爾邦節'],
-      '2026-08-17': ['印尼：獨立日'],
-      '2026-12-25': ['印尼：聖誕節']
-    }
-  }
-}
-
-function getHolidayData(dateKey) {
-  const year = Number(dateKey.slice(0, 4))
-  const yearMap = holidayMaps[year] || {}
-  const tw = yearMap.tw?.[dateKey] || []
-  const overseas = [
-    ...(yearMap.th?.[dateKey] || []),
-    ...(yearMap.vn?.[dateKey] || []),
-    ...(yearMap.ph?.[dateKey] || []),
-    ...(yearMap.id?.[dateKey] || [])
-  ]
-  return { tw, overseas }
-}
-
 function isTaiwanHoliday(date) {
-  const dateKey = toDateKey(date)
   const day = date.getDay()
-  return day === 0 || day === 6 || getHolidayData(dateKey).tw.length > 0
+  return day === 0 || day === 6 || getHolidayEntries(toDateKey(date)).some(row => row.code === 'tw')
 }
 
-function renderHolidayLabels(dateKey) {
-  const holiday = getHolidayData(dateKey)
-  const all = [
-    ...holiday.tw.map(name => `<span class="holiday-label tw">${escapeHtml(name)}</span>`),
-    ...holiday.overseas.map(name => `<span class="holiday-label overseas">${escapeHtml(name)}</span>`)
-  ]
-  return all.length ? `<div class="holiday-labels">${all.join('')}</div>` : ''
-}
-
-
+bindHolidayDetails()
 
 const reminderScheduleTypes = [
   '逃跑通知',
@@ -4815,7 +4721,7 @@ function renderStaffBirthdayCard(staff = {}, dateKey = '', variant = 'overview')
   const className = variant === 'field' ? 'field-birthday-card' : 'birthday-card'
   return `
     <button type="button" class="${className}" ${getBirthdayColorStyleAttr()} title="點擊查看生日同仁並留言祝福" data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey || todayString())}">
-      <img src="/icons/cake.png" alt="" class="birthday-card-icon">
+      <img src="/icons/birthday-gift.png" alt="" class="birthday-card-icon">
       <div>
         <strong>HappyBirthday ❤</strong>
       </div>
@@ -4853,120 +4759,91 @@ function canViewBirthdayWishesForStaff(staff = {}) {
   return Boolean(staff?.staff_id && currentProfile?.staff_id && String(staff.staff_id) === String(currentProfile.staff_id))
 }
 
+const quickBirthdayGreetings = [
+  ['暖心祝福', '生日快樂！願新的一歲，所有努力都能被看見，生活裡有更多值得微笑的小事，每一天都平安喜樂。'],
+  ['感謝有你', '生日快樂！很開心有機會與你一起共事，謝謝你平日的付出與陪伴。願新的一歲有更多美好與幸福陪著你。'],
+  ['幸福滿滿', '願今天的你被滿滿的愛與祝福包圍，往後的每一天都健康、自在、開心，所有期待都慢慢成真。生日快樂！']
+]
+
+function renderBirthdayGiftIcon() {
+  return '<span class="for-e-birthday-gift"><img src="/icons/birthday-gift.png" alt=""></span>'
+}
+
 function renderBirthdayWishRows(staff = {}, dateKey = todayString()) {
-  if (!canViewBirthdayWishesForStaff(staff)) {
-    return '<div class="birthday-wish-private-note">生日祝福留言只有壽星本人看得到；其他同仁不會看到彼此寫的內容。</div>'
-  }
-
-  if (birthdayWishesError) {
-    return `<div class="birthday-wish-error">生日祝福留言讀取失敗，請先執行 V002-1P-206 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
-  }
-
+  if (!canViewBirthdayWishesForStaff(staff)) return ''
+  if (birthdayWishesError) return `<div class="birthday-wish-error">生日祝福留言讀取失敗，請聯繫管理員。<br>${escapeHtml(birthdayWishesError)}</div>`
   const rows = getBirthdayWishRows(staff.staff_id, dateKey)
-  if (!rows.length) return '<div class="birthday-wish-empty">目前還沒有生日祝福。</div>'
-
-  return `
-    <div class="birthday-wish-list">
-      ${rows.map(wish => `
-        <div class="birthday-wish-item">
-          <div>
-            <strong>${escapeHtml(wish.sender_name || '同仁')}</strong>
-            <span>${escapeHtml(String(wish.created_at || '').slice(0, 16).replace('T', ' '))}</span>
-          </div>
-          <p>${escapeHtml(wish.message || '').replaceAll('\n', '<br>')}</p>
-        </div>
-      `).join('')}
-    </div>
-  `
+  return `<div class="for-e-birthday-section-head"><strong>收到的祝福</strong><span>共 ${rows.length} 則</span></div>${rows.length ? `<div class="for-e-birthday-message-list">${rows.map(wish => `<article class="for-e-birthday-message"><div><strong>${escapeHtml(wish.sender_name || '同仁')}</strong><small>${escapeHtml(String(wish.created_at || '').slice(0, 16).replace('T', ' '))}</small></div><p>${escapeHtml(wish.message || '').replaceAll('\n', '<br>')}</p></article>`).join('')}</div>` : '<div class="for-e-reminder-empty">目前還沒有生日祝福。</div>'}<div class="for-e-birthday-private">🔒 這些留言只有你本人可以查看。</div>`
 }
 
-function renderBirthdayWishForm(staff = {}, dateKey = todayString()) {
+function renderBirthdayWishForm(staff = {}, dateKey = todayString(), externalSubmit = false) {
+  if (canViewBirthdayWishesForStaff(staff)) return ''
+  if (birthdayWishesError) return `<div class="birthday-wish-error">生日祝福留言暫時無法使用，請聯繫管理員。<br>${escapeHtml(birthdayWishesError)}</div>`
+  return `<form ${externalSubmit ? 'id="for-e-birthday-single-form"' : ''} class="birthday-wish-form for-e-birthday-form" data-birthday-wish-form data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey)}">
+    <div class="for-e-birthday-section-head"><strong>快速祝福</strong><span>可修改內容再送出</span></div>
+    <div class="for-e-birthday-templates">${quickBirthdayGreetings.map(([label], index) => `<button type="button" data-birthday-template="${index}" aria-pressed="false">${escapeHtml(label)}</button>`).join('')}</div>
+    <label class="for-e-birthday-section-head"><strong>你的祝福</strong><textarea name="message" maxlength="300" rows="4" placeholder="寫一句真心的祝福，或點選上方快速祝福。" required></textarea></label>
+    <div class="for-e-birthday-text-count" aria-live="polite">0 / 300</div>
+    <div class="for-e-birthday-private">🔒 祝福留言只有壽星本人看得到。</div>
+    ${externalSubmit ? '' : '<button type="submit" class="primary-btn">送出祝福</button>'}
+  </form>`
+}
+
+function renderBirthdayWishStaffCard(staff = {}, dateKey = todayString(), externalSubmit = false) {
   const isSelf = canViewBirthdayWishesForStaff(staff)
-  if (isSelf) {
-    return '<div class="birthday-wish-self-note">今天是你的生日，這裡只會顯示同仁寫給你的生日祝福。</div>'
-  }
-
-  if (birthdayWishesError) {
-    return `<div class="birthday-wish-error">生日祝福留言表權限尚未啟用，請先執行 V002-1P-206 SQL。<br>${escapeHtml(birthdayWishesError)}</div>`
-  }
-
-  return `
-    <form class="birthday-wish-form" data-birthday-wish-form data-birthday-staff-id="${escapeHtml(staff.staff_id || '')}" data-birthday-date="${escapeHtml(dateKey)}">
-      <textarea name="message" maxlength="300" rows="3" placeholder="輸入生日祝福，例如：生日快樂～祝你今天一切順心！" required></textarea>
-      <button type="submit" class="primary-btn">送出祝福</button>
-    </form>
-  `
-}
-
-function renderBirthdayWishStaffCard(staff = {}, dateKey = todayString()) {
-  return `
-    <section class="birthday-wish-staff-card" ${getBirthdayColorStyleAttr()}>
-      <div class="birthday-wish-staff-head">
-        <img src="/icons/cake.png" alt="" class="birthday-card-icon">
-        <div>
-          <strong>${escapeHtml(staff.name || '同仁')}｜HappyBirthday ❤</strong>
-          <span>${escapeHtml([staff.department_name, staff.position_name || staff.position].filter(Boolean).join('｜') || '未設定部門 / 職務')}</span>
-        </div>
-      </div>
-      ${renderBirthdayWishRows(staff, dateKey)}
-      ${renderBirthdayWishForm(staff, dateKey)}
-    </section>
-  `
+  if (isSelf) return `<section class="for-e-birthday-detail-section">${renderBirthdayGreetingCard(true, 0, staff.name || '同仁', false)}${renderBirthdayWishRows(staff, dateKey)}</section>`
+  return `<section class="for-e-birthday-detail-section"><div class="for-e-birthday-section-head"><strong>祝福對象</strong><span>今日壽星</span></div><div class="for-e-birthday-receiver">${renderBirthdayGiftIcon()}<div><strong>${escapeHtml(staff.name || '同仁')}</strong><small>${escapeHtml([staff.department_name, staff.position_name || staff.position].filter(Boolean).join('｜'))}</small></div></div>${renderBirthdayWishForm(staff, dateKey, externalSubmit)}</section>`
 }
 
 function openBirthdayWishModal(options = {}) {
   const dateKey = options.dateKey || todayString()
   const selectedStaff = options.staffId ? getBirthdayStaffById(options.staffId) : null
-  const rows = selectedStaff ? [selectedStaff] : getBirthdayStaffRowsForDate(dateKey)
-  const existing = document.querySelector('.birthday-wish-backdrop')
-  if (existing) existing.remove()
-
+  const rows = selectedStaff ? [selectedStaff] : getBirthdayStaffRowsForDate(dateKey).filter(staff => !options.excludeSelf || !canViewBirthdayWishesForStaff(staff))
+  document.querySelector('.birthday-wish-backdrop')?.remove()
+  const singleSelf = rows.length === 1 && canViewBirthdayWishesForStaff(rows[0])
+  const singleSend = rows.length === 1 && !singleSelf && !birthdayWishesError
+  const title = singleSelf ? '收到的生日祝福' : '生日祝福'
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop birthday-wish-backdrop'
-  modal.innerHTML = `
-    <div class="modal-panel birthday-wish-modal">
-      <div class="modal-header">
-        <h3>生日祝福</h3>
-        <button class="icon-btn" data-close-birthday-wish type="button" aria-label="關閉">×</button>
-      </div>
-
-      <div class="birthday-wish-hero" ${getBirthdayColorStyleAttr()}>
-        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
-        <div>
-          <strong>${escapeHtml(dateKey)}｜今天生日同仁</strong>
-          <span>可查看生日同仁並留言祝福；留言只有壽星本人看得到。</span>
-        </div>
-      </div>
-
-      <div class="birthday-wish-body">
-        ${rows.length ? rows.map(staff => renderBirthdayWishStaffCard(staff, dateKey)).join('') : '<div class="empty-state">今天沒有同仁生日。</div>'}
-      </div>
-    </div>
-  `
-
+  modal.className = 'modal-backdrop birthday-wish-backdrop for-e-reminder-backdrop'
+  modal.innerHTML = `<div class="modal-panel birthday-wish-modal for-e-reminder-sheet for-e-birthday-sheet" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="modal-header"><div><h3>${title}</h3><small>${escapeHtml(formatReminderDate(dateKey))}</small></div><button class="icon-btn" data-close-birthday-wish type="button" aria-label="關閉">×</button></div>
+    <div class="for-e-reminder-scroll">${rows.length ? rows.map(staff => renderBirthdayWishStaffCard(staff, dateKey, singleSend)).join('') : '<div class="for-e-reminder-empty">今天沒有同仁生日。</div>'}</div>
+    <div class="modal-actions for-e-reminder-actions">${singleSend ? '<button type="button" class="secondary-btn" data-close-birthday-wish>返回</button><button type="submit" form="for-e-birthday-single-form" class="primary-btn">送出祝福</button>' : '<button type="button" class="primary-btn" data-close-birthday-wish>關閉</button>'}</div>
+  </div>`
   document.body.appendChild(modal)
-
-  const close = () => modal.remove()
-
+  const close = () => { modal.remove(); document.removeEventListener('keydown', onKeydown) }
+  const onKeydown = event => {
+    if (event.key === 'Escape' && modal.isConnected && document.querySelectorAll('.modal-backdrop').item(document.querySelectorAll('.modal-backdrop').length - 1) === modal) { event.stopImmediatePropagation(); close() }
+  }
+  document.addEventListener('keydown', onKeydown, true)
   modal.addEventListener('click', event => {
-    if (event.target === modal || event.target.closest('[data-close-birthday-wish]')) {
-      event.preventDefault()
-      close()
-    }
+    if (event.target === modal || event.target.closest('[data-close-birthday-wish]')) { event.preventDefault(); close(); return }
+    const template = event.target.closest('[data-birthday-template]')
+    if (!template) return
+    const form = template.closest('[data-birthday-wish-form]')
+    const text = quickBirthdayGreetings[Number(template.dataset.birthdayTemplate)]?.[1]
+    if (!form || !text) return
+    const input = form.elements.message
+    input.value = text
+    form.querySelectorAll('[data-birthday-template]').forEach(btn => btn.setAttribute('aria-pressed', String(btn === template)))
+    form.querySelector('.for-e-birthday-text-count').textContent = `${input.value.length} / 300`
   })
-
+  modal.addEventListener('input', event => {
+    if (!event.target.matches('textarea[name="message"]')) return
+    event.target.closest('form')?.querySelector('.for-e-birthday-text-count')?.replaceChildren(`${event.target.value.length} / 300`)
+  })
   modal.addEventListener('submit', async event => {
     const form = event.target.closest('[data-birthday-wish-form]')
     if (!form) return
     event.preventDefault()
+    if (form.dataset.sending === 'true') return
     const staffId = form.dataset.birthdayStaffId || ''
     const targetDate = form.dataset.birthdayDate || dateKey
     const message = String(new FormData(form).get('message') || '').trim()
-    if (!message) {
-      alert('請先輸入生日祝福。')
-      return
-    }
-
+    if (!message) { alert('請先輸入生日祝福。'); return }
+    form.dataset.sending = 'true'
+    const submitButtons = Array.from(modal.querySelectorAll('button[type="submit"]')).filter(btn => btn.form === form)
+    submitButtons.forEach(btn => { btn.disabled = true; btn.textContent = '送出中…' })
     try {
       await saveBirthdayWish(staffId, targetDate, message)
       alert('生日祝福已送出，只有壽星本人看得到。')
@@ -4975,6 +4852,8 @@ function openBirthdayWishModal(options = {}) {
       openBirthdayWishModal({ staffId, dateKey: targetDate })
     } catch (err) {
       console.error('生日祝福送出失敗', err)
+      submitButtons.forEach(btn => { btn.disabled = false; btn.textContent = '送出祝福' })
+      delete form.dataset.sending
     }
   })
 }
@@ -16469,34 +16348,25 @@ function getLoginDailyReminderRows() {
   }
 }
 
-function renderLoginReminderItem(row) {
-  return `
-    <button type="button" class="login-reminder-item ${getAlertItemClass(row)}" data-login-view-schedule="${row.schedule_id}">
-      <div>
-        <strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
-        <span>${escapeHtml(getScheduleMetaParts([row.start_date || '-', getCardTimeText(row), getAssigneeNames(row) || '-']))}</span>
-        ${row.customer_name || row.location_name ? `<span>${escapeHtml(row.customer_name || '')}${row.customer_name && row.location_name ? '｜' : ''}${escapeHtml(row.location_name || '')}</span>` : ''}
-      </div>
-      <em>${isOverdueSchedule(row) ? '逾期' : '查看'}</em>
-    </button>
-  `
+function formatReminderDate(dateKey = todayString()) {
+  const day = ['日','一','二','三','四','五','六'][new Date(`${dateKey}T12:00:00Z`).getUTCDay()]
+  return `${dateKey.replaceAll('-', '/')}（${day || ''}）`
 }
 
-function renderLoginReminderSection(title, rows, emptyText, className = '') {
-  return `
-    <section class="login-reminder-section ${className}">
-      <div class="login-reminder-section-title">
-        <strong>${escapeHtml(title)}</strong>
-        <span>${rows.length} 筆</span>
-      </div>
-      <div class="login-reminder-list">
-        ${rows.length ? rows.slice(0, 8).map(renderLoginReminderItem).join('') : `<div class="login-reminder-empty">${escapeHtml(emptyText)}</div>`}
-        ${rows.length > 8 ? `<div class="login-reminder-more">尚有 ${rows.length - 8} 筆，請到對應頁面查看。</div>` : ''}
-      </div>
-    </section>
-  `
+function renderLoginReminderItem(row, priority = false, showTime = false) {
+  const time = getCardTimeText(row)
+  return `<button type="button" class="for-e-reminder-item ${priority ? 'is-priority' : ''} ${getAlertItemClass(row)}" data-login-view-schedule="${escapeHtml(row.schedule_id)}">
+    ${showTime && time ? `<span class="for-e-reminder-item-time">${escapeHtml(time)}</span>` : ''}<div class="for-e-reminder-item-content"><strong>${escapeHtml(getScheduleDisplayType(row))}｜${escapeHtml(row.title || '-')}</strong>
+    <small>${escapeHtml(getScheduleMetaParts([row.start_date && row.start_date !== todayString() ? row.start_date : '', showTime ? '' : time, getAssigneeNames(row) || '-']))}</small>
+    ${row.customer_name || row.location_name ? `<small>${escapeHtml([row.customer_name, row.location_name].filter(Boolean).join('｜'))}</small>` : ''}</div>
+    <span class="for-e-reminder-item-arrow">${isOverdueSchedule(row) ? '逾期 ›' : '›'}</span>
+  </button>`
 }
 
+function renderLoginReminderSection(title, rows, priority = false, showTime = false) {
+  if (!rows?.length) return ''
+  return `<section class="for-e-reminder-section"><div class="for-e-reminder-section-head ${priority ? 'is-priority' : ''}"><strong>${escapeHtml(title)}</strong><span>${rows.length} 筆</span></div>${rows.map(row => renderLoginReminderItem(row, priority, showTime)).join('')}</section>`
+}
 
 function getAssignedReminderStorageKey() {
   return `for-e-assigned-reminder-seen-${currentProfile?.staff_id || 'unknown'}`
@@ -16707,42 +16577,24 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
   if (existing) existing.remove()
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop login-reminder-backdrop'
-  modal.innerHTML = `
-    <div class="modal-panel login-reminder-modal">
-      <div class="modal-header">
-        <h3>今日提醒</h3>
-        <button class="icon-btn" data-close-login-reminder type="button" aria-label="關閉">×</button>
-      </div>
-
-      <div class="login-reminder-hello">
-        <strong>${escapeHtml(currentProfile?.name || '您好')}</strong>
-        <span>${todayString()}｜生日、待辦、提醒與今日行程</span>
-      </div>
-
-      <div class="login-reminder-summary">
-        <div><strong>${(groups.birthdayRows?.length || 0) + (groups.personalBirthday ? 1 : 0)}</strong><span>生日</span></div>
-        <div><strong>${groups.todayTodos.length}</strong><span>今日待辦</span></div>
-        <div><strong>${groups.todaySchedules.length}</strong><span>今日行程</span></div>
-        <div><strong>${(groups.birthdayRows?.length || 0) + (groups.personalBirthday ? 1 : 0) + groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length}</strong><span>合計</span></div>
-      </div>
-
-      <div class="login-reminder-body">
-        ${renderLoginPersonalBirthdayGreeting(groups.personalBirthday)}
-        ${renderLoginBirthdayReminderSection(groups.birthdayRows || [])}
-        ${renderLoginReminderSection('今日待辦提醒', groups.todayTodos, '今天沒有待處理待辦。')}
-        ${renderLoginReminderSection('待確認 / 待通知提醒', groups.reminderRows, '目前沒有待確認 / 待通知提醒。')}
-        ${renderLoginReminderSection('今日行程', groups.todaySchedules, '今天沒有待處理行程。')}
-      </div>
-
-      <div class="login-reminder-note">已完成、已取消、已刪除或時間已過的項目不會顯示在此提醒。</div>
-
-      <div class="modal-actions login-reminder-actions">
-        <button type="button" class="secondary-btn" data-close-login-reminder>今天先關閉</button>
-        <button type="button" class="primary-btn" data-go-personal-schedule>前往個人行程表</button>
-      </div>
+  modal.className = 'modal-backdrop login-reminder-backdrop for-e-reminder-backdrop'
+  const taskCount = groups.todayTodos.length + groups.todaySchedules.length + groups.reminderRows.length + (groups.overdueTasks?.length || 0)
+  const birthdayCount = (groups.birthdayRows?.length || 0) + (groups.personalBirthday ? 1 : 0)
+  modal.innerHTML = `<div class="modal-panel login-reminder-modal for-e-reminder-sheet" role="dialog" aria-modal="true" aria-label="今日提醒">
+    <div class="modal-header"><div><h3>今日提醒</h3><small>${escapeHtml(formatReminderDate())}</small></div><button class="icon-btn" data-close-login-reminder type="button" aria-label="關閉">×</button></div>
+    <div class="for-e-reminder-scroll">
+      ${taskCount ? `<div class="for-e-reminder-intro"><strong>您好，今天有 ${taskCount} 件事項</strong>${birthdayCount ? `<span>另有 ${birthdayCount} 位壽星</span>` : ''}</div>` : ''}
+      ${renderLoginReminderSection('待確認／待通知', groups.reminderRows, true)}
+      ${renderLoginReminderSection('任務逾期', groups.overdueTasks, true)}
+      ${renderLoginReminderSection('今日待辦', groups.todayTodos)}
+      ${renderLoginReminderSection('今日行程', groups.todaySchedules, false, true)}
+      ${renderLoginPersonalBirthdayGreeting(groups.personalBirthday)}
+      ${renderLoginBirthdayReminderSection(groups.birthdayRows || [])}
+      ${!taskCount ? '<div class="for-e-reminder-empty">今天沒有待辦、待確認提醒或行程。</div>' : ''}
+      <p class="for-e-reminder-note">已完成、取消、刪除或時間已過的事項不顯示。</p>
     </div>
-  `
+    <div class="modal-actions login-reminder-actions for-e-reminder-actions"><button type="button" class="secondary-btn" data-close-login-reminder>今天先關閉</button><button type="button" class="primary-btn" data-go-personal-schedule>前往個人行程表</button></div>
+  </div>`
 
   document.body.appendChild(modal)
   initSearchableChoicePanels(modal)
@@ -16766,6 +16618,7 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
       const mode = birthdayBtn.dataset.openBirthdayWishes || 'today'
       openBirthdayWishModal({
         staffId: mode === 'self' ? currentProfile?.staff_id : '',
+        excludeSelf: mode !== 'self',
         dateKey: todayString()
       })
       return
@@ -16795,7 +16648,7 @@ function openLoginDailyReminderModal(groups = getLoginDailyReminderRows()) {
       return
     }
 
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && !document.querySelector('.birthday-wish-backdrop')) {
       close()
       document.removeEventListener('keydown', onKeydown)
     }
@@ -20949,22 +20802,20 @@ function getTodayBirthdayRows() {
     .filter(staff => isStaffBirthdayOnDate(staff, today))
 }
 
-function renderLoginBirthdayReminderSection(rows = []) {
-  if (!rows.length) return ''
-
-  return `
-    <section class="login-birthday-reminder">
-      <button type="button" class="login-birthday-card" ${getBirthdayColorStyleAttr()} data-open-birthday-wishes="today">
-        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
-        <div>
-          <strong>今天有 ${rows.length} 位同仁生日：HappyBirthday ❤</strong>
-          <span>點擊查看生日同仁並留言祝福</span>
-        </div>
-      </button>
-    </section>
-  `
+function renderBirthdayGreetingCard(isSelf, count = 0, selfName = '', showAction = true) {
+  const title = isSelf ? `生日快樂，${selfName || '同仁'}！` : `今天有 ${count} 位同仁生日`
+  const subtitle = isSelf ? '祝你今天充滿喜悅與美好。' : '一起為今天的壽星送上暖心祝福。'
+  return `<section class="for-e-birthday-greeting ${isSelf ? 'is-self' : ''}">
+    <div class="for-e-birthday-greeting-head"><span>${isSelf ? 'HAPPY BIRTHDAY' : '• 生日提醒'}</span><span class="for-e-birthday-count">${isSelf ? '你的生日' : '今日'}</span></div>
+    <div class="for-e-birthday-greeting-main">${renderBirthdayGiftIcon()}<div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(subtitle)}</small></div></div>
+    ${showAction ? `<button type="button" class="for-e-birthday-cta" data-open-birthday-wishes="${isSelf ? 'self' : 'today'}">${isSelf ? '查看收到的生日祝福' : '查看壽星・送上祝福'} <span aria-hidden="true">›</span></button>` : ''}
+  </section>`
 }
 
+function renderLoginBirthdayReminderSection(rows = []) {
+  // Do not render the colleague's name, department or staff ID in the login notification.
+  return rows.length ? renderBirthdayGreetingCard(false, rows.length) : ''
+}
 
 function getCurrentBirthdayStaffRow() {
   return staffList.find(staff => staff.staff_id === currentProfile?.staff_id)
@@ -20978,21 +20829,8 @@ function isCurrentUserBirthdayToday() {
 }
 
 function renderLoginPersonalBirthdayGreeting(isBirthday = false) {
-  if (!isBirthday) return ''
-
-  return `
-    <section class="login-personal-birthday-greeting">
-      <button type="button" class="login-birthday-card is-personal" ${getBirthdayColorStyleAttr()} data-open-birthday-wishes="self">
-        <img src="/icons/cake.png" alt="" class="login-birthday-icon">
-        <div>
-          <strong>Happy Birthday ~Have a nice day♥</strong>
-          <span>點擊查看同仁給你的生日祝福</span>
-        </div>
-      </button>
-    </section>
-  `
+  return isBirthday ? renderBirthdayGreetingCard(true, 0, currentProfile?.name || getCurrentBirthdayStaffRow()?.name || '同仁') : ''
 }
-
 
 function normalizeManualColorCode(value = '', fallback = '') {
   const raw = String(value || '').trim()

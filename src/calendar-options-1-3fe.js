@@ -1,3 +1,4 @@
+import { getHolidayEntries } from './holiday-calendar.js';
 // Presentation-only enhancement. Original handlers and data storage remain untouched.
 const mobile = matchMedia('(max-width: 768px), (pointer: coarse)');
 const css = `
@@ -544,7 +545,15 @@ function updateMobileCalendarToolbar(){
  move(today,nav);
  if(mode==='week'&&dates.length===7){
   const strip=make('mobile-calendar-week-strip',root);strip.setAttribute('aria-label','當週日期');
-  dates.forEach((date,i)=>{const day=document.createElement('div');day.className='mobile-calendar-day'+(i>=5?' is-weekend':'')+(date===root.dataset.calendarToday?' is-current':'');day.setAttribute('aria-label',date+' 星期'+['一','二','三','四','五','六','日'][i]);const label=document.createElement('span');label.textContent=['一','二','三','四','五','六','日'][i];const number=document.createElement('strong');number.textContent=String(Number(date.slice(8)));day.append(label,number);strip.append(day);});
+  dates.forEach((date,i)=>{
+   const day=document.createElement('div');day.className='mobile-calendar-day'+(i>=5?' is-weekend':'')+(date===root.dataset.calendarToday?' is-current':'');
+   const weekday=['一','二','三','四','五','六','日'][i];const hasHoliday=getHolidayEntries(date).length>0;
+   day.setAttribute('aria-label',date+' 星期'+weekday+(hasHoliday?'，國定假日，點擊查看':''));
+   const label=document.createElement('span');label.textContent=weekday+(hasHoliday?' · 假日':'');
+   const number=document.createElement('strong');number.textContent=String(Number(date.slice(8)));
+   if(hasHoliday){day.classList.add('for-e-holiday-day');day.setAttribute('role','button');day.tabIndex=0;day.dataset.holidayDate=date;day.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();day.click();}});}
+   day.append(label,number);strip.append(day);
+  });
  }
  const actions=make('mobile-calendar-controls',root);
  const actionRow=make('mobile-calendar-action-row',actions);

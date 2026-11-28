@@ -1,0 +1,192 @@
+/* 2026–2027 holidays: one fixed-height slot per date. Nothing is rendered in
+   the slot on ordinary days, and a holiday-free week has no extra space. */
+#app .for-e-holiday-slot {
+  display: none !important;
+  margin: 3px 0 0 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  line-height: 1 !important;
+  height: 25px !important;
+  min-height: 25px !important;
+}
+#app thead:has(.for-e-holiday-trigger) .for-e-holiday-slot,
+#app .personal-month-calendar-grid:has(.for-e-holiday-trigger) .for-e-holiday-slot,
+#app .for-e-holiday-slot:has(.for-e-holiday-trigger) { display: block !important; }
+#app .for-e-holiday-trigger {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 3px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  overflow: hidden !important;
+}
+#app .for-e-holiday-trigger span {
+  display: inline !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: none !important;
+  white-space: nowrap !important;
+}
+#app .for-e-holiday-trigger .for-e-holiday-caption { color: #9b5647 !important; font-weight: 750 !important; }
+#app .for-e-holiday-trigger .for-e-holiday-countries { display: inline-flex !important; gap: 3px; align-items: center; }
+#app .for-e-holiday-trigger .for-e-holiday-arrow { color: #8b93a7 !important; font-size: 13px !important; }
+.hc-tw { color:#ae454a !important; }
+.hc-vn { color:#aa5e36 !important; }
+.hc-id { color:#937024 !important; }
+.hc-ph { color:#3f6da6 !important; }
+.hc-th { color:#7959a3 !important; }
+/* Mobile full overview is zoomed as a whole; use the same size slot in all
+   columns, enlarge only the country glyphs, never the caption. */
+#app .for-e-zoom-active .for-e-holiday-slot { height:36px !important; min-height:36px !important; }
+#app .for-e-zoom-active .for-e-holiday-trigger { height:36px !important; min-height:36px !important; }
+#app .for-e-zoom-active .for-e-holiday-trigger .for-e-holiday-caption,
+#app .for-e-zoom-active .for-e-holiday-trigger .for-e-holiday-arrow { display:none !important; }
+#app .for-e-zoom-active .for-e-holiday-trigger .for-e-holiday-country { font-size:23px !important; font-weight:800 !important; }
+#app .month-day-header { flex-direction:column; align-items:stretch; }
+#app .month-day-header > strong { align-self:flex-start; }
+#app .month-day-header .for-e-holiday-trigger .for-e-holiday-caption,
+#app .month-day-header .for-e-holiday-trigger .for-e-holiday-arrow { display:none !important; }
+#app .month-day-header .for-e-holiday-trigger { justify-content:flex-start !important; }
+html body:not(.force-desktop-mode) #app .mobile-calendar-day.for-e-holiday-day:not(.is-current) { background:#fceeea !important; color:#9b5647 !important; border-radius:7px; cursor:pointer; }
+html body:not(.force-desktop-mode) #app .mobile-calendar-day.for-e-holiday-day:not(.is-current) :is(span,strong) { color:#9b5647 !important; }
+html body:not(.force-desktop-mode) #app .mobile-calendar-day.for-e-holiday-day span { font-size:10px !important; font-weight:750 !important; white-space:nowrap; }
+#app .for-e-holiday-trigger:focus-visible, #app .for-e-holiday-day:focus-visible { outline:2px solid #7b7cea; outline-offset:-2px; }
+.for-e-holiday-backdrop { z-index:3000 !important; }
+.for-e-holiday-dialog { width:min(480px,100%) !important; max-height:80dvh !important; }
+.for-e-holiday-details { padding:4px 0; min-width:0; }
+.for-e-holiday-details > p { color:#637087; margin:4px 0 8px; font-size:13px; }
+.for-e-holiday-detail-row { display:grid; grid-template-columns:76px minmax(0,1fr); align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid #e7eaf2; font-size:14px; }
+.for-e-holiday-detail-row strong { font-size:13px; font-weight:750; }
+.for-e-holiday-detail-row span { overflow-wrap:anywhere; color:#28334a; font-weight:650; }
+
+/* Login reminder Plan A and birthday detail: one scrollable interior, fixed
+   visible footer, no empty statistic tiles; never alter reminder selection. */
+.for-e-reminder-backdrop { z-index:3000 !important; }
+.birthday-wish-backdrop.for-e-reminder-backdrop { z-index:3001 !important; }
+body .for-e-reminder-backdrop > .for-e-reminder-sheet {
+  width:min(620px,100%) !important;
+  max-height: min(86dvh,780px) !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  gap:0 !important;
+  padding:14px 16px 0 !important;
+  box-sizing:border-box !important;
+  text-align:left !important;
+  background:#fff !important;
+}
+body .for-e-reminder-sheet > .modal-header {
+  margin:-14px -16px 0 !important;
+  padding:13px 16px !important;
+  flex:0 0 auto !important;
+  position:relative !important;
+  inset:auto !important;
+  border-bottom:1px solid #e6e9f0 !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  background:#fff !important;
+}
+.for-e-reminder-sheet .modal-header h3 { font-size:20px !important; font-weight:850; color:#202b3e; line-height:1.25 !important; margin:0 !important; }
+.for-e-reminder-sheet .modal-header small { display:block; font-size:12px; color:#697489; margin-top:5px; font-weight:600; }
+.for-e-reminder-sheet .modal-header .icon-btn { width:44px !important; min-width:44px !important; min-height:44px !important; height:44px !important; padding:0 !important; border:0 !important; border-radius:12px !important; font-size:24px !important; background:#f2f3f6 !important; color:#26334a !important; }
+.for-e-reminder-sheet .for-e-reminder-scroll { display:grid; gap:13px; align-content:start; min-width:0; min-height:0; flex:1 1 auto !important; overflow-y:auto !important; overflow-x:hidden !important; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:15px 0 2px !important; }
+.for-e-reminder-sheet .for-e-reminder-intro { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:5px 10px; min-width:0; }
+.for-e-reminder-sheet .for-e-reminder-intro strong { font-size:16px; font-weight:800; color:#26334a; }
+.for-e-reminder-sheet .for-e-reminder-intro span { font-size:12px; color:#64748b; }
+.for-e-reminder-sheet .for-e-reminder-empty { padding:12px 13px; background:#f6f7fa; color:#667085; border-radius:12px; font-size:13px; font-weight:600; line-height:1.6; overflow-wrap:anywhere; }
+.for-e-reminder-sheet .for-e-reminder-empty:before { content:'•'; color:#a0a9bc; margin-right:8px; }
+.for-e-reminder-sheet .for-e-reminder-section { display:grid; gap:6px; min-width:0; }
+.for-e-reminder-sheet .for-e-reminder-section-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:0 0 2px; font-size:14px; color:#27334b; font-weight:800; }
+.for-e-reminder-sheet .for-e-reminder-section-head.is-priority { color:#b46b2c; }
+.for-e-reminder-sheet .for-e-reminder-section-head span { font-size:12px; color:#68748b; font-weight:650; white-space:nowrap; }
+.for-e-reminder-sheet .for-e-reminder-item { display:flex !important; align-items:center !important; text-align:left !important; width:100% !important; min-width:0 !important; gap:9px !important; padding:10px 11px !important; min-height:54px !important; border:1px solid #e2e6ef !important; border-radius:10px !important; background:#fff !important; color:#202a3d !important; white-space:normal !important; margin:0 !important; box-shadow:none !important; }
+.for-e-reminder-sheet .for-e-reminder-item-content { flex:1; min-width:0; overflow-wrap:anywhere; }
+.for-e-reminder-sheet .for-e-reminder-item strong { display:block; font-size:14px !important; line-height:1.4 !important; font-weight:750 !important; color:#202a3d; }
+.for-e-reminder-sheet .for-e-reminder-item small { display:block; font-size:12px !important; line-height:1.4 !important; color:#69778d; margin-top:4px; }
+.for-e-reminder-sheet .for-e-reminder-item-arrow { font-size:17px; font-weight:750; color:#8390a9; white-space:nowrap; }
+.for-e-reminder-sheet .for-e-reminder-item.is-priority { border-left:3px solid #e3a36b !important; background:#fffbf6 !important; }
+.for-e-reminder-sheet .for-e-reminder-item.is-priority .for-e-reminder-item-arrow { color:#b46b2c; }
+.for-e-reminder-sheet .for-e-reminder-note { font-size:11.5px; line-height:1.55; color:#8490a4; font-weight:500; margin:0; }
+body .for-e-reminder-backdrop > .for-e-reminder-sheet > .for-e-reminder-actions {
+  position:relative !important; inset:auto !important; flex:none !important; display:grid !important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.65fr) !important; width:100% !important; min-width:0 !important;
+  gap:8px !important; margin:10px 0 0 !important; padding:12px 0 max(14px,env(safe-area-inset-bottom)) !important;
+  border-top:1px solid #e1e5ef !important; background:#fff !important; overflow:visible !important;
+}
+body .for-e-reminder-backdrop .for-e-reminder-actions > button { min-height:46px !important; min-width:0 !important; height:auto !important; width:100% !important; font-size:14px !important; font-weight:750 !important; border-radius:10px !important; white-space:normal !important; }
+body .for-e-reminder-backdrop .for-e-reminder-actions > button:only-child { grid-column:1 / -1 !important; }
+@media(max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) .modal-backdrop.for-e-reminder-backdrop > .for-e-reminder-sheet { max-height:min(86dvh, calc(var(--for-e-modal-viewport-height,100dvh) - 8px)) !important; padding:14px 16px 0 !important; overflow:hidden !important; border-radius:22px 22px 0 0 !important; max-width:100% !important; }
+  html body:not(.force-desktop-mode) .modal-backdrop.for-e-reminder-backdrop > .for-e-reminder-sheet > .modal-header { position:relative !important; inset:auto !important; margin:-14px -16px 0 !important; padding:13px 16px !important; }
+  html body:not(.force-desktop-mode) .modal-backdrop.for-e-reminder-backdrop > .for-e-reminder-sheet > .for-e-reminder-actions { position:relative !important; inset:auto !important; grid-template-columns:minmax(0,1fr) minmax(0,1.65fr) !important; margin:10px 0 0 !important; padding:12px 0 max(14px,env(safe-area-inset-bottom)) !important; }
+}
+
+/* Shared birthday visual: names are rendered only inside birthday details
+   (or on the logged-in person's own greeting). */
+.for-e-reminder-sheet .for-e-birthday-greeting { position:relative; isolation:isolate; display:flex; flex-direction:column; gap:13px; width:100%; min-width:0; overflow:hidden; border:1px solid #efd0de; background:#fdf3f7; border-radius:15px; padding:14px; box-sizing:border-box; }
+.for-e-reminder-sheet .for-e-birthday-greeting:before { content:''; position:absolute; z-index:-1; top:-30px; right:-30px; width:110px; height:110px; border-radius:50%; background:#f8e2ec; pointer-events:none; }
+.for-e-reminder-sheet .for-e-birthday-greeting-head { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#9e426c; font-size:12px; font-weight:750; }
+.for-e-reminder-sheet .for-e-birthday-count { background:#fff; border:1px solid #f0d9e4; border-radius:20px; padding:4px 9px; white-space:nowrap; }
+.for-e-reminder-sheet .for-e-birthday-greeting-main { display:flex; align-items:center; gap:12px; min-width:0; }
+.for-e-reminder-sheet .for-e-birthday-greeting-main > div, .for-e-reminder-sheet .for-e-birthday-receiver > div { flex:1; min-width:0; overflow-wrap:anywhere; }
+.for-e-reminder-sheet .for-e-birthday-gift { display:grid; place-items:center; flex:0 0 48px; width:48px; height:48px; background:#fff; border:1px solid #f2dfe8; border-radius:13px; }
+.for-e-reminder-sheet .for-e-birthday-gift img { width:36px; height:36px; object-fit:contain; }
+.for-e-reminder-sheet .for-e-birthday-greeting-main strong { display:block; font-size:18px; font-weight:850; color:#4b263b; line-height:1.35; }
+.for-e-reminder-sheet .for-e-birthday-greeting-main small { display:block; font-size:12px; color:#806075; font-weight:600; margin-top:5px; line-height:1.5; }
+.for-e-reminder-sheet .for-e-birthday-greeting.is-self { background:#fff2f8; }
+.for-e-reminder-sheet .for-e-birthday-greeting.is-self .for-e-birthday-gift { flex-basis:63px; width:63px; height:63px; background:#fce5ef; border-color:#f0c9da; }
+.for-e-reminder-sheet .for-e-birthday-greeting.is-self .for-e-birthday-gift img { width:49px; height:49px; }
+.for-e-reminder-sheet .for-e-birthday-greeting.is-self strong { font-size:21px; color:#a33c6f; }
+.for-e-reminder-sheet .for-e-birthday-cta { display:flex !important; justify-content:center !important; align-items:center !important; gap:6px; width:100% !important; min-height:44px !important; padding:9px 12px !important; border:1px solid #b35383 !important; border-radius:10px !important; background:#b35383 !important; color:white !important; font-size:14px !important; font-weight:750 !important; box-shadow:none !important; margin:0 !important; white-space:normal !important; }
+.for-e-reminder-sheet .for-e-birthday-detail-section { display:grid; gap:12px; min-width:0; }
+.for-e-reminder-sheet .for-e-birthday-detail-section + .for-e-birthday-detail-section { border-top:1px solid #ede0e6; padding-top:14px; }
+.for-e-reminder-sheet .for-e-birthday-section-head { display:flex; align-items:center; justify-content:space-between; font-size:14px; color:#30394c; font-weight:800; gap:7px; }
+.for-e-reminder-sheet .for-e-birthday-section-head > span { font-size:12px; color:#7a8192; font-weight:600; }
+.for-e-reminder-sheet .for-e-birthday-receiver { display:flex; gap:10px; align-items:center; padding:12px; background:#fff6f9; border:1px solid #f2dce6; border-radius:12px; }
+.for-e-reminder-sheet .for-e-birthday-receiver .for-e-birthday-gift { width:38px; height:38px; flex-basis:38px; border-radius:10px; }
+.for-e-reminder-sheet .for-e-birthday-receiver img { width:28px; height:28px; }
+.for-e-reminder-sheet .for-e-birthday-receiver strong { display:block; font-size:16px; font-weight:800; color:#4b263b; }
+.for-e-reminder-sheet .for-e-birthday-receiver small { display:block; font-size:12px; color:#806075; margin-top:2px; }
+.for-e-reminder-sheet .for-e-birthday-form { display:grid; gap:10px; min-width:0; }
+.for-e-reminder-sheet .for-e-birthday-templates { display:flex; gap:6px; flex-wrap:wrap; }
+.for-e-reminder-sheet .for-e-birthday-templates button { background:#fff !important; color:#8e5071 !important; border:1px solid #e8cddb !important; border-radius:20px !important; padding:8px 11px !important; min-height:44px !important; min-width:0 !important; margin:0 !important; box-shadow:none !important; font-size:13px !important; font-weight:700 !important; white-space:nowrap !important; }
+.for-e-reminder-sheet .for-e-birthday-templates button[aria-pressed=true] { color:#a33c6f !important; background:#fae9f1 !important; border-color:#d99ab8 !important; }
+.for-e-reminder-sheet .for-e-birthday-form label.for-e-birthday-section-head { flex-direction:column; align-items:stretch; gap:8px; }
+.for-e-reminder-sheet .for-e-birthday-form textarea { display:block !important; min-height:110px !important; width:100% !important; max-width:100% !important; background:#fff !important; border:1px solid #e2d8e1 !important; border-radius:12px !important; padding:12px !important; color:#30394c !important; font-size:16px !important; line-height:1.55 !important; box-sizing:border-box !important; margin:0 !important; resize:vertical; }
+.for-e-reminder-sheet .for-e-birthday-text-count { text-align:right; font-size:11px; color:#8990a1; line-height:1; }
+.for-e-reminder-sheet .for-e-birthday-private { padding:10px 12px; color:#78687a; font-size:12px; line-height:1.6; background:#f7f5f8; border-radius:10px; overflow-wrap:anywhere; }
+.for-e-reminder-sheet .for-e-birthday-message-list { display:grid; gap:8px; }
+.for-e-reminder-sheet .for-e-birthday-message { display:grid; gap:8px; padding:12px; border:1px solid #ebdfe6; border-radius:12px; background:#fffafd; min-width:0; }
+.for-e-reminder-sheet .for-e-birthday-message > div { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; }
+.for-e-reminder-sheet .for-e-birthday-message strong { font-size:13px; color:#88506b; font-weight:800; }
+.for-e-reminder-sheet .for-e-birthday-message small { font-size:11px; color:#8c8392; }
+.for-e-reminder-sheet .for-e-birthday-message p { font-size:13.5px; color:#333b4d; line-height:1.6; margin:0; font-weight:500; overflow-wrap:anywhere; }
+/* Keep all five abbreviations readable even at the narrowest phone width. */
+@media(max-width:360px) {
+  #app .for-e-holiday-trigger { gap:2px !important; padding:0 !important; }
+  #app .for-e-holiday-trigger .for-e-holiday-countries { gap:2px !important; }
+  #app .for-e-holiday-trigger .for-e-holiday-arrow { display:none !important; }
+}
+/* Keep the three suggested wishes on one row instead of inheriting the
+   generic mobile modal's full-width buttons. */
+.for-e-reminder-sheet .for-e-birthday-templates { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.for-e-reminder-sheet .for-e-birthday-templates button { width:100% !important; min-width:0 !important; padding:7px 4px !important; display:flex !important; align-items:center; justify-content:center; }
+.for-e-reminder-sheet .for-e-reminder-item-time { flex:0 0 70px; min-width:0; font-size:13px; font-weight:800; color:#525bd9; font-variant-numeric:tabular-nums; line-height:1.4; overflow-wrap:anywhere; }
+@media(max-width:360px) { .for-e-reminder-sheet .for-e-reminder-item-time { flex-basis:58px; font-size:12px; } }
