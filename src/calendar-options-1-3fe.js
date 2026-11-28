@@ -168,6 +168,52 @@ const css = `
  }
 }
 
+/* Unified calendar presentation: today B, event cards B, meeting information A. */
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today {
+  background:#eef0ff!important;
+  border-color:#d8deea!important;
+  box-shadow:none!important;
+  outline:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today:is(.is-holiday,.is-field-day,.is-leave-day,.is-return-day,.is-personal-leave-day,.has-continuation-mark) {
+  border-color:#d8deea!important;
+  box-shadow:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today.is-field-day {
+  background:linear-gradient(90deg,#ffefe2 0 5px,#eef0ff 5px)!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today::after {
+  border:none!important; box-shadow:none!important; outline:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) thead th.is-today {
+  background:#e1e6ff!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(.week-schedule-card,.field-week-schedule-card,.meeting-room-card,.meeting-room-overview-card,.continuation-day-mark,.return-reminder-day-mark,.administrative-reminder-day-mark) {
+  border-top:1px solid #dde2e9!important;
+  border-right:1px solid #dde2e9!important;
+  border-bottom:1px solid #dde2e9!important;
+  border-left-width:4px!important; border-left-style:solid!important;
+  border-radius:8px!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(.week-schedule-card,.field-week-schedule-card,.meeting-room-card,.meeting-room-overview-card,.continuation-day-mark,.return-reminder-day-mark,.administrative-reminder-day-mark):not(.is-transfer-due-date,.is-transfer-due-reminder,.is-transfer-tracking-start,.is-runaway-reminder,.is-runaway-day2,.is-runaway-day3,.is-verify-reminder,.is-alert-item) {
+  box-shadow:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-meeting-title-priority {
+  display:block!important; color:#263347!important; font-weight:800!important;
+  white-space:normal!important; overflow-wrap:anywhere!important; text-align:left!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-meeting-location-secondary,
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-meeting-location-secondary * {
+  color:#788395!important; font-size:0.85em!important; font-weight:600!important;
+  white-space:normal!important; overflow-wrap:anywhere!important; text-align:left!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-meeting-location-secondary {
+  display:block!important; margin-top:3px!important; line-height:1.3!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(.is-completed,.is-ended,.ended-case,.for-e-v278-meeting-room-past-gray) :is(.for-e-meeting-title-priority,.for-e-meeting-location-secondary,.for-e-meeting-location-secondary *) {
+  color:#626b78!important;
+}
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -383,6 +429,29 @@ function updateFilters(){
  });
 }
 
+
+function updateMeetingCardPresentation(table){
+ const cards=table.querySelectorAll('.meeting-room-overview-card,.meeting-room-card,.card-display-meeting-room');
+ for(const card of cards){
+  if(card.closest('table')!==table)continue;
+  const room=card.querySelector('.meeting-room-overview-room,.meeting-room-room-line,.meeting-room-name');
+  if(!room)continue;
+  const usable=el=>el!==room&&!el.contains(room)&&!room.contains(el)&&!el.matches('.meeting-room-name,.meeting-room-room-line,.week-card-time,.for-e-card-time,.meeting-room-time')&&clean(el.textContent);
+  const title=[...card.querySelectorAll('.meeting-title,.meeting-room-overview-title,.meeting-room-overview-name,.meeting-room-preview:not(.meeting-room-name)')].find(usable)||[...card.querySelectorAll('.for-e-card-title,strong')].find(usable);
+  if(!title||title===room||title.contains(room)||room.contains(title))continue;
+  title.classList.add('for-e-meeting-title-priority');
+  room.classList.add('for-e-meeting-location-secondary');
+  let branch=title;
+  while(branch.parentElement&&branch.parentElement!==card)branch=branch.parentElement;
+  if(branch.parentElement!==card)continue;
+  if(branch.nextElementSibling!==room){
+   const former=room.parentElement;
+   branch.after(room);
+   if(former!==card&&former!==branch&&!former.children.length&&!clean(former.textContent)&&former.matches('.meeting-room-overview-head,.meeting-room-card-head'))former.remove();
+  }
+ }
+}
+
 let queued=false;
 function updateDesktopAssignedReminder(){
  const desktop=document.body.classList.contains('force-desktop-mode')||!mobile.matches;
@@ -395,7 +464,7 @@ function updateDesktopAssignedReminder(){
   }
  });
 }
-function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table)});updateOptions();}
+function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table);updateMeetingCardPresentation(table)});updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
