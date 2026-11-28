@@ -3,6 +3,8 @@ import './style.css'
 import './overview-plan-a.css'
 import './schedule-plan-a.css'
 import './field-plan-a.css'
+import './schedule-detail-plan-a.css'
+import './mobile-modal-safe.css'
 import { enhanceSchedulePlanA } from './schedule-plan-a.js'
 import versionInfoIcon from './assets/version-info-icon.png'
 import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
@@ -7376,10 +7378,17 @@ function syncMobileBottomNavToVisualViewport() {
     ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
     : 0
 
-  document.documentElement.style.setProperty(
-    '--for-e-mobile-nav-visual-bottom',
-    `${Math.round(visualBottomOffset)}px`
-  )
+  const rootStyle = document.documentElement.style
+  rootStyle.setProperty('--for-e-mobile-nav-visual-bottom', `${Math.round(visualBottomOffset)}px`)
+  // Dialogs also follow the visible viewport (including the iOS keyboard).
+  // Fallback to dvh in CSS when VisualViewport is not supported.
+  if (viewport && viewport.height > 0) {
+    rootStyle.setProperty('--for-e-modal-viewport-height', `${Math.round(viewport.height)}px`)
+    rootStyle.setProperty('--for-e-modal-viewport-top', `${Math.round(Math.max(0, viewport.offsetTop))}px`)
+  } else {
+    rootStyle.removeProperty('--for-e-modal-viewport-height')
+    rootStyle.removeProperty('--for-e-modal-viewport-top')
+  }
 }
 
 function ensureMobileBottomNavViewportBinding() {
@@ -25840,7 +25849,7 @@ function openTodoNotePostponeModal(scheduleId = '') {
         <h3>延期</h3>
         <button class="icon-btn" id="closeTodoPostponeModalBtn" type="button">×</button>
       </div>
-      <div class="detail-grid">
+      <div class="detail-grid mobile-task-summary">
         <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || row.category || '-')}</strong></div>
         <div><span>原日期</span><strong>${escapeHtml(row.start_date || '-')}</strong></div>
         <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
@@ -25924,7 +25933,7 @@ function openTodoNoteStatusModal(scheduleId = '') {
         <button class="icon-btn" id="closeTodoStatusModalBtn" type="button">×</button>
       </div>
 
-      <div class="detail-grid">
+      <div class="detail-grid mobile-task-summary">
         <div class="span-2"><span>項目</span><strong>${escapeHtml(row.title || row.sub_type || row.category || '-')}</strong></div>
         <div><span>類別</span><strong>${escapeHtml(getScheduleRowCategoryDisplayLabel(row))}</strong></div>
         <div><span>目前狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
@@ -25937,6 +25946,10 @@ function openTodoNoteStatusModal(scheduleId = '') {
             <option value="未完成" ${currentStatus !== '已完成' ? 'selected' : ''}>未完成</option>
             <option value="已完成" ${currentStatus === '已完成' ? 'selected' : ''}>已完成</option>
           </select>
+          <div class="mobile-todo-status-options" role="group" aria-label="狀態">
+            <button type="button" data-todo-status="未完成" aria-pressed="${currentStatus === '未完成'}">未完成</button>
+            <button type="button" data-todo-status="已完成" aria-pressed="${currentStatus === '已完成'}">已完成</button>
+          </div>
         </label>
 
         <label class="span-2 ${currentStatus === '已完成' ? '' : 'hidden'}" id="todoNoteResultBlock">
@@ -25956,9 +25969,16 @@ function openTodoNoteStatusModal(scheduleId = '') {
   const close = () => modal.remove()
   modal.querySelector('#closeTodoStatusModalBtn')?.addEventListener('click', close)
   modal.querySelector('#cancelTodoStatusBtn')?.addEventListener('click', close)
-  modal.querySelector('#todoNoteStatusSelect')?.addEventListener('change', event => {
+  const statusSelect = modal.querySelector('#todoNoteStatusSelect')
+  const statusOptions = Array.from(modal.querySelectorAll('[data-todo-status]'))
+  statusSelect?.addEventListener('change', event => {
     modal.querySelector('#todoNoteResultBlock')?.classList.toggle('hidden', event.target.value !== '已完成')
+    statusOptions.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.todoStatus === event.target.value)))
   })
+  statusOptions.forEach(button => button.addEventListener('click', () => {
+    statusSelect.value = button.dataset.todoStatus
+    statusSelect.dispatchEvent(new Event('change', { bubbles: true }))
+  }))
   modal.querySelector('#todoNoteStatusForm')?.addEventListener('submit', async event => {
     event.preventDefault()
     const form = new FormData(event.target)
@@ -26040,21 +26060,189 @@ if (!window.__FOR_E_COPY_CARD_ADDRESS_BOUND__) {
   }, true)
 }
 
-function renderFieldMobileDetail(row, values) {
-  const { date, time, title, assignee, creator, address, content, permission } = values
-  const items = [['現金',getFieldNoteValue(row,'現金')],['印章',getFieldNoteValue(row,'印章')],['證件',getFieldNoteValue(row,'證件')]].filter(([,v]) => v && !['無','-','--'].includes(String(v).trim()))
-  const reminders = getFieldSpecialRemindersFromRow(row)
-  const next = getFieldNextActionFromRow(row)
-  const result = getFieldResultFromRow(row)
-  const status = getScheduleStatusLabel(row)
-  const line = (label,value) => `<div class="fd-info-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`
-  const section = (heading,body) => `<section class="fd-detail-section"><h4>${heading}</h4><div class="fd-detail-body">${body}</div></section>`
-  const info = `${row.location_name ? line('地點',row.location_name) : ''}${address ? `<div class="fd-info-line fd-address"><span>地址</span><strong>${escapeHtml(address)}</strong><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(address)}">複製</button></div>` : ''}${line('外務目的',getFieldPurposeValuesFromRow(row).join('、'))}${reminders.length ? `<div class="fd-info-line"><span>特殊提醒</span><div class="fd-detail-badges">${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div></div>` : ''}`
-  return `<div class="field-mobile-detail"><section class="fd-detail-head"><div class="fd-title-row"><h3>${escapeHtml(title)}</h3><span class="fd-status ${row.status === '已完成' ? 'is-completed' : 'is-open'}">${escapeHtml(status)}</span></div><div class="fd-date">${escapeHtml(date)}　${escapeHtml(time)}</div>${line('執行人員',assignee)}${line('建立者',creator)}</section>
-    ${section('外務資訊',info)}${section('內容',`<div class="fd-detail-text">${escapeHtml(content || '-')}</div>`)}${items.length ? section('攜帶物品',items.map(([k,v])=>line(k,v)).join('')) : ''}
-    ${result ? section('辦理結果',`<div class="fd-result-label ${result==='送件異常'?'is-abnormal':''}">${escapeHtml(result)}</div>${line(result==='要補件'?'補件項目':'異常項目',getFieldNoteValue(row,result==='要補件'?'補件項目':'異常項目'))}${getFieldNoteValue(row,'通知行政') ? line('通知行政',getFieldNoteValue(row,'通知行政')) : ''}`) : ''}
-    ${next.type ? section('下次領件／送審',line('類型',next.type)+line('日期',next.date)+line('時間',next.time||'不指定')+line('下次執行人員',getFieldNoteValue(row,'下次人員'))) : ''}
-    <details class="fd-detail-other"><summary>建立與紀錄資訊</summary>${line('類別',getScheduleRowCategoryDisplayLabel(row))}${line('建立者',creator)}${row.car_no ? line('公務車',row.car_no) : ''}${row.sub_type_note ? `<div class="fd-detail-text">${escapeHtml(row.sub_type_note)}</div>` : ''}${permission ? `<p class="field-hint">${escapeHtml(permission)}</p>` : ''}</details></div>`
+function formatScheduleDetailDate(value = '') {
+  const date = String(value || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+  const day = new Date(date + 'T00:00:00Z').getUTCDay()
+  return date.replaceAll('-', '/') + (Number.isFinite(day) ? '（' + '日一二三四五六'[day] + '）' : '')
+}
+
+function formatScheduleDetailTime(row = {}) {
+  const clock = value => {
+    const time = String(value || '').slice(0, 5)
+    const hour = Number(time.slice(0, 2))
+    return row.time_type === '下午' && /^\d{2}:\d{2}$/.test(time) && hour > 0 && hour < 12 ? String(hour + 12) + time.slice(2) : time
+  }
+  const start = clock(row.start_time)
+  const end = clock(row.end_time)
+  if (start) return start + (end && end !== '00:00' && end !== start ? '–' + end : '')
+  return formatTime(row) || '不指定'
+}
+
+// Read-only presentation. Use the same source values and permission helpers as the desktop detail.
+function renderScheduleMobileDetail(row, values) {
+  const { title, assignee, creator, address, content, permission, people, card, occurrenceDate } = values
+  const clean = value => {
+    const text = String(value ?? '').trim()
+    return ['', '-', '--', '—', 'null', 'undefined'].includes(text) ? '' : text
+  }
+  const shownNotes = new Set()
+  const note = (...keys) => {
+    keys.forEach(key => shownNotes.add(key))
+    return keys.map(key => clean(getFieldNoteValue(row, key) || getLineNoteValue(row, key) || getNoteValue(row, key))).find(Boolean) || ''
+  }
+  const line = (label, value) => clean(value) ? `<div class="sd-info-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(clean(value))}</strong></div>` : ''
+  const addressLine = value => clean(value) ? `<div class="sd-info-line sd-address"><span>地址</span><strong>${escapeHtml(clean(value))}</strong><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(clean(value))}">複製</button></div>` : ''
+  const section = (heading, body) => body ? `<section class="sd-section"><h4>${escapeHtml(heading)}</h4><div class="sd-section-body">${body}</div></section>` : ''
+  const paragraph = value => clean(value) ? `<div class="sd-text">${escapeHtml(clean(value))}</div>` : ''
+  const status = row.status === '取消' ? '取消' : getScheduleStatusLabel(row)
+  const tone = ['已完成','已結案','完成'].includes(status) ? 'done' : ['取消','已取消'].includes(status) ? 'cancelled' : status === '行事曆顯示' ? 'neutral' : 'pending'
+  const date = [row.start_date, row.end_date && row.end_date !== row.start_date ? row.end_date : ''].filter(Boolean).map(formatScheduleDetailDate).join(' ～ ')
+  const cat = getScheduleRowCategoryDisplayLabel(row)
+  const type = getMobileDetailReminderDisplayType(row)
+  const field = [row.category, row.schedule_type].some(value => ['外務行程','外務明細','外務','外務日'].includes(String(value || '').trim()))
+  const meeting = isMeetingRoomSchedule(row)
+  const certificate = isCertificateDeliverySchedule(row)
+  const maintenance = isVehicleMaintenanceSchedule(row)
+  const isTodo = isTodoOrNoteSchedule(row)
+  const info = []
+  const sections = []
+  const add = (name, value) => info.push(line(name, value))
+  const addSection = (name, body) => sections.push(section(name, body))
+  const distinct = (value, ...others) => clean(value) && !others.some(other => clean(other) === clean(value)) ? value : ''
+  const caseSummary = [getCalendarSummaryAreaText(row), distinct(row.customer_name, title)].filter(Boolean).join('／')
+  let contentText = content
+
+  if (field) {
+    add('地點', row.location_name)
+    info.push(addressLine(address))
+    add('外務目的', getFieldPurposeValuesFromRow(row).join('、'))
+    add('特殊提醒', getFieldSpecialRemindersFromRow(row).map(getFieldSpecialReminderDisplay).join('、'))
+    addSection('外務資訊', info.join(''))
+    addSection('內容', paragraph(content))
+    const items = ['現金','印章','證件'].map(key => {
+      const value = note(key)
+      return value === '無' ? '' : line(key, value)
+    }).join('')
+    addSection('攜帶物品', items)
+    const result = getFieldResultFromRow(row)
+    if (result) {
+      note('外務結果')
+      const label = result === '要補件' ? '補件項目' : '異常項目'
+      addSection('辦理結果', line('結果', result) + line(label, note(label)) + paragraph('已建立行政待辦，此外務項目已完成。'))
+    }
+    const next = getFieldNextActionFromRow(row)
+    if (next.type && next.type !== '無') {
+      note(next.type)
+      addSection('下次領件／送審', line('類型', next.type) + line('日期', formatScheduleDetailDate(next.date)) + line('時間', next.time || '不指定') + line('下次執行人員', note('下次人員')))
+    }
+  } else if (maintenance) {
+    add('車輛', row.car_no || row.sub_type)
+    add('保養日期', formatScheduleDetailDate(row.start_date))
+    add('歸還日期', formatScheduleDetailDate(row.end_date || row.start_date))
+    add('代步車', getVehicleMaintenanceReplacementCarText(row))
+    note('保養期間代步車','代步車資訊','代步車')
+    addSection('車輛資訊', info.join(''))
+    addSection('備註', paragraph(note('保養備註') || getLineNoteValue(row, '備註')))
+    // Older maintenance records may have a free-form description rather than structured lines.
+    const extra = String(content || '').split(/\r?\n/).filter(text => !/^(公務車|保養日期|歸還日期|保養期間代步車|通知相關人員|通知主管|備註)[:：]/.test(text.trim())).join('\n')
+    addSection('內容', paragraph(extra))
+  } else if (certificate) {
+    const items = splitMultiValue(row.sub_type || note('交付項目') || '').filter(clean)
+    note('交付項目')
+    addSection('交付項目', items.length ? `<div class="sd-chips">${items.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : '')
+    addSection('行程資訊', line('區域／客戶', caseSummary) + addressLine(address))
+    addSection('內容', paragraph(content))
+  } else if (meeting) {
+    add('會議室', row.location_name || row.sub_type)
+    add('部門', note('部門') || row.department_name)
+    add('參與部門／人員', getMeetingParticipantSummary(row))
+    note('預約人','與會設定','與會部門','與會人員')
+    addSection('預約資訊', info.join(''))
+    addSection('內容', paragraph(content))
+  } else {
+    add('行程類型', distinct(row.schedule_type === '外訓' ? '教育訓練' : getScheduleFieldDisplayLabel(row.schedule_type || ''), cat))
+    add(row.category === '服務行程' && !type ? '附加行程' : '項目', distinct(row.sub_type, row.schedule_type))
+    add('區域／客戶', caseSummary)
+    add('地點', values.showLocation ? row.location_name : '')
+    if (!['住變資訊提供','住變資訊通知'].includes(type) && values.showAddress) info.push(addressLine(address))
+    add('部門', note('指派部門'))
+    add('代理人', note('代理人'))
+    const medicalTime = getMedicalFollowupTimeDisplay(row)
+    const medicalNo = getMedicalRegisterNoDisplay(row)
+    add('回診時間', medicalTime)
+    add('掛號號碼', medicalNo)
+    add('下次執行人員', note('下次執行人'))
+    if (row.category === '服務行程') add('證件', note('證件'))
+    if (medicalNo) note('掛號號碼')
+    if (medicalTime) note('回診時間','下次回診')
+    addSection('行程資訊', info.join(''))
+    const dates = []
+    const dated = (label, value) => { note(label); dates.push(line(label, formatScheduleDetailDate(value))) }
+    if (['轉出追蹤','轉出通知'].includes(type)) {
+      const data = parseTransferReminderInfo(row)
+      dated('聘僱終止日', data.endDate)
+      dated('轉出到期日', data.dueDate)
+    } else if (type === '逃跑通知') {
+      const data = parseRunawayReminderInfo(row)
+      dated('逃跑第一天', data.day1)
+      dated('逃跑第二天', data.day2)
+      dated('逃跑第三天', data.day3)
+    } else if (['住變資訊提供','住變資訊通知'].includes(type)) {
+      const data = parseHousingReminderInfo(row)
+      dated('搬遷日期', data.moveDate)
+      dates.push(line('搬遷時間', data.time))
+      note('搬遷時間','搬家時間')
+      dates.push(addressLine(data.address || address))
+      note('地址')
+    } else if (type === '驗證提醒') {
+      const data = parseVerifyReminderInfo(row)
+      dated('結薪日', data.salaryDate)
+      dated('驗證日', data.verifyDate)
+      dated('離境日', data.leaveDate)
+      dates.push(line('離境時間', data.leaveTime))
+      note('預計驗證日','預計離境日','離境時間','預計離境時間','離境班機時間')
+    } else if (type === '返台提醒') {
+      const data = getReturnTaiwanReminderInfo(row)
+      dated('返台日', data.date)
+      dates.push(line('返台時間', data.time), line('返台班機', data.flight))
+      note('返台時間','返台班機')
+      contentText = ''
+    } else if (type === '電表提醒') {
+      const data = parseMeterReminderInfo(row)
+      dates.push(line('雇主／宿舍名', data.place), line('提醒', data.message || '提醒更新電表!!'))
+    }
+    addSection(type === '電表提醒' ? '電表資訊' : ['住變資訊提供','住變資訊通知'].includes(type) ? '搬遷資訊' : '重要日期', dates.join(''))
+    addSection('內容', paragraph(contentText))
+    if (isTodo) addSection('承辦狀態', line('狀態', status) + line('處理結果', getTodoNoteResult(row)) + (isPostponedOriginalSchedule(row) ? line('已延期至', formatScheduleDetailDate(getTodoNotePostponedDate(row)) || '延期處理') : ''))
+  }
+  if (row.need_service_record) {
+    note('服務紀錄單')
+    const submitted = isScheduleServiceRecordSubmitted(row)
+    addSection('服務紀錄單', `<div class="sd-record"><span class="sd-status sd-${submitted ? 'done' : 'pending'}">${submitted ? '已繳交' : '尚未繳交'}</span>${submitted ? line('繳交日期', formatScheduleDetailDate(getScheduleServiceRecordSubmittedDate(row))) : ''}</div>`)
+  }
+  const notificationValue = (...keys) => [...new Set(keys.flatMap(key => splitMultiValue(note(key))))].join('、')
+  const notifications = [
+    ['主管', notificationValue('通知主管','通知主管追蹤')],
+    ['行政', notificationValue('通知行政','通知行政辦理')],
+    ['原翻譯', notificationValue('通知原翻譯')],
+    ['相關人員', notificationValue('通知相關人員')]
+  ]
+  const namedNotifications = notifications.map(([label,value]) => line(label, value)).join('')
+  addSection('通知對象', namedNotifications || line('通知人員', people.notificationText))
+  // Retain unrecognised and historical note data; do not repeat fields already presented.
+  const remainingNotes = String(row.sub_type_note || '').split('｜').map(text => text.trim()).filter(text => clean(text) && ![...shownNotes].some(label => text.startsWith(label + '：'))).join('\n')
+  const other = line('類別', cat) + line('建立者', creator) +
+    (card.showCreator ? line('指派者', distinct(card.creatorText, creator)) : '') +
+    (!maintenance ? line('公務車', row.car_no) : '') +
+    (remainingNotes ? line('備註／紀錄', remainingNotes) : '') +
+    (type === '返台提醒' && clean(content) ? line('原始紀錄', content) : '') +
+    (!row.need_service_record && row.category === '服務行程' ? line('服務紀錄單', '不需繳交') : '') +
+    paragraph(permission)
+  const dateRow = date || formatScheduleDetailDate(occurrenceDate)
+  return `<div class="sd-mobile-detail"><section class="sd-head"><div class="sd-title-row"><h3>${escapeHtml(title)}</h3><span class="sd-status sd-${tone}">${escapeHtml(status)}</span></div><div class="sd-head-meta">${line('日期', dateRow)}${occurrenceDate && occurrenceDate !== row.start_date ? line('查看日期', formatScheduleDetailDate(occurrenceDate)) : ''}${line('時間', formatScheduleDetailTime(row))}${line(meeting ? '預約人' : '執行人員', (people.showAssignee || meeting || field) ? assignee : '')}</div></section>
+    ${sections.filter(Boolean).join('')}
+    ${other ? `<details class="sd-other"><summary>其他紀錄資訊</summary><div class="sd-section-body">${other}</div></details>` : ''}</div>`
 }
 
 function openScheduleDetail(scheduleId, occurrenceDate = '') {
@@ -26071,8 +26259,6 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const showCustomerDetail = serviceReminderType !== '電表提醒' && row.customer_name && String(row.customer_name || '').trim() !== String(row.title || '').trim()
   const showLocationDetail = row.category !== '服務行程' && Boolean(row.location_name)
   const showAddressDetail = Boolean(detailAddressText) && !(row.category === '服務行程' && serviceReminderType === '住變資訊提供') && !hideAddressForSimplifiedService
-  const detailDateText = `${row.start_date || '-'}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + row.end_date : ''}`
-  const detailTimeText = formatTime(row) || '不指定'
   const detailCardDisplayConfig = getScheduleCardDisplayConfig(row, 'mobile-detail')
   const detailPeopleDisplayConfig = getSchedulePeopleDisplayConfig(row, 'mobile-detail')
   const detailAssigneeText = isMeetingRoomSchedule(row)
@@ -26085,16 +26271,6 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
   ).trim() || '-'
   const detailTitleText = String(row.title || detailCardDisplayConfig.titleText || getScheduleDisplayType(row) || '-').trim() || '-'
   const detailContentDisplayText = String(detailContentText || '-').trim() || '-'
-  const mobileCertificateDetailRows = renderMobileCertificateDeliveryPriorityRows(row, detailContentText, detailAddressText)
-  const mobileReminderDetailRows = mobileCertificateDetailRows || renderMobileReminderDetailPriorityRows(row, detailContentText)
-  const defaultMobileDetailPriorityRows = `
-          <div class="mobile-detail-priority-item"><span>日期</span><strong>${escapeHtml(detailDateText)}</strong></div>
-          <div class="mobile-detail-priority-item"><span>時間</span><strong>${escapeHtml(detailTimeText)}</strong></div>
-          ${showAddressDetail ? `<div class="mobile-detail-priority-item mobile-detail-priority-address"><span>地址</span><button type="button" class="detail-address-value copy-address-text" data-copy-address="${escapeHtml(detailAddressText)}" title="點擊複製地址">${escapeHtml(detailAddressText)}</button></div>` : ''}
-          <div class="mobile-detail-priority-item"><span>標題</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailTitleText)}</strong></div>
-          <div class="mobile-detail-priority-item"><span>內容</span><strong class="schedule-detail-text-preserve">${escapeHtml(detailContentDisplayText)}</strong></div>
-          ${renderMobileMedicalFollowupPriorityRows(row)}
-        `
   const permissionNote = isConsultantServiceEditOnlySchedule(row)
     ? '顧問只能修改此服務行程的內容與執行者，不能按已完成、取消或刪除。'
     : (administrativeReminderCanComplete
@@ -26107,7 +26283,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
 
   const modal = document.createElement('div')
   const fieldMobileView = ['外務行程','外務明細','外務','外務日'].includes(String(row.category || '').trim()) || ['外務行程','外務明細','外務','外務日'].includes(String(row.schedule_type || '').trim())
-  modal.className = 'modal-backdrop schedule-view-backdrop' + (fieldMobileView ? ' field-mobile-view-backdrop' : '')
+  modal.className = 'modal-backdrop schedule-view-backdrop schedule-detail-plan-a-backdrop'
   modal.innerHTML = `
     <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header schedule-view-modal-header">
@@ -26116,14 +26292,8 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
       </div>
 
       <div class="schedule-view-modal-content">
-        ${fieldMobileView ? renderFieldMobileDetail(row, {date:detailDateText,time:detailTimeText,title:detailTitleText,assignee:detailAssigneeText,creator:detailCreatorText,address:detailAddressText,content:detailContentDisplayText,permission:permissionNote}) : ''}
-        ${fieldMobileView ? '<div class="fd-original-detail">' : ''}
-        <div class="mobile-schedule-detail-priority" aria-label="手機行程重點資訊">
-          ${mobileReminderDetailRows || defaultMobileDetailPriorityRows}
-        </div>
-
-        <div class="mobile-detail-other-info-title">其他資訊</div>
-
+        ${renderScheduleMobileDetail(row, {title:detailTitleText, assignee:detailAssigneeText, creator:detailCreatorText, address:detailAddressText, content:detailContentDisplayText, permission:permissionNote, people:detailPeopleDisplayConfig, card:detailCardDisplayConfig, occurrenceDate, showAddress:showAddressDetail, showLocation:showLocationDetail})}
+        <div class="sd-desktop-detail">
         <div class="detail-grid schedule-detail-grid">
           <div><span>狀態</span><strong>${escapeHtml(getScheduleStatusLabel(row))}</strong></div>
           <div class="mobile-detail-priority-duplicate"><span>日期</span><strong>${escapeHtml(row.start_date)}${row.end_date && row.end_date !== row.start_date ? ' ～ ' + escapeHtml(row.end_date) : ''}</strong></div>
@@ -26148,10 +26318,9 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         </div>
 
         ${isFieldScheduleRow(row) ? renderFieldResultReminder(row) : ''}
-        ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
-
         <div class="notice">${permissionNote}</div>
-        ${fieldMobileView ? '</div>' : ''}
+        </div>
+        ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
       </div>
 
       <div class="modal-actions schedule-view-modal-actions">

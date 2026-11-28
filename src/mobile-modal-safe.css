@@ -1,0 +1,216 @@
+.mobile-todo-status-options {display:none}
+/* Shared mobile overlay protection. All current and future modal-backdrop
+   windows hide the navigation automatically, including nested windows. */
+@media (max-width: 768px), (pointer: coarse) {
+  body:not(.force-desktop-mode):has(.modal-backdrop:not([hidden]):not(.hidden), dialog[open]) .mobile-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Same layer for every backdrop: later appended secondary dialogs appear
+     above their parent, and closing the last dialog restores navigation. */
+  body:not(.force-desktop-mode) .modal-backdrop {
+    position: fixed !important;
+    inset: var(--for-e-modal-viewport-top, 0px) 0 auto !important;
+    height: var(--for-e-modal-viewport-height, 100dvh) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    z-index: 2147483100 !important;
+    overscroll-behavior: contain;
+  }
+
+  /* Existing full-screen creation forms and Plan A detail: contained by the
+     visual viewport, not an independent fixed element behind the keyboard. */
+  body:not(.force-desktop-mode) .modal-backdrop:is(.pa-modal, .schedule-detail-plan-a-backdrop) {
+    inset: var(--for-e-modal-viewport-top, 0px) 0 auto !important;
+    height: var(--for-e-modal-viewport-height, 100dvh) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop:is(.pa-modal, .schedule-detail-plan-a-backdrop) > .modal-panel {
+    position: relative !important;
+    inset: auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Secondary operations are bottom sheets with a scrollable panel. */
+  body:not(.force-desktop-mode) .modal-backdrop:not(.pa-modal):not(.schedule-detail-plan-a-backdrop) {
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop:not(.pa-modal):not(.schedule-detail-plan-a-backdrop) > .modal-panel {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: min(760px, 100%) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100% - 8px) !important;
+    margin: 0 !important;
+    padding: 14px 14px 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 80px;
+  }
+  /* Legacy secondary dialogs use schedule-view-modal without a content
+     wrapper. They must scroll as a normal panel, unlike the Plan A detail. */
+  body:not(.force-desktop-mode) .modal-backdrop:not(.schedule-detail-plan-a-backdrop):not(.pa-modal) > .schedule-view-modal {
+    display: block !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop:not(.pa-modal):not(.schedule-detail-plan-a-backdrop) > .modal-panel > .modal-header {
+    position: sticky !important;
+    top: -14px !important;
+    z-index: 30 !important;
+    margin: -14px -14px 10px !important;
+    padding: 12px 14px !important;
+    background: #fff !important;
+  }
+
+  /* Keep footer in document flow, so the last form field can always be
+     scrolled completely above it. No estimated fixed-footer spacer. */
+  body:not(.force-desktop-mode) .modal-backdrop:not(.schedule-detail-plan-a-backdrop) .modal-panel .modal-actions {
+    position: sticky !important;
+    inset: auto 0 0 !important;
+    z-index: 40 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 12px 0 0 !important;
+    padding: 10px 0 max(10px, env(safe-area-inset-bottom)) !important;
+    background: #fff !important;
+    border-top: 1px solid #dfe3ef !important;
+    max-height: min(42dvh, calc(var(--for-e-modal-viewport-height, 100dvh) * .42)) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    overscroll-behavior: contain;
+  }
+  /* Plan A form-specific ID rules otherwise revert to static/fixed. */
+  body:not(.force-desktop-mode) .modal-backdrop.pa-modal .modal-panel :is(#scheduleForm, #editScheduleForm, #fieldScheduleForm, #editFieldScheduleForm, #meetingRoomForm, #meetingRoomEditForm) > .modal-actions {
+    position: sticky !important;
+    inset: auto 0 0 !important;
+    margin: 12px 0 0 !important;
+    padding: 10px 0 max(10px, env(safe-area-inset-bottom)) !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop.pa-modal > .modal-panel {
+    padding-bottom: 0 !important;
+    scroll-padding-bottom: 90px;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop:not(.schedule-detail-plan-a-backdrop) .modal-panel .modal-actions:has(> button:nth-child(3)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .modal-panel .modal-actions > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 8px 9px !important;
+    font-size: 14px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.35 !important;
+    border-radius: 10px !important;
+    touch-action: manipulation;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .modal-panel .modal-actions > button:only-child {
+    grid-column: 1 / -1 !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .modal-panel .modal-actions > .primary-btn {
+    background: #575be7 !important;
+    color: #fff !important;
+  }
+
+  /* Plan A detail already has independent scroll content and a flex footer. */
+  body:not(.force-desktop-mode) .schedule-detail-plan-a-backdrop .schedule-view-modal-actions {
+    max-height: min(43dvh, calc(var(--for-e-modal-viewport-height, 100dvh) * .43)) !important;
+    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Compact, read-only summary for the two task operations. */
+  body:not(.force-desktop-mode) .modal-backdrop .mobile-task-summary {
+    gap: 0 !important;
+    background: #fff !important;
+    border: 1px solid #dfe3ef !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+    margin: 0 0 12px !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .mobile-task-summary > div {
+    display: grid !important;
+    grid-template-columns: minmax(68px, 30%) minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 9px 11px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e8ebf3 !important;
+    border-radius: 0 !important;
+    background: #f8f9fc !important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .mobile-task-summary > div:last-child {border-bottom:0 !important}
+  body:not(.force-desktop-mode) .modal-backdrop .mobile-task-summary > div > span {font-size:13px !important; margin:0 !important}
+  body:not(.force-desktop-mode) .modal-backdrop .mobile-task-summary > div > strong {font-size:15px !important; white-space:normal !important; overflow-wrap:anywhere !important}
+  body:not(.force-desktop-mode) .modal-backdrop .todo-postpone-panel input[type=date] {
+    min-height: 44px !important;
+    font-size: 16px !important;
+    padding: 8px !important;
+  }
+
+  body:not(.force-desktop-mode) .modal-backdrop .todo-status-panel #todoNoteStatusSelect {display:none!important}
+  body:not(.force-desktop-mode) .modal-backdrop .todo-status-panel .mobile-todo-status-options {
+    display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .todo-status-panel .mobile-todo-status-options button {
+    width:100%!important; min-height:44px!important; border:1px solid #dbe0ef!important;
+    border-radius:9px!important; background:#fff!important; color:#434f6c!important; margin:0!important; padding:8px!important;
+  }
+  body:not(.force-desktop-mode) .modal-backdrop .todo-status-panel .mobile-todo-status-options button[aria-pressed=true] {
+    background:#575be7!important; color:white!important; border-color:#575be7!important;
+  }
+
+  /* Form choice overlays and native dialog filter sheets. */
+  body:not(.force-desktop-mode) .pa-modal .pa-choice-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+  }
+  body:not(.force-desktop-mode) .pa-modal .pa-choice-sheet {
+    max-height: 100% !important;
+    min-height: 0 !important;
+  }
+  body:not(.force-desktop-mode) .pa-modal .pa-sheet-head,
+  body:not(.force-desktop-mode) .pa-modal .pa-sheet-footer {
+    flex: none !important;
+  }
+  body:not(.force-desktop-mode) .pa-modal .pa-sheet-footer {
+    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  }
+  html body:not(.force-desktop-mode) #app dialog.overview-sheet-dialog[open] {
+    inset: auto 0 var(--for-e-mobile-nav-visual-bottom, 0px) !important;
+    max-height: min(89dvh, calc(var(--for-e-modal-viewport-height, 100dvh) - 8px), 760px) !important;
+  }
+  html body:not(.force-desktop-mode) #app dialog.overview-sheet-dialog[open] :is(.overview-sheet-footer,.mobile-filter-footer) {
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+}
