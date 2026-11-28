@@ -98,6 +98,19 @@ const css = `
 }
 .for-e-filter-toggle { display:none; }
 
+.for-e-zoom-toolbar{display:none;}
+@media (max-width:768px), (pointer:coarse){
+ body:not(.force-desktop-mode) .for-e-zoom-toolbar{display:grid!important;gap:7px;margin:8px 0;padding:9px;border:1px solid #dbe3f0;border-radius:12px;background:#f8fafc;}
+ .for-e-zoom-toolbar .for-e-zoom-modes,.for-e-zoom-toolbar .for-e-zoom-controls{display:flex;gap:6px;align-items:center;}
+ .for-e-zoom-toolbar button{padding:8px 10px;min-height:36px;background:#e8edf7;color:#344563;white-space:nowrap;}
+ .for-e-zoom-toolbar .for-e-zoom-modes button{flex:1;}
+ .for-e-zoom-toolbar button[aria-pressed="true"]{background:#5170ff;color:white;}
+ .for-e-zoom-toolbar input[type="range"]{flex:1;min-width:0;width:auto;height:28px;padding:0;}
+ .for-e-zoom-toolbar output{min-width:45px;text-align:center;font-size:12px;color:#344563;font-weight:700;}
+ .for-e-zoom-toolbar .for-e-zoom-controls[hidden]{display:none!important;}
+ #app table.for-e-zoom-active{transform:none!important;}
+}
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -171,6 +184,65 @@ function updateTable(table){
  const firstCol=table.querySelector(':scope > colgroup > col:first-child');
  if(firstCol)firstCol.classList.add('for-e-original-name');
 }
+const zoomPrefs=new Map();
+const zoomBindings=new WeakMap();
+function calendarScroll(table){
+ for(let p=table.parentElement;p&&p!==document.body;p=p.parentElement){
+  if(/auto|scroll/.test(getComputedStyle(p).overflowX))return p;
+ }
+ return table.parentElement;
+}
+function updateCalendarZoom(table){
+ const enabled=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+ const host=calendarScroll(table);
+ if(!host)return;
+ let state=zoomBindings.get(table);
+ if(!enabled){
+  if(state){state.toolbar.hidden=true;table.classList.remove('for-e-zoom-active');table.style.removeProperty('zoom');state.applied=1;}
+  return;
+ }
+ const key=table.classList.contains('field-week-table')?'field':table.classList.contains('meeting-week-table')||table.classList.contains('meeting-room-table')?'meeting':'overview';
+ let pref=zoomPrefs.get(key);
+ if(!pref){pref={mode:'normal',scale:1,fit:true};zoomPrefs.set(key,pref);}
+ if(!state){
+  const toolbar=document.createElement('div');toolbar.className='for-e-zoom-toolbar';
+  toolbar.innerHTML='<div class="for-e-zoom-modes"><button type="button" data-zoom-mode="normal">一般檢視</button><button type="button" data-zoom-mode="overview">全覽模式</button></div><div class="for-e-zoom-controls" hidden><button type="button" data-zoom-action="minus" aria-label="縮小">−</button><input type="range" min="10" max="120" step="1" aria-label="縮放比例"><button type="button" data-zoom-action="plus" aria-label="放大">＋</button><output></output><button type="button" data-zoom-action="fit">適應螢幕</button></div>';
+  host.before(toolbar);
+  state={toolbar,host,applied:1,touch:null};
+  zoomBindings.set(table,state);
+  const clamp=n=>Math.max(.1,Math.min(1.2,n));
+  const render=()=>{
+   if(!table.isConnected)return;
+   const overview=pref.mode==='overview';
+   const natural=state.applied===1?table.getBoundingClientRect().width:(state.natural||table.getBoundingClientRect().width/state.applied);if(state.applied===1)state.natural=natural;
+   const scale=overview?(pref.fit?clamp((host.clientWidth-2)/Math.max(natural,1)):clamp(pref.scale)):1;
+   if(overview){table.style.setProperty('zoom',String(scale),'important');table.classList.add('for-e-zoom-active');}
+   else{table.style.removeProperty('zoom');table.classList.remove('for-e-zoom-active');}
+   state.applied=scale;
+   toolbar.querySelectorAll('[data-zoom-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.zoomMode===pref.mode)));
+   toolbar.querySelector('.for-e-zoom-controls').hidden=!overview;
+   toolbar.querySelector('input').value=String(Math.round(scale*100));
+   const output=toolbar.querySelector('output');const label=Math.round(scale*100)+'%';if(output.textContent!==label)output.textContent=label;
+  };
+  state.render=render;
+  toolbar.addEventListener('click',e=>{
+   const button=e.target.closest('button');if(!button)return;
+   e.preventDefault();e.stopPropagation();
+   if(button.dataset.zoomMode){pref.mode=button.dataset.zoomMode;if(pref.mode==='overview'){pref.fit=true;host.scrollLeft=0;}}
+   else if(button.dataset.zoomAction==='fit'){pref.fit=true;host.scrollLeft=0;}
+   else {pref.fit=false;pref.scale=clamp(state.applied+(button.dataset.zoomAction==='plus'?.1:-.1));}
+   render();
+  });
+  toolbar.querySelector('input').addEventListener('input',e=>{pref.fit=false;pref.scale=clamp(Number(e.target.value)/100);render();});
+  const distance=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  table.addEventListener('touchstart',e=>{if(pref.mode==='overview'&&e.touches.length===2){state.touch={distance:distance(e.touches),scale:state.applied};}},{passive:true});
+  table.addEventListener('touchmove',e=>{if(pref.mode!=='overview'||!state.touch||e.touches.length!==2)return;if(e.cancelable)e.preventDefault();pref.fit=false;pref.scale=clamp(state.touch.scale*distance(e.touches)/Math.max(state.touch.distance,1));render();},{passive:false});
+  const end=()=>{state.touch=null;};table.addEventListener('touchend',end,{passive:true});table.addEventListener('touchcancel',end,{passive:true});
+ }
+ state.toolbar.hidden=false;
+ state.render();
+}
+
 let selected='';
 function updateOptions(){
  const form=document.querySelector('.option-management-form');
@@ -258,7 +330,7 @@ function updateDesktopAssignedReminder(){
   }
  });
 }
-function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(updateTable);updateOptions();}
+function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table)});updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
