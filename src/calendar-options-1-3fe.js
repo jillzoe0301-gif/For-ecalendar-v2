@@ -662,7 +662,7 @@ function updateMobileSearchControls(isMobile){
  const binding=searchChoiceBindings.get(form);
  if(!isMobile){if(binding){binding.restore();searchChoiceBindings.delete(form);}return;}
  if(binding)return;
- const created=[];const selects=[];
+ const created=[];const selects=[];const dateRestorers=[];
  const add=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;created.push(el);return el;};
  const status=form.querySelector('select[name="status"]');
  if(status){
@@ -708,8 +708,33 @@ function updateMobileSearchControls(isMobile){
    form.after(dialog);trigger.setAttribute('aria-expanded','true');dialog.showModal();render();dialog.querySelector('[data-choice-close]').focus();
   };
  }
+ // iOS creates a native date editor with its own vertical alignment and can
+ // render today's placeholder even though the input value is empty. Use an
+ // explicit visible label, retaining the real native picker and form value.
+ for(const [name,label] of [['startDate','起日'],['endDate','迄日']]){
+  const input=form.querySelector('input[type="date"][name="'+name+'"]');if(!input)continue;
+  const visual=add('div','mobile-search-date-field');
+  const value=add('span','mobile-search-date-value');value.setAttribute('aria-hidden','true');
+  const clear=add('button','mobile-search-date-clear','×');clear.type='button';clear.setAttribute('aria-label','清除'+label);
+  const originalLabel=input.getAttribute('aria-label');
+  input.before(visual);visual.append(value,input,clear);input.classList.add('mobile-search-date-native');
+  function sync(){
+   const selected=!!input.value;value.textContent=selected?input.value.replaceAll('-','/'):'不限日期';
+   visual.classList.toggle('has-value',selected);clear.hidden=!selected;
+   input.setAttribute('aria-label',label+'：'+value.textContent);
+  }
+  clear.onclick=e=>{e.preventDefault();e.stopPropagation();input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));};
+  input.addEventListener('input',sync);input.addEventListener('change',sync);sync();
+  dateRestorers.push(()=>{
+   input.removeEventListener('input',sync);input.removeEventListener('change',sync);
+   input.classList.remove('mobile-search-date-native');
+   if(originalLabel===null)input.removeAttribute('aria-label');else input.setAttribute('aria-label',originalLabel);
+   visual.before(input);
+  });
+ }
  searchChoiceBindings.set(form,{restore:()=>{
   form.parentElement?.querySelectorAll('.mobile-search-choice-sheet').forEach(d=>{if(d.open)d.close();d.remove();});
+  dateRestorers.forEach(restore=>restore());
   selects.forEach(s=>s.classList.remove('mobile-search-native'));created.reverse().forEach(el=>el.remove());
  }});
 }
