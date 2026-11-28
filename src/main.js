@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
+import './overview-plan-a.css'
 import versionInfoIcon from './assets/version-info-icon.png'
 import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
@@ -7397,7 +7398,7 @@ function renderApp() {
   const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
 
   document.querySelector('#app').innerHTML = `
-    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''}">
+    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${currentPage === 'scheduleOverview' ? 'overview-page-layout' : ''}">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
@@ -7417,8 +7418,21 @@ function renderApp() {
       <main class="main">
         <header class="mobile-header">
           ${renderBrandLogo('horizontal')}
-          ${renderPushNotificationButton('mobile-push-notification-btn')}
-          ${renderDesktopViewToggleButton('mobile-view-toggle-btn')}
+          ${currentPage === 'scheduleOverview' ? `
+            <details class="overview-account-menu">
+              <summary aria-label="個人選單">個人選單 <span aria-hidden="true">▾</span></summary>
+              <div class="overview-account-panel">
+                <strong>${escapeHtml(currentProfile.name || currentProfile.email || '')}</strong>
+                <small>${escapeHtml([currentProfile.role, currentProfile.department_name, currentProfile.position_name || currentProfile.position].filter(Boolean).join('｜'))}</small>
+                ${renderPushNotificationButton('mobile-push-notification-btn')}
+                ${renderDesktopViewToggleButton('mobile-view-toggle-btn')}
+                <button type="button" class="logout-btn" data-overview-mobile-logout>登出</button>
+              </div>
+            </details>
+          ` : `
+            ${renderPushNotificationButton('mobile-push-notification-btn')}
+            ${renderDesktopViewToggleButton('mobile-view-toggle-btn')}
+          `}
         </header>
 
         <header class="topbar">
@@ -7479,7 +7493,11 @@ function renderApp() {
     btn.addEventListener('click', openPushNotificationSettingsModal)
   })
 
-  document.querySelector('#logoutBtn').addEventListener('click', logout)
+  document.querySelectorAll('#logoutBtn, [data-overview-mobile-logout]').forEach(btn => btn.addEventListener('click', logout))
+  document.querySelector('#app .overview-account-panel')?.addEventListener('click', () => {
+    const menu = document.querySelector('#app .overview-account-menu')
+    if (menu) menu.open = false
+  })
   bindGlobalAnnouncementEditor()
 
   injectExportCsvButton()
@@ -22229,13 +22247,11 @@ function getOverviewQuickGroupSelectedText() {
 }
 
 function renderOverviewQuickGroupBar(viewMode = getOverviewViewMode()) {
-  if (viewMode.startsWith('個人')) return ''
-
   const groups = getOverviewQuickGroupRows()
   const activeId = overviewQuickGroups.activeId || 'all'
 
   return `
-    <section class="overview-quick-group-bar" aria-label="快速人員群組">
+    <section class="overview-quick-group-bar ${viewMode.startsWith('個人') ? 'overview-quick-group-personal' : ''}" aria-label="快速人員群組">
       <div class="overview-quick-group-title">
         <strong>快速人員群組</strong>
         <span>目前：${escapeHtml(getOverviewQuickGroupSelectedText())}</span>
@@ -23694,7 +23710,7 @@ function renderScheduleOverview() {
   const tableClass = getOverviewViewModeTableClass(viewMode)
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar overview-plan-a-toolbar">
       <div>
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
@@ -23709,7 +23725,7 @@ function renderScheduleOverview() {
           <button class="secondary-btn" id="nextWeekBtn">${isMonthMode ? '下一月' : '下一週'}</button>
         ` : ''}
         <button class="primary-btn" id="addScheduleBtn">新增行程</button>
-        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+        <button class="secondary-btn" id="refreshBtn" aria-label="重新整理" title="重新整理"><span class="overview-refresh-text">重新整理</span><span class="overview-refresh-icon" aria-hidden="true">↻</span></button>
       </div>
     </div>
 
