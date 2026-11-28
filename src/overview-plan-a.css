@@ -573,3 +573,44 @@
   html body:not(.force-desktop-mode) #app .mobile-search-page .desktop-search-meta { display:none !important; }
   html body:not(.force-desktop-mode) #app .mobile-search-page .mobile-search-meta { display:block !important; }
 }
+
+/* Search dates: display the actual selected value, never WebKit's misleading
+   empty-date rendering. The native date control remains the tap target. */
+@media (max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-field {
+    position:relative !important; display:flex !important; align-items:center !important; justify-content:center !important;
+    width:100% !important; min-width:0 !important; max-width:100% !important;
+    height:44px !important; min-height:44px !important; margin:0 !important; padding:0 !important;
+    box-sizing:border-box !important; border:1px solid #dfe3ee !important;
+    border-radius:8px !important; background:white !important; overflow:hidden !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-value {
+    display:block !important; width:100% !important; min-width:0 !important; margin:0 !important;
+    padding:0 4px !important; text-align:center !important; color:#8b94a5 !important;
+    font-size:13px !important; line-height:1.35 !important; font-weight:500 !important;
+    white-space:nowrap !important; box-sizing:border-box !important; pointer-events:none !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-field.has-value .mobile-search-date-value {
+    color:#35405b !important; font-size:12px !important; padding:0 25px 0 5px !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm input.mobile-search-date-native {
+    position:absolute !important; inset:0 !important; z-index:1 !important;
+    display:block !important; opacity:0 !important; width:100% !important; min-width:0 !important; max-width:100% !important;
+    height:100% !important; min-height:0 !important; margin:0 !important; padding:0 !important;
+    border:0 !important; cursor:pointer !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm input.mobile-search-date-native::-webkit-calendar-picker-indicator {
+    position:absolute !important; inset:0 !important; width:100% !important; height:100% !important;
+    margin:0 !important; padding:0 !important; cursor:pointer !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-clear {
+    position:absolute !important; right:0 !important; top:0 !important; bottom:0 !important; z-index:2 !important;
+    display:flex !important; align-items:center !important; justify-content:center !important;
+    width:27px !important; min-width:27px !important; max-width:27px !important;
+    min-height:0 !important; height:100% !important; margin:0 !important; padding:0 !important;
+    border:0 !important; border-radius:0 !important; color:#69758c !important; background:white !important;
+    font-size:18px !important; font-weight:500 !important;
+  }
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-clear[hidden] { display:none !important; }
+  html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-field:focus-within { border-color:#8b96f8 !important; }
+}
