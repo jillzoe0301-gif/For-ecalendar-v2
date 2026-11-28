@@ -614,3 +614,50 @@
   html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-clear[hidden] { display:none !important; }
   html body:not(.force-desktop-mode) #app #searchForm .mobile-search-date-field:focus-within { border-color:#8b96f8 !important; }
 }
+
+/* Own translator's service record reminder; independent of the calendar range. */
+.my-record-reminder-banner[hidden],.my-record-nav-badge[hidden] { display:none !important; }
+.my-record-reminder-banner { width:100%; min-width:0; }
+.my-record-banner-button { width:100%; display:flex; align-items:center; justify-content:space-between; gap:6px; border:1px solid #e0e4f5; border-radius:9px; background:#f1f3ff; color:#414d85; padding:8px 10px; min-height:42px; font-size:13px; text-align:left; }
+.my-record-banner-text { min-width:0; flex:1; font-weight:600; }
+.my-record-banner-text small { color:#ab5b10; font-size:12px; font-weight:650; white-space:nowrap; }
+.my-record-banner-link { white-space:nowrap; color:#565fe8; font-weight:700; flex:none; }
+.my-record-count-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.my-record-count-card { padding:12px; border-radius:10px; background:#eef0ff; color:#4c55b9; font-weight:650; }
+.my-record-count-card.is-overdue { background:#fff2e4; color:#a65b11; }
+.my-record-count-card > span { display:block; font-size:12px; }
+.my-record-count-card strong { display:block; font-size:24px; line-height:1.3; margin-top:5px; }
+.my-record-count-card strong small { font-size:12px; }
+.my-record-pending-heading { display:flex; align-items:center; gap:8px; justify-content:space-between; margin:0 0 7px; }
+.my-record-pending-heading small { font-size:11px; color:#64748b; }
+.my-record-pending-list { display:grid; gap:5px; }
+.my-record-pending-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:7px; align-items:center; padding:8px; border:1px solid #e0e4ee; border-radius:9px; background:white; }
+.my-record-item-info { min-width:0; }
+.my-record-item-info small { display:block; font-weight:600; font-size:12px; color:#64748b; }
+.my-record-item-info strong { display:block; font-size:13px; line-height:1.4; overflow-wrap:anywhere; }
+.my-record-item-status { font-size:11px; font-weight:650; padding:4px 6px; background:#eef0ff; color:#4d56bc; border-radius:6px; white-space:nowrap; }
+.my-record-item-status.is-overdue { background:#fff0da; color:#a65b11; }
+.my-record-feedback { padding:12px; color:#64748b; font-size:13px; }
+.my-record-history-title { margin:16px 0 8px; font-size:14px; }
+@media (max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) #app .mobile-nav [data-page="recordSubmit"] .mobile-menu-icon { position:relative !important; overflow:visible !important; }
+  html body:not(.force-desktop-mode) #app .my-record-nav-badge:not([hidden]) {
+    display:flex !important; align-items:center !important; justify-content:center !important; position:absolute !important; top:-5px !important; right:-10px !important;
+    min-width:17px !important; height:17px !important; padding:0 3px !important; border-radius:12px !important; background:#bc741e !important; color:white !important;
+    font-size:10px !important; line-height:1 !important; font-weight:700 !important; box-sizing:border-box !important; z-index:2 !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-b .my-record-reminder-banner .my-record-banner-button {
+    display:flex !important; width:100% !important; min-width:0 !important; min-height:42px !important; white-space:normal !important;
+    padding:7px 9px !important; font-size:12px !important; color:#414d85 !important; background:#f1f3ff !important; border:1px solid #e0e4f5 !important; text-align:left !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-record-page .mobile-list-title { display:inline !important; }
+  html body:not(.force-desktop-mode) #app .mobile-record-page .desktop-list-title { display:none !important; }
+  html body:not(.force-desktop-mode) #app .mobile-record-page .mobile-list-toolbar {
+    display:grid !important; grid-template-columns:minmax(0,1fr) auto !important; gap:8px !important; align-items:start !important; margin-bottom:12px !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-record-page .my-record-pending-row button {
+    width:auto !important; min-width:44px !important; min-height:38px !important; padding:4px 6px !important; font-size:12px !important;
+    border-radius:7px !important; margin:0 !important; background:#f0f2ff !important; color:#565fe8 !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-record-page .my-record-pending-panel { width:100% !important; min-width:0 !important; }
+}
