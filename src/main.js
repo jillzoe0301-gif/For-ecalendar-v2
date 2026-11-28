@@ -6072,6 +6072,7 @@ async function refreshData(options = {}) {
   // 登入後先載入畫面必要資料，避免手機 / 平板卡在 audit_logs、service_records、birthday_wishes 等非首頁資料。
   const scheduleOptions = forceFull ? {} : (options.scheduleOptions || getScheduleLoadOptionsForCurrentPage())
   await Promise.all([loadCoreSharedData({ force: forceFull || options.forceCore === true, staffAlreadyLoaded: options.staffAlreadyLoaded === true }), loadSchedules(scheduleOptions)])
+  void refreshMyServiceRecordReminders(true)
 
   if (forceFull) {
     await Promise.allSettled([loadUserProfiles(), loadAuditLogs(), loadServiceRecords(), loadBirthdayWishes()])
@@ -7397,8 +7398,8 @@ function renderApp() {
   if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
   if (isMobileViewport && visiblePages.some(page => page.key === currentPage && page.mobile === false)) currentPage = 'personalSchedule'
   const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
-  const isCalendarPage = ['scheduleOverview', 'fieldSchedule', 'meetingRoom', 'assignedTracking', 'search'].includes(currentPage)
-  const mobileListPageClass = currentPage === 'assignedTracking' ? 'mobile-assigned-page' : currentPage === 'search' ? 'mobile-search-page' : ''
+  const isCalendarPage = ['scheduleOverview', 'fieldSchedule', 'meetingRoom', 'assignedTracking', 'search', 'recordSubmit'].includes(currentPage)
+  const mobileListPageClass = currentPage === 'assignedTracking' ? 'mobile-assigned-page' : currentPage === 'search' ? 'mobile-search-page' : currentPage === 'recordSubmit' ? 'mobile-record-page' : ''
 
   document.querySelector('#app').innerHTML = `
     <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${isCalendarPage ? 'overview-page-layout' : ''} ${mobileListPageClass}">
@@ -7465,7 +7466,7 @@ function renderApp() {
       <nav class="mobile-nav">
         ${mobilePages.map(page => `
           <button class="${page.key === currentPage ? 'active' : ''}" data-page="${page.key}">
-            <span class="mobile-menu-icon" aria-hidden="true">${renderPageIcon(page.key)}</span>
+            <span class="mobile-menu-icon" aria-hidden="true">${renderPageIcon(page.key)}${page.key === 'recordSubmit' ? '<span class="my-record-nav-badge" hidden></span>' : ''}</span>
             <span class="mobile-menu-label">${page.mobileLabel}</span>
           </button>
         `).join('')}
@@ -7474,6 +7475,8 @@ function renderApp() {
   `
 
   ensureMobileBottomNavViewportBinding()
+  updateMyServiceRecordReminderUI()
+  void refreshMyServiceRecordReminders()
   initSearchableChoicePanels(document)
 
   document.querySelectorAll('[data-page]').forEach(btn => {
@@ -18804,6 +18807,123 @@ function renderToolbar(title) {
 
 
 /* FOR-e V002-1H-4 START - service record reminder area */
+let myServiceReminderOwner = ''
+let myServiceReminderData = null
+let myServiceReminderLoadedAt = 0
+let myServiceReminderRequest = null
+let myServiceReminderTimer = null
+
+function getMyReminderOwner() {
+  return currentProfile && isTranslatorRole() && currentProfile.staff_id
+    ? [currentProfile.profile_id || currentProfile.auth_user_id || '', currentProfile.staff_id].join(':') : ''
+}
+
+function updateMyServiceRecordReminderUI() {
+  const owner = getMyReminderOwner()
+  const data = owner && owner === myServiceReminderOwner ? myServiceReminderData : null
+  const pending = Math.max(0, Number(data?.pending) || 0)
+  const overdue = Math.max(0, Number(data?.overdue) || 0)
+  const total = pending + overdue
+  document.querySelectorAll('.my-record-nav-badge').forEach(badge => {
+    badge.hidden = !total
+    badge.textContent = total > 99 ? '99+' : String(total)
+    badge.closest('button')?.setAttribute('aria-label', total ? `繳交，${total} 筆待繳交服務紀錄單` : '繳交')
+  })
+  const banner = document.querySelector('.my-record-reminder-banner')
+  if (banner) {
+    banner.hidden = !total
+    banner.innerHTML = total ? `<button type="button" class="my-record-banner-button"><span class="my-record-banner-text">服務紀錄單待繳 <b>${total} 筆</b>${overdue ? `<small>｜逾期 ${overdue} 筆</small>` : ''}</span><span class="my-record-banner-link">查看 ›</span></button>` : ''
+    banner.querySelector('button')?.addEventListener('click', () => {
+      if (!getMyReminderOwner()) return
+      currentPage = 'recordSubmit'
+      renderAppAndEnsurePageData(currentPage)
+    })
+  }
+  const panel = document.querySelector('.my-record-pending-panel')
+  if (!panel) return
+  if (!data) {
+    panel.innerHTML = '<div class="my-record-feedback">正在確認本人待繳紀錄單…</div>'
+    return
+  }
+  const items = Array.isArray(data.items) ? data.items : []
+  panel.innerHTML = `
+    <div class="my-record-count-grid">
+      <div class="my-record-count-card"><span>未滿14天未繳交</span><strong>${pending}<small> 筆</small></strong></div>
+      <div class="my-record-count-card is-overdue"><span>已滿14天未繳交</span><strong>${overdue}<small> 筆</small></strong></div>
+    </div>
+    <div class="my-record-pending-heading"><strong>未繳交紀錄單</strong><small>僅本人 · 跨月份</small></div>
+    ${items.length ? `<div class="my-record-pending-list">${items.map(item => `
+      <div class="my-record-pending-row">
+        <div class="my-record-item-info"><small>${escapeHtml(item.schedule_date || '')}</small><strong>${escapeHtml([item.schedule_type, item.title].filter(Boolean).join('｜'))}</strong></div>
+        <span class="my-record-item-status ${item.overdue ? 'is-overdue' : ''}">${item.overdue ? '已滿14天' : '待繳交'}</span>
+        <button type="button" class="small-secondary-btn" data-my-record-view="${escapeHtml(item.schedule_id || '')}">查看</button>
+      </div>`).join('')}</div>` : '<div class="my-record-feedback">目前沒有待繳交的服務紀錄單。</div>'}
+  `
+  panel.querySelectorAll('[data-my-record-view]').forEach(button => button.addEventListener('click', async () => {
+    const capturedOwner = getMyReminderOwner()
+    const id = button.dataset.myRecordView
+    if (!capturedOwner || !id) return
+    let row = schedules.find(item => item.schedule_id === id)
+    if (!row) {
+      button.disabled = true
+      const { data: fetched, error } = await supabase.from('schedules').select('*, schedule_assignees(*)').eq('schedule_id', id).maybeSingle()
+      button.disabled = false
+      if (capturedOwner !== getMyReminderOwner() || currentPage !== 'recordSubmit') return
+      if (error || !fetched) { alert('無法讀取行程，請重新整理後再試。'); return }
+      row = normalizeScheduleReadRows([fetched])[0]
+      if (!row || !isVisibleSchedule(row) || !getServiceRecordScheduleStaffIds(row).includes(currentProfile.staff_id)) return
+      if (!schedules.some(item => item.schedule_id === id)) {
+        schedules = [...schedules, row]
+        schedulesDataRevision += 1
+        clearOverviewPerformanceCaches()
+      }
+    }
+    if (isVisibleSchedule(row) && getServiceRecordScheduleStaffIds(row).includes(currentProfile.staff_id)) openScheduleDetail(id)
+  }))
+}
+
+async function refreshMyServiceRecordReminders(force = false) {
+  const owner = getMyReminderOwner()
+  if (!owner) {
+    myServiceReminderOwner = ''; myServiceReminderData = null; myServiceReminderLoadedAt = 0
+    return
+  }
+  if (!myServiceReminderTimer) {
+    myServiceReminderTimer = window.setInterval(() => {
+      if (!document.hidden && getMyReminderOwner()) void refreshMyServiceRecordReminders(true)
+    }, 60000)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && getMyReminderOwner()) void refreshMyServiceRecordReminders(true)
+    })
+  }
+  if (myServiceReminderOwner !== owner) {
+    myServiceReminderOwner = owner; myServiceReminderData = null; myServiceReminderLoadedAt = 0
+  }
+  if (myServiceReminderRequest?.owner === owner) return myServiceReminderRequest.promise
+  if (!force && Date.now() - myServiceReminderLoadedAt < 30000) return
+  const promise = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('for_e_my_service_record_reminders')
+      if (owner !== getMyReminderOwner()) return
+      if (error) throw error
+      myServiceReminderData = data || { pending: 0, overdue: 0, items: [] }
+      myServiceReminderLoadedAt = Date.now()
+      updateMyServiceRecordReminderUI()
+    } catch (error) {
+      if (owner !== getMyReminderOwner()) return
+      // Do not misrepresent a failed request as zero outstanding records.
+      myServiceReminderLoadedAt = Date.now()
+      const panel = document.querySelector('.my-record-pending-panel')
+      if (panel && !myServiceReminderData) panel.textContent = '暫時無法確認待繳紀錄，請重新整理。'
+      console.warn('服務紀錄單提醒讀取失敗', error.message || error)
+    } finally {
+      if (myServiceReminderRequest?.owner === owner) myServiceReminderRequest = null
+    }
+  })()
+  myServiceReminderRequest = { owner, promise }
+  return promise
+}
+
 function getMyPendingServiceRecordReminders() {
   const myStaffId = currentProfile?.staff_id
   if (!myStaffId) return { pending: [], overdue: [] }
@@ -23781,6 +23901,7 @@ function renderScheduleOverview() {
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
       </div>
+      ${isTranslatorRole() ? '<div class="my-record-reminder-banner" hidden></div>' : ''}
       <div class="toolbar-actions overview-toolbar-actions">
         <button class="${isPersonalWeekMode ? 'primary-btn' : 'secondary-btn'} personal-week-shortcut-btn" id="personalWeekBtn">個人當週行程</button>
         <button class="${isAllTranslatorWeekMode ? 'primary-btn' : 'secondary-btn'} translator-week-shortcut-btn" id="allTranslatorWeekBtn">全部翻譯當週行程</button>
@@ -24837,20 +24958,21 @@ function renderRecordSubmit() {
   const records = getEffectiveServiceRecords().filter(record => matchesServiceRecordFilters(record, true))
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar mobile-list-toolbar">
       <div>
         <h3>紀錄單繳交</h3>
         <p class="muted">翻譯查看自己的服務紀錄單繳交狀況。</p>
       </div>
       <div class="toolbar-actions">
-        <button class="secondary-btn" id="resetServiceRecordFilterBtn">清除條件</button>
-        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+        <button class="secondary-btn" id="resetServiceRecordFilterBtn" aria-label="清除條件"><span class="desktop-list-title">清除條件</span><span class="mobile-list-title">清除</span></button>
+        <button class="secondary-btn" id="refreshBtn" aria-label="重新整理"><span class="desktop-list-title">重新整理</span><span class="mobile-list-title" aria-hidden="true">↻</span></button>
       </div>
     </div>
 
     ${serviceRecordsLoading ? '<div class="notice">正在讀取紀錄單繳交狀況...</div>' : ''}
     ${serviceRecordsError ? `<div class="error-card">讀取紀錄單失敗：${escapeHtml(serviceRecordsError)}</div>` : ''}
-    ${renderServiceRecordReminderArea()}
+    <section class="my-record-pending-panel" aria-label="本人待繳紀錄單"></section>
+    <h4 class="my-record-history-title">依月份查詢紀錄</h4>
 
     ${renderServiceRecordFilterForm(true)}
     ${renderServiceRecordSummary(records)}

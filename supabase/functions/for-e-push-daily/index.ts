@@ -154,8 +154,10 @@ async function handleDigest(req: Request) {
   if(part("hour")!=="08"||Number(part("minute"))<30||Number(part("minute"))>40)return json({ok:true,skipped:"outside-window"});
   const {data:items,error}=await service.rpc("for_e_push_digest_items");
   if(error)throw error;
+  const {data:recordItems,error:recordError}=await service.rpc("for_e_push_service_record_digest_items");
+  if(recordError)console.error("FOR-e service record digest unavailable");
   const grouped=new Map<string,any[]>();
-  for(const item of items||[]){const key=String(item.subscription_id); if(!grouped.has(key))grouped.set(key,[]); grouped.get(key)!.push(item);}
+  for(const item of [...(items||[]),...(recordItems||[]).map(item=>({...item,kind:"service_record"}))]){const key=String(item.subscription_id); if(!grouped.has(key))grouped.set(key,[]); grouped.get(key)!.push(item);}
   if(!grouped.size)return json({ok:true,sent:0});
   const {applicationServer}=await getVapidConfig();
   const labels:Record<string,string>={escape:"逃跑追蹤",transfer:"轉出追蹤",verification:"驗證提醒",return:"返台確認"};
@@ -171,6 +173,9 @@ async function handleDigest(req: Request) {
     for(const entry of entries){if(labels[entry.kind])counts[entry.kind]=(counts[entry.kind]||0)+1;}
     const lines=Object.entries(counts).map(([kind,count])=>labels[kind]+" "+count+" 筆");
     if(meetings.length){lines.push("今日會議 "+meetings.length+" 場");for(const m of meetings.slice(0,4))lines.push([safeNotificationText(m.title,55)||"會議",m.start_time?.slice(0,5),m.end_time?"–"+m.end_time.slice(0,5):"",safeNotificationText(m.location,30)].filter(Boolean).join(" "));if(meetings.length>4)lines.push("另有 "+(meetings.length-4)+" 場，請開啟 FOR-e 查看");}
+    const recordPending=entries.filter(x=>x.kind==="service_record").reduce((n,x)=>n+Number(x.record_pending||0),0);
+    const recordOverdue=entries.filter(x=>x.kind==="service_record").reduce((n,x)=>n+Number(x.record_overdue||0),0);
+    if(recordPending+recordOverdue){lines.push("服務紀錄單未繳交 "+(recordPending+recordOverdue)+" 筆");if(recordOverdue)lines.push("其中已滿14天 "+recordOverdue+" 筆");}
     if(!lines.length)continue;
     const {data:claim,error:claimError}=await service.from("push_daily_claims").upsert({subscription_id:id,reminder_day:day},{onConflict:"subscription_id,reminder_day",ignoreDuplicates:true}).select("subscription_id").maybeSingle();
     if(claimError)throw claimError;
