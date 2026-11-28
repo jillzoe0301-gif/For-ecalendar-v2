@@ -1,7 +1,7 @@
-/* FOR-e Calendar V2 PWA 1-3fe-ui16
+/* FOR-e Calendar V2 PWA 1-3fe-ui17
  * Cache static shell/assets only. Never cache Supabase/API/auth or user data.
  */
-const VERSION = '1-3fe-ui16';
+const VERSION = '1-3fe-ui17';
 const PREFIX = 'for-e-pwa-';
 const STATIC_CACHE = PREFIX + 'static-' + VERSION;
 const SHELL_CACHE = PREFIX + 'shell-' + VERSION;
