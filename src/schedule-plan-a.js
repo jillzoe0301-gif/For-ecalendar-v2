@@ -22,7 +22,7 @@ function optionButton(text,selected){const b=btn('pa-sheet-option',text);b.setAt
 function installSelect(modal,select,syncs){
   if(select.dataset.paReady || select.multiple || /(?:_hour|_minute)$/.test(select.name))return
   select.dataset.paReady='1';select.classList.add('pa-native-select')
-  const opts=[...select.options],n=select.name||'',direct=['category','leave_meeting_type','edit_leave_meeting_type','repeat_mode','time_type','has_extra_schedule','has_documents','activity_scope','edit_activity_scope'].includes(n) && opts.length<=8;
+  const opts=[...select.options],n=select.name||'',direct=['category','leave_meeting_type','edit_leave_meeting_type','repeat_mode','time_type','has_extra_schedule','has_documents','activity_scope','edit_activity_scope','next_action_type'].includes(n) && opts.length<=8 || /_period$/.test(n) && opts.length<=3;
   const wrap=node('div',direct?'pa-segments':'pa-select-trigger-wrap');wrap.classList.add('pa-enhancement');if(n==='category'||n==='leave_meeting_type'||n==='edit_leave_meeting_type')wrap.classList.add('pa-tile-grid');if(n==='category')wrap.classList.add('pa-category-grid');select.after(wrap)
   function sync(){
     if(direct){const options=[...select.options]; if(wrap.children.length!==options.length || options.some((o,i)=>wrap.children[i]?.dataset.value!==o.value)){
@@ -68,14 +68,22 @@ function installNotificationGroup(form,syncs){
   const group=node('section','pa-notification-group span-2');group.append(node('div','field-title','通知對象（選填）'));group.append(node('p','field-hint pa-notification-hint','通知對象不會加入執行人員；原翻譯僅顯示追蹤。'));assignee.after(group);
   const sync=()=>{const service=(form.dataset.currentCategory||form.querySelector('select[name=category]')?.value)==='服務行程';if(service){if(assignee.nextElementSibling!==group)assignee.after(group);if(fields.some((f,i)=>group.children[i+1]!==f))for(const f of fields)group.insertBefore(f,group.lastElementChild);group.hidden=false}else{for(let i=0;i<fields.length;i++){if(group.contains(fields[i]))markers[i].after(fields[i])}group.hidden=true}};syncs.push(sync);sync();
 }
+function installFieldFormLayout(form,syncs){
+  if(!['fieldScheduleForm','editFieldScheduleForm'].includes(form.id))return;
+  form.classList.add('pa-field-form');
+  const next=form.querySelector('[name="next_action_type"]');
+  if(next){const fields=[...form.querySelectorAll('.field-next-dependent')],hint=form.querySelector('.field-next-hint');const update=()=>{const on=Boolean(next.value);for(const f of fields){f.hidden=!on;f.querySelectorAll('input,select,textarea').forEach(el=>{el.disabled=!on})}if(hint)hint.hidden=!on};syncs.unshift(update);update()}
+  for(const period of form.querySelectorAll('select[name$="_period"]')){const row=period.closest('.field-single-time-row'),hour=row?.querySelector('select[name$="_hour"]'),minute=row?.querySelector('select[name$="_minute"]');if(!row||!hour||!minute)continue;period.addEventListener('change',()=>{if(period.value==='不指定'){hour.value='';minute.value='00'}});const update=()=>{row.classList.toggle('pa-field-time-empty',period.value==='不指定'&&!hour.value)};syncs.push(update);update()}
+}
 export function enhanceSchedulePlanA(modal){
   const form=modal.querySelector('form');if(!form||form.dataset.planA)return;form.dataset.planA='1';modal.classList.add('pa-modal');const syncs=[];
   installTimePairs(modal,form,syncs);for(const select of form.querySelectorAll('select'))installSelect(modal,select,syncs);
-  const lists=[['#scheduleAssigneeBlock .checkbox-list','選擇執行人員','people'],['#editScheduleAssigneeBlock .checkbox-list','選擇執行人員','people'],['#meetingDepartmentAssigneeBlock .checkbox-list','選擇部門','department'],['#editMeetingDepartmentAssigneeBlock .checkbox-list','選擇部門','department'],['.pa-supervisor-list','選擇通知主管','people'],['.service-original-translator-direct-list','選擇通知原翻譯','people'],['details.service-admin-dropdown:not(.maintenance-notify-dropdown)','選擇通知行政','people'],['details.maintenance-notify-dropdown','選擇通知相關人員','people'],['details.field-staff-dropdown','選擇外務人員','people'],['.service-extra-check-list','選擇附加行程','extra']];
+  const lists=[['#scheduleAssigneeBlock .checkbox-list','選擇執行人員','people'],['#editScheduleAssigneeBlock .checkbox-list','選擇執行人員','people'],['#meetingDepartmentAssigneeBlock .checkbox-list','選擇部門','department'],['#editMeetingDepartmentAssigneeBlock .checkbox-list','選擇部門','department'],['.pa-supervisor-list','選擇通知主管','people'],['.service-original-translator-direct-list','選擇通知原翻譯','people'],['details.service-admin-dropdown:not(.maintenance-notify-dropdown)','選擇通知行政','people'],['details.maintenance-notify-dropdown','選擇通知相關人員','people'],['details.field-staff-dropdown','選擇執行人員','people'],['.service-extra-check-list','選擇附加行程','extra']];
   for(const [selector,title,kind] of lists)for(const source of form.querySelectorAll(selector))installMulti(modal,source,title,syncs,kind);
   for(const source of form.querySelectorAll('details.meeting-dropdown-select')){const dep=source.closest('.meeting-dropdown-group')?.textContent.includes('與會部門');installMulti(modal,source,dep?'選擇與會部門':'選擇與會人員',syncs,dep?'department':'people')}
-  for(const source of form.querySelectorAll('.checkbox-list'))if(!source.closest('.pa-native-multi')&&source.querySelector('input[name="edit_executor"]'))installMulti(modal,source,'選擇執行人員',syncs);
+  for(const source of form.querySelectorAll('.checkbox-list'))if(!source.closest('.pa-native-multi')&&source.querySelector('input[name="edit_executor"],input[name="edit_field_executor"]'))installMulti(modal,source,'選擇執行人員',syncs);
   installNotificationGroup(form,syncs);
+  installFieldFormLayout(form,syncs);
   for(const box of form.querySelectorAll('.document-delivery-box')){const title=box.querySelector('.field-title');if(!title)continue;const count=node('span','pa-delivery-count');title.append(count);const update=()=>count.textContent=`已選 ${box.querySelectorAll('input[type=checkbox]:checked').length} 項`;syncs.push(update);update()}
   if(form.id==='scheduleForm'){const save=form.querySelector('.modal-actions button[type=submit]');if(save)save.textContent='儲存行程'}
   const sync=()=>{for(const f of syncs)f()};form.addEventListener('change',()=>queueMicrotask(sync));form.addEventListener('input',()=>queueMicrotask(sync));sync();
