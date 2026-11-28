@@ -451,13 +451,120 @@ function setFilterVisibility(el,hidden){
   else el.style.removeProperty('display');
  }
 }
+// Keep the original form and group buttons (and their handlers), presenting
+// them in a native bottom sheet on mobile only.
+let overviewSheetMode='';
+let overviewSheetScroll=0;
+let overviewSheetSearch='';
+function updateOverviewSheet(panel, isMobile){
+ const toolbar=document.querySelector('.overview-plan-a-toolbar .overview-toolbar-actions');
+ if(!toolbar)return;
+ const existing=document.querySelector('.overview-sheet-dialog');
+ if(!isMobile){
+  overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';
+  if(existing){
+   if(existing.open)existing.close();
+   const group=existing.querySelector('.overview-quick-group-bar');
+   existing.before(panel);
+   if(group)panel.after(group);
+   panel.removeAttribute('data-sheet-hidden');
+   group?.removeAttribute('data-sheet-hidden');
+   panel.querySelectorAll('.overview-sheet-choices').forEach(el=>el.remove());
+   panel.querySelectorAll('.overview-sheet-native').forEach(el=>el.classList.remove('overview-sheet-native'));
+   existing.remove();
+  }
+  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.remove());
+  const exportBtn=document.querySelector('.overview-account-panel #exportCsvBtn');
+  if(exportBtn)toolbar.insertBefore(exportBtn,toolbar.querySelector('#refreshBtn'));
+  return;
+ }
+ const exportBtn=toolbar.querySelector('#exportCsvBtn');
+ if(exportBtn)document.querySelector('.overview-account-panel')?.append(exportBtn);
+ if(existing)return;
+ const group=document.querySelector('.overview-quick-group-bar');
+ const dialog=document.createElement('dialog');
+ dialog.className='overview-sheet-dialog';
+ dialog.setAttribute('aria-labelledby','overviewSheetTitle');
+ dialog.innerHTML='<div class="overview-sheet-head"><strong id="overviewSheetTitle"></strong><button type="button" data-overview-sheet-close autofocus>關閉</button></div><div class="overview-sheet-footer"><p class="overview-sheet-hint">選取後立即更新行事曆</p><button class="overview-sheet-done" type="button" data-overview-sheet-close>完成</button></div>';
+ const footer=dialog.querySelector('.overview-sheet-footer');
+ panel.before(dialog);
+ dialog.insertBefore(panel,footer);
+ if(group)dialog.insertBefore(group,footer);
+ const savePosition=()=>{
+  overviewSheetScroll=dialog.scrollTop;
+  overviewSheetSearch=panel.querySelector('[data-overview-filter-panel="staff"] .choice-search-input')?.value||'';
+ };
+ function closeSheet(){
+  overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';
+  if(dialog.open)dialog.close();
+  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.setAttribute('aria-expanded','false'));
+ }
+ function openSheet(mode,restore=false){
+  overviewSheetMode=mode;
+  panel.toggleAttribute('data-sheet-hidden',mode!=='filters');
+  group?.toggleAttribute('data-sheet-hidden',mode!=='groups');
+  dialog.querySelector('#overviewSheetTitle').textContent=mode==='filters'?'篩選條件':'快速人員群組';
+  dialog.querySelector('.overview-sheet-hint').textContent=mode==='filters'?'選取後立即更新行事曆':'選取群組即顯示對應人員';
+  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.setAttribute('aria-expanded',String(el.dataset.overviewSheet===mode)));
+  if(!dialog.open)dialog.showModal();
+  dialog.scrollTop=restore?overviewSheetScroll:0;
+  if(restore&&mode==='filters'&&overviewSheetSearch){
+   const input=panel.querySelector('[data-overview-filter-panel="staff"] .choice-search-input');
+   if(input){input.value=overviewSheetSearch;input.dispatchEvent(new Event('input'));}
+  }
+ }
+ for(const [mode,label] of [['filters','篩選'],['groups','人員群組']]){
+  if(mode==='groups'&&!group)continue;
+  const b=document.createElement('button');b.type='button';b.className='overview-sheet-launch';
+  b.dataset.overviewSheet=mode;b.textContent=label;b.setAttribute('aria-haspopup','dialog');b.setAttribute('aria-expanded','false');
+  if(mode==='filters'){
+   const summary=panel.querySelector('.overview-filter-summary');
+   if(summary)b.title=clean(summary.textContent);
+   const count=panel.querySelectorAll('input[type="checkbox"]:checked').length;
+   if(count)b.textContent=label+' ('+count+')';
+  }else{
+   const active=group.querySelector('.overview-group-chip.is-active');
+   if(active){
+    const name=clean(active.textContent);b.title=name;
+    if(name&&name!=='全部'){const current=document.createElement('small');current.textContent=name;b.append(current);}
+   }
+  }
+  b.addEventListener('click',()=>{overviewSheetScroll=0;overviewSheetSearch='';openSheet(mode)});
+  toolbar.append(b);
+ }
+ for(const select of panel.querySelectorAll('select')){
+  select.classList.add('overview-sheet-native');
+  const choices=document.createElement('div');choices.className='overview-sheet-choices';choices.setAttribute('role','group');
+  choices.setAttribute('aria-label',clean(select.parentElement.querySelector('.compact-field-label')?.textContent));
+  for(const option of select.options){
+   const b=document.createElement('button');b.type='button';b.textContent=option.textContent.trim();b.setAttribute('aria-pressed',String(option.selected));
+   b.addEventListener('click',e=>{e.preventDefault();if(select.value===option.value)return;savePosition();select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));});
+   choices.append(b);
+  }
+  select.after(choices);
+ }
+ dialog.addEventListener('change',savePosition,true);
+ dialog.addEventListener('click',e=>{
+  if(e.target===dialog){
+   const r=dialog.getBoundingClientRect();
+   if(e.clientY<r.top||e.clientX<r.left||e.clientX>r.right||e.clientY>r.bottom)closeSheet();
+  }
+  if(e.target.closest('[data-overview-sheet-close], [data-overview-group-id], #openOverviewQuickGroupManagerBtn'))closeSheet();
+ },true);
+ dialog.addEventListener('cancel',e=>{e.preventDefault();closeSheet();});
+ if(overviewSheetMode)openSheet(overviewSheetMode,true);
+}
 function updateFilters(){
  const selector='.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel';
  const panels=[...document.querySelectorAll(selector)].filter(p=>!p.parentElement.closest(selector));
  const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
  const groups=[...document.querySelectorAll('.overview-quick-group-bar')];
+ const overviewPanel=document.querySelector('#overviewFilterForm');
+ if(overviewPanel)updateOverviewSheet(overviewPanel,isMobile);
+ else {overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';}
  const overview=panels.find(p=>!p.classList.contains('field-filter-panel-compact'))||panels[0];
  panels.forEach((panel,i)=>{
+  if(panel===overviewPanel)return;
   const key=panel.id|| (panel.classList.contains('field-filter-panel-compact')?'field':'overview')+':'+i;
   let toggle=panel.previousElementSibling;
   if(!toggle?.classList.contains('for-e-filter-toggle')){
