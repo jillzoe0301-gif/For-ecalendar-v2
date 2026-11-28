@@ -653,12 +653,73 @@ function updateMobileFilterSheet(panel,isMobile){
  if(activeSheet?.id===panel.id){const draft=activeSheet;controls.forEach(el=>{const key=controlKey(el);if(draft.values.has(key)){if(el.type==='checkbox')el.checked=draft.values.get(key);else el.value=draft.values.get(key);}});if(search)search.value=draft.search;open(true);dialog.querySelector('.mobile-filter-scroll').scrollTop=draft.scroll;}
  else update();
 }
+// Mobile search uses the same staged, two-column choice sheet as calendar
+// filters, while keeping the original single-value form and desktop selects.
+const searchChoiceBindings=new WeakMap();
+function updateMobileSearchControls(isMobile){
+ const form=document.querySelector('#searchForm');
+ if(!form)return;
+ const binding=searchChoiceBindings.get(form);
+ if(!isMobile){if(binding){binding.restore();searchChoiceBindings.delete(form);}return;}
+ if(binding)return;
+ const created=[];const selects=[];
+ const add=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;created.push(el);return el;};
+ const status=form.querySelector('select[name="status"]');
+ if(status){
+  status.classList.add('mobile-search-native');selects.push(status);
+  const group=add('div','mobile-search-status-options');group.setAttribute('role','group');group.setAttribute('aria-label','狀態');
+  const sync=()=>group.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.searchValue===status.value)));
+  [...status.options].forEach(opt=>{const b=add('button','',opt.textContent);b.type='button';b.dataset.searchValue=opt.value;b.onclick=e=>{e.preventDefault();status.value=opt.value;sync();};group.append(b);});
+  status.after(group);sync();
+ }
+ for(const [name,label] of [['category','類別'],['staffId','執行者']]){
+  const select=form.querySelector('select[name="'+name+'"]');if(!select)continue;
+  select.classList.add('mobile-search-native');selects.push(select);
+  const trigger=add('button','mobile-search-choice-trigger');trigger.type='button';trigger.setAttribute('aria-haspopup','dialog');
+  const summary=add('span','mobile-search-choice-value');const arrow=add('span','mobile-search-choice-chevron','⌄');arrow.setAttribute('aria-hidden','true');trigger.append(summary,arrow);select.after(trigger);
+  const setLabel=()=>{summary.textContent=select.selectedOptions[0]?.textContent||'全部';trigger.setAttribute('aria-label',label+'：'+summary.textContent);};
+  setLabel();
+  trigger.onclick=e=>{
+   e.preventDefault();
+   const dialog=document.createElement('dialog');dialog.className='overview-sheet-dialog mobile-filter-sheet mobile-search-choice-sheet';
+   dialog.setAttribute('aria-label','選擇'+label);
+   dialog.innerHTML='<div class="mobile-filter-head"><strong></strong><button type="button" data-choice-close aria-label="關閉">×</button></div><div class="mobile-filter-scroll"><div class="mobile-search-sheet-body"><input class="mobile-filter-search" type="search" autocomplete="off"><div class="mobile-search-sheet-options" role="group"></div><p class="mobile-search-no-options" hidden>沒有符合條件的選項</p></div></div><div class="mobile-filter-footer"><button type="button" data-choice-reset>重設</button><button type="button" data-filter-apply>確定</button></div>';
+   dialog.querySelector('.mobile-filter-head strong').textContent='選擇'+label;
+   const input=dialog.querySelector('input');input.placeholder=name==='staffId'?'搜尋姓名或部門':'搜尋類別';input.setAttribute('aria-label',input.placeholder);
+   const grid=dialog.querySelector('.mobile-search-sheet-options');grid.setAttribute('aria-label',label);
+   let draft=select.value;
+   const choices=[...select.options].map(opt=>{
+    const b=document.createElement('button');b.type='button';b.dataset.value=opt.value;
+    const mark=document.createElement('span');mark.className='mobile-search-choice-check';mark.textContent='✓';mark.setAttribute('aria-hidden','true');
+    const text=document.createElement('span');text.textContent=opt.textContent; b.append(mark,text);
+    b.onclick=()=>{draft=opt.value;render();};grid.append(b);return b;
+   });
+   function render(){
+    const q=input.value.trim().toLowerCase();let count=0;
+    choices.forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.value===draft));b.hidden=!!q&&!b.textContent.toLowerCase().includes(q);if(!b.hidden)count++;});
+    dialog.querySelector('.mobile-search-no-options').hidden=count>0;
+   }
+   const close=commit=>{if(commit){select.value=draft;setLabel();}if(dialog.open)dialog.close();dialog.remove();trigger.setAttribute('aria-expanded','false');trigger.focus();};
+   input.addEventListener('input',render);dialog.querySelector('[data-choice-close]').onclick=()=>close(false);
+   dialog.querySelector('[data-choice-reset]').onclick=()=>{draft=select.options[0]?.value||'';input.value='';render();};
+   dialog.querySelector('[data-filter-apply]').onclick=()=>close(true);
+   dialog.addEventListener('cancel',e=>{e.preventDefault();close(false);});
+   dialog.addEventListener('click',e=>{if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)close(false);});
+   form.after(dialog);trigger.setAttribute('aria-expanded','true');dialog.showModal();render();dialog.querySelector('[data-choice-close]').focus();
+  };
+ }
+ searchChoiceBindings.set(form,{restore:()=>{
+  form.parentElement?.querySelectorAll('.mobile-search-choice-sheet').forEach(d=>{if(d.open)d.close();d.remove();});
+  selects.forEach(s=>s.classList.remove('mobile-search-native'));created.reverse().forEach(el=>el.remove());
+ }});
+}
 function updateFilters(){
  const selector='.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel';
  const panels=[...document.querySelectorAll(selector)].filter(p=>!p.parentElement.closest(selector));
  const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
  const groups=[...document.querySelectorAll('.overview-quick-group-bar')];
  updateMobileCalendarToolbar();
+ updateMobileSearchControls(isMobile);
  const calendarPanels=panels.filter(p=>['overviewFilterForm','fieldScheduleFilterForm','meetingRoomFilterForm'].includes(p.id));
  calendarPanels.forEach(p=>updateMobileFilterSheet(p,isMobile));
  if(!calendarPanels.length)activeSheet=null;
