@@ -139,3 +139,14 @@
   #scheduleForm.dc-layout-a label:has(#serviceTypeSelect),#scheduleForm.dc-layout-a label:has(#serviceReminderTypeSelect){min-height:0!important;height:auto!important}
   #scheduleForm.dc-layout-a .pa-notification-group > .service-admin-notify-field{display:block!important;gap:0!important}
 }
+
+/* Keep document choice beside the record requirement in desktop creation only. */
+@media (min-width:769px) and (pointer:fine) {
+  #scheduleForm.dc-layout-a .service-record-box:not(.hidden):not(.compact-special-hidden){grid-column:span 6!important}
+  #scheduleForm.dc-layout-a > [data-section="service"]:not(.hidden):not(.compact-special-hidden),
+  #scheduleForm.dc-layout-a > [data-section="service"] .vehicle-doc-row:not(.hidden):not(.compact-special-hidden),
+  #scheduleForm.dc-layout-a > [data-section="service"] .vehicle-doc-row:not(.hidden):not(.compact-special-hidden) .document-section{display:contents!important}
+  #scheduleForm.dc-layout-a label:has(#hasDocumentsSelect):not(.hidden):not(.compact-special-hidden){grid-column:span 6!important;order:53!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;min-height:34px!important}
+  #scheduleForm.dc-layout-a #documentOptionsBlock:not(.hidden):not(.compact-special-hidden){grid-column:1/-1!important;order:54!important}
+  #scheduleForm.dc-layout-a > [data-section="service"] > .conditional-service:not(.hidden):not(.compact-special-hidden){grid-column:1/-1!important;order:45!important}
+}
