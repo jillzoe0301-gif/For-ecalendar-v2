@@ -111,6 +111,63 @@ const css = `
  #app table.for-e-zoom-active{transform:none!important;}
 }
 
+/* Mobile calendar: bounded zoom controls, visible departments and corner event icons. */
+@media (max-width:768px), (pointer:coarse) {
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar {
+   box-sizing:border-box!important; width:100%!important; max-width:100%!important;
+   min-width:0!important; grid-template-columns:minmax(0,1fr)!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar .for-e-zoom-modes {
+   display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr))!important;
+   width:100%!important; min-width:0!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar .for-e-zoom-controls:not([hidden]) {
+   display:grid!important; grid-template-columns:36px minmax(0,1fr) 36px auto!important;
+   width:100%!important; min-width:0!important; gap:6px!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar button {
+   box-sizing:border-box!important; width:100%!important; min-width:0!important;
+   max-width:100%!important; margin:0!important; padding:6px 4px!important;
+   font-size:clamp(12px,3.6vw,15px)!important; white-space:normal!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar input[type="range"] {
+   width:100%!important; min-width:0!important; max-width:100%!important; margin:0!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar output {
+   min-width:0!important; padding:0 2px!important; white-space:nowrap!important;
+ }
+ html body:not(.force-desktop-mode) #app .for-e-zoom-toolbar [data-zoom-action="fit"] {
+   grid-column:1/-1!important;
+ }
+ #app table.for-e-horizontal-names .for-e-name-band-content .for-e-name-department:not([hidden]) {
+   display:inline-block!important; flex:0 0 auto!important; width:auto!important;
+   max-width:none!important; color:#64748b!important; white-space:nowrap!important;
+   font-size:12px!important; font-weight:650!important;
+ }
+ #app table.for-e-horizontal-names .for-e-name-department[hidden] {display:none!important;}
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event {
+   position:relative!important;
+ }
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event .simple-field-schedule-icon {
+   position:absolute!important; inset:6px 6px auto auto!important;
+   width:18px!important; min-width:18px!important; max-width:18px!important;
+   height:18px!important; min-height:18px!important; max-height:18px!important;
+   font-size:11px!important; margin:0!important; z-index:1!important;
+ }
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event .simple-field-schedule-head {
+   position:static!important; padding-right:24px!important; box-sizing:border-box!important;
+ }
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event.for-e-corner-no-time .simple-field-schedule-head {
+   display:contents!important;
+ }
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event.for-e-corner-no-time .simple-field-schedule-title {
+   padding-right:24px!important; box-sizing:border-box!important;
+ }
+ html body:not(.force-desktop-mode) #app table.for-e-horizontal-names .for-e-corner-event .simple-field-schedule-head :is(.for-e-card-time,.week-card-time,.field-week-card-time) {
+   white-space:normal!important; overflow:visible!important; text-overflow:clip!important;
+ }
+}
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -149,7 +206,7 @@ function updateTable(table){
   const raw=clean(name?.textContent||cell.textContent);
   if(!raw)continue;
   const num=cell.querySelector('.meeting-room-name-number');
-  const department=cell.querySelector('.calendar-staff-department');
+  const department=cell.querySelector('.calendar-staff-department')||[...cell.querySelectorAll(':scope > span,:scope > small')].find(el=>!el.matches('.calendar-staff-name-title,.calendar-staff-name-text,.field-worker-badge,.meeting-room-name-number')&&!el.contains(name)&&clean(el.textContent)&&!['外','行','行政'].includes(clean(el.textContent)));
   const title=raw+(num&&!raw.includes(clean(num.textContent))?' '+clean(num.textContent):'');
   const dept=clean(department?.textContent);
   const fieldBadge=cell.querySelector('.field-worker-badge');
@@ -175,6 +232,14 @@ function updateTable(table){
   const badge=td.querySelector('.for-e-band-field-badge');
   if(badge.textContent!==fieldText)badge.textContent=fieldText;
   badge.hidden=!fieldText;
+ }
+ for(const card of table.querySelectorAll('.week-schedule-card.simple-field-schedule-card,.field-week-schedule-card.simple-field-schedule-card')){
+  const head=card.querySelector('.simple-field-schedule-head');
+  const icon=head?.querySelector('.simple-field-schedule-icon');
+  if(!icon)continue;
+  card.classList.add('for-e-corner-event');
+  const hasOtherText=clean(head.textContent)!==clean(icon.textContent);
+  card.classList.toggle('for-e-corner-no-time',!hasOtherText);
  }
  // Only remove the original name column, not the date columns.
  for(const row of table.querySelectorAll(':scope > thead > tr')){
