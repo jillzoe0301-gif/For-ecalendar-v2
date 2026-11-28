@@ -301,6 +301,10 @@ const selector='table.week-overview-table,table.field-week-table,table.meeting-w
 function updateTable(table){
  const active=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
  table.classList.toggle('for-e-horizontal-names',active);
+ for(const strong of table.querySelectorAll(':scope > thead > tr > th:not(:first-child) > strong')){
+  if(active&&/^\d{2}-\d{2}$/.test(clean(strong.textContent))){strong.dataset.originalCalendarDate=strong.textContent;strong.textContent=strong.textContent.replace('-','/');}
+  else if(!active&&strong.dataset.originalCalendarDate){strong.textContent=strong.dataset.originalCalendarDate;delete strong.dataset.originalCalendarDate;}
+ }
  if(!active)return;
  const rows=[...table.querySelectorAll(':scope > tbody > tr:not(.for-e-name-band)')];
  for(const row of rows){
@@ -367,7 +371,7 @@ function updateCalendarZoom(table){
  if(!host)return;
  let state=zoomBindings.get(table);
  if(!enabled){
-  if(state){state.toolbar.hidden=true;table.classList.remove('for-e-zoom-active');table.style.removeProperty('zoom');state.applied=1;}
+  if(state){state.toolbar.hidden=true;if(state.toolbar.parentElement!==state.host.parentElement)state.host.before(state.toolbar);table.classList.remove('for-e-zoom-active');table.style.removeProperty('zoom');state.applied=1;}
   return;
  }
  const key=table.classList.contains('field-week-table')?'field':table.classList.contains('meeting-week-table')||table.classList.contains('meeting-room-table')?'meeting':'overview';
@@ -375,8 +379,9 @@ function updateCalendarZoom(table){
  if(!pref){pref={mode:'normal',scale:1,fit:true};zoomPrefs.set(key,pref);}
  if(!state){
   const toolbar=document.createElement('div');toolbar.className='for-e-zoom-toolbar';
-  toolbar.innerHTML='<div class="for-e-zoom-modes"><button type="button" data-zoom-mode="normal">一般檢視</button><button type="button" data-zoom-mode="overview">全覽模式</button></div><div class="for-e-zoom-controls" hidden><button type="button" data-zoom-action="minus" aria-label="縮小">−</button><input type="range" min="10" max="120" step="1" aria-label="縮放比例"><button type="button" data-zoom-action="plus" aria-label="放大">＋</button><output></output><button type="button" data-zoom-action="fit">適應螢幕</button></div>';
-  host.before(toolbar);
+  toolbar.innerHTML='<div class="for-e-zoom-modes"><button type="button" data-zoom-mode="normal">一般檢視</button><button type="button" data-zoom-mode="overview" aria-label="全覽模式">全覽</button></div><div class="for-e-zoom-controls" hidden><button type="button" data-zoom-action="minus" aria-label="縮小">−</button><input type="range" min="10" max="120" step="1" aria-label="縮放比例"><button type="button" data-zoom-action="plus" aria-label="放大">＋</button><output></output><button type="button" data-zoom-action="fit">適應螢幕</button></div>';
+  const actions=document.querySelector('[data-mobile-calendar] .mobile-calendar-controls');
+  if(actions)actions.insertBefore(toolbar,actions.querySelector('.mobile-calendar-refresh'));else host.before(toolbar);
   state={toolbar,host,applied:1,touch:null};
   zoomBindings.set(table,state);
   const clamp=n=>Math.max(.1,Math.min(1.2,n));
@@ -408,6 +413,8 @@ function updateCalendarZoom(table){
   table.addEventListener('touchmove',e=>{if(pref.mode!=='overview'||!state.touch||e.touches.length!==2)return;if(e.cancelable)e.preventDefault();pref.fit=false;pref.scale=clamp(state.touch.scale*distance(e.touches)/Math.max(state.touch.distance,1));render();},{passive:false});
   const end=()=>{state.touch=null;};table.addEventListener('touchend',end,{passive:true});table.addEventListener('touchcancel',end,{passive:true});
  }
+ const actions=document.querySelector('[data-mobile-calendar] .mobile-calendar-controls');
+ if(actions&&state.toolbar.parentElement!==actions)actions.insertBefore(state.toolbar,actions.querySelector('.mobile-calendar-refresh'));
  state.toolbar.hidden=false;
  state.render();
 }
@@ -451,120 +458,181 @@ function setFilterVisibility(el,hidden){
   else el.style.removeProperty('display');
  }
 }
-// Keep the original form and group buttons (and their handlers), presenting
-// them in a native bottom sheet on mobile only.
-let overviewSheetMode='';
-let overviewSheetScroll=0;
-let overviewSheetSearch='';
-function updateOverviewSheet(panel, isMobile){
- const toolbar=document.querySelector('.overview-plan-a-toolbar .overview-toolbar-actions');
- if(!toolbar)return;
- const existing=document.querySelector('.overview-sheet-dialog');
- if(!isMobile){
-  overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';
-  if(existing){
-   if(existing.open)existing.close();
-   const group=existing.querySelector('.overview-quick-group-bar');
-   existing.before(panel);
-   if(group)panel.after(group);
-   panel.removeAttribute('data-sheet-hidden');
-   group?.removeAttribute('data-sheet-hidden');
-   panel.querySelectorAll('.overview-sheet-choices').forEach(el=>el.remove());
-   panel.querySelectorAll('.overview-sheet-native').forEach(el=>el.classList.remove('overview-sheet-native'));
-   existing.remove();
-  }
-  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.remove());
-  const exportBtn=document.querySelector('.overview-account-panel #exportCsvBtn');
-  if(exportBtn)toolbar.insertBefore(exportBtn,toolbar.querySelector('#refreshBtn'));
-  return;
+// B week navigator and A staged filter: preserve original controls/handlers.
+const mobileTools = new WeakMap();
+function updateMobileCalendarToolbar(){
+ const root=document.querySelector('[data-mobile-calendar]');
+ if(!root)return;
+ const enabled=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
+ const toolbar=root.querySelector('.toolbar-actions');
+ const old=mobileTools.get(root);
+ if(!enabled){if(old){old.restore();mobileTools.delete(root);}return;}
+ if(old)return;
+ const kind=root.dataset.mobileCalendar;
+ const prefix=kind==='overview'?'':kind;
+ const getBtn=name=>toolbar.querySelector('#'+(prefix?prefix+name[0].toUpperCase()+name.slice(1):name));
+ const touched=[];const nodes=[];
+ function move(node,parent){
+  if(!node)return;
+  const anchor=document.createComment('calendar-control');
+  node.before(anchor);parent.append(node);touched.push(()=>{anchor.replaceWith(node)});
  }
- const exportBtn=toolbar.querySelector('#exportCsvBtn');
- if(exportBtn)document.querySelector('.overview-account-panel')?.append(exportBtn);
- if(existing)return;
- const group=document.querySelector('.overview-quick-group-bar');
- const dialog=document.createElement('dialog');
- dialog.className='overview-sheet-dialog';
- dialog.setAttribute('aria-labelledby','overviewSheetTitle');
- dialog.innerHTML='<div class="overview-sheet-head"><strong id="overviewSheetTitle"></strong><button type="button" data-overview-sheet-close autofocus>關閉</button></div><div class="overview-sheet-footer"><p class="overview-sheet-hint">選取後立即更新行事曆</p><button class="overview-sheet-done" type="button" data-overview-sheet-close>完成</button></div>';
- const footer=dialog.querySelector('.overview-sheet-footer');
- panel.before(dialog);
- dialog.insertBefore(panel,footer);
- if(group)dialog.insertBefore(group,footer);
- const savePosition=()=>{
-  overviewSheetScroll=dialog.scrollTop;
-  overviewSheetSearch=panel.querySelector('[data-overview-filter-panel="staff"] .choice-search-input')?.value||'';
- };
- function closeSheet(){
-  overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';
-  if(dialog.open)dialog.close();
-  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.setAttribute('aria-expanded','false'));
+ function make(cls,parent){const el=document.createElement('div');el.className=cls;parent.append(el);nodes.push(el);return el;}
+ function shorten(btn,label){if(!btn)return;const before=btn.textContent;const markup=btn.innerHTML;const aria=btn.getAttribute('aria-label');btn.setAttribute('aria-label',before.trim());btn.textContent=label;touched.push(()=>{btn.innerHTML=markup;if(aria===null)btn.removeAttribute('aria-label');else btn.setAttribute('aria-label',aria);});}
+ root.classList.add('mobile-calendar-b');
+ const title=root.firstElementChild;title.classList.add('mobile-calendar-title');
+ const add=toolbar.querySelector('#addScheduleBtn');if(add){move(add,title);shorten(add,'＋ '+add.textContent);}
+ const scope=make('mobile-calendar-scope',root);
+ if(kind==='overview'){
+  const personal=toolbar.querySelector('#personalWeekBtn'),all=toolbar.querySelector('#allTranslatorWeekBtn');
+  move(personal,scope);move(all,scope);shorten(personal,'個人當週');shorten(all,'全部翻譯');
+ }else{
+  const select=toolbar.querySelector('.toolbar-view-control select');
+  if(select){for(const opt of select.options){const b=document.createElement('button');b.type='button';b.textContent=opt.textContent;b.setAttribute('aria-pressed',String(opt.value===select.value));b.onclick=()=>{if(select.value!==opt.value){select.value=opt.value;select.dispatchEvent(new Event('change',{bubbles:true}));}};scope.append(b);}}
  }
- function openSheet(mode,restore=false){
-  overviewSheetMode=mode;
-  panel.toggleAttribute('data-sheet-hidden',mode!=='filters');
-  group?.toggleAttribute('data-sheet-hidden',mode!=='groups');
-  dialog.querySelector('#overviewSheetTitle').textContent=mode==='filters'?'篩選條件':'快速人員群組';
-  dialog.querySelector('.overview-sheet-hint').textContent=mode==='filters'?'選取後立即更新行事曆':'選取群組即顯示對應人員';
-  toolbar.querySelectorAll('.overview-sheet-launch').forEach(el=>el.setAttribute('aria-expanded',String(el.dataset.overviewSheet===mode)));
-  if(!dialog.open)dialog.showModal();
-  dialog.scrollTop=restore?overviewSheetScroll:0;
-  if(restore&&mode==='filters'&&overviewSheetSearch){
-   const input=panel.querySelector('[data-overview-filter-panel="staff"] .choice-search-input');
-   if(input){input.value=overviewSheetSearch;input.dispatchEvent(new Event('input'));}
-  }
+ const dates=(root.dataset.calendarDates||'').split(',').filter(Boolean),mode=root.dataset.calendarMode;
+ const d0=dates[0],d1=dates.at(-1);
+ const short=d=>d?Number(d.slice(5,7))+'/'+Number(d.slice(8,10)):'';
+ const monthLabel=d=>d?d.slice(0,4)+'年'+Number(d.slice(5,7))+'月':'';
+ const nav=make('mobile-calendar-date-nav',root);
+ const prev=getBtn('prevWeekBtn'),next=getBtn('nextWeekBtn'),today=getBtn('thisWeekBtn');
+ move(prev,nav);
+ if(prev){prev.classList.add('mobile-calendar-arrow');touched.push(()=>prev.classList.remove('mobile-calendar-arrow'));shorten(prev,'‹');}
+ const center=make('mobile-calendar-date-center',nav);
+ const period=document.createElement('strong');
+ period.textContent=mode==='month'?monthLabel(d0):mode==='day'?short(d0):short(d0)+' — '+short(d1);
+ center.append(period);
+ const monthText=document.createElement('span');monthText.textContent=mode==='month'?'選擇月份 ▾':monthLabel(d0)+(d0&&d1&&d0.slice(0,7)!==d1.slice(0,7)?' · '+monthLabel(d1):'')+' ▾';center.append(monthText);
+ const month=toolbar.querySelector('input[type=month]');
+ if(month){
+  const value=month.value;const label=month.closest('label');
+  move(label,center);if(d0)month.value=d0.slice(0,7);month.setAttribute('aria-label','選擇月份');
+  touched.push(()=>{month.value=value;month.removeAttribute('aria-label');});
  }
- for(const [mode,label] of [['filters','篩選'],['groups','人員群組']]){
-  if(mode==='groups'&&!group)continue;
-  const b=document.createElement('button');b.type='button';b.className='overview-sheet-launch';
-  b.dataset.overviewSheet=mode;b.textContent=label;b.setAttribute('aria-haspopup','dialog');b.setAttribute('aria-expanded','false');
-  if(mode==='filters'){
-   const summary=panel.querySelector('.overview-filter-summary');
-   if(summary)b.title=clean(summary.textContent);
-   const count=panel.querySelectorAll('input[type="checkbox"]:checked').length;
-   if(count)b.textContent=label+' ('+count+')';
-  }else{
-   const active=group.querySelector('.overview-group-chip.is-active');
-   if(active){
-    const name=clean(active.textContent);b.title=name;
-    if(name&&name!=='全部'){const current=document.createElement('small');current.textContent=name;b.append(current);}
-   }
+ move(next,nav);if(next){next.classList.add('mobile-calendar-arrow');touched.push(()=>next.classList.remove('mobile-calendar-arrow'));shorten(next,'›');}
+ move(today,nav);
+ if(mode==='week'&&dates.length===7){
+  const strip=make('mobile-calendar-week-strip',root);strip.setAttribute('aria-label','當週日期');
+  dates.forEach((date,i)=>{const day=document.createElement('div');day.className='mobile-calendar-day'+(i>=5?' is-weekend':'')+(date===root.dataset.calendarToday?' is-current':'');day.setAttribute('aria-label',date+' 星期'+['一','二','三','四','五','六','日'][i]);const label=document.createElement('span');label.textContent=['一','二','三','四','五','六','日'][i];const number=document.createElement('strong');number.textContent=String(Number(date.slice(8)));day.append(label,number);strip.append(day);});
+ }
+ const actions=make('mobile-calendar-controls',root);
+ const refresh=toolbar.querySelector('#refreshBtn');if(refresh){move(refresh,actions);shorten(refresh,'↻');refresh.classList.add('mobile-calendar-refresh');touched.push(()=>refresh.classList.remove('mobile-calendar-refresh'));}
+ const exportBtn=toolbar.querySelector('#exportCsvBtn'),account=document.querySelector('.overview-account-panel');
+ if(exportBtn&&account)move(exportBtn,account);
+ mobileTools.set(root,{actions,restore:()=>{touched.reverse().forEach(fn=>fn());nodes.reverse().forEach(el=>el.remove());title.classList.remove('mobile-calendar-title');root.classList.remove('mobile-calendar-b');}});
+}
+const mobileSheets=new WeakMap();
+let activeSheet=null;
+function updateMobileFilterSheet(panel,isMobile){
+ const root=document.querySelector('[data-mobile-calendar]');if(!root)return;
+ const actions=root.querySelector('.mobile-calendar-controls');
+ const existing=mobileSheets.get(panel);
+ if(!isMobile){if(existing){existing.restore();mobileSheets.delete(panel);}if(activeSheet?.id===panel.id)activeSheet=null;return;}
+ if(existing||!actions)return;
+ const section=panel.id==='meetingRoomFilterForm'?'會議室':panel.id==='fieldScheduleFilterForm'?'外務人員':'人員';
+ const dialog=document.createElement('dialog');dialog.className='overview-sheet-dialog mobile-filter-sheet';
+ dialog.setAttribute('aria-label','篩選條件');
+ dialog.innerHTML='<div class="mobile-filter-head"><strong>篩選條件</strong><button type="button" data-filter-close aria-label="關閉">×</button></div><div class="mobile-filter-scroll"></div><div class="mobile-filter-footer"><button type="button" data-filter-reset>重設</button><button type="button" data-filter-apply>套用</button></div>';
+ panel.before(dialog);dialog.querySelector('.mobile-filter-scroll').append(panel);
+ panel.classList.add('mobile-filter-draft');
+ const launch=document.createElement('button');launch.type='button';launch.className='overview-sheet-launch mobile-filter-launch';launch.setAttribute('aria-haspopup','dialog');launch.setAttribute('aria-expanded','false');actions.prepend(launch);
+ const controls=[...panel.querySelectorAll('input[type=checkbox],select')];
+ const controlKey=el=>el.name+'\u0000'+(el.type==='checkbox'?el.value:'select');
+ const defaults=controls.map(el=>el.type==='checkbox'?el.checked:el.value);
+ const changes=[];
+ const generated=[];
+ const depInputs=[...panel.querySelectorAll('input[name=departments],input[name=fieldDepartments]')];
+ const staffInputs=[...panel.querySelectorAll('input[name=staffIds],input[name=fieldStaffIds],input[name=rooms]')];
+ let search=null,count=null,allBtn=null,clearBtn=null,deptAll=null;
+ const create=(tag,cls,text)=>{const el=document.createElement(tag);el.className=cls;if(text!==undefined)el.textContent=text;generated.push(el);return el;};
+ const eligible=()=>{const deps=new Set(depInputs.filter(e=>e.checked).map(e=>e.value));return staffInputs.filter(e=>!deps.size||deps.has(e.closest('label')?.dataset.choiceDepartment||''));};
+ const visible=()=>eligible().filter(e=>!search?.value||clean(e.closest('label').textContent).toLowerCase().includes(search.value.trim().toLowerCase()));
+ const ownMode=()=>panel.querySelector('select[name=viewMode]')?.value?.startsWith('個人');
+ function update(clearOutside=false){
+  const allowed=new Set(eligible()),shown=new Set(visible()),personal=ownMode();
+  for(const input of staffInputs){
+   if(clearOutside&&!allowed.has(input))input.checked=false;
+   input.closest('label').toggleAttribute('data-mobile-filter-hidden',!shown.has(input));
+   input.disabled=personal;
   }
-  b.addEventListener('click',()=>{overviewSheetScroll=0;overviewSheetSearch='';openSheet(mode)});
-  toolbar.append(b);
+  for(const input of depInputs)input.disabled=personal;
+  panel.querySelectorAll('.mobile-filter-person-section, .mobile-filter-dept-section').forEach(el=>{el.classList.toggle('mobile-filter-personal',personal);});
+  if(deptAll){deptAll.setAttribute('aria-pressed',String(!depInputs.some(e=>e.checked)));deptAll.disabled=personal;}
+  const n=staffInputs.filter(e=>e.checked&&allowed.has(e)).length;
+  if(count)count.textContent=personal?'個人模式':n?'已選 '+n+(section==='會議室'?' 間':' 人'):'全部 '+allowed.size+(section==='會議室'?' 間':' 人');
+  if(allBtn)allBtn.disabled=personal||!shown.size;if(clearBtn)clearBtn.disabled=personal;
+  if(search)search.disabled=personal;
+  dialog.querySelector('[data-filter-apply]').textContent='套用'+(personal?'':n?'（'+n+(section==='會議室'?'間':'人')+'）':'（全部）');
+  for(const select of panel.querySelectorAll('select'))select.parentElement.querySelectorAll('[data-filter-option]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filterOption===select.value)));
+  if(dialog.open)activeSheet={id:panel.id,values:new Map(controls.map(el=>[controlKey(el),el.type==='checkbox'?el.checked:el.value])),search:search?.value||'',scroll:dialog.querySelector('.mobile-filter-scroll').scrollTop};
+ }
+ for(const details of panel.querySelectorAll('.compact-multi-select')){
+  const originalOpen=details.open;details.open=true;changes.push(()=>{details.open=originalOpen;});
+  const checkPanel=details.querySelector('.compact-check-panel');if(!checkPanel)continue;
+  const department=!!checkPanel.querySelector('input[name=departments],input[name=fieldDepartments]');
+  const cls=department?'mobile-filter-dept-section':'mobile-filter-person-section';
+  details.classList.add(cls);changes.push(()=>details.classList.remove(cls));
+  const heading=create('div','mobile-filter-section-heading');
+  heading.append(create('strong','',department?'部門':section));
+  if(!department){
+   count=create('small','mobile-filter-count');heading.append(count);
+   allBtn=create('button','mobile-filter-link','全選');allBtn.type='button';allBtn.onclick=()=>{visible().forEach(e=>e.checked=true);update();};
+   clearBtn=create('button','mobile-filter-link','清除');clearBtn.type='button';clearBtn.title='清除勾選（未勾選代表不限範圍）';clearBtn.onclick=()=>{staffInputs.forEach(e=>e.checked=false);update();};
+   heading.append(allBtn,clearBtn);
+   search=create('input','mobile-filter-search');search.type='search';search.placeholder=section==='會議室'?'搜尋會議室':'搜尋姓名';search.setAttribute('aria-label',search.placeholder);search.autocomplete='off';search.addEventListener('input',()=>update());
+  }
+  details.insertBefore(heading,checkPanel);if(search&&!department){details.insertBefore(search,checkPanel);const hint=create('small','mobile-filter-selection-hint','未勾選代表不限範圍');details.insertBefore(hint,checkPanel);}
+  if(department){deptAll=create('button','mobile-filter-dept-all','全部');deptAll.type='button';deptAll.onclick=()=>{depInputs.forEach(e=>e.checked=false);update(true);};checkPanel.prepend(deptAll);}
+  checkPanel.classList.add(department?'mobile-dept-grid':'mobile-person-grid');changes.push(()=>checkPanel.classList.remove('mobile-dept-grid','mobile-person-grid'));
  }
  for(const select of panel.querySelectorAll('select')){
-  select.classList.add('overview-sheet-native');
-  const choices=document.createElement('div');choices.className='overview-sheet-choices';choices.setAttribute('role','group');
-  choices.setAttribute('aria-label',clean(select.parentElement.querySelector('.compact-field-label')?.textContent));
-  for(const option of select.options){
-   const b=document.createElement('button');b.type='button';b.textContent=option.textContent.trim();b.setAttribute('aria-pressed',String(option.selected));
-   b.addEventListener('click',e=>{e.preventDefault();if(select.value===option.value)return;savePosition();select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));});
-   choices.append(b);
-  }
-  select.after(choices);
+  select.classList.add('overview-sheet-native');changes.push(()=>select.classList.remove('overview-sheet-native'));
+  const group=create('div','overview-sheet-choices mobile-filter-choices');group.setAttribute('role','group');group.setAttribute('aria-label',clean(select.parentElement.querySelector('.compact-field-label')?.textContent));
+  for(const opt of select.options){const b=create('button','',''+opt.textContent.trim());b.type='button';b.dataset.filterOption=opt.value;b.onclick=e=>{e.preventDefault();select.value=opt.value;update();};group.append(b);}
+  select.after(group);
  }
- dialog.addEventListener('change',savePosition,true);
- dialog.addEventListener('click',e=>{
-  if(e.target===dialog){
-   const r=dialog.getBoundingClientRect();
-   if(e.clientY<r.top||e.clientX<r.left||e.clientX>r.right||e.clientY>r.bottom)closeSheet();
-  }
-  if(e.target.closest('[data-overview-sheet-close], [data-overview-group-id], #openOverviewQuickGroupManagerBtn'))closeSheet();
- },true);
- dialog.addEventListener('cancel',e=>{e.preventDefault();closeSheet();});
- if(overviewSheetMode)openSheet(overviewSheetMode,true);
+ const dirty=()=>{controls.forEach((el,i)=>{if(el.type==='checkbox')el.checked=defaults[i];else el.value=defaults[i];});if(search)search.value='';update();};
+ function close(commit=false){
+  if(!commit)dirty();
+  activeSheet=null;if(dialog.open)dialog.close();launch.setAttribute('aria-expanded','false');
+ }
+ function open(restore=false){
+  if(!restore)dirty();
+  dialog.showModal();launch.setAttribute('aria-expanded','true');update();
+ }
+ panel.addEventListener('change',onChange);
+ function onChange(e){if(e.target.type==='checkbox')update(depInputs.includes(e.target));}
+ launch.onclick=()=>open();
+ dialog.querySelector('[data-filter-close]').onclick=()=>close();
+ dialog.querySelector('[data-filter-reset]').onclick=()=>{
+  depInputs.forEach(e=>e.checked=false);staffInputs.forEach(e=>e.checked=false);
+  panel.querySelectorAll('select').forEach(el=>{if(/sort/i.test(el.name))el.value=el.options[0]?.value||'';});
+  if(search)search.value='';update();
+ };
+ dialog.querySelector('[data-filter-apply]').onclick=()=>{update(true);close(true);panel.requestSubmit();};
+ dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+ dialog.addEventListener('click',e=>{if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)close();});
+ launch.textContent='篩選'+(staffInputs.filter(e=>e.checked).length?' ('+staffInputs.filter(e=>e.checked).length+')':'');
+ mobileSheets.set(panel,{restore:()=>{
+  if(dialog.open)close();panel.removeEventListener('change',onChange);panel.classList.remove('mobile-filter-draft');
+  panel.querySelectorAll('[data-mobile-filter-hidden]').forEach(el=>el.removeAttribute('data-mobile-filter-hidden'));
+  controls.forEach(el=>el.disabled=false);generated.reverse().forEach(el=>el.remove());changes.reverse().forEach(fn=>fn());dialog.before(panel);dialog.remove();launch.remove();
+ }});
+ if(activeSheet?.id===panel.id){const draft=activeSheet;controls.forEach(el=>{const key=controlKey(el);if(draft.values.has(key)){if(el.type==='checkbox')el.checked=draft.values.get(key);else el.value=draft.values.get(key);}});if(search)search.value=draft.search;open(true);dialog.querySelector('.mobile-filter-scroll').scrollTop=draft.scroll;}
+ else update();
 }
 function updateFilters(){
  const selector='.overview-filter-panel-compact,.field-filter-panel-compact,.overview-filter-panel';
  const panels=[...document.querySelectorAll(selector)].filter(p=>!p.parentElement.closest(selector));
  const isMobile=mobile.matches&&!document.body.classList.contains('force-desktop-mode');
  const groups=[...document.querySelectorAll('.overview-quick-group-bar')];
- const overviewPanel=document.querySelector('#overviewFilterForm');
- if(overviewPanel)updateOverviewSheet(overviewPanel,isMobile);
- else {overviewSheetMode='';overviewSheetScroll=0;overviewSheetSearch='';}
+ updateMobileCalendarToolbar();
+ const calendarPanels=panels.filter(p=>['overviewFilterForm','fieldScheduleFilterForm','meetingRoomFilterForm'].includes(p.id));
+ calendarPanels.forEach(p=>updateMobileFilterSheet(p,isMobile));
+ if(!calendarPanels.length)activeSheet=null;
  const overview=panels.find(p=>!p.classList.contains('field-filter-panel-compact'))||panels[0];
  panels.forEach((panel,i)=>{
-  if(panel===overviewPanel)return;
+  if(calendarPanels.includes(panel))return;
   const key=panel.id|| (panel.classList.contains('field-filter-panel-compact')?'field':'overview')+':'+i;
   let toggle=panel.previousElementSibling;
   if(!toggle?.classList.contains('for-e-filter-toggle')){

@@ -2523,6 +2523,7 @@ let fieldScheduleFilters = {
 let meetingWeekOffset = 0
 let meetingDisplayMonth = ''
 let meetingCalendarViewMode = '週檢視'
+let mobileMeetingRoomFilter = []
 let fieldDetailFilters = {
   staffId: '全部',
   location: '',
@@ -7396,9 +7397,10 @@ function renderApp() {
   if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
   if (isMobileViewport && visiblePages.some(page => page.key === currentPage && page.mobile === false)) currentPage = 'personalSchedule'
   const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
+  const isCalendarPage = ['scheduleOverview', 'fieldSchedule', 'meetingRoom'].includes(currentPage)
 
   document.querySelector('#app').innerHTML = `
-    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${currentPage === 'scheduleOverview' ? 'overview-page-layout' : ''}">
+    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${isCalendarPage ? 'overview-page-layout' : ''}">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
@@ -7418,7 +7420,7 @@ function renderApp() {
       <main class="main">
         <header class="mobile-header">
           ${renderBrandLogo('horizontal')}
-          ${currentPage === 'scheduleOverview' ? `
+          ${isCalendarPage ? `
             <details class="overview-account-menu">
               <summary aria-label="個人選單">個人選單 <span aria-hidden="true">▾</span></summary>
               <div class="overview-account-panel">
@@ -7662,7 +7664,7 @@ function renderApp() {
         sortBy: form.get('sortBy') || 'display_order',
         sortDir: form.get('sortDir') || 'asc'
       })
-      if (overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
+      if (overviewFilterForm.classList.contains('mobile-filter-draft') || overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
         overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: 'all' })
       }
       saveOverviewFiltersPreference()
@@ -7672,6 +7674,7 @@ function renderApp() {
 
     overviewFilterForm.addEventListener('submit', applyOverviewFilterImmediately)
     overviewFilterForm.addEventListener('change', event => {
+      if (overviewFilterForm.classList.contains('mobile-filter-draft')) return
       const target = event.target
       if (!target?.matches?.('select[name="viewMode"], select[name="sortBy"], select[name="sortDir"], input[name="departments"], input[name="staffIds"]')) return
       applyOverviewFilterImmediately(event)
@@ -7801,6 +7804,7 @@ function renderApp() {
   if (fieldMonthToolbarInput) {
     fieldMonthToolbarInput.addEventListener('change', event => {
       fieldDisplayMonth = normalizeMonthValue(event.target.value || fieldDisplayMonth || getCurrentMonthValue())
+      if (isMobileCalendarLayout()) fieldCalendarViewMode = '月份顯示'
       renderAppAndEnsurePageData()
     })
   }
@@ -7874,6 +7878,14 @@ function renderApp() {
   })
 
 
+  const meetingRoomFilterForm = document.querySelector('#meetingRoomFilterForm')
+  if (meetingRoomFilterForm) {
+    meetingRoomFilterForm.addEventListener('submit', event => {
+      event.preventDefault()
+      mobileMeetingRoomFilter = new FormData(meetingRoomFilterForm).getAll('rooms')
+      renderApp()
+    })
+  }
   const meetingCalendarViewModeSelect = document.querySelector('#meetingCalendarViewModeSelect')
   if (meetingCalendarViewModeSelect) {
     meetingCalendarViewModeSelect.addEventListener('change', event => {
@@ -7886,6 +7898,7 @@ function renderApp() {
   if (meetingMonthToolbarInput) {
     meetingMonthToolbarInput.addEventListener('change', event => {
       meetingDisplayMonth = normalizeMonthValue(event.target.value || meetingDisplayMonth || getCurrentMonthValue())
+      if (isMobileCalendarLayout()) meetingCalendarViewMode = '月份顯示'
       renderAppAndEnsurePageData()
     })
   }
@@ -9662,12 +9675,12 @@ function getFieldStaffCheckboxes() {
   let rows = getFieldBaseStaffRows()
   const selectedDepartments = normalizeOverviewFilterList(fieldScheduleFilters.departments)
 
-  if (selectedDepartments.length) {
+  if (selectedDepartments.length && !isMobileCalendarLayout()) {
     rows = rows.filter(staff => selectedDepartments.includes(staff.department_name))
   }
 
   if (!rows.length) return `<div class="compact-check-empty">沒有可選外務人員</div>`
-  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isFieldStaffSelected(staff.staff_id), 'fieldStaffIds')).join('')
+  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isFieldStaffSelected(staff.staff_id), 'fieldStaffIds', staff.department_name || '')).join('')
 }
 
 function getFieldStaffRows() {
@@ -9777,7 +9790,7 @@ function renderFieldScheduleCalendar() {
   const isMonthView = fieldCalendarViewMode === '月份顯示'
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar overview-plan-a-toolbar" ${mobileCalendarToolbarAttributes('field', weekDates, isMonthView ? 'month' : 'week')}>
       <div>
         <h3>外務行程</h3>
         <p class="muted">外務人員 × 日期｜${getFieldCalendarLabel(weekDates)}</p>
@@ -10693,11 +10706,13 @@ function renderMeetingRoomCard(row, occurrenceDate = '') {
 function renderMeetingRoomCalendar() {
   const weekDates = getMeetingCalendarDates()
   const todayKey = todayString()
-  const roomRows = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
+  const allRooms = getManagedListOption('meetingRoomOptions', meetingRoomOptions)
+  const selectedRooms = mobileMeetingRoomFilter.filter(room => allRooms.includes(room))
+  const roomRows = isMobileCalendarLayout() && selectedRooms.length ? allRooms.filter(room => selectedRooms.includes(room)) : allRooms
   const isMonthView = meetingCalendarViewMode === '月份顯示'
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar overview-plan-a-toolbar" ${mobileCalendarToolbarAttributes('meeting', weekDates, isMonthView ? 'month' : 'week')}>
       <div>
         <h3>會議室預約</h3>
         <p class="muted">會議室 × 日期｜${getMeetingCalendarLabel(weekDates)}</p>
@@ -10715,6 +10730,16 @@ function renderMeetingRoomCalendar() {
 
     ${renderReadStatus()}
 
+    <form id="meetingRoomFilterForm" class="overview-filter-panel overview-filter-panel-compact mobile-meeting-filter">
+      <div class="overview-filter-compact-row">
+        <details class="compact-multi-select compact-filter-control">
+          <summary>會議室</summary>
+          <div class="compact-check-panel">
+            ${allRooms.map(room => renderCompactCheckOption(room, room, selectedRooms.includes(room), 'rooms')).join('')}
+          </div>
+        </details>
+      </div>
+    </form>
     ${renderMeetingCalendarBody(roomRows, weekDates, todayKey)}
   `
 }
@@ -20408,6 +20433,14 @@ function getCalendarViewModeOptionsHtml(selected = '週檢視') {
   `).join('')
 }
 
+function isMobileCalendarLayout() {
+  return !document.body.classList.contains('force-desktop-mode') && window.matchMedia('(max-width:768px), (pointer:coarse)').matches
+}
+
+function mobileCalendarToolbarAttributes(kind, dates, mode) {
+  return `data-mobile-calendar="${kind}" data-calendar-dates="${dates.map(toDateKey).join(',')}" data-calendar-mode="${mode}" data-calendar-today="${todayString()}"`
+}
+
 function renderToolbarMonthInput(id, monthValue = getCurrentMonthValue(), label = '顯示月份') {
   return `
     <label class="toolbar-month-control">
@@ -23002,9 +23035,9 @@ function getOverviewFilterSummary() {
   return `${viewMode}｜${deptText}｜${staffText}${groupText}`
 }
 
-function renderCompactCheckOption(name, value, checked, inputName) {
+function renderCompactCheckOption(name, value, checked, inputName, department = '') {
   return `
-    <label class="compact-check-option" title="${escapeHtml(name)}">
+    <label class="compact-check-option" title="${escapeHtml(name)}" data-choice-department="${escapeHtml(department)}">
       <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(value)}" ${checked ? 'checked' : ''}>
       <span>${escapeHtml(name)}</span>
     </label>
@@ -23109,12 +23142,12 @@ function getOverviewStaffCheckboxes() {
   let rows = getOverviewBaseStaffRows()
   const selectedDepartmentSet = getOverviewSelectedDepartmentSet()
 
-  if (selectedDepartmentSet.size) {
+  if (selectedDepartmentSet.size && !isMobileCalendarLayout()) {
     rows = rows.filter(staff => overviewStaffMatchesSelectedDepartments(staff, selectedDepartmentSet))
   }
 
   if (!rows.length) return `<div class="compact-check-empty">沒有可選人員</div>`
-  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds')).join('')
+  return sortStaffRowsForSelection(rows).map(staff => renderCompactCheckOption(staff.name || '-', staff.staff_id, isOverviewStaffSelected(staff.staff_id), 'staffIds', normalizeOverviewDepartmentText(staff.department_name))).join('')
 }
 
 function getOverviewStaffRows() {
@@ -23710,7 +23743,7 @@ function renderScheduleOverview() {
   const tableClass = getOverviewViewModeTableClass(viewMode)
 
   return `
-    <div class="page-toolbar overview-plan-a-toolbar">
+    <div class="page-toolbar overview-plan-a-toolbar" ${mobileCalendarToolbarAttributes('overview', weekDates, isMonthMode ? 'month' : viewMode === '個人當天' ? 'day' : 'week')}>
       <div>
         <h3>行程總覽</h3>
         <p class="muted">人員 × 日期｜${escapeHtml(getOverviewCalendarLabel(weekDates, viewMode))}</p>
