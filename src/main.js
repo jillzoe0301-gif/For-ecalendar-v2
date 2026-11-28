@@ -7397,10 +7397,11 @@ function renderApp() {
   if (!visiblePages.some(page => page.key === currentPage)) currentPage = 'personalSchedule'
   if (isMobileViewport && visiblePages.some(page => page.key === currentPage && page.mobile === false)) currentPage = 'personalSchedule'
   const mobilePages = visiblePages.filter(page => page.mobile && page.key !== 'users')
-  const isCalendarPage = ['scheduleOverview', 'fieldSchedule', 'meetingRoom'].includes(currentPage)
+  const isCalendarPage = ['scheduleOverview', 'fieldSchedule', 'meetingRoom', 'assignedTracking', 'search'].includes(currentPage)
+  const mobileListPageClass = currentPage === 'assignedTracking' ? 'mobile-assigned-page' : currentPage === 'search' ? 'mobile-search-page' : ''
 
   document.querySelector('#app').innerHTML = `
-    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${isCalendarPage ? 'overview-page-layout' : ''}">
+    <section class="layout ${forceDesktopView ? 'layout-force-desktop' : ''} ${isCalendarPage ? 'overview-page-layout' : ''} ${mobileListPageClass}">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-logo-wrap">${renderBrandLogo('horizontal')}</div>
@@ -7556,6 +7557,16 @@ function renderApp() {
       renderApp()
     })
   }
+  document.querySelectorAll('[data-assigned-tracking-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      const value = button.dataset.assignedTrackingFilter
+      if (assignedTrackingCompletedFilter && assignedTrackingCompletedFilter.value !== value) {
+        assignedTrackingCompletedFilter.value = value
+        assignedTrackingCompletedFilter.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+    })
+  })
+
 
   const resetAuditBtn = document.querySelector('#resetAuditBtn')
   if (resetAuditBtn) {
@@ -8738,6 +8749,7 @@ function renderSearchResultList(rows, emptyText) {
         if (displayConfig.showItem && displayConfig.itemText) metaParts.push(`項目：${displayConfig.itemText}`)
 
         const resultMeta = metaParts.filter(Boolean).join('｜')
+        const mobileResultMeta = (displayConfig.showStatus && displayConfig.statusText ? metaParts.slice(1) : metaParts).filter(Boolean).join('｜')
         return `
           <div class="search-result-row card-display-${escapeHtml(displayConfig.variant)} ${row.status === '已完成' ? 'is-completed' : ''} ${row.status === '取消' ? 'is-cancelled' : ''}">
             <div class="search-result-date">
@@ -8748,10 +8760,12 @@ function renderSearchResultList(rows, emptyText) {
             <div class="search-result-main">
               <div class="search-result-title">${escapeHtml(resultTitle)}</div>
               ${displayConfig.specialBadges ? `<div class="search-result-card-badges">${displayConfig.specialBadges}</div>` : ''}
-              ${resultMeta ? `<div class="search-result-meta">${escapeHtml(resultMeta)}</div>` : ''}
+              ${resultMeta ? `<div class="search-result-meta desktop-search-meta">${escapeHtml(resultMeta)}</div>` : ''}
+              ${mobileResultMeta ? `<div class="search-result-meta mobile-search-meta">${escapeHtml(mobileResultMeta)}</div>` : ''}
             </div>
 
             <div class="search-result-action">
+              ${displayConfig.showStatus && displayConfig.statusText ? `<span class="mobile-search-result-status ${row.status === '已完成' ? 'is-completed-status' : ''}">${escapeHtml(displayConfig.statusText)}</span>` : ''}
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}">查看</button>
             </div>
           </div>
@@ -8767,27 +8781,30 @@ function renderSearchPage() {
   const categoryOptions = buildOptionList(['全部', ...new Set([...formCategories, '外務行程', '異況追蹤', '會議室預約'])], searchFilters.category)
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar mobile-list-toolbar">
       <div>
         <h3>行程搜尋</h3>
         <p class="muted">搜尋已完成與未完成行程；已刪除 / 已取消行程不顯示。</p>
       </div>
       <div class="toolbar-actions">
-        <button class="secondary-btn" id="resetSearchBtn">清除條件</button>
-        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+        <button class="secondary-btn" id="resetSearchBtn" aria-label="清除條件"><span class="desktop-list-title">清除條件</span><span class="mobile-list-title">清除</span></button>
+        <button class="secondary-btn" id="refreshBtn" aria-label="重新整理" title="重新整理"><span class="desktop-list-title">重新整理</span><span class="mobile-list-title" aria-hidden="true">↻</span></button>
       </div>
     </div>
 
     ${renderReadStatus()}
 
     <form id="searchForm" class="search-panel search-panel-simple">
+      <div class="mobile-search-keyword-row">
       <label class="search-keyword">
         關鍵字
         <input name="keyword" value="${escapeHtml(searchFilters.keyword)}" placeholder="搜尋標題、客戶、地點、備註、人員">
       </label>
+      <button type="submit" class="primary-btn mobile-search-submit">搜尋</button>
+      </div>
 
-      <div class="search-row">
-        <label>
+      <div class="search-row mobile-search-options">
+        <label class="mobile-search-status">
           狀態
           <select name="status">${statusOptions}</select>
         </label>
@@ -8816,7 +8833,7 @@ function renderSearchPage() {
           <input name="endDate" type="date" value="${searchFilters.endDate}">
         </label>
 
-        <button type="submit" class="primary-btn">搜尋</button>
+        <button type="submit" class="primary-btn desktop-search-submit">搜尋</button>
       </div>
     </form>
 
@@ -18629,13 +18646,14 @@ function getAssignedTrackingRows() {
 
 function getAssignedTrackingCompletedFilterValue() {
   const value = assignedTrackingFilters?.completedStatus || '隱藏已完成'
-  return ['隱藏已完成', '只看已完成', '顯示全部'].includes(value) ? value : '隱藏已完成'
+  return ['隱藏已完成', '只看已完成', '只看逾期', '顯示全部'].includes(value) ? value : '隱藏已完成'
 }
 
 function filterAssignedTrackingRowsByCompletedStatus(rows = []) {
   const filterValue = getAssignedTrackingCompletedFilterValue()
   if (filterValue === '顯示全部') return rows
   if (filterValue === '只看已完成') return rows.filter(row => row.status === '已完成')
+  if (filterValue === '只看逾期') return rows.filter(row => isOverdueSchedule(row))
   return rows.filter(row => row.status !== '已完成')
 }
 
@@ -18647,6 +18665,7 @@ function assignedTrackingCompletedFilterHtml() {
       <select id="assignedTrackingCompletedFilter">
         <option value="隱藏已完成" ${selected === '隱藏已完成' ? 'selected' : ''}>隱藏已完成</option>
         <option value="只看已完成" ${selected === '只看已完成' ? 'selected' : ''}>只看已完成</option>
+        <option value="只看逾期" ${selected === '只看逾期' ? 'selected' : ''}>只看逾期</option>
         <option value="顯示全部" ${selected === '顯示全部' ? 'selected' : ''}>顯示全部</option>
       </select>
     </label>
@@ -18668,17 +18687,26 @@ function renderAssignedTrackingPage() {
   const activeRows = allRows.filter(row => row.status !== '已完成' && row.status !== '取消')
   const completedRows = allRows.filter(row => row.status === '已完成')
   const overdueRows = allRows.filter(row => isOverdueSchedule(row))
+  const selected = getAssignedTrackingCompletedFilterValue()
+  const mobileOptions = [
+    ['顯示全部', '全部', allRows.length],
+    ['隱藏已完成', '未完成', activeRows.length],
+    ['只看逾期', '逾期', overdueRows.length],
+    ['只看已完成', '已完成', completedRows.length]
+  ]
+  const selectedLabel = mobileOptions.find(([value]) => value === selected)?.[1] || '未完成'
+
 
   return `
-    <div class="page-toolbar">
+    <div class="page-toolbar mobile-list-toolbar">
       <div>
-        <h3>我指派的事項追蹤</h3>
+        <h3><span class="desktop-list-title">我指派的事項追蹤</span><span class="mobile-list-title">我指派的事項</span></h3>
         <p class="muted">只追蹤我建立，並指派給他人的任務。</p>
       </div>
       <div class="toolbar-actions assigned-tracking-toolbar-actions">
         ${assignedTrackingCompletedFilterHtml()}
         ${canCreateServiceSchedule() ? '<button class="primary-btn" id="addScheduleBtn">新增行程</button>' : ''}
-        <button class="secondary-btn" id="refreshBtn">重新整理</button>
+        <button class="secondary-btn" id="refreshBtn" aria-label="重新整理" title="重新整理"><span class="desktop-list-title">重新整理</span><span class="mobile-list-title" aria-hidden="true">↻</span></button>
       </div>
     </div>
 
@@ -18702,6 +18730,11 @@ function renderAssignedTrackingPage() {
         <span>已完成</span>
       </div>
     </div>
+
+    <div class="mobile-assigned-summary" role="group" aria-label="追蹤狀態">
+      ${mobileOptions.map(([value, label, count]) => `<button type="button" class="mobile-assigned-summary-option ${value === '只看逾期' ? 'is-overdue-choice' : ''}" data-assigned-tracking-filter="${value}" aria-pressed="${value === selected}"><strong>${count}</strong><span>${label}</span></button>`).join('')}
+    </div>
+    <div class="mobile-assigned-list-caption ${selected === '只看逾期' ? 'is-overdue-caption' : ''}">顯示${selectedLabel} ${rows.length} 筆${selected === '隱藏已完成' && overdueRows.length ? '｜逾期優先' : ''}</div>
 
     ${renderAssignedTrackingList(rows)}
   `
@@ -18742,7 +18775,7 @@ function renderAssignedTrackingList(rows) {
             </div>
 
             <div class="assigned-tracking-status">
-              <span class="status-pill">${escapeHtml(row.status || '未完成')}</span>
+              <span class="status-pill desktop-tracking-status">${escapeHtml(row.status || '未完成')}</span><span class="mobile-tracking-status ${overdue ? 'is-overdue-status' : row.status === '已完成' ? 'is-completed-status' : ''}">${overdue ? '已逾期' : escapeHtml(row.status || '未完成')}</span>
               <button class="small-secondary-btn" data-view-schedule="${row.schedule_id}"${getScheduleOccurrenceDateAttr(row)}>查看</button>
             </div>
           </div>
