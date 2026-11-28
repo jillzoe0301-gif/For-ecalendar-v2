@@ -214,6 +214,59 @@ const css = `
   color:#626b78!important;
 }
 
+/* Distinguish current day and holiday; keep external-duty date cue. */
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-holiday:not(.is-today,.is-field-day,.is-leave-day,.is-return-day,.is-personal-leave-day) {
+ background:#F4EFED!important; border-color:#e6dedb!important; box-shadow:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today {
+ background:#E2E9FF!important; border-color:#d8deea!important; box-shadow:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(th,td).is-today.is-field-day {
+ background:linear-gradient(90deg,#ffefe2 0 5px,#E2E9FF 5px)!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) thead th.is-today {
+ background:#5269CA!important; color:#fff!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) thead th.is-today :is(strong,span,small,div) {
+ color:#fff!important; background:transparent!important; border-color:transparent!important; box-shadow:none!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) thead th.is-holiday:not(.is-today) {background:#EAE2DF!important;color:#92776b!important;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(.for-e-card-type-chip,.week-card-type-line,.continuation-day-type-line,.service-reminder-card-type,.field-day-reminder-badge,.return-reminder-day-mark > span,.administrative-reminder-day-mark > span) {
+ background:transparent!important; border:0!important; box-shadow:none!important;
+ border-radius:0!important; padding:0!important; margin:0 0 3px!important;
+ min-height:0!important; height:auto!important; min-width:0!important; width:auto!important;
+ max-width:100%!important; white-space:normal!important; overflow:visible!important;
+ overflow-wrap:anywhere!important; text-overflow:clip!important; text-align:left!important;
+ font-weight:800!important; line-height:1.3!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) :is(.field-leave-return-prompt,.field-training-calendar-prompt) {border-radius:8px!important;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-palette:not(.is-completed,.is-ended,.ended-case,.is-cancelled,.is-postponed) {
+ --schedule-accent:var(--fore-reminder-accent)!important; --day-accent:var(--fore-reminder-accent)!important;
+ background:var(--fore-reminder-bg)!important;
+ border-top:1px solid #e0e4eb!important; border-right:1px solid #e0e4eb!important; border-bottom:1px solid #e0e4eb!important;
+ border-left:4px solid var(--fore-reminder-accent)!important; border-radius:8px!important; box-shadow:none!important;
+ color:#293445!important; text-align:left!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-palette:not(.is-completed,.is-ended,.ended-case,.is-cancelled,.is-postponed) :is(.for-e-reminder-heading,.field-day-reminder-badge,.service-reminder-card-type,.for-e-card-type-chip,.week-card-type-line,.continuation-day-type-line,.transfer-last-day-badge) {
+ color:var(--fore-reminder-ink)!important; background:transparent!important; border:0!important;
+ box-shadow:none!important; border-radius:0!important; padding:0!important; min-height:0!important;
+ height:auto!important; width:auto!important; max-width:100%!important; white-space:normal!important;
+}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-palette:not(.is-completed,.is-ended,.ended-case,.is-cancelled,.is-postponed) :is(strong,.for-e-card-title,.continuation-card-title,.week-card-preview,.field-week-card-preview) {color:#293445!important;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-palette .for-e-reminder-heading {display:block!important; font-weight:800!important; text-align:left!important; line-height:1.3!important;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-palette.field-day-reminder-prompt {display:flex!important; flex-direction:column!important; align-items:flex-start!important; gap:3px!important;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-field {--fore-reminder-accent:#D98236;--fore-reminder-bg:#FFF3E5;--fore-reminder-ink:#A95619;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-return {--fore-reminder-accent:#399AA6;--fore-reminder-bg:#E8F6F8;--fore-reminder-ink:#227580;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-returnToday {--fore-reminder-accent:#399AA6;--fore-reminder-bg:#F1FAFB;--fore-reminder-ink:#227580;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-transfer {--fore-reminder-accent:#8661CF;--fore-reminder-bg:#F1EBFC;--fore-reminder-ink:#6844AC;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-transferEarly {--fore-reminder-accent:#8661CF;--fore-reminder-bg:#F8F5FE;--fore-reminder-ink:#6844AC;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-transferFinal {--fore-reminder-accent:#653AB3;--fore-reminder-bg:#E9DDFB;--fore-reminder-ink:#573098;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-runaway {--fore-reminder-accent:#DB4949;--fore-reminder-bg:#FFF0F0;--fore-reminder-ink:#B92F35;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-runawayFinal {--fore-reminder-accent:#BE3038;--fore-reminder-bg:#FFE3E5;--fore-reminder-ink:#A6242C;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-verify {--fore-reminder-accent:#947318;--fore-reminder-bg:#FFF8DF;--fore-reminder-ink:#806011;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-tracking {--fore-reminder-accent:#43516F;--fore-reminder-bg:#EDF0F6;--fore-reminder-ink:#43516F;}
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-important {--fore-reminder-accent:#BC4189;--fore-reminder-bg:#FDEDF6;--fore-reminder-ink:#A12F73;}
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
@@ -452,6 +505,43 @@ function updateMeetingCardPresentation(table){
  }
 }
 
+
+const reminderKinds=['field','return','returnToday','transfer','transferEarly','transferFinal','runaway','runawayFinal','verify','tracking','important'];
+function updateReminderPresentation(table){
+ const cards=table.querySelectorAll('.field-day-reminder-prompt,.return-reminder-day-mark,.service-reminder-week-card,.administrative-reminder-day-mark,.week-schedule-card,.field-week-schedule-card,.continuation-day-mark');
+ for(const card of cards){
+  let heading=card.querySelector('.field-day-reminder-badge,.service-reminder-card-type,.for-e-card-type-chip,.week-card-type-line,.continuation-day-type-line');
+  if(!heading&&card.matches('.return-reminder-day-mark,.administrative-reminder-day-mark'))heading=card.querySelector(':scope > span');
+  const label=clean(heading?.textContent);
+  let kind='';
+  if(card.matches('.field-day-reminder-prompt'))kind='field';
+  else if(card.matches('.return-reminder-day-mark'))kind=card.matches('.is-return-confirm')?'returnToday':'return';
+  else if(card.matches('.is-transfer-due-date'))kind='transferFinal';
+  else if(card.matches('.is-transfer-due-reminder'))kind='transferEarly';
+  else if(card.matches('.is-transfer-tracking-start'))kind='transfer';
+  else if(card.matches('.is-runaway-day3'))kind='runawayFinal';
+  else if(card.matches('.is-runaway-reminder,.is-runaway-day2'))kind='runaway';
+  else if(card.matches('.is-verify-reminder,.is-verify-date-reminder,.is-verify-departure-notice,.is-verify-salary-reminder'))kind='verify';
+  else if(card.matches('.is-important-continuation')||label==='重要事項')kind='important';
+  else if(card.matches('.administrative-reminder-day-mark')||/^(提醒追蹤|待追蹤|追蹤提醒|行政事務提醒|下次追蹤)$/.test(label))kind='tracking';
+  if(!kind)continue;
+  card.classList.add('for-e-reminder-palette');
+  for(const k of reminderKinds)card.classList.toggle('for-e-reminder-'+k,k===kind);
+  if(heading){
+   heading.classList.add('for-e-reminder-heading');
+   if(!heading.children.length){
+    const rename=kind==='returnToday'&&/^返台確認(?:[（(]今天返台[）)])?$/.test(label)?'今日返台':kind==='transferEarly'&&label==='轉出提醒'?'轉出預告':kind==='transferFinal'&&/^(轉出提醒|轉出期限|轉出到期)$/.test(label)?'轉出最後一天':kind==='tracking'&&label==='提醒追蹤'?'待追蹤':null;
+    if(rename&&heading.textContent!==rename)heading.textContent=rename;
+   }
+  }
+  if(kind==='field'){
+   for(const el of card.querySelectorAll('span,strong,small')){
+    if(!el.children.length&&clean(el.textContent)==='請勿安排其他行程')el.textContent='請勿另排行程';
+   }
+  }
+ }
+}
+
 let queued=false;
 function updateDesktopAssignedReminder(){
  const desktop=document.body.classList.contains('force-desktop-mode')||!mobile.matches;
@@ -464,7 +554,7 @@ function updateDesktopAssignedReminder(){
   }
  });
 }
-function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table);updateMeetingCardPresentation(table)});updateOptions();}
+function refresh(){queued=false;updateDesktopAssignedReminder();updateFilters();updateMenus();document.querySelectorAll(selector).forEach(table=>{updateTable(table);updateCalendarZoom(table);updateMeetingCardPresentation(table);updateReminderPresentation(table)});updateOptions();}
 function schedule(){if(!queued){queued=true;requestAnimationFrame(refresh)}}
 new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 mobile.addEventListener('change',schedule);
