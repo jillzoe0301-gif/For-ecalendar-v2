@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import './style.css'
 import './overview-plan-a.css'
+import './schedule-plan-a.css'
+import { enhanceSchedulePlanA } from './schedule-plan-a.js'
 import versionInfoIcon from './assets/version-info-icon.png'
 import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
 
@@ -1297,7 +1299,7 @@ const formCategories = ['服務行程', '一般記事', '辦件提醒', '請假 
 const generalStaffOverviewFormCategories = ['一般行程', '一般記事', '請假 / 會議 / 活動 / 外訓', '公務車保養']
 const generalStaffOverviewSimpleCategories = ['一般記事']
 const generalStaffOverviewLeaveMeetingTypes = ['請假', '會議', '活動', '外訓', '公出']
-const generalStaffPersonnelAffairsDisplayName = '請假/會議/活動/外訓'
+const generalStaffPersonnelAffairsDisplayName = '請假／會議／活動'
 const generalStaffUnifiedFormPages = ['personalSchedule', 'scheduleOverview']
 
 const CORE_SCHEDULE_TYPE_LOGIC_VERSION = '1-3dp'
@@ -1319,7 +1321,7 @@ function getCoreLeaveMeetingTypeOptions() {
 function isCoreLeaveMeetingCategory(value = '') {
   const text = String(value || '').trim()
   const compact = normalizeCoreScheduleTypeText(text)
-  return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓'
+  return text === '人員行務' || compact === '人員行務' || (compact === '請假/會議/活動/外訓' || compact === '請假/會議/活動')
 }
 
 function isCoreLeaveMeetingSubtype(value = '') {
@@ -1358,7 +1360,7 @@ const translatorTodoCategories = ['一般記事', '請假 / 會議 / 活動 / �
 function isPersonnelAffairsDisplayName(value = '') {
   const text = String(value || '').trim()
   const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
-  return text === '人員行務' || compact === '人員行務' || compact === '請假/會議/活動/外訓'
+  return text === '人員行務' || compact === '人員行務' || (compact === '請假/會議/活動/外訓' || compact === '請假/會議/活動')
 }
 
 function getUnifiedScheduleCategoryLabel(value = '') {
@@ -1367,7 +1369,9 @@ function getUnifiedScheduleCategoryLabel(value = '') {
   if (!text) return '-'
   if (['待辦事項', '一般記事', '待辦事項/個人記事', '待辦/個人記事', '待辦/記事'].includes(compact) || ['待辦事項/個人記事', '待辦/記事'].includes(text)) return '待辦/記事'
   if (isAdministrativeReminderCategoryName(text)) return '辦件提醒'
-  if (text === '人員行務') return '請假 / 會議 / 活動 / 外訓'
+  if (isPersonnelAffairsDisplayName(text)) return '請假／會議／活動'
+  if (text === '外訓') return '教育訓練'
+  if (text === '公差外出') return '公出'
   return text
 }
 
@@ -1455,7 +1459,7 @@ function getCreateFormCategoryDisplayLabel(value = '') {
   }
   /* FOR-e V002-1H-stable-1-3bn END - general staff overview create labels */
 
-  if (text === '請假 / 會議 / 活動 / 外訓' || text.replace(/\s+/g, '') === '請假/會議/活動/外訓') return '請假/會議/活動/外訓'
+  if (isPersonnelAffairsDisplayName(text)) return '請假／會議／活動'
   return getUnifiedScheduleCategoryLabel(text)
 }
 
@@ -1464,7 +1468,7 @@ function getCreateFormCategoryGroup(value = '') {
   const compact = text.replace(/\s+/g, '').replace(/[／/]/g, '/')
   if (isAdministrativeReminderCategoryName(text)) return '辦件提醒'
   if (text === '人員行務' || compact === '人員行務') return '請假 / 會議 / 活動 / 外訓'
-  if (generalStaffOverviewLeaveMeetingTypes.includes(text) || compact === '請假/會議/活動/外訓') return '請假 / 會議 / 活動 / 外訓'
+  if (generalStaffOverviewLeaveMeetingTypes.includes(text) || (compact === '請假/會議/活動/外訓' || compact === '請假/會議/活動')) return '請假 / 會議 / 活動 / 外訓'
   return text
 }
 
@@ -10964,6 +10968,7 @@ async function openMeetingRoomModal(defaults = {}) {
   document.querySelector('#closeMeetingModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelMeetingModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#meetingRoomForm').addEventListener('submit', event => saveMeetingRoomSchedule(event, modal))
+  enhanceSchedulePlanA(modal)
 }
 
 async function saveMeetingRoomSchedule(event, modal) {
@@ -11224,6 +11229,7 @@ async function openEditMeetingRoomModal(scheduleId, occurrenceDate = '') {
   document.querySelector('#closeMeetingEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelMeetingEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#meetingRoomEditForm').addEventListener('submit', event => saveEditedMeetingRoomSchedule(event, modal, row))
+  enhanceSchedulePlanA(modal)
 }
 
 async function saveEditedMeetingRoomSchedule(event, modal, originalRow) {
@@ -14521,7 +14527,7 @@ function renderOptionsPage() {
           ${optionTextarea('待辦項目', 'todoItems', getManagedTodoItems().join('\n'), '每行一個待辦項目；提醒事項與重要通知已移除', '例如：送件')}
           ${optionTextarea('狀態 / 處理類型', 'scheduleStatusOptionDefaults', optionLinesValue('scheduleStatusOptionDefaults', scheduleStatusOptionDefaults), '行程狀態與特殊處理標籤；延期處理需保留', '例如：延期處理')}
           ${optionTextarea('辦件提醒項目', 'administrativeReminderItems', optionLinesValue('administrativeReminderItems', administrativeReminderItems), '辦件提醒下拉選項，每行一個，可另外手動輸入', '例如：求才')}
-          ${optionTextarea('請假 / 會議 / 活動 / 外訓類別細項', 'leaveMeetingTypes', getManagedLeaveMeetingTypes().join('\n'), '每行一個類別細項', '例如：TalkTalk')}
+          ${optionTextarea('歷史請假／會議／活動細項', 'leaveMeetingTypes', getManagedLeaveMeetingTypes().join('\n'), '僅供既有行程辨識；新增固定為請假、返鄉、會議、教育訓練、活動、公出', '例如：TalkTalk')}
           ${optionTextarea('服務行程｜證件項目', 'serviceDocumentOptions', optionLinesValue('serviceDocumentOptions', documentOptions), '服務行程「是否有證件」勾選項目，每行一個', '例如：護照')}
           ${optionTextarea('證件交付｜文件項目', 'deliveryDocumentItems', optionLinesValue('deliveryDocumentItems', deliveryDocumentItems), '證件交付勾選項目，每行一個', '例如：居留證')}
           ${optionTextarea('通知行政辦理項目', 'administrativeTaskTypeOptions', optionLinesValue('administrativeTaskTypeOptions', administrativeTaskTypeOptions), '異況與外務通知行政時使用，每行一個', '例如：補件')}
@@ -26646,10 +26652,17 @@ function getRolePersonalScheduleCategories() {
 }
 
 function getAvailableFormCategories() {
-  if (isConsultantRole()) return [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
-  if (isGeneralStaffOverviewCreateMode()) return generalStaffOverviewFormCategories
-  if (currentPage === 'personalSchedule' || unifiedCreateCategoryPages.includes(currentPage)) return getRolePersonalScheduleCategories()
-  return formCategories
+  const options = isConsultantRole() ? [...CONSULTANT_ALLOWED_SCHEDULE_CATEGORIES]
+    : isGeneralStaffOverviewCreateMode() ? generalStaffOverviewFormCategories
+    : (currentPage === 'personalSchedule' || unifiedCreateCategoryPages.includes(currentPage)) ? getRolePersonalScheduleCategories() : formCategories
+  return options.filter(value => !isAdministrativeReminderCategoryName(value))
+}
+
+function getNewLeaveMeetingTypes(general = false) {
+  return ['請假', '返鄉', '會議', '外訓', '活動', '公出'].filter(value => !general || generalStaffOverviewLeaveMeetingTypes.includes(value))
+}
+function leaveMeetingChoiceHtml(values, selected = '') {
+  return values.map(value => `<option value="${escapeHtml(value)}" ${value === selected ? 'selected' : ''}>${escapeHtml(value === '外訓' ? '教育訓練' : value)}</option>`).join('')
 }
 
 function normalizeServiceTypeOption(value = '') {
@@ -28647,6 +28660,7 @@ function openEditFieldScheduleModal(scheduleId) {
     })
   }
   document.querySelector('#editFieldScheduleForm').addEventListener('submit', event => saveEditedFieldSchedule(event, modal, row))
+  enhanceSchedulePlanA(modal)
 }
 
 async function saveEditedFieldSchedule(event, modal, originalRow) {
@@ -29689,6 +29703,7 @@ function openFieldScheduleModal(defaults = {}) {
   document.querySelector('#closeFieldModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelFieldModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#fieldScheduleForm').addEventListener('submit', event => saveFieldSchedule(event, modal))
+  enhanceSchedulePlanA(modal)
 }
 
 async function saveFieldSchedule(event, modal) {
@@ -29852,8 +29867,8 @@ function openScheduleModal(defaults = {}) {
   const formCategoryOptions = availableFormCategories.map(category => `<option value="${category}">${escapeHtml(getCreateFormCategoryDisplayLabel(category))}</option>`).join('')
   const todoOptions = todoItemOptionsHtml()
   const administrativeReminderOptions = getManagedAdministrativeReminderItems().map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('')
-  const leaveTypeOptions = isGeneralStaffOverviewCreateMode() ? generalStaffOverviewLeaveMeetingTypes : getManagedLeaveMeetingTypes()
-  const leaveOptions = leaveTypeOptions.map(item => `<option value="${item}">${item}</option>`).join('')
+  const leaveTypeOptions = getNewLeaveMeetingTypes(isGeneralStaffOverviewCreateMode())
+  const leaveOptions = leaveMeetingChoiceHtml(leaveTypeOptions)
   const carSelectOptions = carOptionSelectOptionsHtml('不使用')
   const supervisorOptions = supervisorSelectOptionsHtml()
   const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
@@ -30068,6 +30083,7 @@ function openScheduleModal(defaults = {}) {
               ${leaveOptions}
             </select>
           </label>
+          ${!isGeneralStaffOverviewCreateMode() ? `<label class="hidden" id="createActivityScope">活動範圍<select name="activity_scope"><option value="活動">其他</option><option value="公司活動">公司</option><option value="部門活動">部門</option></select></label>` : ''}
         </div>
 
         <div class="span-2 form-section" data-section="common-simple">
@@ -30578,7 +30594,9 @@ function openScheduleModal(defaults = {}) {
 
   const leaveMeetingTypeSelect = document.querySelector('select[name="leave_meeting_type"]')
   if (leaveMeetingTypeSelect) {
-    leaveMeetingTypeSelect.addEventListener('change', () => applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false))
+    const refreshActivityScope = () => modal.querySelector('#createActivityScope')?.classList.toggle('hidden', leaveMeetingTypeSelect.value !== '活動')
+    leaveMeetingTypeSelect.addEventListener('change', () => { refreshActivityScope(); applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false) })
+    refreshActivityScope()
   }
 
   document.querySelectorAll('input[name="executor_departments"]').forEach(input => {
@@ -30659,6 +30677,7 @@ function openScheduleModal(defaults = {}) {
   document.querySelector('#closeModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#scheduleForm').addEventListener('submit', event => saveSchedule(event, modal))
+  enhanceSchedulePlanA(modal)
 }
 
 function getTimeValue(form, prefix) {
@@ -31942,7 +31961,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     : (isGeneralStaffEditMode
       ? generalStaffOverviewFormCategories
       : (formCategories.includes(editRawCategory) ? formCategories : [...formCategories, editRawCategory].filter(Boolean)))
-  const categoryOptions = optionHtml(editCategoryList, editRawCategory)
+  const categoryOptions = editCategoryList.filter(value => !isAdministrativeReminderCategoryName(value) || isAdministrativeReminderCategoryName(editRawCategory)).map(value => `<option value="${escapeHtml(value)}" ${value === editRawCategory ? 'selected' : ''}>${escapeHtml(isPersonnelAffairsDisplayName(value) ? '請假／會議／活動' : value)}</option>`).join('')
   const normalizedEditServiceType = getServiceReminderTypeFromRow(row) || normalizeServiceTypeOption(row.schedule_type || '')
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
   const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
@@ -31960,7 +31979,9 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const currentTodoIsManaged = managedTodoItemsForEdit.includes(currentTodoValue)
   const editTodoOptions = todoItemOptionsHtml(currentTodoIsManaged ? currentTodoValue : '')
   const editLeaveSubtype = getLeaveMeetingSubtypeFromRow(row)
-  const editLeaveOptions = optionHtml(getManagedLeaveMeetingTypes(), editNormalizedCategory === '請假 / 會議 / 活動 / 外訓' ? editLeaveSubtype : '')
+  const editLeaveChoices = getNewLeaveMeetingTypes(isGeneralStaffEditMode)
+  if (editNormalizedCategory === '請假 / 會議 / 活動 / 外訓' && editLeaveSubtype && !editLeaveChoices.includes(editLeaveSubtype)) editLeaveChoices.push(editLeaveSubtype)
+  const editLeaveOptions = leaveMeetingChoiceHtml(editLeaveChoices, editNormalizedCategory === '請假 / 會議 / 活動 / 外訓' ? editLeaveSubtype : '')
   const editDeliveryItems = row.category === '證件交付' ? splitMultiValue(row.sub_type || getNoteValue(row, '交付項目')) : []
   const editDeliveryChecks = checkedOptionsHtml(getManagedDeliveryDocumentItems(), editDeliveryItems, 'edit_delivery_items')
   const timeOptions = timeTypeOptionsHtml(row.time_type || '不指定')
@@ -32269,6 +32290,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
               ${editLeaveOptions}
             </select>
           </label>
+          ${!isGeneralStaffEditMode ? `<label class="hidden" id="editActivityScope">活動範圍<select name="edit_activity_scope"><option value="活動">其他</option><option value="公司活動">公司</option><option value="部門活動">部門</option></select></label>` : ''}
         </div>
 
         <div class="span-2 form-section hidden" id="editDocumentDeliveryBlock">
@@ -32576,6 +32598,12 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#editScheduleForm').addEventListener('submit', event => saveEditedSchedule(event, modal, row))
+  const editLeaveSelect = modal.querySelector('[name="edit_leave_meeting_type"]')
+  const refreshEditActivityScope = () => modal.querySelector('#editActivityScope')?.classList.toggle('hidden', editLeaveSelect?.value !== '活動')
+  editLeaveSelect?.addEventListener('change', refreshEditActivityScope)
+  modal.querySelector('#editCategorySelect')?.addEventListener('change', refreshEditActivityScope)
+  refreshEditActivityScope()
+  enhanceSchedulePlanA(modal)
 }
 
 
@@ -32643,7 +32671,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
     return
   }
   if (isGeneralStaffRole() && !isConsultantRole() && generalStaffUnifiedFormPages.includes(currentPage) && !generalStaffOverviewFormCategories.includes(rawCategory)) {
-    alert('一般職員只能新增或修改一般行程、個人記事、請假/會議/活動/外訓、公務車保養。')
+    alert('一般職員只能新增或修改一般行程、個人記事、請假／會議／活動、公務車保養。')
     return
   }
   const editScope = getScheduleEditScopeValue(form, originalRow)
@@ -32812,6 +32840,7 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
     editScheduleType = forcedScheduleType || form.get('edit_leave_meeting_type') || '請假'
+    if (editScheduleType === '活動' && ['活動','公司活動','部門活動'].includes(form.get('edit_activity_scope'))) editScheduleType = form.get('edit_activity_scope')
     editSubType = editScheduleType
     const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
     const editProxyName = getStaffNameFromSelect('edit_proxy_staff_id')
@@ -32929,8 +32958,8 @@ async function saveSchedule(event, modal) {
     alert(isConsultantRole()
       ? '顧問只能新增一般行程。'
       : (isGeneralStaffOverviewCreateMode()
-        ? '一般職員只能新增一般行程、個人記事、請假/會議/活動/外訓、公務車保養。'
-        : '此頁面只能新增待辦事項、辦件提醒、請假 / 會議 / 活動 / 外訓。'))
+        ? '一般職員只能新增一般行程、個人記事、請假／會議／活動、公務車保養。'
+        : '請選擇目前仍開放新增的行程類別。'))
     saving = false
     return
   }
@@ -33060,9 +33089,12 @@ async function saveSchedule(event, modal) {
   }
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
-    const requestedLeaveMeetingType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
+    const selectedLeaveType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
+    const scope = form.get('activity_scope')
+    if (!getNewLeaveMeetingTypes(isGeneralStaffOverviewCreateMode()).includes(selectedLeaveType)) { alert('請選擇目前開放的行程類型。'); saving = false; return }
+    const requestedLeaveMeetingType = selectedLeaveType === '活動' && !isGeneralStaffOverviewCreateMode() && ['活動','公司活動','部門活動'].includes(scope) ? scope : selectedLeaveType
     if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
-      alert('一般職員的請假/會議/活動/外訓細項只能新增請假、會議、活動、外訓、公出。')
+      alert('一般職員只能新增請假、會議、活動、教育訓練、公出。')
       saving = false
       return
     }
