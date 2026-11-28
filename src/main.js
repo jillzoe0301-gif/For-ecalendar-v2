@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import './style.css'
 import './overview-plan-a.css'
 import './schedule-plan-a.css'
+import './field-plan-a.css'
 import { enhanceSchedulePlanA } from './schedule-plan-a.js'
 import versionInfoIcon from './assets/version-info-icon.png'
 import announcementMegaphoneIcon from './assets/announcement-megaphone-icon.png'
@@ -26039,6 +26040,23 @@ if (!window.__FOR_E_COPY_CARD_ADDRESS_BOUND__) {
   }, true)
 }
 
+function renderFieldMobileDetail(row, values) {
+  const { date, time, title, assignee, creator, address, content, permission } = values
+  const items = [['現金',getFieldNoteValue(row,'現金')],['印章',getFieldNoteValue(row,'印章')],['證件',getFieldNoteValue(row,'證件')]].filter(([,v]) => v && !['無','-','--'].includes(String(v).trim()))
+  const reminders = getFieldSpecialRemindersFromRow(row)
+  const next = getFieldNextActionFromRow(row)
+  const result = getFieldResultFromRow(row)
+  const status = getScheduleStatusLabel(row)
+  const line = (label,value) => `<div class="fd-info-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`
+  const section = (heading,body) => `<section class="fd-detail-section"><h4>${heading}</h4><div class="fd-detail-body">${body}</div></section>`
+  const info = `${row.location_name ? line('地點',row.location_name) : ''}${address ? `<div class="fd-info-line fd-address"><span>地址</span><strong>${escapeHtml(address)}</strong><button type="button" class="copy-address-btn" data-copy-address="${escapeHtml(address)}">複製</button></div>` : ''}${line('外務目的',getFieldPurposeValuesFromRow(row).join('、'))}${reminders.length ? `<div class="fd-info-line"><span>特殊提醒</span><div class="fd-detail-badges">${reminders.map(item => `<span class="field-special-badge">${renderFieldSpecialReminderIcon(item)} ${escapeHtml(getFieldSpecialReminderDisplay(item))}</span>`).join('')}</div></div>` : ''}`
+  return `<div class="field-mobile-detail"><section class="fd-detail-head"><div class="fd-title-row"><h3>${escapeHtml(title)}</h3><span class="fd-status ${row.status === '已完成' ? 'is-completed' : 'is-open'}">${escapeHtml(status)}</span></div><div class="fd-date">${escapeHtml(date)}　${escapeHtml(time)}</div>${line('執行人員',assignee)}${line('建立者',creator)}</section>
+    ${section('外務資訊',info)}${section('內容',`<div class="fd-detail-text">${escapeHtml(content || '-')}</div>`)}${items.length ? section('攜帶物品',items.map(([k,v])=>line(k,v)).join('')) : ''}
+    ${result ? section('辦理結果',`<div class="fd-result-label ${result==='送件異常'?'is-abnormal':''}">${escapeHtml(result)}</div>${line(result==='要補件'?'補件項目':'異常項目',getFieldNoteValue(row,result==='要補件'?'補件項目':'異常項目'))}${getFieldNoteValue(row,'通知行政') ? line('通知行政',getFieldNoteValue(row,'通知行政')) : ''}`) : ''}
+    ${next.type ? section('下次領件／送審',line('類型',next.type)+line('日期',next.date)+line('時間',next.time||'不指定')+line('下次執行人員',getFieldNoteValue(row,'下次人員'))) : ''}
+    <details class="fd-detail-other"><summary>建立與紀錄資訊</summary>${line('類別',getScheduleRowCategoryDisplayLabel(row))}${line('建立者',creator)}${row.car_no ? line('公務車',row.car_no) : ''}${row.sub_type_note ? `<div class="fd-detail-text">${escapeHtml(row.sub_type_note)}</div>` : ''}${permission ? `<p class="field-hint">${escapeHtml(permission)}</p>` : ''}</details></div>`
+}
+
 function openScheduleDetail(scheduleId, occurrenceDate = '') {
   const row = schedules.find(item => item.schedule_id === scheduleId)
   if (!row) return
@@ -26088,15 +26106,18 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
           : '此行程由他人指派，您只能查看與完成，不能修改、取消或刪除。')))
 
   const modal = document.createElement('div')
-  modal.className = 'modal-backdrop schedule-view-backdrop'
+  const fieldMobileView = ['外務行程','外務明細','外務','外務日'].includes(String(row.category || '').trim()) || ['外務行程','外務明細','外務','外務日'].includes(String(row.schedule_type || '').trim())
+  modal.className = 'modal-backdrop schedule-view-backdrop' + (fieldMobileView ? ' field-mobile-view-backdrop' : '')
   modal.innerHTML = `
     <div class="modal-panel detail-panel schedule-view-modal">
       <div class="modal-header schedule-view-modal-header">
-        <h3>查看行程</h3>
+        <h3>${fieldMobileView ? '查看外務' : '查看行程'}</h3>
         <button class="icon-btn" id="closeDetailBtn" type="button">×</button>
       </div>
 
       <div class="schedule-view-modal-content">
+        ${fieldMobileView ? renderFieldMobileDetail(row, {date:detailDateText,time:detailTimeText,title:detailTitleText,assignee:detailAssigneeText,creator:detailCreatorText,address:detailAddressText,content:detailContentDisplayText,permission:permissionNote}) : ''}
+        ${fieldMobileView ? '<div class="fd-original-detail">' : ''}
         <div class="mobile-schedule-detail-priority" aria-label="手機行程重點資訊">
           ${mobileReminderDetailRows || defaultMobileDetailPriorityRows}
         </div>
@@ -26130,6 +26151,7 @@ function openScheduleDetail(scheduleId, occurrenceDate = '') {
         ${isIncidentSchedule(row) ? renderIncidentTrackingHistory(row, canModifySchedule(row)) : ''}
 
         <div class="notice">${permissionNote}</div>
+        ${fieldMobileView ? '</div>' : ''}
       </div>
 
       <div class="modal-actions schedule-view-modal-actions">
@@ -27691,10 +27713,11 @@ function fieldPurposeChecksHtml(selectedItems = [], inputName = 'field_purpose')
       ${options.map(item => {
         const normalizedItem = normalizeFieldPurposeOptionValue(item)
         const isOther = normalizedItem === '其他'
+        const isDay = /^外務日(?:\s*[(（]|$)/.test(normalizedItem)
         return `
-          <label class="inline-check field-purpose-check ${isOther ? 'field-purpose-check-other' : ''}">
+          <label class="inline-check field-purpose-check ${isOther ? 'field-purpose-check-other' : ''} ${isDay ? 'field-purpose-day' : ''}">
             <input type="checkbox" name="${inputName}" value="${escapeHtml(item)}" ${selected.has(normalizedItem) ? 'checked' : ''}>
-            <span class="field-purpose-label-text">${escapeHtml(item)}</span>
+            <span class="field-purpose-label-text">${escapeHtml(isDay ? '外務日' : item)}${isDay ? '<small class="field-purpose-day-note">請勿安排其他行程</small>' : ''}</span>
             ${isOther ? `
               <span class="field-purpose-other-row ${otherSelected ? '' : 'hidden'}" data-field-purpose-other-row>
                 <input type="text" name="${inputName}_other" value="${escapeHtml(otherText)}" placeholder="請輸入其他目的" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
@@ -28510,8 +28533,8 @@ function openEditFieldScheduleModal(scheduleId) {
       </div>
 
       <form id="editFieldScheduleForm" class="form-grid">
-        <div class="span-2">
-          <div class="field-title">外務人員</div>
+        <div class="span-2 field-staff-dropdown-box">
+          <div class="field-title">執行人員</div>
           <div class="checkbox-list">
             ${getFieldStaffRowsForEdit(row).map(staff => `
               <label class="check-row">
@@ -28533,9 +28556,9 @@ function openEditFieldScheduleModal(scheduleId) {
 
         <div class="span-2 field-training-hint hidden" data-field-training-hint></div>
 
-        <div class="span-2 field-location-box">
+        <div class="span-2 field-location-box"><div class="field-title span-2">外務地點</div>
           <label>
-            地點選擇
+            選擇地點
             <select name="field_location_select" id="editFieldLocationSelect">
               ${fieldLocationOptionsHtml()}
             </select>
@@ -28553,7 +28576,7 @@ function openEditFieldScheduleModal(scheduleId) {
         </div>
 
         <div class="span-2 field-purpose-box">
-          <div class="field-title">目的（可複選）</div>
+          <div class="field-title">外務目的（可複選）</div>
           ${fieldPurposeChecksHtml(selectedPurposeValues, 'field_purpose')}
         </div>
 
@@ -28567,20 +28590,20 @@ function openEditFieldScheduleModal(scheduleId) {
           <textarea name="description" rows="3">${escapeHtml(row.description || '')}</textarea>
         </label>
 
-        <div class="span-2 field-items-grid">
+        <div class="span-2 field-items-grid"><div class="field-title span-2">攜帶物品（選填）</div>
           <label>
             現金
-            <input name="cash_note" value="${escapeHtml(cashNote)}" placeholder="例如：金額 / 用途 / 無">
+            <input name="cash_note" value="${escapeHtml(cashNote)}" placeholder="金額／用途">
           </label>
 
           <label>
             印章
-            <input name="seal_note" value="${escapeHtml(sealNote)}" placeholder="例如：公司章 / 私章 / 無">
+            <input name="seal_note" value="${escapeHtml(sealNote)}" placeholder="公司章／私章">
           </label>
 
           <label>
             證件
-            <input name="document_note" value="${escapeHtml(documentNote)}" placeholder="例如：護照 / 居留證 / 文件 / 無">
+            <input name="document_note" value="${escapeHtml(documentNote)}" placeholder="護照／居留證／文件">
           </label>
         </div>
 
@@ -28592,35 +28615,35 @@ function openEditFieldScheduleModal(scheduleId) {
         </div>` : ''}
 
         <div class="span-2 field-next-box">
-          <div class="field-title">下次領件 / 送審</div>
+          <div class="field-title">下次領件／送審（選填）</div>
           <div class="compact-grid">
-            <label>
+            <label class="field-next-type-field">
               下次類型
               <select name="next_action_type">
-                <option value="" ${!nextAction.type ? 'selected' : ''}>無</option>
-                <option value="下次領件" ${nextAction.type === '下次領件' ? 'selected' : ''}>下次領件</option>
-                <option value="下次送審" ${nextAction.type === '下次送審' ? 'selected' : ''}>下次送審</option>
+                <option value="" ${!nextAction.type ? 'selected' : ''}>不安排</option>
+                <option value="下次領件" ${nextAction.type === '下次領件' ? 'selected' : ''}>領件</option>
+                <option value="下次送審" ${nextAction.type === '下次送審' ? 'selected' : ''}>送審</option>
               </select>
             </label>
 
-            <label>
+            <label class="field-next-dependent">
               下次日期
               <input name="next_action_date" type="date" value="${escapeHtml(nextAction.date || '')}">
             </label>
 
-            <label>
-              下次時間
+            <label class="field-next-dependent">
+              下次時間（選填）
               ${fieldTimeSelectHtml('edit_next', nextAction.hour || '', nextAction.minute || '00')}
             </label>
 
-            <label>
-              下次人員
+            <label class="field-next-dependent">
+              下次執行人員
               <select name="next_staff_id">
                 ${fieldStaffSelectOptionsHtml(nextStaffId)}
               </select>
             </label>
           </div>
-          <p class="field-hint">若填寫下次類型、日期與人員，儲存修改後會自動建立下一筆外務行程；下次時間可不填。</p>
+          <p class="field-hint field-next-hint">完整填寫後，依原有規則建立或更新下次外務行程；時間可不填。</p>
         </div>
 
         <div class="modal-actions span-2 field-edit-actions">
@@ -28792,7 +28815,7 @@ async function saveEditedFieldSchedule(event, modal, originalRow) {
 function fieldModeTimeFieldsHtml(defaultDate = '') {
   return `
     <div class="span-2 block-group schedule-mode-box field-mode-time-box">
-      <div class="group-title">行程模式與時間</div>
+      <div class="group-title">日期與時間</div>
       <div class="form-grid inner-grid field-mode-time-grid">
         <label>
           行程模式
@@ -29576,9 +29599,9 @@ function openFieldScheduleModal(defaults = {}) {
 
       <form id="fieldScheduleForm" class="form-grid">
         <div class="span-2 field-staff-dropdown-box">
-          <div class="field-title">外務人員</div>
+          <div class="field-title">執行人員</div>
           <details class="field-staff-dropdown">
-            <summary>選擇外務人員</summary>
+            <summary>選擇執行人員</summary>
             <div class="field-staff-dropdown-panel">
               ${fieldStaffOptionsHtml(defaultStaffId) || '<div class="empty-state">目前沒有可選外務人員。</div>'}
             </div>
@@ -29589,9 +29612,9 @@ function openFieldScheduleModal(defaults = {}) {
 
         <div class="span-2 field-training-hint hidden" data-field-training-hint></div>
 
-        <div class="span-2 field-location-box">
+        <div class="span-2 field-location-box"><div class="field-title span-2">外務地點</div>
           <label>
-            地點選擇
+            選擇地點
             <select name="field_location_select" id="fieldLocationSelect">
               ${fieldLocationOptionsHtml()}
             </select>
@@ -29609,12 +29632,12 @@ function openFieldScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2 field-purpose-box">
-          <div class="field-title">目的（可複選）</div>
+          <div class="field-title">外務目的（可複選）</div>
           ${fieldPurposeChecksHtml([], 'field_purpose')}
         </div>
 
         <div class="span-2 field-special-box field-special-compact-box">
-          <div class="field-title">特殊提醒</div>
+          <div class="field-title">特殊提醒（可複選）</div>
           <div class="inline-check-list field-special-compact-list">${fieldSpecialReminderChecksHtml()}</div>
         </div>
 
@@ -29623,53 +29646,53 @@ function openFieldScheduleModal(defaults = {}) {
           <textarea name="description" rows="3" placeholder="請輸入外務內容"></textarea>
         </label>
 
-        <div class="span-2 field-items-grid">
+        <div class="span-2 field-items-grid"><div class="field-title span-2">攜帶物品（選填）</div>
           <label>
             現金
-            <input name="cash_note" placeholder="例如：金額 / 用途 / 無">
+            <input name="cash_note" placeholder="金額／用途">
           </label>
 
           <label>
             印章
-            <input name="seal_note" placeholder="例如：公司章 / 私章 / 無">
+            <input name="seal_note" placeholder="公司章／私章">
           </label>
 
           <label>
             證件
-            <input name="document_note" placeholder="例如：護照 / 居留證 / 文件 / 無">
+            <input name="document_note" placeholder="護照／居留證／文件">
           </label>
         </div>
 
         <div class="span-2 field-next-box">
-          <div class="field-title">下次領件 / 送審</div>
+          <div class="field-title">下次領件／送審（選填）</div>
           <div class="compact-grid">
-            <label>
+            <label class="field-next-type-field">
               下次類型
               <select name="next_action_type">
-                <option value="">無</option>
-                <option value="下次領件">下次領件</option>
-                <option value="下次送審">下次送審</option>
+                <option value="">不安排</option>
+                <option value="下次領件">領件</option>
+                <option value="下次送審">送審</option>
               </select>
             </label>
 
-            <label>
+            <label class="field-next-dependent">
               下次日期
               <input name="next_action_date" type="date">
             </label>
 
-            <label>
-              下次時間
+            <label class="field-next-dependent">
+              下次時間（選填）
               ${fieldTimeSelectHtml('next')}
             </label>
 
-            <label>
-              下次人員
+            <label class="field-next-dependent">
+              下次執行人員
               <select name="next_staff_id">
                 ${fieldStaffSelectOptionsHtml('')}
               </select>
             </label>
           </div>
-          <p class="field-hint">若填寫下次類型、日期與人員，儲存後會自動建立下一筆外務行程；下次時間可不填。</p>
+          <p class="field-hint field-next-hint">完整填寫後，儲存即自動建立下次外務行程；時間可不填。</p>
         </div>
 
         <div class="modal-actions span-2">
