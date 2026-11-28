@@ -14520,7 +14520,7 @@ function renderOptionsPage() {
         </div>
         <div class="option-group-body">
           ${optionTextarea('服務行程｜行程類型', 'serviceScheduleTypes', getManagedServiceScheduleTypes().join('\n'), '服務行程主要行程類型；-- 代表不指定', '例如：醫療')}
-          ${optionTextarea('服務行程｜提醒事項', 'serviceReminderTypes', getManagedServiceReminderTypes().join('\n'), '服務行程提醒事項；-- 代表不指定', '例如：返台提醒')}
+          ${optionTextarea('服務行程｜服務提醒類型', 'serviceReminderTypes', getManagedServiceReminderTypes().join('\n'), '服務行程提醒事項；-- 代表不指定', '例如：返台提醒')}
           ${scheduleTemplateEditor()}
           ${optionTextarea('行程類別', 'scheduleCategoryOptions', optionLinesValue('scheduleCategoryOptions', scheduleCategoryOptionDefaults), '新增 / 修改行程最上層類別；歷史資料使用過的值請改名為停用，不直接刪除', '例如：服務行程')}
           ${optionTextarea('行程類型 / 類別細項', 'scheduleSubtypeOptionDefaults', optionLinesValue('scheduleSubtypeOptionDefaults', scheduleSubtypeOptionDefaults), '行程卡片、表單類別細項、下拉選單共用參考項目', '例如：會議')}
@@ -29993,7 +29993,6 @@ function openScheduleModal(defaults = {}) {
         <div class="span-2 notify-original-translator-field hidden">
           <div class="field-title">通知原翻譯</div>
           ${serviceOriginalTranslatorDropdown}
-          <p class="field-hint">通知原翻譯只增加追蹤顯示，不會把原翻譯加入執行者。</p>
         </div>
 
         <div class="span-2 form-section hidden service-grid service-top-grid" data-section="service-top">
@@ -30005,7 +30004,7 @@ function openScheduleModal(defaults = {}) {
           </label>
 
           <label>
-            提醒事項
+            服務提醒類型
             <select name="service_reminder_type" id="serviceReminderTypeSelect">
               ${serviceReminderOptionsHtml('--')}
             </select>
@@ -30292,8 +30291,8 @@ function openScheduleModal(defaults = {}) {
         </div>
 
         <div class="span-2" id="scheduleAssigneeBlock">
-          <div class="field-title">選擇人員</div>
-          <div class="selected-assignee-summary" id="selectedAssigneeSummary">尚未選擇人員</div>
+          <div class="field-title">執行人員</div>
+          <div class="selected-assignee-summary" id="selectedAssigneeSummary">尚未選擇執行人員</div>
           <div class="checkbox-list">${createScheduleAssigneeHtml}</div>
         </div>
 
@@ -30413,7 +30412,7 @@ function openScheduleModal(defaults = {}) {
     const selectedNames = selectedRows
       .map(row => String(row.querySelector('span')?.textContent || '').trim())
       .filter(Boolean)
-    summary.textContent = selectedNames.length ? `已選人員：${selectedNames.join('、')}` : '尚未選擇人員'
+    summary.textContent = selectedNames.length ? `已選執行人員：${selectedNames.join('、')}` : '尚未選擇執行人員'
     summary.classList.toggle('has-selection', selectedNames.length > 0)
   }
 
@@ -32011,7 +32010,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         <div class="span-2 edit-notify-original-translator-field hidden">
           <div class="field-title">通知原翻譯</div>
           ${serviceOriginalTranslatorDropdownHtml(editServiceOriginalTranslatorStaffIds, 'edit_service_original_translator_staff_ids')}
-          <p class="field-hint">原翻譯只收到追蹤卡片，不會加入執行者。</p>
         </div>
 
         <div class="span-2 service-grid" id="editServiceBlock">
@@ -32023,7 +32021,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </label>
 
           <label class="${isConsultantRole() ? 'hidden' : ''}">
-            提醒事項
+            服務提醒類型
             <select name="service_reminder_type" ${isConsultantRole() ? 'disabled aria-disabled="true"' : ''}>
               ${serviceReminderOptions}
             </select>
@@ -32314,7 +32312,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
         </div>
 
         <div class="span-2 edit-assignee-box">
-          <div class="field-title">選擇人員</div>
+          <div class="field-title">執行人員</div>
           <div class="checkbox-list">${editStaffOptionsHtml(row) || '<div class="empty-state">目前沒有可選人員。</div>'}</div>
           <p class="field-hint">修改執行者會同步更新個人行程表與行程總覽。</p>
         </div>
