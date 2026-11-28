@@ -50,7 +50,7 @@ function installMulti(modal,source,title,syncs,kind='people'){
   if(!source||source.dataset.paMulti||!source.querySelector('input[type=checkbox]'))return;source.dataset.paMulti='1';source.classList.add('pa-native-multi');const trigger=btn('pa-select-trigger pa-enhancement','');source.before(trigger);
   const inputs=()=>[...source.querySelectorAll('input[type=checkbox]')].filter(i=>kind!=='extra'||!blankValue(i.value));
   const unit=kind==='department'?'個部門':kind==='extra'?'項':'人';
-  const sync=()=>{const picked=inputs().filter(i=>i.checked);trigger.textContent=picked.length?`已選 ${picked.length} ${unit}｜${picked.slice(0,2).map(nameOf).join('、')}${picked.length>2?'…':''}`:'請選擇';trigger.setAttribute('aria-label',`${title}，${trigger.textContent}`)};syncs.push(sync);sync();trigger.onclick=e=>{e.preventDefault();showSheet(modal,title,(body,done,dismiss)=>{
+  const sync=()=>{const picked=inputs().filter(i=>i.checked);trigger.textContent=picked.length?`已選 ${picked.length} ${unit}｜${picked.slice(0,2).map(nameOf).join('、')}${picked.length>2?'…':''}`:title==='選擇執行人員'?'請選擇執行人員':'請選擇';trigger.setAttribute('aria-label',`${title}，${trigger.textContent}`)};syncs.push(sync);sync();trigger.onclick=e=>{e.preventDefault();showSheet(modal,title,(body,done,dismiss)=>{
     const all=inputs(),selected=new Set(all.filter(i=>i.checked)),list=node('div','pa-sheet-options');if(kind==='extra')list.classList.add('pa-sheet-grid');let keyword='',dept='';
     const department=i=>{if(kind!=='people')return '';const t=labelText(i);return t.includes('｜')?t.split('｜').slice(1).join('｜').trim():i.closest('label')?.querySelector('small')?.textContent?.trim()||''};
     const departments=[...new Set(all.map(department).filter(Boolean))];const visible=()=>all.filter(i=>(!dept||department(i)===dept)&&(!keyword||labelText(i).toLowerCase().includes(keyword)));
@@ -65,7 +65,7 @@ function installNotificationGroup(form,syncs){
   const sup=form.querySelector('.notify-supervisor-field,.edit-notify-supervisor-field'),admin=form.querySelector('.service-admin-notify-field,.edit-service-admin-notify-field'),translator=form.querySelector('.notify-original-translator-field,.edit-notify-original-translator-field'),assignee=form.querySelector('#scheduleAssigneeBlock,.edit-assignee-box');
   if(!sup||!admin||!translator||!assignee)return;
   const fields=[sup,admin,translator],markers=fields.map(field=>{const mark=document.createComment('notification field origin');field.before(mark);return mark});
-  const group=node('section','pa-notification-group span-2');group.append(node('div','field-title','通知對象'));group.append(node('p','field-hint pa-notification-hint','通知對象不會加入執行人員。'));assignee.after(group);
+  const group=node('section','pa-notification-group span-2');group.append(node('div','field-title','通知對象（選填）'));group.append(node('p','field-hint pa-notification-hint','通知對象不會加入執行人員；原翻譯僅顯示追蹤。'));assignee.after(group);
   const sync=()=>{const service=(form.dataset.currentCategory||form.querySelector('select[name=category]')?.value)==='服務行程';if(service){if(assignee.nextElementSibling!==group)assignee.after(group);if(fields.some((f,i)=>group.children[i+1]!==f))for(const f of fields)group.insertBefore(f,group.lastElementChild);group.hidden=false}else{for(let i=0;i<fields.length;i++){if(group.contains(fields[i]))markers[i].after(fields[i])}group.hidden=true}};syncs.push(sync);sync();
 }
 export function enhanceSchedulePlanA(modal){
@@ -77,10 +77,6 @@ export function enhanceSchedulePlanA(modal){
   for(const source of form.querySelectorAll('.checkbox-list'))if(!source.closest('.pa-native-multi')&&source.querySelector('input[name="edit_executor"]'))installMulti(modal,source,'選擇執行人員',syncs);
   installNotificationGroup(form,syncs);
   for(const box of form.querySelectorAll('.document-delivery-box')){const title=box.querySelector('.field-title');if(!title)continue;const count=node('span','pa-delivery-count');title.append(count);const update=()=>count.textContent=`已選 ${box.querySelectorAll('input[type=checkbox]:checked').length} 項`;syncs.push(update);update()}
-  if(form.id==='scheduleForm'){
-    const serviceTop=form.querySelector('[data-section="service-top"]'),actions=form.querySelector('.modal-actions');
-    const toggle=btn('pa-advanced-toggle pa-enhancement','其他設定　⌄');toggle.setAttribute('aria-expanded','false');if(serviceTop&&actions){actions.before(toggle);form.classList.add('pa-advanced-collapsed');toggle.onclick=()=>{const expanded=form.classList.toggle('pa-advanced-collapsed')===false;toggle.setAttribute('aria-expanded',String(expanded));toggle.textContent=expanded?'其他設定　⌃':'其他設定　⌄';if(expanded){const first=[...form.querySelectorAll('.vehicle-doc-row,.service-general-address-field')].find(el=>el.getClientRects().length);first?.scrollIntoView({block:'center',behavior:'smooth'})}}}
-    const save=actions?.querySelector('button[type=submit]');if(save)save.textContent='儲存行程';
-  }
+  if(form.id==='scheduleForm'){const save=form.querySelector('.modal-actions button[type=submit]');if(save)save.textContent='儲存行程'}
   const sync=()=>{for(const f of syncs)f()};form.addEventListener('change',()=>queueMicrotask(sync));form.addEventListener('input',()=>queueMicrotask(sync));sync();
 }
