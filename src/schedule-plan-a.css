@@ -54,3 +54,39 @@
  body:not(.force-desktop-mode) .pa-modal .form-grid input[type=date]::-webkit-date-and-time-value{margin:0!important;text-align:center!important;min-height:1.25em!important;line-height:1.25!important}
  body:not(.force-desktop-mode) .pa-modal .time-select-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
 }
+
+/* A refinement: main navigation must never sit above a form or a choice sheet. */
+.pa-notification-group[hidden],.pa-sheet-footer[hidden]{display:none!important}
+@media (max-width:768px),(pointer:coarse){
+ body:not(.force-desktop-mode):has(.pa-modal) .mobile-nav{display:none!important;visibility:hidden!important;pointer-events:none!important}
+ body:not(.force-desktop-mode) .pa-modal{z-index:2147483100!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-category-grid>button.pa-service-main{grid-column:1/-1!important;min-height:72px!important;font-size:19px!important;font-weight:750!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-category-grid:has(>button:nth-child(5):last-child)>button:last-child{grid-column:auto!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-category-grid>button:not(.pa-service-main){min-height:48px!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important;background:#fff!important;border:1px solid #dce0eb!important;border-radius:12px!important;padding:11px!important;min-width:0!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group[hidden]{display:none!important}
+ body:not(.force-desktop-mode) .pa-modal form#scheduleForm[data-current-category="服務行程"].pa-advanced-collapsed .pa-notification-group .notify-supervisor-field:not(.hidden),body:not(.force-desktop-mode) .pa-modal form#scheduleForm[data-current-category="服務行程"].pa-advanced-collapsed .pa-notification-group .notify-original-translator-field:not(.hidden),body:not(.force-desktop-mode) .pa-modal form#scheduleForm[data-current-category="服務行程"].pa-advanced-collapsed .pa-notification-group .service-admin-notify-field:not(.hidden),body:not(.force-desktop-mode) .pa-modal form#scheduleForm[data-current-category="服務行程"].pa-advanced-collapsed .extra-schedule-box:not(.hidden):not(.compact-special-hidden){display:block!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group>div:not(.field-title){margin:0!important;padding:0!important;border:0!important;background:transparent!important;min-width:0!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group .field-title{font-size:14px!important;margin:0 0 4px!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group>.field-title{font-size:16px!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-notification-group .field-hint{font-size:12px!important;margin:4px 0 0!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-single-hint{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#68758a}
+ body:not(.force-desktop-mode) .pa-modal button.pa-clear-option{background:transparent!important;color:#575be7!important;border:0!important;padding:6px 2px!important;min-height:40px!important;font-size:13px!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-sheet-summary{font-weight:700;color:#575be7;font-size:14px}
+ body:not(.force-desktop-mode) .pa-modal .pa-sheet-hint{color:#66758d;font-size:12px}
+ body:not(.force-desktop-mode) .pa-modal .pa-dept-chips{display:flex;gap:5px;overflow:auto;scrollbar-width:none;white-space:nowrap;padding-bottom:2px}
+ body:not(.force-desktop-mode) .pa-modal button.pa-dept-chip{min-height:40px!important;flex:none!important;padding:6px 12px!important;border:1px solid #e0e4f0!important;background:#fff!important;color:#47536d!important;border-radius:8px!important;font-size:13px!important;width:auto!important;margin:0!important}
+ body:not(.force-desktop-mode) .pa-modal button.pa-dept-chip[aria-pressed=true]{background:#575be7!important;color:white!important;border-color:#575be7!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-dept-heading{background:#eef0fa;border-radius:6px;padding:6px 9px;color:#465373;font-size:13px;font-weight:650}
+ body:not(.force-desktop-mode) .pa-modal button.pa-person-option{border:0!important;border-bottom:1px solid #e6e9f0!important;border-radius:0!important;min-height:44px!important}
+ body:not(.force-desktop-mode) .pa-modal button.pa-person-option::after{content:'';width:18px;height:18px;flex:none;margin-left:auto;border:1.5px solid #a1a9ba;border-radius:4px;box-sizing:border-box}
+ body:not(.force-desktop-mode) .pa-modal button.pa-person-option[aria-pressed=true]::after{content:'✓';display:flex;align-items:center;justify-content:center;background:#575be7;color:white;border-color:#575be7;font-size:13px}
+ body:not(.force-desktop-mode) .pa-modal .document-delivery-box .inline-check-list label{width:100%!important;max-width:100%!important;border:1px solid #dce0eb!important;border-radius:8px!important;background:white!important;box-sizing:border-box!important;min-height:44px!important;justify-content:flex-start!important;margin:0!important}
+ body:not(.force-desktop-mode) .pa-modal .document-delivery-box .inline-check-list label:has(input:checked){background:#eceeff!important;border-color:#8588f0!important;color:#4145b0!important}
+ body:not(.force-desktop-mode) .pa-modal .document-delivery-box .inline-check-list{width:100%!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body:not(.force-desktop-mode) .pa-modal .modal-header .icon-btn{background:#ffffff24!important;color:#fff!important;border:1px solid #ffffff55!important}
+}
+@media (max-width:768px),(pointer:coarse){
+ body:not(.force-desktop-mode) .pa-modal .document-delivery-box>.field-title{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:5px!important}
+ body:not(.force-desktop-mode) .pa-modal .pa-delivery-count{color:#575be7;font-size:12px;font-weight:650;white-space:nowrap}
+}

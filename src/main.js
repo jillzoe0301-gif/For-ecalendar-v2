@@ -10639,9 +10639,9 @@ function getVehicleMaintenanceNotifyStaffIds(form, fieldName = 'maintenance_noti
     .flatMap(value => String(value || '').split(/[、,，]/))
     .map(value => value.trim())
     .filter(Boolean)
-  const supervisorStaffId = String(form.get('maintenance_notify_supervisor') || '').trim()
+  const supervisorStaffIds = form.getAll('maintenance_notify_supervisor').map(value => String(value || '').trim()).filter(Boolean)
 
-  return [...new Set([...notifyStaffIds, supervisorStaffId].filter(Boolean))]
+  return [...new Set([...notifyStaffIds, ...supervisorStaffIds].filter(Boolean))]
 }
 
 
@@ -26722,12 +26722,12 @@ function getServiceScheduleTypeFromForm(form) {
 function serviceTypeOptionsHtml(includeEmpty = false, selectedValue = '') {
   const empty = includeEmpty ? '<option value="">無</option>' : ''
   const selected = normalizeServiceTypeOption(selectedValue)
-  return empty + getManagedServiceScheduleTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+  return empty + getManagedServiceScheduleTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(isBlankOptionValue(type) ? '請選擇' : type)}</option>`).join('')
 }
 
 function serviceReminderOptionsHtml(selectedValue = '') {
   const selected = normalizeServiceTypeOption(selectedValue)
-  return getManagedServiceReminderTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')
+  return getManagedServiceReminderTypes().map(type => `<option value="${escapeHtml(type)}" ${selected === type ? 'selected' : ''}>${escapeHtml(isBlankOptionValue(type) ? '請選擇' : type)}</option>`).join('')
 }
 
 function isServiceReminderType(value = '') {
@@ -27212,8 +27212,8 @@ function checkedOptionsHtml(items, selectedItems, inputName) {
   const selected = new Set(selectedItems || [])
   return items.map(item => `
     <label class="inline-check">
-      <input type="checkbox" name="${inputName}" value="${item}" ${selected.has(item) ? 'checked' : ''}>
-      ${item}
+      <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(item)}" ${selected.has(item) ? 'checked' : ''}>
+      ${escapeHtml(item)}
     </label>
   `).join('')
 }
@@ -27380,7 +27380,7 @@ function positionCreateServiceSpecialFields(form, activeType = '') {
   if (!activeBlock) return
   const dateGroup = form.querySelector('.schedule-date-cycle-group')
   const serviceLocation = form.querySelector('[data-section="service-location"]')
-  const notifySupervisor = form.querySelector('.notify-supervisor-field')
+  const notifySupervisor = form.querySelector('.pa-notification-group:not([hidden])') || form.querySelector('.notify-supervisor-field')
     const notifyOriginalTranslator = form.querySelector('.notify-original-translator-field')
   if (isNoCommonDateTimeReminderType(activeType)) {
     const anchor = serviceLocation || dateGroup
@@ -27398,7 +27398,7 @@ function positionEditServiceSpecialFields(form, activeType = '') {
   if (!activeBlock) return
   const modeBox = form.querySelector('.edit-schedule-mode-box')
   const serviceLocation = form.querySelector('#editServiceLocationBlock')
-  const notifySupervisor = form.querySelector('.edit-notify-supervisor-field')
+  const notifySupervisor = form.querySelector('.pa-notification-group:not([hidden])') || form.querySelector('.edit-notify-supervisor-field')
   if (isNoCommonDateTimeReminderType(activeType)) {
     const anchor = serviceLocation || modeBox
     if (anchor) anchor.insertAdjacentElement('afterend', activeBlock)
@@ -27434,9 +27434,6 @@ function setCompactHidden(element, hidden) {
 
 function resetCompactHiddenValues(form) {
   if (!form) return
-
-  const hasExtra = form.querySelector('select[name="has_extra_schedule"]')
-  if (hasExtra) hasExtra.value = '否'
 
   form.querySelectorAll('[name="sub_type"]').forEach(control => {
     if (control.type === 'checkbox' || control.type === 'radio') control.checked = false
@@ -29870,7 +29867,7 @@ function openScheduleModal(defaults = {}) {
   const leaveTypeOptions = getNewLeaveMeetingTypes(isGeneralStaffOverviewCreateMode())
   const leaveOptions = leaveMeetingChoiceHtml(leaveTypeOptions)
   const carSelectOptions = carOptionSelectOptionsHtml('不使用')
-  const supervisorOptions = supervisorSelectOptionsHtml()
+  const supervisorOptions = supervisorCheckboxesHtml([], 'notify_supervisor_staff')
   const serviceAdminChecks = administrativeStaffCheckboxesHtml([], 'service_admin_staff_ids')
   const serviceOriginalTranslatorDropdown = serviceOriginalTranslatorDropdownHtml([], 'service_original_translator_staff_ids')
   const weekdayChecks = weekdays.map(([value, label]) => `
@@ -29880,7 +29877,7 @@ function openScheduleModal(defaults = {}) {
     <label class="inline-check"><input type="checkbox" name="document_items" value="${item}">${item}</label>
   `).join('')
 
-  const serviceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes(), [], 'sub_type')
+  const serviceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes().filter(v => !isBlankOptionValue(v)), [], 'sub_type')
 
   const deliveryDocumentChecks = getManagedDeliveryDocumentItems().map(item => `
     <label class="inline-check"><input type="checkbox" name="delivery_items" value="${item}">${item}</label>
@@ -29991,12 +29988,7 @@ function openScheduleModal(defaults = {}) {
         </div>
 
 
-        <label class="span-2 notify-supervisor-field">
-          通知主管
-          <select name="notify_supervisor_staff">
-            ${supervisorOptions}
-          </select>
-        </label>
+        <div class="span-2 notify-supervisor-field"><div class="field-title">通知主管（可複選）</div><div class="checkbox-list pa-supervisor-list">${supervisorOptions}</div></div>
 
         <div class="span-2 notify-original-translator-field hidden">
           <div class="field-title">通知原翻譯</div>
@@ -30025,14 +30017,7 @@ function openScheduleModal(defaults = {}) {
           </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
-            <label>
-              是否有附加行程
-              <select name="has_extra_schedule" id="hasExtraScheduleSelect">
-                <option value="否">否</option>
-                <option value="是">是</option>
-              </select>
-            </label>
-            <div id="extraScheduleBlock" class="hidden">
+            <div id="extraScheduleBlock">
               <div class="service-extra-multi-field">
                 <div class="field-title">附加行程（可複選）</div>
                 <div class="inline-check-list service-extra-check-list">${serviceExtraChecks}</div>
@@ -30083,7 +30068,6 @@ function openScheduleModal(defaults = {}) {
               ${leaveOptions}
             </select>
           </label>
-          ${!isGeneralStaffOverviewCreateMode() ? `<label class="hidden" id="createActivityScope">活動範圍<select name="activity_scope"><option value="活動">其他</option><option value="公司活動">公司</option><option value="部門活動">部門</option></select></label>` : ''}
         </div>
 
         <div class="span-2 form-section" data-section="common-simple">
@@ -30141,12 +30125,7 @@ function openScheduleModal(defaults = {}) {
             ${maintenanceNotifyDropdownHtml([], 'maintenance_notify_staff')}
           </div>
 
-<label>
-            通知主管
-            <select name="maintenance_notify_supervisor">
-              ${supervisorOptions}
-            </select>
-          </label>
+<div><div class="field-title">通知主管（可複選）</div><div class="checkbox-list pa-supervisor-list">${supervisorCheckboxesHtml([], 'maintenance_notify_supervisor')}</div></div>
 
           <label class="span-2">
             備註
@@ -30195,13 +30174,6 @@ function openScheduleModal(defaults = {}) {
 
         <div class="span-2 form-section hidden service-grid" data-section="service">
           <div class="span-2 vehicle-doc-row compact-hide-for-reminder">
-            <label>
-              公務車
-              <select name="car_no">
-                ${carSelectOptions}
-              </select>
-            </label>
-
             <div class="document-section">
             <label>
               是否有證件
@@ -30594,9 +30566,7 @@ function openScheduleModal(defaults = {}) {
 
   const leaveMeetingTypeSelect = document.querySelector('select[name="leave_meeting_type"]')
   if (leaveMeetingTypeSelect) {
-    const refreshActivityScope = () => modal.querySelector('#createActivityScope')?.classList.toggle('hidden', leaveMeetingTypeSelect.value !== '活動')
-    leaveMeetingTypeSelect.addEventListener('change', () => { refreshActivityScope(); applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false) })
-    refreshActivityScope()
+    leaveMeetingTypeSelect.addEventListener('change', () => applyScheduleTypeTemplateToForm(document.querySelector('#scheduleForm'), false))
   }
 
   document.querySelectorAll('input[name="executor_departments"]').forEach(input => {
@@ -30631,16 +30601,6 @@ function openScheduleModal(defaults = {}) {
     })
   }
 
-  const hasExtraScheduleSelect = document.querySelector('#hasExtraScheduleSelect')
-  const extraScheduleBlock = document.querySelector('#extraScheduleBlock')
-
-  function refreshExtraScheduleBlock() {
-    if (!hasExtraScheduleSelect || !extraScheduleBlock) return
-    extraScheduleBlock.classList.toggle('hidden', hasExtraScheduleSelect.value !== '是')
-  }
-
-  if (hasExtraScheduleSelect) hasExtraScheduleSelect.addEventListener('change', refreshExtraScheduleBlock)
-
   const needServiceRecordCheck = document.querySelector('#needServiceRecordCheck')
   const serviceRecordSubmittedCheck = document.querySelector('#serviceRecordSubmittedCheck')
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
@@ -30670,7 +30630,6 @@ function openScheduleModal(defaults = {}) {
   refreshRepeatBlocks()
   refreshServiceExtras()
   refreshDocumentsBlock()
-  refreshExtraScheduleBlock()
   applyCreateCompactSpecialFields()
   refreshCreateAssigneeSelectionDisplay()
 
@@ -30882,6 +30841,14 @@ function getSupervisorRows() {
       return supervisorTitles.some(title => positionText.includes(title))
     })
     .sort(compareStaffRowsByDepartmentPositionName)
+}
+
+function supervisorCheckboxesHtml(selectedStaffIds = [], inputName = 'notify_supervisor_staff') {
+  const selected = new Set(selectedStaffIds)
+  const rows = getSupervisorRows()
+  const existing = new Set(rows.map(row => row.staff_id))
+  const extra = staffList.filter(row => selected.has(row.staff_id) && !existing.has(row.staff_id))
+  return [...extra, ...rows].map(row => `<label class="check-row"><input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(row.staff_id)}" ${selected.has(row.staff_id) ? 'checked' : ''}><span>${escapeHtml(row.name || '-')}｜${escapeHtml(row.department_name || '')}</span></label>`).join('')
 }
 
 function supervisorSelectOptionsHtml(selectedStaffId = '') {
@@ -31964,11 +31931,10 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const categoryOptions = editCategoryList.filter(value => !isAdministrativeReminderCategoryName(value) || isAdministrativeReminderCategoryName(editRawCategory)).map(value => `<option value="${escapeHtml(value)}" ${value === editRawCategory ? 'selected' : ''}>${escapeHtml(isPersonnelAffairsDisplayName(value) ? '請假／會議／活動' : value)}</option>`).join('')
   const normalizedEditServiceType = getServiceReminderTypeFromRow(row) || normalizeServiceTypeOption(row.schedule_type || '')
   const editIsReminderType = isServiceReminderType(normalizedEditServiceType)
-  const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType)
+  const serviceTypeOptions = serviceTypeOptionsHtml(false, editIsReminderType ? '--' : normalizedEditServiceType) + (!editIsReminderType && !isBlankOptionValue(normalizedEditServiceType) && !getManagedServiceScheduleTypes().includes(normalizedEditServiceType) && normalizedEditServiceType !== '服務行程' ? `<option value="${escapeHtml(normalizedEditServiceType)}" selected>${escapeHtml(normalizedEditServiceType)}</option>` : '')
   const serviceReminderOptions = serviceReminderOptionsHtml(editIsReminderType ? normalizedEditServiceType : '--')
   const editServiceExtraItems = splitMultiValue(row.sub_type || '')
-  const editServiceExtraChecks = checkedOptionsHtml(getManagedServiceScheduleTypes(), editServiceExtraItems, 'sub_type')
-  const carSelectOptions = carOptionSelectOptionsHtml(row.car_no || '不使用')
+  const editServiceExtraChecks = checkedOptionsHtml(uniqueOptionList([...getManagedServiceScheduleTypes(), ...editServiceExtraItems]).filter(v => !isBlankOptionValue(v)), editServiceExtraItems, 'sub_type')
   const managedTodoItemsForEdit = getManagedTodoItems()
   const managedAdministrativeReminderItemsForEdit = getManagedAdministrativeReminderItems()
   const currentAdministrativeReminderValue = isAdministrativeReminderCategoryName(editNormalizedCategory || editRawCategory || row.category || row.schedule_type) ? (row.sub_type || getNoteValue(row, '提醒項目') || '') : ''
@@ -31994,8 +31960,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const verifyInfo = parseVerifyReminderInfo(row)
   const meterInfo = parseMeterReminderInfo(row)
   const isMaintenance = isVehicleMaintenanceSchedule(row)
-  const notifySupervisorStaffId = getStaffIdByDisplayName(getNoteValue(row, '通知主管'))
-  const supervisorOptions = supervisorSelectOptionsHtmlSelected(notifySupervisorStaffId)
+  const notifySupervisorStaffIds = getStaffIdsByDisplayNames(getNoteValue(row, '通知主管'))
+  const supervisorOptions = supervisorCheckboxesHtml(notifySupervisorStaffIds, 'edit_notify_supervisor_staff')
   const editServiceAdminStaffIds = row.category === '服務行程' ? getStaffIdsByDisplayNames(getNoteValue(row, '通知行政')) : []
   const editServiceOriginalTranslatorStaffIds = row.category === '服務行程' ? getStaffIdsByDisplayNames(getNoteValue(row, '通知原翻譯')) : []
   const editServiceAdminChecks = administrativeStaffCheckboxesHtml(editServiceAdminStaffIds, 'edit_service_admin_staff_ids')
@@ -32007,8 +31973,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const maintenanceReplacementCar = getLineNoteValue(row, '保養期間代步車')
   const maintenanceNotifyStaffIds = getStaffIdsByDisplayNames(getNoteValue(row, '通知相關人員'))
   const maintenanceNotifySelectedIds = maintenanceNotifyStaffIds.length ? maintenanceNotifyStaffIds : (isMaintenanceActiveIds[0] ? [isMaintenanceActiveIds[0]] : [])
-  const maintenanceSupervisorStaffId = isMaintenanceActiveIds.find(id => !maintenanceNotifySelectedIds.includes(id)) || notifySupervisorStaffId || ''
-  const maintenanceSupervisorOptions = supervisorSelectOptionsHtmlSelected(maintenanceSupervisorStaffId)
+  const maintenanceSupervisorStaffIds = notifySupervisorStaffIds.length ? notifySupervisorStaffIds : isMaintenanceActiveIds.filter(id => !maintenanceNotifySelectedIds.includes(id))
+  const maintenanceSupervisorOptions = supervisorCheckboxesHtml(maintenanceSupervisorStaffIds, 'maintenance_notify_supervisor')
   const maintenanceNote = getLineNoteValue(row, '備註') || getLineNoteValue(row, '保養備註')
   const editProxyStaffId = getProxyStaffIdFromRow(row)
   const editOccurrenceDate = normalizeOccurrenceDateForSchedule(row, occurrenceDate || row.start_date)
@@ -32040,12 +32006,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
 
         ${editSeriesScopeFieldsHtml(row, editOccurrenceDate, 'schedule')}
 
-        <label class="span-2 edit-notify-supervisor-field">
-          通知主管
-          <select name="edit_notify_supervisor_staff">
-            ${supervisorOptions}
-          </select>
-        </label>
+        <div class="span-2 edit-notify-supervisor-field"><div class="field-title">通知主管（可複選）</div><div class="checkbox-list pa-supervisor-list">${supervisorOptions}</div></div>
 
         <div class="span-2 edit-notify-original-translator-field hidden">
           <div class="field-title">通知原翻譯</div>
@@ -32074,14 +32035,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           </div>
 
           <div class="extra-schedule-box compact-hide-for-reminder">
-            <label>
-              是否有附加行程
-              <select name="has_extra_schedule" id="editHasExtraScheduleSelect">
-                <option value="否" ${row.sub_type ? '' : 'selected'}>否</option>
-                <option value="是" ${row.sub_type ? 'selected' : ''}>是</option>
-              </select>
-            </label>
-            <div id="editExtraScheduleBlock" class="${row.sub_type ? '' : 'hidden'}">
+            <div id="editExtraScheduleBlock">
               <div class="service-extra-multi-field">
                 <div class="field-title">附加行程（可複選）</div>
                 <div class="inline-check-list service-extra-check-list">${editServiceExtraChecks}</div>
@@ -32104,13 +32058,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
           <label class="compact-hide-for-reminder">
             服務紀錄單繳交日期
             <input name="service_record_submitted_date" type="date" value="${getScheduleServiceRecordSubmittedDate(row) || ''}">
-          </label>
-
-          <label class="compact-hide-for-reminder">
-            公務車
-            <select name="car_no">
-              ${carSelectOptions}
-            </select>
           </label>
 
           <div class="span-2 conditional-service hidden medical-followup-inline-box" data-service-extra="醫療">
@@ -32247,12 +32194,7 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
             ${maintenanceNotifyDropdownHtml(maintenanceNotifySelectedIds, 'maintenance_notify_staff')}
           </div>
 
-          <label>
-            通知主管
-            <select name="maintenance_notify_supervisor">
-              ${maintenanceSupervisorOptions}
-            </select>
-          </label>
+          <div><div class="field-title">通知主管（可複選）</div><div class="checkbox-list pa-supervisor-list">${maintenanceSupervisorOptions}</div></div>
 
           <label class="span-2">
             備註
@@ -32290,7 +32232,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
               ${editLeaveOptions}
             </select>
           </label>
-          ${!isGeneralStaffEditMode ? `<label class="hidden" id="editActivityScope">活動範圍<select name="edit_activity_scope"><option value="活動">其他</option><option value="公司活動">公司</option><option value="部門活動">部門</option></select></label>` : ''}
         </div>
 
         <div class="span-2 form-section hidden" id="editDocumentDeliveryBlock">
@@ -32463,8 +32404,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   const submittedCheck = document.querySelector('#editServiceRecordSubmittedCheck')
   const editServiceTypeSelect = document.querySelector('#editServiceBlock select[name="schedule_type"]')
   const editServiceReminderTypeSelect = document.querySelector('#editServiceBlock select[name="service_reminder_type"]')
-  const editHasExtraScheduleSelect = document.querySelector('#editHasExtraScheduleSelect')
-  const editExtraScheduleBlock = document.querySelector('#editExtraScheduleBlock')
   const submittedDateInput = document.querySelector('input[name="service_record_submitted_date"]')
 
   function refreshEditServiceBlock() {
@@ -32546,12 +32485,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
     timeBlock.classList.toggle('hidden', isAdministrativeReminderCategoryName(category) || isNoCommonDateTimeReminderType(activeType) || !['上午', '下午'].includes(timeTypeSelect.value))
   }
 
-  function refreshEditExtraScheduleBlock() {
-    if (!editHasExtraScheduleSelect || !editExtraScheduleBlock) return
-    editExtraScheduleBlock.classList.toggle('hidden', editHasExtraScheduleSelect.value !== '是')
-    applyEditCompactSpecialFields()
-  }
-
   function refreshEditServiceRecordChecks() {
     if (!needRecordCheck.checked) {
       submittedCheck.checked = false
@@ -32586,10 +32519,8 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
       refreshEditServiceBlock()
     })
   }
-  if (editHasExtraScheduleSelect) editHasExtraScheduleSelect.addEventListener('change', refreshEditExtraScheduleBlock)
 
   refreshScheduleModeBlocks('edit')
-  refreshEditExtraScheduleBlock()
   refreshEditServiceBlock()
   refreshEditTimeBlock()
   refreshEditServiceRecordChecks()
@@ -32598,11 +32529,6 @@ function openEditScheduleModal(scheduleId, occurrenceDate = '') {
   document.querySelector('#closeEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#cancelEditModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#editScheduleForm').addEventListener('submit', event => saveEditedSchedule(event, modal, row))
-  const editLeaveSelect = modal.querySelector('[name="edit_leave_meeting_type"]')
-  const refreshEditActivityScope = () => modal.querySelector('#editActivityScope')?.classList.toggle('hidden', editLeaveSelect?.value !== '活動')
-  editLeaveSelect?.addEventListener('change', refreshEditActivityScope)
-  modal.querySelector('#editCategorySelect')?.addEventListener('change', refreshEditActivityScope)
-  refreshEditActivityScope()
   enhanceSchedulePlanA(modal)
 }
 
@@ -32728,11 +32654,11 @@ async function saveEditedSchedule(event, modal, originalRow) {
   let payloadCustomerName = isService ? (form.get('customer_name') || null) : null
   let payloadLocationName = null
   let payloadAddress = isService ? (isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) ? null : (form.get('address') || null)) : null
-  let payloadCarNo = isService && !isCompactSpecialScheduleType(getServiceScheduleTypeFromForm(form)) && !isSimplifiedServiceFieldType(getServiceScheduleTypeFromForm(form)) ? (form.get('car_no') || null) : null
+  let payloadCarNo = isService && originalRow.category === '服務行程' ? (originalRow.car_no || null) : null
 
   if (category === '服務行程') {
     editScheduleType = getServiceScheduleTypeFromForm(form)
-    editSubType = !isCompactSpecialScheduleType(editScheduleType) && form.get('has_extra_schedule') === '是' ? (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null) : null
+    editSubType = !isCompactSpecialScheduleType(editScheduleType) ? (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null) : null
     payloadCustomerName = editScheduleType === '電表提醒'
       ? (String(form.get('meter_place') || '').trim() || null)
       : (form.get('customer_name') || form.get('title') || null)
@@ -32840,7 +32766,6 @@ async function saveEditedSchedule(event, modal, originalRow) {
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
     editScheduleType = forcedScheduleType || form.get('edit_leave_meeting_type') || '請假'
-    if (editScheduleType === '活動' && ['活動','公司活動','部門活動'].includes(form.get('edit_activity_scope'))) editScheduleType = form.get('edit_activity_scope')
     editSubType = editScheduleType
     const selectedDepartments = form.getAll('edit_executor_departments').filter(Boolean)
     const editProxyName = getStaffNameFromSelect('edit_proxy_staff_id')
@@ -33090,9 +33015,8 @@ async function saveSchedule(event, modal) {
 
   if (category === '請假 / 會議 / 活動 / 外訓') {
     const selectedLeaveType = forcedScheduleType || form.get('leave_meeting_type') || '請假'
-    const scope = form.get('activity_scope')
     if (!getNewLeaveMeetingTypes(isGeneralStaffOverviewCreateMode()).includes(selectedLeaveType)) { alert('請選擇目前開放的行程類型。'); saving = false; return }
-    const requestedLeaveMeetingType = selectedLeaveType === '活動' && !isGeneralStaffOverviewCreateMode() && ['活動','公司活動','部門活動'].includes(scope) ? scope : selectedLeaveType
+    const requestedLeaveMeetingType = selectedLeaveType
     if (isGeneralStaffOverviewCreateMode() && !generalStaffOverviewLeaveMeetingTypes.includes(requestedLeaveMeetingType)) {
       alert('一般職員只能新增請假、會議、活動、教育訓練、公出。')
       saving = false
@@ -33163,13 +33087,13 @@ async function saveSchedule(event, modal) {
 
   if (category === '服務行程') {
     scheduleType = getServiceScheduleTypeFromForm(form)
-    subType = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('has_extra_schedule') === '是' ? (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null) : null)
+    subType = isCompactSpecialScheduleType(scheduleType) ? null : (getServiceExtraSubTypeTextFromForm(form, 'sub_type') || null)
     customerName = scheduleType === '電表提醒'
       ? (String(form.get('meter_place') || '').trim() || null)
       : (rawCustomerNameInput || rawTitleInput || null)
     locationName = null
     address = isCompactSpecialScheduleType(scheduleType) ? null : (form.get('address') || null)
-    carNo = (isCompactSpecialScheduleType(scheduleType) || isSimplifiedServiceFieldType(scheduleType)) ? null : (form.get('car_no') || null)
+    carNo = null
     const serviceReminderDateRange = getServiceReminderDateRangeFromForm(form, scheduleType, startDateValue)
     if (serviceReminderDateRange) {
       startDateValue = serviceReminderDateRange.startDate
