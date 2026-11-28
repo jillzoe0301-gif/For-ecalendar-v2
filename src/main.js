@@ -6,6 +6,8 @@ import './field-plan-a.css'
 import './schedule-detail-plan-a.css'
 import './mobile-modal-safe.css'
 import './holiday-birthday-login.css'
+import './desktop-calendar.css'
+import { enhanceDesktopCreate, bindDesktopOverview } from './desktop-calendar.js'
 import { getHolidayEntries, renderHolidayLabels, bindHolidayDetails } from './holiday-calendar.js'
 import { enhanceSchedulePlanA } from './schedule-plan-a.js'
 import versionInfoIcon from './assets/version-info-icon.png'
@@ -7555,6 +7557,7 @@ function renderApp() {
 
   const overviewFilterForm = document.querySelector('#overviewFilterForm')
   if (overviewFilterForm) {
+    bindDesktopOverview(overviewFilterForm)
     const applyOverviewFilterImmediately = event => {
       if (event?.type === 'submit') event.preventDefault()
       const target = event?.target
@@ -7571,7 +7574,7 @@ function renderApp() {
         sortBy: form.get('sortBy') || 'display_order',
         sortDir: form.get('sortDir') || 'asc'
       })
-      if (overviewFilterForm.classList.contains('mobile-filter-draft') || overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
+      if (overviewFilterForm.dataset.desktopFilterApply === '1' || overviewFilterForm.classList.contains('mobile-filter-draft') || overviewFilters.departments.length || overviewFilters.staffIds.length || getOverviewViewMode().startsWith('個人')) {
         overviewQuickGroups = normalizeOverviewQuickGroups({ ...overviewQuickGroups, activeId: 'all' })
       }
       saveOverviewFiltersPreference()
@@ -23813,7 +23816,7 @@ function renderScheduleOverview() {
       </div>
 
       <div class="overview-filter-summary compact-summary">
-        目前：${escapeHtml(getOverviewFilterSummary())}
+        <span class="dc-mobile-summary">目前：${escapeHtml(getOverviewFilterSummary())}</span><span class="dc-desktop-summary">目前：${escapeHtml(viewMode)}｜部門：${escapeHtml(getOverviewDepartmentSelectedText())}｜人員：${escapeHtml(getOverviewStaffSelectedText() === '全部' && getOverviewActiveQuickGroup()?.id !== 'all' && !normalizeOverviewFilterList(overviewFilters.departments).length ? `${staffRows.length} 位（目前群組）` : getOverviewStaffSelectedText())}</span>
         ${viewMode.startsWith('個人') ? '｜個人模式固定顯示目前登入者。' : ''}
       </div>
     </form>
@@ -30666,6 +30669,7 @@ function openScheduleModal(defaults = {}) {
   document.querySelector('#cancelModalBtn').addEventListener('click', () => modal.remove())
   document.querySelector('#scheduleForm').addEventListener('submit', event => saveSchedule(event, modal))
   enhanceSchedulePlanA(modal)
+  enhanceDesktopCreate(modal)
 }
 
 function getTimeValue(form, prefix) {
