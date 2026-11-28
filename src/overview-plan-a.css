@@ -350,15 +350,28 @@
     max-width:none !important; margin:0 !important; padding:0 !important; border:0 !important;
     background:transparent !important; box-sizing:border-box !important;
   }
-  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-modes {
-    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-    width:100% !important; min-width:0 !important; max-width:100% !important; padding:3px !important; box-sizing:border-box !important;
+  /* Explicit halves rather than flex:1 + width:0. The latter can collapse
+     the selected native button to a sliver on iOS Safari/PWA. */
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-toolbar > .for-e-zoom-modes {
+    display:block !important; position:relative !important; width:100% !important;
+    height:44px !important; min-height:44px !important; max-height:44px !important;
+    min-width:0 !important; max-width:100% !important; padding:0 !important;
+    box-sizing:border-box !important; overflow:hidden !important;
   }
-  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-modes > button {
-    display:flex !important; justify-content:center !important; align-items:center !important;
-    flex:1 1 0px !important; width:0 !important; min-width:0 !important; max-width:none !important;
-    min-height:38px !important; padding:4px 1px !important; white-space:nowrap !important; font-size:12px !important;
-    box-sizing:border-box !important;
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-toolbar .for-e-zoom-modes > button[data-zoom-mode] {
+    appearance:none !important; -webkit-appearance:none !important;
+    display:flex !important; position:absolute !important; top:3px !important; bottom:3px !important;
+    justify-content:center !important; align-items:center !important; flex:none !important;
+    width:calc(50% - 4.5px) !important; min-width:calc(50% - 4.5px) !important; max-width:calc(50% - 4.5px) !important;
+    height:38px !important; min-height:38px !important; max-height:38px !important;
+    margin:0 !important; padding:4px 1px !important; white-space:nowrap !important; font-size:12px !important;
+    box-sizing:border-box !important; text-align:center !important; overflow:hidden !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-toolbar .for-e-zoom-modes > button[data-zoom-mode="normal"] {
+    left:3px !important; right:auto !important;
+  }
+  html body:not(.force-desktop-mode) #app .mobile-calendar-action-row .for-e-zoom-toolbar .for-e-zoom-modes > button[data-zoom-mode="overview"] {
+    right:3px !important; left:auto !important;
   }
   html body:not(.force-desktop-mode) #app .mobile-calendar-action-row > .mobile-calendar-refresh {
     flex:0 0 44px !important; width:44px !important; min-width:44px !important; max-width:44px !important;
