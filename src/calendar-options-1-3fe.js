@@ -267,6 +267,11 @@ const css = `
 #app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-tracking {--fore-reminder-accent:#43516F;--fore-reminder-bg:#EDF0F6;--fore-reminder-ink:#43516F;}
 #app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .for-e-reminder-important {--fore-reminder-accent:#BC4189;--fore-reminder-bg:#FDEDF6;--fore-reminder-ink:#A12F73;}
 
+/* Return notices: retain heading and case title only; details remain in the original record. */
+#app :is(table.week-overview-table,table.field-week-table,table.meeting-week-table,table.meeting-room-table) .return-reminder-day-mark :is(strong small,.week-card-preview,.field-week-card-preview,.for-e-card-secondary-text) {
+ display:none!important;
+}
+
 `;
 const style=document.createElement('style'); style.id='for-e-calendar-options-1-3fe'; style.textContent=css; document.head.append(style);
 const removed = new Set(['個人行程表','異況追蹤','異況','顏色設定']);
