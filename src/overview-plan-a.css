@@ -661,3 +661,55 @@
   }
   html body:not(.force-desktop-mode) #app .mobile-record-page .my-record-pending-panel { width:100% !important; min-width:0 !important; }
 }
+
+
+/* Mobile calendar: all card types use the same date-cell width, including
+   reminder-only buttons. Keep shared rows content-sized, never fixed-height. */
+@media (max-width:768px), (pointer:coarse) {
+  html body:not(.force-desktop-mode) #app .overview-page-layout table.for-e-horizontal-names > tbody > tr:not(.for-e-name-band) {
+    height:auto!important; min-height:0!important; max-height:none!important;
+  }
+  html body:not(.force-desktop-mode) #app .overview-page-layout table.for-e-horizontal-names > tbody > tr:not(.for-e-name-band) > td:is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell),
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(.personal-month-calendar-grid,.field-personal-month-calendar) .month-day-cell {
+    height:auto!important; min-height:44px!important; max-height:none!important;
+    padding:5px 6px!important; vertical-align:top!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Width must include borders and padding; older reminder rules imposed
+     182px minimum even when a mobile date column was narrower. */
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) :is(
+    .week-schedule-card,.field-week-schedule-card,.meeting-room-card,.meeting-room-overview-card,.meeting-week-schedule-card,
+    .return-reminder-day-mark,.administrative-reminder-day-mark,.service-reminder-week-card,.continuation-day-mark,
+    .field-day-reminder-prompt,.field-leave-return-prompt,.field-training-calendar-prompt,.birthday-card,.field-birthday-card
+  ) {
+    width:100%!important; min-width:0!important; max-width:100%!important;
+    height:auto!important; min-height:0!important; max-height:none!important;
+    margin:0 0 5px!important; padding:7px 7px!important;
+    box-sizing:border-box!important; white-space:normal!important;
+    overflow-wrap:anywhere!important; overflow:hidden!important;
+  }
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) :is(.field-training-calendar-prompt-list,.field-leave-return-prompt-list,.field-day-reminder-list) {
+    width:100%!important; min-width:0!important; max-width:100%!important;
+    height:auto!important; min-height:0!important; box-sizing:border-box!important;
+  }
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) .return-reminder-day-mark {
+    display:block!important; text-align:left!important;
+  }
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) .return-reminder-day-mark > :is(span,strong),
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) .return-reminder-day-mark strong em {
+    display:block!important; width:100%!important; min-width:0!important; max-width:100%!important;
+    height:auto!important; min-height:0!important; padding:0!important;
+    margin:0!important; font-size:13px!important; line-height:1.4!important;
+    white-space:normal!important; overflow-wrap:anywhere!important; word-break:normal!important;
+    text-overflow:clip!important; box-sizing:border-box!important;
+  }
+  html body:not(.force-desktop-mode) #app .overview-page-layout :is(table.for-e-horizontal-names,.personal-month-calendar-grid,.field-personal-month-calendar) :is(.week-day-cell,.field-week-day-cell,.meeting-week-day-cell,.month-day-cell) .return-reminder-day-mark > span {
+    margin-bottom:3px!important; font-weight:800!important;
+  }
+  /* The main page scrolls behind an opaque nav; the existing bottom padding
+     allows the final date cell to be scrolled fully above it. */
+  html body:not(.force-desktop-mode) #app .mobile-nav {
+    background:#fff!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important;
+  }
+}
